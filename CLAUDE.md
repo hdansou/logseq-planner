@@ -21,6 +21,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/core/queries.ts` | `loadNodes` / `loadTasks` (injected `Dq`): nodes of a tag ± child tags, #Task blocks whose refs hit them | use the SDK, filter/span logic (`nodes.ts`) |
 | `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset` | read process TZ outside `systemZone` |
 | `src/core/nodes.ts` | pure `resolveSpan` (mapped / point / derived / undated), `rollup`, `isDone` / `isCanceled`, `filterNodes`, `tasksOf` | query, touch DOM or SDK |
+| `src/core/display-title.ts` | `displayTitle(title, titlesByUuid(nodes))`: inline `[[uuid]]` refs → the node's title, `(link)` when not loaded; every view renders titles through it | show a raw uuid |
+| `src/core/timeline-layout.ts` | pure Timeline layout: `timelineRange` / `shiftAnchor` per zoom, `timelineItems` (span + tasks + rollup), `layoutTimeline` → columns, rows (bars as day indices, clip flags, points, task markers), undated list, today index; calendar-day arithmetic on UTC midnights (DST-safe) | read the clock (`today` is injected) |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
 | `src/ui/workspace.ts` + `workspace.css` | `createWorkspace(root, {dq, views, onClose})`: top bar, settings bar, tag tree, filters, view toolbar slot, empty states; pure `State` → HTML render functions, delegated events, actions queued (`idle()`), errors shown in `[data-region=error]` | call `logseq.*`, render a view (T08–T11) |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |

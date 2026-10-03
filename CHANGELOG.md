@@ -39,6 +39,13 @@ All notable changes to this project are documented here. The format follows
   per-view toolbar slot; empty states (no tags, no date properties, no nodes, no matches) and a placeholder per view
   kind. Store and validation errors are shown in a dismissible message. Escape closes an open menu first, then
   Planner. Default shortcut `g shift+p` (non-editing), checked free against the host keymap.
+- Timeline layout (T08): `src/core/timeline-layout.ts` computes the Week (21 day columns), Month (56 day columns) and
+  Quarter (17 week columns) ranges around an anchor and the week start, rows sorted by start with bars as day indices
+  (clipped and flagged at either edge), points, derived spans, progress, task rows with Scheduled/Deadline markers (late
+  when open past the deadline), the undated list and the today index. Day arithmetic runs on calendar days (DST-safe);
+  `today` is injected. `resolveSpan` accepts a view without a Start property.
+- Display titles (T08): `src/core/display-title.ts` shows the referenced node's title for an inline `[[uuid]]` ref, and
+  a neutral `(link)` instead of a raw uuid when the node is not loaded.
 
 ### Fixed
 - Theme (T07): a host font family is followed by a generic fallback stack, so a family the frame cannot load no

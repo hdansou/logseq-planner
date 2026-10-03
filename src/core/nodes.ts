@@ -12,10 +12,10 @@ const span = (kind: "mapped" | "derived", start: LocalDate, end: LocalDate): Nod
 /**
  * Where `node` sits on the time axis. Mapped Start/End win: both = span, one = point. With none,
  * the span runs from the earliest to the latest Scheduled/Deadline of `tasks` that reference it
- * (any status); no dates at all = undated. `endIdent` may be null (view maps no End).
+ * (any status); no dates at all = undated. Either ident may be null (the view maps no Start or no End).
  */
-export function resolveSpan(node: PlannerNode, tasks: PlannerTask[], startIdent: string, endIdent: string | null): NodeSpan {
-  const start = node.dates[startIdent];
+export function resolveSpan(node: PlannerNode, tasks: PlannerTask[], startIdent: string | null, endIdent: string | null): NodeSpan {
+  const start = startIdent === null ? undefined : node.dates[startIdent];
   const end = endIdent === null ? undefined : node.dates[endIdent];
   if (start && end) return span("mapped", start, end);
   const only = start ?? end;

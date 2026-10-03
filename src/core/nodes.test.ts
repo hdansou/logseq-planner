@@ -78,6 +78,10 @@ describe("resolveSpan", () => {
     expect(resolveSpan(node({ [endId]: d("2026-11-01") }), [], startId, endId)).toMatchObject({ kind: "point", start: d("2026-11-01") });
   });
 
+  it("a view that maps End but no Start shows End as a point", () => {
+    expect(resolveSpan(node({ [endId]: d("2026-11-01") }), [], null, endId)).toEqual({ kind: "point", start: d("2026-11-01"), end: d("2026-11-01") });
+  });
+
   it("mapped dates win over task dates", () => {
     const tasks = [task({ nodeIds: [1], deadline: d("2030-01-01") })];
     expect(resolveSpan(node({ [startId]: d("2026-10-01") }), tasks, startId, endId).kind).toBe("point");
