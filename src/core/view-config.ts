@@ -70,9 +70,54 @@ const oneOf = (what: string, allowed: readonly string[], value: unknown) => {
   if (!allowed.includes(value as string)) throw new Error(`Invalid view config: ${what} "${String(value)}" is not one of ${allowed.join(", ")}`);
 };
 
-/** Throws a clear error when `config` names an unknown tag, property, value or option. Returns the tag. */
-export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): TagInfo {
+const invalid = (msg: string) => new Error(`Invalid view config: ${msg}`);
+const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const bool = (what: string, v: unknown) => {
+  if (typeof v !== "boolean") throw invalid(`${what} must be true or false`);
+};
+const stringOrNull = (what: string, v: unknown) => {
+  if (v !== null && typeof v !== "string") throw invalid(`${what} must be a string or null`);
+};
+/** A plain object whose values are lists of value uuids (and `null` when `allowNull`). */
+const selection = (what: string, v: unknown, allowNull: boolean) => {
+  if (!isObject(v)) throw invalid(`${what} must be an object`);
+  for (const [ident, list] of Object.entries(v)) {
+    if (!Array.isArray(list)) throw invalid(`${what}[${ident}] must be a list`);
+    if (!list.every((u) => typeof u === "string" || (allowNull && u === null))) throw invalid(`${what}[${ident}] must hold value uuids${allowNull ? " or null" : ""}`);
+  }
+};
+
+/**
+ * Throws a clear error unless `config` has the stored shape: every field of its kind with the right type (strings,
+ * string-or-null, booleans, value-uuid lists in plain objects) and known option values. Graph-free: no tag needed.
+ */
+export function checkViewConfigShape(config: unknown): asserts config is ViewConfig {
+  if (!isObject(config)) throw invalid("missing config object");
   oneOf("unknown view kind", VIEW_KINDS, config.kind);
+  if (typeof config.tag !== "string") throw invalid("tag must be a string");
+  bool("childTags", config.childTags);
+  stringOrNull("start", config.start);
+  stringOrNull("end", config.end);
+  selection("doneValues", config.doneValues, false);
+  selection("filters", config.filters, true);
+  switch (config.kind) {
+    case "timeline":
+      return oneOf("timeline zoom", ZOOMS, config.zoom);
+    case "calendar":
+      return oneOf("calendar layout", LAYOUTS, config.layout);
+    case "agenda":
+      oneOf("agenda groupBy", GROUPS, config.groupBy);
+      return bool("showDone", config.showDone);
+    case "kanban":
+      oneOf("kanban sort", SORTS, config.sort);
+      stringOrNull("columnProp", config.columnProp);
+      return stringOrNull("laneProp", config.laneProp);
+  }
+}
+
+/** Throws a clear error when `config` has a wrong shape or names an unknown tag, property, value or option. Returns the tag. */
+export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): TagInfo {
+  checkViewConfigShape(config);
   const tag = tags.find((t) => t.ident === config.tag);
   if (!tag) throw new Error(`Invalid view config: unknown tag ${config.tag}`);
   const date = (ident: string | null) => {
@@ -95,21 +140,9 @@ export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): TagInfo
   };
   values(config.filters, true);
   values(config.doneValues, false);
-  switch (config.kind) {
-    case "timeline":
-      oneOf("timeline zoom", ZOOMS, config.zoom);
-      break;
-    case "calendar":
-      oneOf("calendar layout", LAYOUTS, config.layout);
-      break;
-    case "agenda":
-      oneOf("agenda groupBy", GROUPS, config.groupBy);
-      break;
-    case "kanban":
-      oneOf("kanban sort", SORTS, config.sort);
-      if (config.columnProp !== null) choice(config.columnProp);
-      if (config.laneProp !== null) choice(config.laneProp);
-      break;
+  if (config.kind === "kanban") {
+    if (config.columnProp !== null) choice(config.columnProp);
+    if (config.laneProp !== null) choice(config.laneProp);
   }
   return tag;
 }
@@ -126,7 +159,7 @@ export function toChoiceFilters(config: ViewConfig, tag: TagInfo): ChoiceFilters
 
 export const serializeViewConfig = (config: ViewConfig): string => JSON.stringify({ v: VERSION, config });
 
-/** Throws on invalid JSON, another version or a missing config; shape is checked by `validateViewConfig`. */
+/** Throws on invalid JSON, another version or a config of the wrong shape (`checkViewConfigShape`); idents are checked by `validateViewConfig`. */
 export function parseViewConfig(text: string): ViewConfig {
   let parsed: { v?: unknown; config?: unknown };
   try {
@@ -135,6 +168,6 @@ export function parseViewConfig(text: string): ViewConfig {
     throw new Error("Invalid view config: not valid JSON");
   }
   if (parsed?.v !== VERSION) throw new Error(`Invalid view config: unsupported version ${String(parsed?.v)}, expected ${VERSION}`);
-  if (typeof parsed.config !== "object" || parsed.config === null) throw new Error("Invalid view config: missing config object");
-  return parsed.config as ViewConfig;
+  checkViewConfigShape(parsed.config);
+  return parsed.config;
 }

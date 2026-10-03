@@ -125,3 +125,47 @@ describe("toChoiceFilters", () => {
     expect(toChoiceFilters(c, p)).toEqual({ [owner.ident]: [owner.values[1].id, null] });
   });
 });
+
+describe("strict shapes (T14 review)", () => {
+  const p = tag("Project");
+  const status = choice(p, "Status");
+  const base = () => defaultViewConfig(p) as unknown as Record<string, unknown>;
+  const bad: [string, Record<string, unknown>, RegExp][] = [
+    ["a filter that is a string, not a list", { filters: { [status.ident]: "" } }, /filters\[.*\] must be a list/],
+    ["filters that are a list", { filters: [] }, /filters must be an object/],
+    ["filters that are null", { filters: null }, /filters must be an object/],
+    ["a filter entry that is a number", { filters: { [status.ident]: [1] } }, /filters\[.*\] must hold value uuids or null/],
+    ["a done value that is null", { doneValues: { [status.ident]: [null] } }, /doneValues\[.*\] must hold value uuids/],
+    ["done values that are a string", { doneValues: "x" }, /doneValues must be an object/],
+    ["childTags as a string", { childTags: "true" }, /childTags must be true or false/],
+    ["tag missing", { tag: undefined }, /tag must be a string/],
+    ["start as a number", { start: 1 }, /start must be a string or null/],
+    ["end missing", { end: undefined }, /end must be a string or null/],
+  ];
+  for (const [what, patch, msg] of bad) {
+    it(`rejects ${what}, in parse and in validate`, () => {
+      const c = { ...base(), ...patch };
+      expect(() => parseViewConfig(JSON.stringify({ v: 1, config: c }))).toThrow(msg);
+      expect(() => validateViewConfig(c as never, tags)).toThrow(msg);
+    });
+  }
+
+  it("rejects showDone that is not a boolean and kanban props that are not strings or null", () => {
+    const agenda = { ...(defaultViewConfig(p, "agenda") as object), showDone: "yes" };
+    expect(() => parseViewConfig(JSON.stringify({ v: 1, config: agenda }))).toThrow(/showDone must be true or false/);
+    const board = { ...(defaultViewConfig(p, "kanban") as object), laneProp: 3 };
+    expect(() => parseViewConfig(JSON.stringify({ v: 1, config: board }))).toThrow(/laneProp must be a string or null/);
+  });
+
+  it("rejects an unknown kind or option at parse time", () => {
+    expect(() => parseViewConfig(JSON.stringify({ v: 1, config: { ...base(), kind: "gantt" } }))).toThrow(/unknown view kind "gantt"/);
+    expect(() => parseViewConfig(JSON.stringify({ v: 1, config: { ...base(), zoom: "year" } }))).toThrow(/timeline zoom "year"/);
+  });
+
+  it("still parses every default config", () => {
+    for (const kind of ["timeline", "calendar", "agenda", "kanban"] as const) {
+      const c = defaultViewConfig(p, kind);
+      expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+    }
+  });
+});

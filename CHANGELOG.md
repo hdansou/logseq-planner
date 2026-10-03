@@ -127,6 +127,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Saved views (T14): a stored config is checked for its shape before it is used (`checkViewConfigShape`, called by
+  `parseViewConfig` and `validateViewConfig`): `filters` and `doneValues` must be plain objects of value-uuid lists
+  (`null` allowed in filters only), `childTags` and `showDone` booleans, `tag` a string, `start`, `end`, `columnProp` and
+  `laneProp` strings or null, and the kind and its options known values. A config such as
+  `filters: {"<ident>": ""}` is rejected with a message naming the field.
 - Saved views (T14): the suggested name has no markup ("Project kanban", was "#Project kanban", which made Logseq tag
   the view block #Project and show it as a card on the board). Every name is sanitised before it is written
   (`sanitizeViewName`: `#`, `[`, `]`, `{`, `}` dropped, runs of `(` or `)` folded, spaces collapsed); the UI shows the
