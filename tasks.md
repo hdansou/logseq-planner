@@ -45,7 +45,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       (shui channels wrapped in hsl, fallbacks, hover ≠ float guard). Accept: empty UI
       matches Inkwell light and dark, and a second theme. Est: ~40 min
 
-- [ ] **T03 Schema discovery** — `src/core/schema.ts`. Tags → `TagInfo[]` tree (own vs
+- [x] **T03 Schema discovery** — `src/core/schema.ts`. Tags → `TagInfo[]` tree (own vs
       built-in, parent via extends), date props and choice props incl. inherited, closed
       values with built-in done flags. Test first over T01 fixtures: child tag inherits
       parent props; tag without dates has `dateProps: []`. Est: ~30 min
@@ -171,3 +171,13 @@ Total: about 10 hours.
   build's default dark theme they are absent, so fills use the Inkwell defaults; plugin
   surface there is rgb(0,45,56) (`--background`) against the host body's rgb(0,43,54).
   Query Builder uses the same theme pattern and was not checked for this race.
+- 2026-10-03 T03 done (ce9bb92). 12 unit tests over the T01 fixtures (34 total). Live on
+  `plugin-test`: `loadTagInfos` imported from the dev server and run inside the plugin
+  iframe against the real `logseq.DB.datascriptQuery` returned 20 tags in ~10 ms; Project
+  (Start/End date, Status with Todo=false, Done=true, Canceled flagged, Owner Alice|Bob,
+  child Client project), Client project (parent Project, same inherited props, text
+  property Client not listed), Meeting (Date datetime, Type), Task (built-in, Deadline and
+  Scheduled, Status, Priority), Page (no dates); no created-at/updated-at anywhere.
+  First live run returned 17 tags and no user tags: the page reload before it had dropped
+  the seed. Re-seeded, then it passed. The seed does not reliably survive a reload
+  (docs/probes.md corrected); verify the seed before every live check.

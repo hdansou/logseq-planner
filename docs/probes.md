@@ -17,9 +17,10 @@ Everything under **Observed** was seen live and is backed by a raw fixture. Stat
 
 - Graph `plugin-test`, created with *All graphs → Create a new graph* (no sync). In this browser
   profile (not cross-origin isolated, no `SharedArrayBuffer`) the web app made it in-memory
-  (`memory:///plugin-test`). Observed: the graph and its seed survived a page reload within the same
-  browser session (`--seed` then refuses with "already exists"). A new browser session starts
-  without it; re-seed with `--seed`.
+  (`memory:///plugin-test`). Observed both ways within one browser session: after one page reload the graph
+  kept its seed (`--seed` refused with "already exists"); after a later reload the graph was
+  still open but the seed and its tags were gone. Do not rely on it: check for the seed after any
+  reload and re-seed with `--seed`. A new browser session always starts without it.
 - Seed: `scripts/seed.edn.mjs`, imported with `logseq.api.import_edn` (sqlite.build EDN) from the host
   page. The import creates real user properties and tags with random ident suffixes
   (`:user.property/start-Sd0PMVjj`, `:user.class/Project-NobOOFIJ`), the same shape the UI creates.
