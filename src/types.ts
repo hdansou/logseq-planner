@@ -28,6 +28,8 @@ export interface AppDeps {
   dq(query: string, ...inputs: unknown[]): Promise<unknown[]>;
   /** The SDK behind the saved-views store. */
   storage: StorageDeps;
+  /** The SDK behind Kanban moves. */
+  kanban: KanbanWriteDeps;
 }
 
 /** The SDK calls `watchTheme` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */
@@ -183,4 +185,17 @@ export interface StorageDeps {
   appendBlock(pageUuid: string, name: string): Promise<string | null>;
   setConfig(uuid: string, text: string): Promise<void>;
   removeBlock(uuid: string): Promise<void>;
+}
+
+/**
+ * The SDK calls a Kanban move needs; `src/sdk.ts` supplies the real ones, tests pass fakes. Observed live (T01,
+ * docs/probes.md): both write calls resolve null on success AND on failure, so every write is read back.
+ */
+export interface KanbanWriteDeps {
+  /** `logseq.Editor.upsertBlockProperty(uuid, key, valueId)`: `key` = full ident without the leading colon, `valueId` = the closed value's entity id. */
+  upsertBlockProperty(uuid: string, key: string, valueId: number): Promise<unknown>;
+  /** `logseq.Editor.removeBlockProperty(uuid, key)`: `key` = full ident without the leading colon. */
+  removeBlockProperty(uuid: string, key: string): Promise<unknown>;
+  /** Entity id of the closed value the node holds now for property `ident` (with its leading colon), null when it has none. */
+  readChoice(uuid: string, ident: string): Promise<number | null>;
 }

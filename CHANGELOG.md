@@ -84,6 +84,15 @@ All notable changes to this project are documented here. The format follows
   chip. By node: a panel per node with its dates, Status and Owner, progress and its tasks underneath. Entries are
   buttons with the status icon, date and "N days late"; click opens the node or task and hides Planner, Shift+click opens
   it in the right sidebar. An empty agenda says so and points at Show done. `toggleButton` joins the shared HTML helpers.
+- Kanban model and writes (T11): `src/core/kanban.ts` builds the board from a choice property (every closed value in
+  order plus "No <prop>"), optional swimlanes from a second one (plus "No <prop>"), per-column and per-lane counts, done
+  columns by the view's done values, and cards (display title, end date or "no date", late flag, task progress, Priority,
+  the other choice values) sorted inside each cell by due/end date (undated last), Priority (the tag's Priority choice,
+  last value highest, none last) or title. `moveDescriptor` turns a drop into property writes: the column property when
+  it changes, the lane property when it does, a removal when the target is "No <prop>". `writeMove` sends each write as
+  T01 observed working (`upsertBlockProperty(uuid, <full ident without colon>, <closed value entity id>)`,
+  `removeBlockProperty(uuid, <same key>)`), reads the value back and throws a clear error when the graph does not hold
+  it. The SDK side is `kanbanWriteDeps()` in `src/sdk.ts`. Not yet verified live.
 ### Fixed
 - Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
   first grid track is a fixed `--pl-cal-head-h` (28px) instead of `auto`, which nothing sized and collapsed to 0.

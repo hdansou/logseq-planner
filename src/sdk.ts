@@ -3,7 +3,7 @@
 import type { Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
-import type { AppDeps, StorageDeps, ViewBlock } from "./types";
+import type { AppDeps, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /** Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI. */
 const FULL_SCREEN: Record<string, string> = {
@@ -46,6 +46,7 @@ export const appDeps = (): AppDeps => ({
   macWindowButtons: /Mac/.test(navigator.platform) && /Electron/.test(navigator.userAgent),
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
+  kanban: kanbanWriteDeps(),
   theme: {
     later: (fn, ms) => void setTimeout(fn, ms),
     getUserConfigs: () => logseq.App.getUserConfigs(),
@@ -107,4 +108,33 @@ export const storageDeps = (): StorageDeps => ({
   appendBlock: async (pageUuid, name) => (await logseq.Editor.appendBlockInPage(pageUuid, name))?.uuid ?? null,
   setConfig: async (uuid, text) => void (await logseq.Editor.upsertBlockProperty(uuid, CONFIG_KEY, text)),
   removeBlock: async (uuid) => void (await logseq.Editor.removeBlock(uuid)),
+});
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const IDENT_RE = /^:[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
+
+/**
+ * The node's value of a choice property, pulled the way T01's read-backs were (scripts/probe.mjs `readOwner`): by
+ * uuid, the uuid passed as an EDN `#uuid` input. The ident goes into the pull pattern, so it must be a full keyword.
+ */
+export function choiceReadQuery(ident: string): string {
+  if (!IDENT_RE.test(ident)) throw new Error(`Not a full property ident: ${ident}`);
+  return `[:find (pull ?b [:block/uuid {${ident} [:db/id]}]) :in $ ?u :where [?b :block/uuid ?u]]`;
+}
+
+/**
+ * The real SDK behind a Kanban move. Arguments go through unchanged: `writeMove` (src/core/kanban.ts) passes the key
+ * and value in the forms T01 saw work live (full ident without the colon, closed value entity id). Both write calls
+ * resolve null whether they worked or not; `readChoice` is the check. UNVERIFIED LIVE as a whole until T11's live pass.
+ */
+export const kanbanWriteDeps = (): KanbanWriteDeps => ({
+  upsertBlockProperty: (uuid, key, valueId) => logseq.Editor.upsertBlockProperty(uuid, key, valueId),
+  removeBlockProperty: (uuid, key) => logseq.Editor.removeBlockProperty(uuid, key),
+  readChoice: async (uuid, ident) => {
+    if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);
+    const rows = (await datascriptQuery(choiceReadQuery(ident), `#uuid "${uuid}"`)) as [Record<string, { id?: number } | undefined>][];
+    if (!rows.length) throw new Error(`Block ${uuid} not found when reading ${ident} back`);
+    // Pull-map keys keep the full ident (with its colon); :db/id comes back as `id` (docs/probes.md).
+    return rows[0][0]?.[ident]?.id ?? null;
+  },
 });

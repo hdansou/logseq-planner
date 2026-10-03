@@ -40,6 +40,7 @@ function fakeDeps() {
       setConfig: async () => {},
       removeBlock: async () => {},
     },
+    kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
   return { deps, flush };

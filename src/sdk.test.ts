@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { hostWeekStart, pageQuery, storageDeps } from "./sdk";
+import { choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -39,5 +39,39 @@ describe("host week start", () => {
     await expect(hostWeekStart()).rejects.toThrow(/preferredStartOfWeek/);
     configs("monday");
     await expect(hostWeekStart()).rejects.toThrow(/preferredStartOfWeek/);
+  });
+});
+
+describe("Kanban writes (T11; T01 observed shapes, docs/probes.md)", () => {
+  const UUID = "6a000000-0000-4000-8000-000000000001";
+  const OWNER = ":user.property/owner-rDOlrnNh";
+
+  it("passes the key and the closed value entity id through to the SDK unchanged", async () => {
+    const upsertBlockProperty = vi.fn(async () => null);
+    const removeBlockProperty = vi.fn(async () => undefined);
+    vi.stubGlobal("logseq", { Editor: { upsertBlockProperty, removeBlockProperty } });
+    await kanbanWriteDeps().upsertBlockProperty(UUID, "logseq.property/status", 78);
+    await kanbanWriteDeps().removeBlockProperty(UUID, "user.property/owner-rDOlrnNh");
+    expect(upsertBlockProperty).toHaveBeenCalledWith(UUID, "logseq.property/status", 78);
+    expect(removeBlockProperty).toHaveBeenCalledWith(UUID, "user.property/owner-rDOlrnNh");
+  });
+
+  it("reads the property back with the probe's read-back form: a pull by uuid with a #uuid input", async () => {
+    const sent: unknown[][] = [];
+    const rows: unknown[] = [[{ uuid: UUID, [OWNER]: { id: 215 } }]];
+    vi.stubGlobal("logseq", { DB: { datascriptQuery: async (...args: unknown[]) => (sent.push(args), rows) } });
+    expect(await kanbanWriteDeps().readChoice(UUID, OWNER)).toBe(215);
+    expect(sent[0]).toEqual([choiceReadQuery(OWNER), `#uuid "${UUID}"`]);
+    expect(choiceReadQuery(OWNER)).toBe(`[:find (pull ?b [:block/uuid {${OWNER} [:db/id]}]) :in $ ?u :where [?b :block/uuid ?u]]`);
+  });
+
+  it("an absent value reads as null; a missing block or a malformed ident fails", async () => {
+    let rows: unknown[] = [[{ uuid: UUID }]];
+    vi.stubGlobal("logseq", { DB: { datascriptQuery: async () => rows } });
+    expect(await kanbanWriteDeps().readChoice(UUID, OWNER)).toBeNull();
+    rows = [];
+    await expect(kanbanWriteDeps().readChoice(UUID, OWNER)).rejects.toThrow(/not found/);
+    expect(() => choiceReadQuery("user.property/owner")).toThrow(/ident/);
+    await expect(kanbanWriteDeps().readChoice("not-a-uuid", OWNER)).rejects.toThrow(/uuid/);
   });
 });
