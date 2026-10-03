@@ -2,7 +2,7 @@
 
 Requirements: [REQUIREMENTS.md](REQUIREMENTS.md) · Design: [docs/design.md](docs/design.md)
 Prototype: https://claude.ai/artifact/KU9Z831Y9y974EUW1yVcud
-Started: 2026-10-03 · Status: in progress
+Started: 2026-10-03 · Status: v1 built; validated in the web app only (see the last log entries)
 
 Rules: one item per change; each item names its acceptance test and the test is written
 first (TDD); UI items are accepted on what renders; docs land in the same commit as the
@@ -103,7 +103,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       theme; first-view and redraw timings on a ~2,000-node seed. Accept: checklist passes,
       timings recorded. Est: ~40 min
 
-- [ ] **T14 Review and docs** — run code-review and security-audit; README (install, usage,
+- [x] **T14 Review and docs** — run code-review and security-audit; README (install, usage,
       screenshot placeholder), ARCHITECTURE.md (5+ source files by now), CHANGELOG.
       Accept: findings fixed or logged; Status set to done. Est: ~30 min
 
@@ -433,3 +433,40 @@ Total: about 10 hours.
   to the default view with a message. A created tag appears at once.
   Not run (need the desktop app, another browser, a person, or sync): A9, C4.3, D11,
   D12, D14, E12, G5, H8, H12, H13, H14, I9, I10. Partial rows are listed in the doc.
+- 2026-10-03 T14 done. README.md and ARCHITECTURE.md written (7b8da2d). Code review
+  (opus, read-only) and security audit (sonnet, read-only) run; 17 items fixed test-first
+  in f374e10..92ec1d7; 488 unit tests.
+  Audit: no HTML injection (every graph string escaped at every sink), no query
+  injection from graph data, no unintended writes, no secrets in the tree or history,
+  `npm audit` 0 vulnerabilities, dev hooks absent from a production build.
+  Defects confirmed live before the fix: a click on a toolbar label reset the view's
+  settings (range label: week → month); tags titled "2026 goals" / "true" / ":kw" loaded
+  nothing (the host EDN-reads string inputs); a view saved with the suggested name
+  "#Project kanban" was tagged #Project by Logseq and appeared as a card; a tagged block
+  on a page in Recycle still appeared.
+  Fixed (and checked live on 92ec1d7 where marked *): toolbar container no longer acts
+  as a view switch*; queries take the tag's entity id*; recycled blocks and pages are
+  excluded*; saved-view names are sanitised, checked for tags after writing, and the
+  suggestion has no "#"*; strict config shapes; an unreadable saved view is listed
+  greyed and deletable*; the action queue cannot stay rejected; only single-value
+  choice properties are used; saved views re-listed on every show*; a two-write move
+  that fails on the second write puts the first back*; idents with ? + ' etc. accepted;
+  null Start/column take defaults once the tag has properties; a refresh owed while
+  hidden marks the data stale; dev probe `timings` op and source check; drag state
+  cleared on any dragend/drop; a Date value without a journal day is "no value"; a
+  failed first load shows the error with Retry; hostile-title regression test; helper
+  duplication removed; listeners unhooked on unload.
+  Re-measured at 2,000 nodes with the new queries (DEV build): first load 215 ms;
+  refresh Calendar 168–174, Kanban 180–191, Agenda 174–178 (one run 249), Timeline 180
+  with four runs at 254–302 right after opening. Regression on #Project (Timeline,
+  Calendar, Agenda) unchanged.
+  Not run live: docs/manual-test.md J3, J7, J10–J14 (same-titled tags, a multi-value
+  property, a "Done?" property, late-added properties, drag ended outside the frame, a
+  Date value removed in Logseq, Retry after a failed load).
+  Left for the owner: no LICENSE file (package.json says MIT); the Agenda calls a task
+  with only a past Scheduled date overdue while Timeline/Calendar mark lateness on the
+  Deadline only; a task linked to two nodes is listed under the first one in the Agenda
+  by node; deleting a tag does not trigger a refresh (next change or 30 s poll); CSP
+  not added; nothing validated on the desktop app or a current Logseq build; queries
+  that scan on a constant attribute value are untested on a persisted (non in-memory)
+  graph.

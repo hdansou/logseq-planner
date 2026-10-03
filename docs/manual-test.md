@@ -12,7 +12,7 @@ marked **[new]** were not recorded in the log: write down what shows and judge i
 Result column: `pass`, `partial` (part of the row was checked; the note says which), `not run`.
 The Build column is the Planner commit the row was checked on. Rows checked during T07–T12 keep
 that task's build and were not all re-run on the current one; the #Project and #Meeting views were
-re-run after the T13a performance changes. Totals: 100 pass, 13 partial, 13 not run. Not run:
+re-run after the T13a performance changes. Totals for sections A–I: 100 pass, 13 partial, 13 not run. Section J (the T14 fixes, run on 92ec1d7): 7 pass, 7 not run (J3, J7, J10–J14). Not run:
 A9, C4.3, D11, D12, D14, E12, G5, H8, H12, H13, H14, I9, I10. Everything was run in the web app
 (an older Logseq checkout), not the desktop app.
 
@@ -295,15 +295,15 @@ Rows added with the T14 review fixes; none run live yet.
 
 | Id | Steps | Expected | Result | Build | Date | Notes |
 |---|---|---|---|---|---|---|
-| J1 | Timeline in Week zoom: click the range label, the toolbar padding; Kanban: click the hint and the "Sort" label | The zoom, sort and other view settings do not change | not run |  |  |  |
-| J2 | Create tags titled "2026 goals", "true" and ":kw", tag a node with each, open each in Planner | Each tag shows its node | not run |  |  |  |
+| J1 | Timeline in Week zoom: click the range label, the toolbar padding; Kanban: click the hint and the "Sort" label | The zoom, sort and other view settings do not change | pass | 92ec1d7 | 2026-10-03 | range label and Kanban hint clicked; zoom stayed week, sort stayed title |
+| J2 | Create tags titled "2026 goals", "true" and ":kw", tag a node with each, open each in Planner | Each tag shows its node | pass | 92ec1d7 | 2026-10-03 | each tag showed its own node on the Kanban |
 | J3 | Two tags with the same title, one node each; open each | Each shows only its own node | not run |  |  |  |
-| J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
-| J5 | Save a view with the suggested name; save another named "#Project [[x]] {{y}}" | Suggested name is "Project kanban" (no #); the second is saved as "Project x y"; neither block on "Planner views" has a tag; no view block shows up as a card | not run |  |  |  |
-| J6 | On "Planner views", edit one view block's hidden `planner-view-config` to `{"v":1,"config":{}}` (e.g. via the CLI), reopen Planner, open Saved views | The other views list and open; the broken one is greyed with "Cannot be opened: …" and can be deleted | not run |  |  |  |
+| J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | pass | 92ec1d7 | 2026-10-03 | page with a #Project block moved to Recycle: the card left the board on the next refresh; the single deleted block case not run |
+| J5 | Save a view with the suggested name; save another named "#Project [[x]] {{y}}" | Suggested name is "Project kanban" (no #); the second is saved as "Project x y"; neither block on "Planner views" has a tag; no view block shows up as a card | pass | 92ec1d7 | 2026-10-03 | suggested name "Project kanban" saved untagged; "#Project [[x]] {{y}} ((z)) plan" saved as "Project x y (z) plan", untagged; board still 4 cards |
+| J6 | On "Planner views", edit one view block's hidden `planner-view-config` to `{"v":1,"config":{}}` (e.g. via the CLI), reopen Planner, open Saved views | The other views list and open; the broken one is greyed with "Cannot be opened: …" and can be deleted | pass | 92ec1d7 | 2026-10-03 | config corrupted from the host: listed greyed with "Cannot be opened: Invalid view config: tag must be a string", deletable; the other views still listed |
 | J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | not run |  |  |  |
-| J8 | With Planner open in tab A, save a view in tab B (same graph); in A close and reopen Planner; then delete it in B and reopen in A | The view appears in A after the reopen, and is gone after the second | not run |  |  |  |
-| J9 | Kanban with swimlanes: stub the host so the lane write does nothing (as in the T11 silent-failure check), drag a card to another column and lane | Error ends "Status was put back to …, so the card has not moved."; the graph holds the old Status and Owner | not run |  |  |  |
+| J8 | With Planner open in tab A, save a view in tab B (same graph); in A close and reopen Planner; then delete it in B and reopen in A | The view appears in A after the reopen, and is gone after the second | pass | 92ec1d7 | 2026-10-03 | a view block added from the host appeared after hide + show and opened; done from the host, not a second tab |
+| J9 | Kanban with swimlanes: stub the host so the lane write does nothing (as in the T11 silent-failure check), drag a card to another column and lane | Error ends "Status was put back to …, so the card has not moved."; the graph holds the old Status and Owner | pass | 92ec1d7 | 2026-10-03 | calls: status=Doing, owner=Alice (dropped), status=Todo; error "Owner of "Mobile app" was not saved as Alice (read back differs). Status was put back to Todo, so the card has not moved."; graph unchanged |
 | J10 | Give #Project a choice property named "Done?" (or "Who's"), use it as the Kanban column property and move a card | The move is written and read back with no "Not a full property ident" error | not run |  |  |  |
 | J11 | Open a tag with no properties in Timeline and in Kanban; in Logseq add a Start date property and a Status choice to it | Without reopening, the Timeline maps Start (and End by the default rule) and the Kanban shows Status columns | not run |  |  |  |
 | J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | not run |  |  |  |
