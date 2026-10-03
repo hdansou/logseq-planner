@@ -11,6 +11,10 @@ export interface AppDeps {
   /** Shows the main UI full-screen (container styled directly, see CLAUDE.md). */
   showMainUI(): void;
   hideMainUI(): void;
+  /** Routes the main area to a node (page or block) by uuid. */
+  openPage(uuid: string): void;
+  /** Opens a node by uuid in the right sidebar. */
+  openInSidebar(uuid: string): void;
   theme: ThemeDeps;
   /** Runs `fn` after `main()` returns, so registrations do not delay the ready handshake (gotcha §18). */
   defer(fn: () => void): void;

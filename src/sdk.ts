@@ -37,6 +37,9 @@ export const appDeps = (): AppDeps => ({
     logseq.showMainUI({ autoFocus: true });
   },
   hideMainUI: () => logseq.hideMainUI({ restoreEditingCursor: true }),
+  // The page route takes a uuid for pages and blocks alike (Query Builder src/nav.ts, verified there live).
+  openPage: (uuid) => void logseq.App.pushState("page", { name: uuid }),
+  openInSidebar: (uuid) => logseq.Editor.openInRightSidebar(uuid),
   later: (fn, ms) => void setTimeout(fn, ms),
   macWindowButtons: /Mac/.test(navigator.platform) && /Electron/.test(navigator.userAgent),
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),

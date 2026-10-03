@@ -46,8 +46,18 @@ All notable changes to this project are documented here. The format follows
   `today` is injected. `resolveSpan` accepts a view without a Start property.
 - Display titles (T08): `src/core/display-title.ts` shows the referenced node's title for an inline `[[uuid]]` ref, and
   a neutral `(link)` instead of a raw uuid when the node is not loaded.
+- Timeline view (T08): `src/ui/timeline.ts` + `timeline.css` replace the Timeline placeholder. Toolbar with prev / next,
+  Today, the range label and the Week / Month / Quarter zoom (zoom is saved with a view; the anchor is not). One row per
+  dated node on a grid of day tracks: bars in the node's category colour with a progress strip, dashed when derived from
+  tasks, squared off with a mark where clipped at the range edge, diamonds for one-date nodes, an edge hint for a node
+  wholly outside the range; expandable task rows with status icons and Scheduled / Deadline markers (late deadlines in
+  red); today line in the accent colour; undated nodes in a footnote. Click on a row, bar, diamond, task or footnote
+  name opens the node and hides Planner; Shift+click opens it in the right sidebar (`openPage` / `openInSidebar` in
+  `src/sdk.ts`). Week start is a workspace option (Sunday until T09 wires Logseq's setting).
 
 ### Fixed
+- Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the
+  remaining height; the fixed row template put the body in an auto-sized row whenever no error row was shown.
 - Theme (T07): a host font family is followed by a generic fallback stack, so a family the frame cannot load no
   longer renders in serif; `--pl-tint-soft` is derived from `--pl-tint` instead of the host's `--accent` (the default
   theme sets it to the strong primary, which made selected rows unreadable); focus is a 2px `--pl-ring` outline.

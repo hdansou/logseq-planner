@@ -1,57 +1,13 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import tagsFixture from "../core/__fixtures__/tags.json";
-import propsFixture from "../core/__fixtures__/class-properties.json";
-import nodesFixture from "../core/__fixtures__/nodes.json";
-import datesFixture from "../core/__fixtures__/dates.json";
-import tasksFixture from "../core/__fixtures__/tasks.json";
-import { loadTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { JOURNAL_DAYS_QUERY, NODES_QUERY, TASKS_QUERY } from "../core/queries";
+import { loadTagInfos, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
-import type { StorageDeps, TagInfo, ViewBlock } from "../types";
+import type { StorageDeps, TagInfo } from "../types";
 import { createWorkspace, initialTag, type Workspace } from "./workspace";
+import { fakeStorage, fixtureDq } from "./test-fakes";
 import { loadNodes, loadTasks } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
-
-/** Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting only. */
-const fixtureDq = (opts: { noTags?: boolean } = {}): Dq => async (query, ...inputs) => {
-  if (query === TAGS_QUERY) return opts.noTags ? [] : (tagsFixture.query.detail as unknown[]);
-  if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
-  if (query === NODES_QUERY) {
-    if (inputs[0] === "Project") return nodesFixture.projectWithExtends.detail as unknown[];
-    if (inputs[0] === "Meeting") return nodesFixture.meeting.detail as unknown[];
-    return [];
-  }
-  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
-  if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
-  throw new Error(`unexpected query ${query}`);
-};
-
-/** In-memory saved-views graph; `silent` writes resolve without storing anything, like the real API on failure. */
-function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {}): StorageDeps {
-  let page: string | null = opts.blocks ? "page-1" : null;
-  let blocks: ViewBlock[] = opts.blocks ?? [];
-  let n = 0;
-  return {
-    findPage: async () => page,
-    createPage: async () => void (page = "page-1"),
-    ensureConfigProperty: async () => {},
-    listBlocks: async () => blocks.map((b) => ({ ...b })),
-    readBlock: async (u) => blocks.find((b) => b.uuid === u) ?? null,
-    appendBlock: async (_p, name) => {
-      if (opts.silent) return "ghost";
-      const uuid = `b-${++n}`;
-      blocks.push({ uuid, name, config: null });
-      return uuid;
-    },
-    setConfig: async (u, text) => {
-      const b = blocks.find((x) => x.uuid === u);
-      if (b) b.config = text;
-    },
-    removeBlock: async (u) => void (blocks = blocks.filter((b) => b.uuid !== u)),
-  };
-}
 
 let tags: TagInfo[];
 const tag = (title: string) => {
@@ -65,12 +21,14 @@ const choice = (t: TagInfo, title: string) => t.choiceProps.find((p) => p.title 
 let root: HTMLElement;
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel);
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
+/** Nodes the Timeline shows: rows plus the undated footnote. */
+const shownNodes = () => $$("[data-tl-row]").length + $$("[data-tl-undated] [data-tl-open]").length;
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
 
 async function setup(opts: { dq?: Dq; storage?: StorageDeps } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, zone: () => -300 });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03" });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -129,12 +87,20 @@ describe("empty states", () => {
     expect(ws.config()!.filters).toEqual({});
   });
 
-  it("shows a placeholder with the node count when there are nodes", async () => {
+  it("shows a placeholder with the node count for a view kind not built yet", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
+    await click(ws, "[data-view-kind=calendar]");
     expect($("[data-empty]")).toBeNull();
     expect(text("[data-region=view-placeholder]")).toContain("4 nodes");
-    expect(text("[data-region=view-placeholder]")).toContain("Timeline");
+    expect(text("[data-region=view-placeholder]")).toContain("Calendar");
+  });
+
+  it("renders the Timeline for the timeline kind (T08)", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    expect($("[data-region=view] [data-timeline]")).not.toBeNull();
+    expect($("[data-region=view-placeholder]")).toBeNull();
   });
 });
 
@@ -168,7 +134,7 @@ describe("settings bar", () => {
     expect(text("[data-control=done-values]")).toContain("Type");
     expect($("input[data-control=child-tags]")).toBeNull(); // Meeting has no child tags
     expect(ws.config()).toMatchObject({ tag: tag("Meeting").ident, start: dateIdent(tag("Meeting"), "Date"), end: null, filters: {}, doneValues: {} });
-    expect(text("[data-region=view-placeholder]")).toContain("3 nodes");
+    expect(shownNodes()).toBe(3);
   });
 
   it("switching to a tag with no dates hides the date pickers and shows that empty state", async () => {
@@ -197,7 +163,7 @@ describe("settings bar", () => {
     await pickTag(ws, "Project");
     await click(ws, "input[data-control=child-tags]");
     expect(ws.config()!.childTags).toBe(false);
-    expect(text("[data-region=view-placeholder]")).toContain("3 nodes");
+    expect(shownNodes()).toBe(3);
   });
 
   it("done values: unticking Canceled stores the remaining value uuids", async () => {
@@ -241,6 +207,7 @@ describe("tasks of the visible nodes (T07 D4)", () => {
     const all = await loadTasks(fixtureDq(), nodes, zone);
     const expected = all.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
     expect(expected).toBeLessThan((await loadTasks(fixtureDq(), await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone }), zone)).length);
+    await click(ws, "[data-view-kind=calendar]"); // the placeholder states the counts
     expect(text("[data-region=view-placeholder]")).toContain(`${nodes.length} nodes · ${expected} linked task`);
   });
 });
@@ -258,6 +225,13 @@ describe("tag tree", () => {
     expect($("[data-tag-group=built-in]")!.hidden).toBe(false);
     await click(ws, "[data-action=toggle-built-in]");
     expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
+  });
+
+  it("runs the left column to the bottom of the window (T07 open item; stylesheet, happy-dom does not lay out)", () => {
+    // The body takes the remaining height whether or not the error row is present, and the sidebar stretches in it.
+    expect(workspaceCss).toMatch(/\.pl-ws\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100vh/);
+    expect(workspaceCss).toMatch(/\.pl-body\s*\{[^}]*flex:\s*1 1 0;[^}]*min-height:\s*0/);
+    expect(workspaceCss).not.toMatch(/\.pl-sidebar\s*\{[^}]*align-self:/);
   });
 
   it("spaces a group heading that follows a tag list (stylesheet; happy-dom does not lay out)", () => {

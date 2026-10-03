@@ -2,7 +2,9 @@
 html, body, #app { height: 100%; }
 * { box-sizing: border-box; }
 
-.pl-ws { display: grid; grid-template-rows: auto auto auto 1fr; height: 100vh; overflow: hidden; }
+/* A column whose last child (the body) takes the remaining height, with or without the error row: with a fixed row
+   template the body landed in an auto row when no error was shown, and the sidebar stopped below its content (T07). */
+.pl-ws { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* Top bar */
 .pl-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--pl-line-soft); }
@@ -55,7 +57,8 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-error > span { flex: 1; }
 
 /* Body: tag tree and filters | main */
-.pl-body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
+.pl-ws > :not(.pl-body) { flex: none; }
+.pl-body { display: grid; grid-template-columns: 220px 1fr; flex: 1 1 0; min-height: 0; }
 .pl-sidebar { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
 .pl-sidebar .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
 .pl-tree + .pl-group-header { margin-top: 16px; }

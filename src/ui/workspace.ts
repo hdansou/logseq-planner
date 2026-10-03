@@ -2,14 +2,18 @@
 // Start, End, done values), tag tree and choice filters, a per-view toolbar slot and the main area.
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
+// The Timeline (T08) renders into the view area and the toolbar slot; the other kinds show a placeholder.
 import { loadNodes, loadTasks } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos } from "../core/schema";
 import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, type ViewConfig, type ViewKind } from "../core/view-config";
+import { titlesByUuid } from "../core/display-title";
+import { layoutTimeline, shiftAnchor, timelineItems, type TimelineLayout } from "../core/timeline-layout";
 import type { SavedView, ViewStore } from "../storage";
-import type { ChoiceProp, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
+import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 export interface WorkspaceDeps {
   dq: Dq;
@@ -18,6 +22,12 @@ export interface WorkspaceDeps {
   onClose(): void;
   /** Local zone offset for DateTime values; defaults to the machine's. */
   zone?: ZoneOffset;
+  /** Opens a node (page or block) by uuid: in the main area, or in the right sidebar with Shift. */
+  openNode(uuid: string, opts: { sidebar: boolean }): void;
+  /** Today as a local `YYYY-MM-DD`; defaults to the machine's clock. */
+  today?: () => string;
+  /** First day of the week, 0 = Sunday … 6 = Saturday; defaults to Sunday (Logseq's default). */
+  weekStart?: number;
 }
 
 export interface Workspace {
@@ -46,6 +56,16 @@ interface State {
   error: string | null;
   /** The built-in tags group of the tag tree is open (collapsed by default; opened when a built-in tag is selected). */
   builtInOpen: boolean;
+  /** Timeline anchor day; null = today. Session state: never saved with a view. */
+  anchor: string | null;
+  /** Node ids whose task rows are expanded (Timeline). Session state. */
+  expanded: Set<number>;
+}
+
+/** What the clock and calendar settings say right now: injected so renders stay pure. */
+interface Now {
+  today: string;
+  weekStart: number;
 }
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
@@ -93,6 +113,16 @@ const primaryChoice = (tag: TagInfo): ChoiceProp | undefined => tag.choiceProps.
 const doneUuids = (config: ViewConfig, prop: ChoiceProp) => prop.values.filter((v) => isDone(v, config.doneValues[prop.ident])).map((v) => v.uuid);
 
 const toggle = <T>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
+
+/** The built-in Task Status values (their flags decide done); none in a graph without the Task tag, then every task is open. */
+const taskStatusValues = (tags: TagInfo[]): ClosedValue[] =>
+  tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")?.values ?? [];
+
+/** The machine's local day as `YYYY-MM-DD` (the default `today`). */
+export function localToday(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 // ---------------------------------------------------------------- render (pure: state → HTML)
 
@@ -211,37 +241,55 @@ function renderFilters(s: State, tag: TagInfo): string {
 const empty = (key: string, title: string, body: string, action = "") =>
   `<div class="pl-empty" data-empty="${key}"><b>${title}</b><span>${body}</span>${action}</div>`;
 
-/** The main area: loading, one of the empty states, or the placeholder for the view kind (views land in T08–T11). */
-function renderView(s: State, tag: TagInfo | undefined): string {
-  if (s.loading) return `<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`;
-  if (!s.tags.length) return empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here.");
-  if (!tag || !s.config) return "";
-  const name = `#${esc(tag.title)}`;
-  if (s.config.kind !== "kanban" && !tag.dateProps.length) {
-    return empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag.");
-  }
-  if (!s.nodes.length) return empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`);
-  const shown = visibleData(s.config, tag, s.nodes, s.tasks);
-  if (!shown.nodes.length) {
-    return empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the left column.",
-      `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`);
-  }
-  const kind = KIND_LABEL[s.config.kind];
-  return `<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
-    + `<span>${plural(shown.nodes.length, "node")} · ${plural(shown.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`;
+/** The Timeline layout for the visible nodes. */
+function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): TimelineLayout {
+  const c = s.config!;
+  if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
+  const statusValues = taskStatusValues(s.tags);
+  return layoutTimeline({
+    items: timelineItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
+    titles: titlesByUuid(s.nodes),
+  });
 }
 
-function renderWorkspace(s: State): string {
+/** The main area (loading, an empty state, the Timeline or the placeholder for a kind not built yet) and its toolbar. */
+function renderView(s: State, tag: TagInfo | undefined, now: Now): { view: string; toolbar: string } {
+  const view = (html: string) => ({ view: html, toolbar: "" });
+  if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
+  if (!s.tags.length) return view(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
+  if (!tag || !s.config) return view("");
+  const name = `#${esc(tag.title)}`;
+  if (s.config.kind !== "kanban" && !tag.dateProps.length) {
+    return view(empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
+  }
+  if (!s.nodes.length) return view(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`));
+  const shown = visibleData(s.config, tag, s.nodes, s.tasks);
+  if (!shown.nodes.length) {
+    return view(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the left column.",
+      `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
+  }
+  if (s.config.kind === "timeline") {
+    const layout = timelineLayout(s, now, shown);
+    return { view: renderTimeline(layout, `#${tag.title}`, s.expanded), toolbar: renderTimelineToolbar(layout) };
+  }
+  const kind = KIND_LABEL[s.config.kind];
+  return view(`<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
+    + `<span>${plural(shown.nodes.length, "node")} · ${plural(shown.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`);
+}
+
+function renderWorkspace(s: State, now: Now): string {
   const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
   const error = s.error
     ? `<div class="pl-error" role="alert" data-region="error"><span>${esc(s.error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`
     : "";
   const kind = s.config?.kind ?? "";
+  const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
     + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" aria-label="View settings"></div>`)
     + `<div class="pl-body"><aside class="pl-sidebar" data-region="sidebar">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside>`
-    + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-view-kind="${kind}"></div>`
-    + `<div class="pl-view" data-region="view">${renderView(s, tag)}</div></main></div></div>`;
+    + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-view-kind="${kind}">${main.toolbar}</div>`
+    + `<div class="pl-view" data-region="view">${main.view}</div></main></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -253,13 +301,15 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false };
+  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false,
+    anchor: null, expanded: new Set() };
+  const now = (): Now => ({ today: (deps.today ?? localToday)(), weekStart: deps.weekStart ?? 0 });
   let queue: Promise<void> = Promise.resolve();
 
   const render = (focus?: string) => {
     const doc = root.ownerDocument;
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
-    root.innerHTML = renderWorkspace(s);
+    root.innerHTML = renderWorkspace(s, now());
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
   };
@@ -345,6 +395,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       s.popover = null;
       if (!t.closest("button, input, label")) return void run(() => {});
     }
+    const tl = timelineAction(t);
+    if (tl) return void timeline(tl, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
       const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views" } as const)[ctl.dataset.control as string];
@@ -395,6 +447,24 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void save();
     }
   });
+
+  /** Timeline controls: zoom is view config (saved with a view); the anchor and expanded rows are session state. */
+  function timeline(a: NonNullable<ReturnType<typeof timelineAction>>, shift: boolean) {
+    const c = s.config!;
+    if (c.kind !== "timeline") throw new Error(`Timeline control in a ${c.kind} view`);
+    switch (a.type) {
+      case "open":
+        return deps.openNode(a.uuid, { sidebar: shift });
+      case "zoom":
+        return void run(() => setConfig({ ...c, zoom: a.zoom }));
+      case "nav":
+        return void run(() => void (s.anchor = shiftAnchor(s.anchor ?? now().today, c.zoom, a.dir)));
+      case "today":
+        return void run(() => void (s.anchor = null));
+      case "toggle":
+        return void run(() => void (s.expanded.has(a.nodeId) ? s.expanded.delete(a.nodeId) : s.expanded.add(a.nodeId)));
+    }
+  }
 
   const save = () => {
     const name = root.querySelector<HTMLInputElement>("[data-field=view-name]")!.value;

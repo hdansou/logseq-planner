@@ -14,7 +14,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | Path | Owns | Never does |
 |---|---|---|
 | `src/index.ts` | entry: imports `@logseq/libs`, hands `appDeps()` to `registerApp` | business logic |
-| `src/app.ts` | `registerApp(deps, root)`: creates the workspace, open (full-screen + focus retries) / close, Escape order, `g shift+p` binding, deferred registrations | call `logseq.*` |
+| `src/app.ts` | `registerApp(deps, root)`: creates the workspace, open (full-screen + focus retries) / close, Escape order, `g shift+p` binding, deferred registrations, `nodeOpener` (click → `openPage` + hide, Shift → `openInSidebar`) | call `logseq.*` |
 | `src/sdk.ts` | every SDK call and typing cast; full-screen container style | DOM rendering inside the frame |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
@@ -24,7 +24,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/core/display-title.ts` | `displayTitle(title, titlesByUuid(nodes))`: inline `[[uuid]]` refs → the node's title, `(link)` when not loaded; every view renders titles through it | show a raw uuid |
 | `src/core/timeline-layout.ts` | pure Timeline layout: `timelineRange` / `shiftAnchor` per zoom, `timelineItems` (span + tasks + rollup), `layoutTimeline` → columns, rows (bars as day indices, clip flags, points, task markers), undated list, today index; calendar-day arithmetic on UTC midnights (DST-safe) | read the clock (`today` is injected) |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
-| `src/ui/workspace.ts` + `workspace.css` | `createWorkspace(root, {dq, views, onClose})`: top bar, settings bar, tag tree, filters, view toolbar slot, empty states; pure `State` → HTML render functions, delegated events, actions queued (`idle()`), errors shown in `[data-region=error]` | call `logseq.*`, render a view (T08–T11) |
+| `src/ui/workspace.ts` + `workspace.css` | `createWorkspace(root, {dq, views, onClose, openNode, today?, weekStart?})`: top bar, settings bar, tag tree, filters, view toolbar slot, empty states; pure `State` → HTML render functions, delegated events, actions queued (`idle()`), errors shown in `[data-region=error]`; renders the Timeline into the view area and toolbar slot (anchor and expanded rows are session state, zoom is config); `openNode` dep for click / Shift+click | call `logseq.*`, hold view-specific layout logic (that is `src/core/*-layout.ts`) |
+| `src/ui/timeline.ts` + `timeline.css` | pure `TimelineLayout` → HTML (toolbar, head, backdrop, rows, task rows, today line, undated footnote) and `timelineAction(target)` for the workspace's delegated click handler; one CSS grid of day tracks (`--pl-tl-days` × `--pl-tl-day`) | own state or call the SDK |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
 | `src/core/view-config.ts` | `ViewConfig` (tags/props by ident, closed values by uuid), `defaultViewConfig`, `validateViewConfig`, versioned JSON, `toChoiceFilters` | touch DOM or SDK |
 | `src/storage.ts` | `createViewStore(StorageDeps)`: cache-first saved views on the "Planner views" page, config in hidden string property `planner-view-config`; every write read back | call `logseq.*` (deps from `storageDeps()` in sdk.ts) |

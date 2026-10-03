@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { registerApp } from "./app";
+import { nodeOpener, registerApp } from "./app";
 import type { AppDeps } from "./types";
 import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
@@ -15,6 +15,8 @@ function fakeDeps() {
     provideModel: vi.fn(),
     showMainUI: vi.fn(),
     hideMainUI: vi.fn(),
+    openPage: vi.fn(),
+    openInSidebar: vi.fn(),
     theme: {
       later: vi.fn(),
       getUserConfigs: vi.fn(async () => ({ preferredThemeMode: "light" })),
@@ -151,6 +153,18 @@ describe("registerApp", () => {
     const { deps } = fakeDeps();
     registerApp(deps, root);
     root.querySelector<HTMLButtonElement>("button[data-action=close]")!.click();
+    expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
+  });
+
+  it("a click opens the node in the main area and hides Planner; Shift+click opens it in the sidebar and keeps Planner open", () => {
+    const { deps } = fakeDeps();
+    const open = nodeOpener(deps);
+    open("u-1", { sidebar: false });
+    expect(deps.openPage).toHaveBeenCalledWith("u-1");
+    expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
+    open("u-2", { sidebar: true });
+    expect(deps.openInSidebar).toHaveBeenCalledWith("u-2");
+    expect(deps.openPage).toHaveBeenCalledTimes(1);
     expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
   });
 });

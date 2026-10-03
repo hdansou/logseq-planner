@@ -15,13 +15,23 @@ export const OPEN_KEYBINDING = { binding: "g shift+p", mode: "non-editing" } as 
 const FOCUS_RETRIES_MS = [50, 300, 800];
 
 /**
+ * Click opens a node in the main area and hides Planner; Shift+click opens it in the right sidebar and keeps Planner
+ * open (REQUIREMENTS: Click).
+ */
+export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boolean }): void => {
+  if (opts.sidebar) return deps.openInSidebar(uuid);
+  deps.openPage(uuid);
+  deps.hideMainUI();
+};
+
+/**
  * Renders the workspace into `root`, wires Escape (an open popover first, then Planner) and Close, and
  * defers the toolbar button and command palette entry that open it.
  */
 export function registerApp(deps: AppDeps, root: HTMLElement): void {
   const doc = root.ownerDocument;
   const close = () => deps.hideMainUI();
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close });
+  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener(deps) });
   doc.documentElement.classList.toggle("pl-mac-desktop", deps.macWindowButtons);
 
   const focusIn = () => {

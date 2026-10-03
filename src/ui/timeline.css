@@ -1,0 +1,107 @@
+/* Timeline (T08; docs/design.md "Timeline"). Tokens only: every colour is a --pl-* variable from theme.css.
+   One grid of day tracks shared by the head, the backdrop and every row: the label column, then --pl-tl-days
+   tracks of --pl-tl-day. Week columns in Quarter span seven narrow day tracks. */
+
+/* Toolbar */
+.pl-tl-nav { display: inline-flex; align-items: center; gap: 6px; }
+.pl-tl-step { padding: 4px 11px; }
+.pl-tl-range { min-width: 190px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Grid. isolation keeps the z-index ladder below inside the timeline:
+   backdrop 0 < bars and marks 1 < today line 2 < sticky labels 3 < sticky head 4. */
+.pl-tl { --pl-tl-label-w: 240px; --pl-tl-day: 18px; position: relative; isolation: isolate; width: max-content; min-width: 100%; font-size: 13px; }
+.pl-tl[data-zoom="week"] { --pl-tl-day: 44px; }
+.pl-tl[data-zoom="quarter"] { --pl-tl-day: calc(52px / 7); }
+.pl-tl-grid, .pl-tl-head, .pl-tl-row { display: grid; grid-template-columns: var(--pl-tl-label-w) repeat(var(--pl-tl-days), var(--pl-tl-day)); }
+
+/* Backdrop: weekends, week and month boundaries, full height */
+.pl-tl-grid { position: absolute; inset: 0; z-index: 0; grid-template-rows: 100%; pointer-events: none; }
+.pl-tl-cell { grid-row: 1; }
+.pl-tl-cell[data-weekend] { background: var(--pl-fill); }
+.pl-tl-cell[data-week-start] { box-shadow: inset 1px 0 0 var(--pl-line-soft); }
+.pl-tl-cell[data-month-start] { box-shadow: inset 1px 0 0 var(--pl-line); }
+
+/* Head: sticky on vertical scroll; labels overflow into the following narrow columns */
+.pl-tl-head { position: sticky; top: 0; z-index: 4; min-height: 28px; align-items: end; background: var(--pl-surface);
+  border-bottom: 1px solid var(--pl-line-soft); }
+.pl-tl-corner { grid-column: 1; grid-row: 1; position: sticky; left: 0; align-self: stretch; display: flex; align-items: end;
+  padding: 6px 8px 4px; background: var(--pl-surface); border-right: 1px solid var(--pl-line-soft);
+  font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+.pl-tl-col { grid-row: 1; padding: 6px 0 4px 3px; white-space: nowrap; font-size: 11px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-tl-col[data-today] { color: var(--pl-today); font-weight: 700; }
+
+/* Rows */
+.pl-tl-rows { list-style: none; margin: 0; padding: 0; }
+.pl-tl-row { min-height: 32px; align-items: center; border-bottom: 1px solid var(--pl-line-soft); }
+.pl-tl-task { min-height: 28px; }
+.pl-tl-label { grid-column: 1; grid-row: 1; position: sticky; left: 0; z-index: 3; align-self: stretch; display: flex; align-items: center;
+  gap: 6px; min-width: 0; padding: 0 8px; background: var(--pl-surface); border-right: 1px solid var(--pl-line-soft); }
+.pl-tl-task .pl-tl-label { padding-left: 30px; font-size: 12.5px; }
+.pl-tl-toggle { all: unset; flex: none; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 4px;
+  font-size: 10px; color: var(--pl-label-2); cursor: pointer; }
+.pl-tl-toggle[aria-expanded="true"] { transform: rotate(90deg); }
+.pl-tl-toggle:hover { color: var(--pl-label); background: var(--pl-fill); }
+.pl-tl-name { all: unset; display: block; min-width: 0; padding: 2px 4px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; cursor: pointer; transition: background-color .12s; }
+.pl-tl-row:not(.pl-tl-task) .pl-tl-name { font-weight: 600; }
+.pl-tl-name:hover { background: var(--pl-fill); }
+.pl-tl-toggle:focus-visible, .pl-tl-name:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+.pl-tl-count, .pl-tl-nodate { margin-left: auto; flex: none; font-size: 12px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-tl-task[data-done] .pl-tl-name { color: var(--pl-label-2); }
+.pl-tl-task[data-status="canceled"] .pl-tl-name { text-decoration: line-through; }
+
+/* Category per node: highlight fill + status-hue stroke (design.md: one colour per node, label-coloured text) */
+.pl-tl-row[data-cat="1"] { --pl-tl-soft: var(--pl-cat-1-soft); --pl-tl-hue: var(--pl-blue); }
+.pl-tl-row[data-cat="2"] { --pl-tl-soft: var(--pl-cat-2-soft); --pl-tl-hue: var(--pl-green); }
+.pl-tl-row[data-cat="3"] { --pl-tl-soft: var(--pl-cat-3-soft); --pl-tl-hue: var(--pl-orange); }
+.pl-tl-row[data-cat="4"] { --pl-tl-soft: var(--pl-cat-4-soft); --pl-tl-hue: var(--pl-purple); }
+.pl-tl-row[data-cat="5"] { --pl-tl-soft: var(--pl-cat-5-soft); --pl-tl-hue: var(--pl-red-text); }
+.pl-tl-row[data-cat="6"] { --pl-tl-soft: var(--pl-cat-6-soft); --pl-tl-hue: var(--pl-label-2); }
+
+/* Bars: fill + 1px inset stroke; progress is a 3px strip along the bottom; derived = dashed outline */
+.pl-tl-bar { all: unset; box-sizing: border-box; grid-row: 1; position: relative; z-index: 1; display: block; min-width: 6px; height: 20px;
+  margin: 0 1px; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--pl-tl-soft);
+  box-shadow: inset 0 0 0 1px var(--pl-tl-hue); color: var(--pl-label); font-size: 11.5px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+.pl-tl-bar[data-kind="derived"] { background: transparent; box-shadow: none; border: 1.5px dashed var(--pl-tl-hue); line-height: 17px; }
+.pl-tl-bar[data-clip-start] { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.pl-tl-bar[data-clip-end] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.pl-tl-bar:focus-visible, .pl-tl-diamond:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 1px; }
+.pl-tl-bar-text { position: relative; padding: 0 7px; }
+.pl-tl-bar[data-clip-start] .pl-tl-bar-text { padding-left: 14px; }
+.pl-tl-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--pl-tl-hue); }
+.pl-tl-clip { position: absolute; top: 0; padding: 0 3px; color: var(--pl-label-2); }
+.pl-tl-clip[data-tl-clip="start"] { left: 0; }
+.pl-tl-clip[data-tl-clip="end"] { right: 0; }
+
+/* Points (one-date nodes) */
+.pl-tl-diamond { all: unset; grid-row: 1; justify-self: center; position: relative; z-index: 1; width: 11px; height: 11px;
+  border-radius: 2px; transform: rotate(45deg); background: var(--pl-tl-hue); cursor: pointer; }
+
+/* A node wholly outside the range */
+.pl-tl-outside { grid-row: 1; grid-column: 2 / -1; padding: 0 6px; white-space: nowrap; font-size: 11.5px; color: var(--pl-label-2); }
+.pl-tl-outside[data-tl-outside="after"] { justify-self: end; }
+
+/* Task rows: status icon (design.md status icons) and date markers (scheduled ring, deadline diamond, late in red) */
+.pl-tl-status { flex: none; box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--pl-label-2); }
+.pl-tl-task[data-status="backlog"] .pl-tl-status { border-style: dashed; }
+.pl-tl-task[data-status="doing"] .pl-tl-status { border-color: var(--pl-blue); background: conic-gradient(var(--pl-blue) 0 50%, transparent 0); }
+.pl-tl-task[data-status="in-review"] .pl-tl-status { border-color: var(--pl-purple); background: conic-gradient(var(--pl-purple) 0 75%, transparent 0); }
+.pl-tl-task[data-status="done"] .pl-tl-status { border-color: var(--pl-green); background: var(--pl-green); }
+.pl-tl-task[data-status="canceled"] .pl-tl-status { border-color: var(--pl-label-3);
+  background: linear-gradient(45deg, transparent 42%, var(--pl-label-3) 42% 58%, transparent 58%); }
+.pl-tl-marker { grid-row: 1; justify-self: center; position: relative; z-index: 1; box-sizing: border-box; width: 9px; height: 9px;
+  border-radius: 50%; border: 1.5px solid var(--pl-label-2); }
+.pl-tl-marker[data-tl-marker="deadline"] { border: 0; border-radius: 2px; transform: rotate(45deg); background: var(--pl-label-2); }
+.pl-tl-marker[data-late] { background: var(--pl-red); }
+.pl-tl-task[data-done] .pl-tl-marker { opacity: .5; }
+
+/* Today line: accent, never tint (design.md) */
+.pl-tl-today { position: absolute; top: 0; bottom: 0; z-index: 2; width: 2px; margin-left: -1px; pointer-events: none;
+  left: calc(var(--pl-tl-label-w) + (var(--pl-tl-today) + .5) * var(--pl-tl-day)); background: var(--pl-today); }
+
+/* Undated footnote */
+.pl-tl-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }
+.pl-tl-link { all: unset; border-radius: 4px; color: var(--pl-label); cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--pl-line); text-underline-offset: 2px; }
+.pl-tl-link:hover { text-decoration-color: currentColor; }
+.pl-tl-link:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
