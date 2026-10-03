@@ -219,7 +219,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   the row, not at the left edge.
 - The Agenda's Overdue bucket is not capped. In the large test, 923 overdue entries all
   rendered.
-- A Date property value with no journal day fails with an error instead of a guess.
+- A Date property value that points at no journal page (for example a value Logseq left as
+  its empty placeholder) counts as no value.
 - Nodes and tasks in Recycle, or on a page in Recycle, are not shown.
 - A choice property that allows several values is not offered for filters, Kanban or done
   values.

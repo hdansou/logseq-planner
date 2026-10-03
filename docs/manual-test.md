@@ -306,6 +306,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J10 | Give #Project a choice property named "Done?" (or "Who's"), use it as the Kanban column property and move a card | The move is written and read back with no "Not a full property ident" error | not run |  |  |  |
 | J11 | Open a tag with no properties in Timeline and in Kanban; in Logseq add a Start date property and a Status choice to it | Without reopening, the Timeline maps Start (and End by the default rule) and the Kanban shows Status columns | not run |  |  |  |
 | J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | not run |  |  |  |
+| J13 | Set a #Project node's Start, then remove the value in Logseq | The node shows with no Start (undated or by its End); the rest of the tag loads | not run |  |  |  |
 | J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 
 ## Not covered / known gaps

@@ -89,7 +89,7 @@ const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
 
 /**
  * Raw `nodesQuery` rows → nodes with mapped dates and choices. A Date value is the journal page ref pulled with its
- * `journal-day` (`{id, "journal-day"}`); one without it fails fast (a Date property points at a journal page, T01).
+ * `journal-day` (`{id, "journal-day"}`); a ref without one (the empty placeholder, T14) is no value.
  */
 export function buildNodes(
   raw: unknown[],
@@ -105,9 +105,9 @@ export function buildNodes(
     for (const p of dateProps) {
       const v = node[p.ident];
       if (p.type === "date" && isRef(v)) {
+        // A ref without a journal day (the empty placeholder a removed value leaves, T14 F5) is no value.
         const day = (v as { "journal-day"?: unknown })["journal-day"];
-        if (typeof day !== "number") throw new Error(`no journal day for page ${v.id} (${node.title}, ${p.title})`);
-        dates[p.ident] = { day: journalDayToIso(day), time: null };
+        if (typeof day === "number" && !isEmptyPlaceholder(v)) dates[p.ident] = { day: journalDayToIso(day), time: null };
       } else if (p.type === "datetime" && typeof v === "number") {
         dates[p.ident] = localDateTime(v, zone);
       }

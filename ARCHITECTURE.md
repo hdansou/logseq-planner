@@ -123,7 +123,8 @@ Steps, with the module that does each:
    and for the #Task blocks that reference those nodes. Both queries take the tag's entity id
    (a number) as input, never its title, and leave out blocks in Recycle or on a recycled page. Both pulls name their attributes: id,
    uuid, title, tags and the Date, DateTime and choice idents of the graph's tags. A Date
-   value is pulled with its journal day (`{ident [:db/id :block/journal-day]}`).
+   value is pulled with its journal day (`{ident [:db/id :block/journal-day]}`); one without a
+   journal day is no value.
 5. **Normalise.** `buildData` maps raw rows. A Date becomes a local `YYYY-MM-DD`. A DateTime
    (epoch ms) becomes a local day and `HH:MM` through an injected zone offset. A choice value
    counts only when it is a closed value of that property. The empty placeholder is no value.
@@ -259,7 +260,8 @@ recorded in tasks.md.
 | `DB.onChanged` is a wake-up only. | `txData` is empty and payload keys are mangled (T01). |
 | Write the full-screen container style directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
 | Defer registrations with `setTimeout(…, 0)` and keep `main()` minimal. | Registrations must not delay the ready handshake (host gotcha §18, cited in CLAUDE.md and `src/index.ts`). |
-| Fail fast: a missing or invalid week start, an unknown ident in a saved view and a Date value without a journal day throw. | Project rule: no fallback that hides invalid state. |
+| Fail fast: a missing or invalid week start and an unknown ident in a saved view throw. | Project rule: no fallback that hides invalid state. |
+| A Date value without a journal day (the empty placeholder) is no value, not an error. | The host leaves `:logseq.property/empty-placeholder` when a value is removed (T11); throwing failed the whole tag's load (T14). |
 | The node and task queries take the tag's entity id, not its title. | The host EDN-reads a top-level string input: tags titled "2026 goals", "true" or ":kw" were not found, and same-titled tags merged (T14). A number input is passed through. |
 | The node and task queries leave out blocks with `deleted-at` and blocks whose page has it. | A block on a page in Recycle has no `deleted-at` of its own and kept showing (T14). |
 | Saved filters and done values store closed-value uuids. | Titles break on rename, and entity ids differ per device (T05, T06). |

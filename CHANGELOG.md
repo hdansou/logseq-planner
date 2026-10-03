@@ -127,6 +127,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Normalisation (T14): a Date property value without a journal day (the empty placeholder Logseq leaves when a value is
+  removed) is no value for that node instead of an error that failed the load of the whole tag.
 - Kanban (T14): a drag can no longer get stuck (a stuck drag deferred every live redraw). `dragend` and `drop`
   anywhere in the document end it, and nothing redraws the workspace while a drag is in progress: a render asked for
   meanwhile (a queued action, not only a refresh) runs when the drag ends.

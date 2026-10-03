@@ -167,12 +167,16 @@ describe("loadNodes", () => {
     }
   });
 
-  it("fails fast when a pulled Date value has no journal day", async () => {
+  it("a Date value without a journal day is no value, not a load failure (T14)", async () => {
+    // Website relaunch's Start and End pulled as a bare {id}: what the nested pull returns for a ref that is not a
+    // journal page, e.g. the empty placeholder a removed value leaves (T11/T14 F5). Fixture rows, journal day dropped.
     const base = fixtureDq();
     const strip = (rows: unknown[]) => (rows as [Record<string, unknown>][]).map(([n]) =>
-      [Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v && typeof v === "object" && "journal-day" in v ? { id: (v as unknown as { id: number }).id } : v]))]);
+      [n.title !== "Website relaunch" ? n : Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v && typeof v === "object" && "journal-day" in v ? { id: (v as unknown as { id: number }).id } : v]))]);
     const dq = async (query: string, ...inputs: unknown[]) => (query === nodesQuery(tags) ? strip(await base(query, ...inputs)) : base(query, ...inputs));
-    await expect(loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 })).rejects.toThrow(/journal day/);
+    const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    expect(byTitle(nodes, "Website relaunch").dates).toEqual({});
+    expect(byTitle(nodes, "Acme rollout").dates[dateIdent(tag("Project"), "Start")]).toEqual({ day: "2026-09-30", time: null });
   });
 });
 
