@@ -38,7 +38,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       Accept: every open question in REQUIREMENTS.md answered in `docs/probes.md`; fixtures
       saved. Est: ~45 min
 
-- [ ] **T02 Theme** — `src/ui/theme.ts`: mirror light/dark onto `<html class="dark">`
+- [x] **T02 Theme** — `src/ui/theme.ts`: mirror light/dark onto `<html class="dark">`
       (getUserConfigs + onThemeModeChanged); resolve host tokens into `--pl-*` per
       docs/design.md with Inkwell defaults; re-resolve on onThemeChanged; base CSS for the
       component treatments. Test first: mapping from a resolved-values fixture to `--pl-*`
@@ -155,3 +155,19 @@ Total: about 10 hours.
     undo; payload keys are mangled and `txData` is empty, so use it only to re-query.
   Not answered: `DB.onChanged` under sync and from a second desktop window. Not checked on
   the desktop build (the web app checkout is d2ab7726ab, 2026-09-02).
+- 2026-10-03 T02 done (6928430, fix 2c90798). 22 unit tests. Live on `plugin-test` (web
+  app, builds served with `vite preview`, tokens read inside the iframe with playwright
+  `run-code`), themes loaded as real theme plugins and switched with
+  `LSPluginCore.selectTheme`: light/dark toggle flips `html.dark` and tokens with no reload;
+  Inkwell light and dark resolve all 38 inline tokens (`--ink-*` status colours, system
+  font); a second theme's background, text and font come through; back to the default
+  theme (`{url: null, mode}` as the picker sends) resets them; no `hsl(#…)`; Close is a
+  pill with the tint-soft focus ring.
+  Defect found live and fixed: `theme-changed` fires when the host injects the theme
+  `<link>`, so a resolve can run before the stylesheet applies and keep the previous
+  theme's values (seen: write at 4–10 ms, stylesheet loaded at 10 ms). Tokens are now
+  re-resolved at 250 ms and 1 s, last call wins; live, every switch ended on the host's
+  values (9 switches). Notes: `--lx-gray-*` come back as ready `hsl()` colours; in this
+  build's default dark theme they are absent, so fills use the Inkwell defaults; plugin
+  surface there is rgb(0,45,56) (`--background`) against the host body's rgb(0,43,54).
+  Query Builder uses the same theme pattern and was not checked for this race.
