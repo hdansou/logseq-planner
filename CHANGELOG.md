@@ -127,6 +127,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Workspace (T14): a throw while drawing (or anywhere in a queued action) can no longer leave the action queue rejected,
+  which skipped every later action. `render` never throws: the error goes to the error bar and the workspace is drawn
+  again, or, when that fails too, a bare shell with the error, Dismiss and Close; `run` and `refresh()` end every step
+  with a catch.
 - Saved views (T14): one unreadable saved view no longer disables the feature. `list()` returns the readable views and,
   for each block whose config cannot be parsed, an `InvalidView` with the reason; the Saved views menu shows it greyed
   (`data-view-invalid`) with "Cannot be opened: <reason>" and its delete button, and offers no open.

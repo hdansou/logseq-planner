@@ -158,7 +158,9 @@ Steps, with the module that does each:
 - When the view's tag or a property it uses is gone, the workspace shows the default view and
   an error message.
 - The workspace queue runs actions in order. Errors from a refresh show in the error bar and
-  never reject.
+  never reject. A throw while drawing is shown the same way (`render` never throws; when the
+  workspace cannot be drawn at all, a bare shell keeps the error, Dismiss and Close), so the
+  queue never stays rejected and later actions still run.
 
 ## Write paths
 

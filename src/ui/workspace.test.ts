@@ -415,6 +415,59 @@ describe("saved views", () => {
   });
 });
 
+describe("a throwing render never jams the action queue (T14)", () => {
+  /** A `today` that throws the next `n` times it is asked (every view render asks it). */
+  const flakyToday = () => {
+    let n = 0;
+    return { today: () => { if (n > 0) { n--; throw new Error("render broke"); } return "2026-10-03"; }, failNext: (k: number) => void (n = k) };
+  };
+  const make = async (clock: ReturnType<typeof flakyToday>, weekStart = async () => 0) => {
+    const onClose = vi.fn();
+    const ws = createWorkspace(root, { dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose, openNode: vi.fn(), zone: () => -300, today: clock.today, kanban: noWrites, weekStart });
+    await ws.open();
+    return { ws, onClose };
+  };
+
+  it("a render that throws once shows the error; later actions, Close included, still run", async () => {
+    const clock = flakyToday();
+    const { ws, onClose } = await make(clock);
+    clock.failNext(1);
+    await click(ws, "[data-tl-zoom=week]");
+    expect(text("[data-region=error]")).toContain("render broke");
+    await click(ws, "[data-tl-zoom=quarter]");
+    expect(ws.config()).toMatchObject({ kind: "timeline", zoom: "quarter" });
+    expect($("[data-tl-zoom=quarter]")!.getAttribute("aria-pressed")).toBe("true");
+    await click(ws, "[data-action=close]");
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("a render that keeps throwing still leaves the error bar and a working Close", async () => {
+    const clock = flakyToday();
+    const { ws, onClose } = await make(clock);
+    clock.failNext(1000);
+    await click(ws, "[data-tl-zoom=week]");
+    expect(text("[data-region=error]")).toContain("render broke");
+    await click(ws, "[data-action=close]");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    clock.failNext(0);
+    await click(ws, "[data-action=dismiss-error]");
+    expect($("[data-tl-zoom=week]")!.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a refresh whose redraw throws resolves, shows the error, and the next action runs", async () => {
+    const clock = flakyToday();
+    let start = 0;
+    const { ws } = await make(clock, async () => start);
+    start = 1; // the week start changed: the refresh redraws
+    clock.failNext(2);
+    await expect(ws.refresh()).resolves.toBeUndefined();
+    expect(text("[data-region=error]")).toContain("render broke");
+    await click(ws, "[data-action=dismiss-error]"); // the bare shell keeps Dismiss and Close
+    await click(ws, "[data-tl-zoom=week]");
+    expect(ws.config()).toMatchObject({ zoom: "week" });
+  });
+});
+
 describe("closing", () => {
   it("Escape closes an open popover first, then reports nothing left to close", async () => {
     const { ws } = await setup();

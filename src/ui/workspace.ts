@@ -370,11 +370,12 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   };
 }
 
+const errorBar = (error: string) =>
+  `<div class="pl-error" role="alert" data-region="error"><span>${esc(error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`;
+
 function renderWorkspace(s: State, now: () => Now): string {
   const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
-  const error = s.error
-    ? `<div class="pl-error" role="alert" data-region="error"><span>${esc(s.error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`
-    : "";
+  const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
   const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
@@ -408,8 +409,28 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
 
-  /** `keep`: also carry the scroll of the scrolling regions and the open state of `details` over the redraw (live refresh). */
+  const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+  /**
+   * Draws the workspace and never throws (T14): a render that fails puts its error in the error bar and draws again;
+   * when that fails too, a bare shell with the error, Dismiss and Close is drawn, so the user can always leave.
+   */
   const render = (focus?: string, keep = false) => {
+    try {
+      draw(focus, keep);
+    } catch (e) {
+      s.error = message(e);
+      try {
+        draw();
+      } catch {
+        root.innerHTML = `<div class="pl-ws"><header class="pl-top" data-region="topbar"><h1 class="pl-title">Planner</h1><span class="pl-spacer"></span>`
+          + `<button type="button" class="pl-btn" data-action="close">Close</button></header>${errorBar(s.error)}</div>`;
+      }
+    }
+  };
+
+  /** `keep`: also carry the scroll of the scrolling regions and the open state of `details` over the redraw (live refresh). */
+  const draw = (focus?: string, keep = false) => {
     const doc = root.ownerDocument;
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
     const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
@@ -430,11 +451,17 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const tagOf = (config: ViewConfig, tags: TagInfo[] = s.tags) => validateViewConfig(config, tags);
 
-  /** Queues `fn`; an error lands in the visible message, never swallowed. */
+  /**
+   * Queues `fn`; an error lands in the visible message, never swallowed. The queue never stays rejected (T14): an error
+   * anywhere in the step (the action, the focus target, the render) is shown, and the next queued action still runs.
+   */
   const run = (fn: () => Promise<void> | void, focus?: () => string | undefined) => {
     queue = queue.then(fn).catch((e: unknown) => {
-      s.error = e instanceof Error ? e.message : String(e);
-    }).then(() => render(focus?.()));
+      s.error = message(e);
+    }).then(() => render(focus?.())).catch((e: unknown) => {
+      s.error = message(e);
+      render();
+    });
     return queue;
   };
 
@@ -595,7 +622,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     wantRefresh = false;
     deps.timing?.begin("refresh");
     queue = queue.then(reload).catch((e: unknown) => {
-      s.error = e instanceof Error ? e.message : String(e);
+      s.error = message(e);
       render(undefined, true);
       deps.timing?.rendered("error");
     });
