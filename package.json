@@ -1,0 +1,51 @@
+{
+  "name": "logseq-planner",
+  "version": "0.1.0",
+  "description": "Timeline, Calendar, Agenda and Kanban views over any tag in a Logseq DB graph",
+  "author": "Danzu",
+  "license": "MIT",
+  "private": true,
+  "keywords": [
+    "logseq",
+    "logseq-plugin",
+    "logseq-db",
+    "timeline",
+    "calendar",
+    "kanban"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "npm@11.12.1",
+  "main": "dist/index.html",
+  "scripts": {
+    "predev": "rm -rf dist",
+    "dev": "vite --port 8293 --strictPort",
+    "build": "vite build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --port 8294 --strictPort"
+  },
+  "logseq": {
+    "id": "logseq-planner",
+    "title": "Planner",
+    "icon": "./icon.svg",
+    "main": "dist/index.html",
+    "supportsDB": true,
+    "supportsDBOnly": true,
+    "minSDKVersion": "0.3.4"
+  },
+  "devDependencies": {
+    "happy-dom": "^20.14.5",
+    "typescript": "^5.6.0",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.11"
+  },
+  "dependencies": {
+    "@logseq/libs": "^0.3.4"
+  },
+  "overrides": {
+    "dompurify": "^3.4.16",
+    "lodash-es": "^4.18.1"
+  }
+}

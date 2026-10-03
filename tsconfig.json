@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["@logseq/libs", "vite/client"],
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "noEmit": true
+  },
+  "include": ["src"]
+}

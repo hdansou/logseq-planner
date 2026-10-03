@@ -1,0 +1,30 @@
+# dependencies and build output
+node_modules/
+dist/
+coverage/
+.vite/
+.cache/
+
+# environment and local overrides
+.env*
+*.local.json
+*.local.ts
+
+# scratch and OS/editor noise
+tmp/
+scratch/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# agent working dirs
+.claude/
+.aider/
+
+# raw probe output written by the dev sink; docs/probes.md is the record
+docs/probes.jsonl
+
+# bundles
+*.zip

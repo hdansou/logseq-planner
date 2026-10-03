@@ -8,3 +8,5 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Requirements, task plan, design notes (Inkwell-based) and agent instructions for v1.
+- Scaffold (T00): toolbar button and "Planner: open" command open an empty Planner;
+  Escape and Close hide it. `@logseq/libs` ^0.3.4.

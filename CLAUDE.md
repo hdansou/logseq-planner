@@ -13,7 +13,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 
 | Path | Owns | Never does |
 |---|---|---|
-| `src/index.ts` | entry: imports `@logseq/libs`, registers UI, opens workspace | business logic |
+| `src/index.ts` | entry: imports `@logseq/libs`, hands `appDeps()` to `registerApp` | business logic |
+| `src/app.ts` | `registerApp(deps, root)`: shell, open/close, deferred registrations | call `logseq.*` |
 | `src/sdk.ts` | every SDK call and typing cast | DOM rendering |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
