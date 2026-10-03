@@ -2,7 +2,7 @@
 
 Requirements: [REQUIREMENTS.md](REQUIREMENTS.md) · Design: [docs/design.md](docs/design.md)
 Prototype: https://claude.ai/artifact/KU9Z831Y9y974EUW1yVcud
-Started: 2026-10-03 · Status: planning
+Started: 2026-10-03 · Status: in progress
 
 Rules: one item per change; each item names its acceptance test and the test is written
 first (TDD); UI items are accepted on what renders; docs land in the same commit as the
@@ -11,7 +11,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
 ## v1
 
-- [ ] **T00 Scaffold** — standard file set: `package.json` (dev/build/test/typecheck,
+- [x] **T00 Scaffold** — standard file set: `package.json` (dev/build/test/typecheck,
       `predev: rm -rf dist`, `vite --port 8293 --strictPort`, preview 8294,
       `logseq.supportsDB`/`supportsDBOnly`), `vite.config.ts` (test config, `publicDir: false`),
       `tsconfig.json`, `index.html`, `icon.svg`, `.gitignore`, `src/index.ts`,
@@ -117,3 +117,11 @@ Total: about 10 hours.
   rules: TDD, DRY, KISS; document as we go; keep tasks.md current; commit per item.
   Next session develops with sub-agents: one tasks.md item per agent; the main session
   coordinates, reviews each result and keeps tasks.md current.
+- 2026-10-03 T00 done (59b7df9). 7 unit tests; typecheck, test, build pass. Built as
+  `registerApp(deps, root)`: the root element is injected so tests render without a global
+  `#app`. `overrides` for dompurify and lodash-es copied from query-builder (npm audit 0).
+  Live in the web app (Demo graph, `LSPluginCore.register` on :8293): toolbar button shows
+  and opens the empty Planner, the iframe takes focus, Close and Escape hide it, no console
+  errors. Not checked live: the command palette entry. The dev server answers on
+  `localhost:8293` only, not `127.0.0.1`. The web app now starts with `pnpm watch`.
+  Sub-agents run on lower models from T01 on.
