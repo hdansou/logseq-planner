@@ -2,9 +2,12 @@
 
 Run 2026-10-03 against the Logseq web app dev build of the main checkout
 (`~/Projects/src/github.com/logseq`, branch `fix/logseq-cli-skill-shell-quoting`, HEAD `d2ab7726ab`,
-served by `pnpm watch` on `localhost:3001`; the page showed shadow-cljs's "Stale Output" banner, so
-the loaded JS may predate that HEAD). Plugin: Planner dev server on `localhost:8293`, registered from
-the console (`LSPluginCore.register`, random id `_dv0af836w`), `@logseq/libs` 0.3.4. Browser:
+served by `pnpm watch` on `localhost:3001`). The first run's page showed shadow-cljs's "Stale Output"
+banner; the coordinator reloaded the page (banner gone), re-registered the plugin and re-ran
+`--writes --other-window` the same day: every write outcome, the undo result and the cleanup matched,
+and the committed fixtures are from that second run. HEAD `d2ab7726ab` is dated 2026-09-02, older
+than the installed desktop app (2.0.1, 2026-09-21); nothing here was checked on the desktop build. Plugin: Planner dev server on `localhost:8293`, registered from
+the console (`LSPluginCore.register`, random id per registration), `@logseq/libs` 0.3.4. Browser:
 playwright-cli headless Chrome, in-memory profile. Local time zone UTC−5 (`getTimezoneOffset()` 300).
 
 Everything under **Observed** was seen live and is backed by a raw fixture. Statements marked
@@ -14,7 +17,9 @@ Everything under **Observed** was seen live and is backed by a raw fixture. Stat
 
 - Graph `plugin-test`, created with *All graphs → Create a new graph* (no sync). In this browser
   profile (not cross-origin isolated, no `SharedArrayBuffer`) the web app made it in-memory
-  (`memory:///plugin-test`): a page reload wipes it, re-seed with `--seed`.
+  (`memory:///plugin-test`). Observed: the graph and its seed survived a page reload within the same
+  browser session (`--seed` then refuses with "already exists"). A new browser session starts
+  without it; re-seed with `--seed`.
 - Seed: `scripts/seed.edn.mjs`, imported with `logseq.api.import_edn` (sqlite.build EDN) from the host
   page. The import creates real user properties and tags with random ident suffixes
   (`:user.property/start-Sd0PMVjj`, `:user.class/Project-NobOOFIJ`), the same shape the UI creates.

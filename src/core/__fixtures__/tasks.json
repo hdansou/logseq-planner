@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "capturedAt": "2026-10-03T18:34:52.143Z",
   "graph": "logseq_db_plugin-test",
   "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
   "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
@@ -242,15 +242,15 @@
               "ident": ":logseq.class/Task"
             }
           ],
-          "title": "Loose task",
+          "title": "Loose task (edited)",
           "uuid": "6a000000-0000-4000-8000-000000000026",
           "id": 202,
           ":logseq.property/status": {
             "title": "Todo",
             "ident": ":logseq.property/status.todo"
           },
-          "content": "Loose task",
-          "full-title": "Loose task"
+          "content": "Loose task (edited)",
+          "full-title": "Loose task (edited)"
         }
       ],
       [

@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T18:30:53.665Z",
+  "capturedAt": "2026-10-03T18:37:05.095Z",
   "graph": "logseq_db_plugin-test",
   "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
   "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
@@ -11,11 +11,11 @@
   "edited": "update_block sent from tab 2",
   "events": [
     {
-      "receivedAt": 1791052250034,
+      "receivedAt": 1791052621451,
       "payload": {
         "blocks": [
           {
-            "updatedAt": 1791052250004,
+            "updatedAt": 1791052621419,
             "createdAt": 1791051442540,
             "breadcrumb": [
               {
@@ -76,7 +76,7 @@
                 }
               ]
             },
-            "txId": 536871058,
+            "txId": 536871105,
             "tags": [
               {
                 "id": 170,
@@ -176,7 +176,7 @@
         "deletedBlockUuids": [],
         "txData": [],
         "txMeta": {
-          "clientId": "64a58504-df15-4b5b-9237-1cf762bf044f",
+          "clientId": "c1399fec-19a8-4bdd-bd6b-a8932c27245a",
           "outlinerOp": "save-block"
         }
       }

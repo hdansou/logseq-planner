@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "capturedAt": "2026-10-03T18:34:52.143Z",
   "graph": "logseq_db_plugin-test",
   "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
   "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",

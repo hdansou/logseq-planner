@@ -1,16 +1,16 @@
 {
-  "capturedAt": "2026-10-03T18:33:20.971Z",
+  "capturedAt": "2026-10-03T18:35:32.975Z",
   "graph": "logseq_db_plugin-test",
   "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
   "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
   "action": "typed ' (edited)' at the end of 'Loose task' in the editor, then Escape",
   "events": [
     {
-      "receivedAt": 1791052399481,
+      "receivedAt": 1791052531492,
       "payload": {
         "blocks": [
           {
-            "updatedAt": 1791052399453,
+            "updatedAt": 1791052531458,
             "createdAt": 1791051442540,
             "breadcrumb": [
               {
@@ -71,7 +71,7 @@
                 }
               ]
             },
-            "txId": 536871062,
+            "txId": 536871065,
             "tags": [
               {
                 "id": 170,
@@ -171,7 +171,7 @@
         "deletedBlockUuids": [],
         "txData": [],
         "txMeta": {
-          "clientId": "e2dc492a-a1d8-4c96-9631-720481a95a30",
+          "clientId": "f6eaa637-3b8f-4f71-bf79-a8e185263e54",
           "outlinerOp": "save-block"
         }
       }

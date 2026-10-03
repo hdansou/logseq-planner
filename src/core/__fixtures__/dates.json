@@ -1,5 +1,5 @@
 {
-  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "capturedAt": "2026-10-03T18:34:52.143Z",
   "graph": "logseq_db_plugin-test",
   "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
   "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
@@ -47,16 +47,6 @@
     "ok": true,
     "detail": [
       {
-        "title": "Loose task",
-        "property": "Node created at",
-        "raw": 1791051442540
-      },
-      {
-        "title": "Loose task",
-        "property": "Node updated at",
-        "raw": 1791052254756
-      },
-      {
         "title": "Untimed meeting",
         "property": "Node created at",
         "raw": 1791051442540
@@ -75,6 +65,11 @@
         "title": "Acme contract",
         "property": "Deadline",
         "raw": 1790960400000
+      },
+      {
+        "title": "Loose task (edited)",
+        "property": "Node updated at",
+        "raw": 1791052399453
       },
       {
         "title": "Acme rollout",
@@ -164,6 +159,11 @@
       {
         "title": "Wireframes",
         "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Loose task (edited)",
+        "property": "Node created at",
         "raw": 1791051442540
       },
       {
