@@ -54,6 +54,12 @@ All notable changes to this project are documented here. The format follows
   red); today line in the accent colour; undated nodes in a footnote. Click on a row, bar, diamond, task or footnote
   name opens the node and hides Planner; Shift+click opens it in the right sidebar (`openPage` / `openInSidebar` in
   `src/sdk.ts`). Week start is a workspace option (Sunday until T09 wires Logseq's setting).
+- Calendar layout (T09): `src/core/calendar-layout.ts` computes Month (whole weeks covering the anchor's month, days of
+  other months flagged) and Week (the anchor's seven days) for any week start. Span nodes are bands whose lane stays the
+  same across every week row of the range, split per week with continuation flags; one-date nodes and linked tasks'
+  Deadlines (not Scheduled; late when open past the deadline; a task linked to two nodes once) are chips on their day,
+  untimed first then by time. Month shows 3 item rows per day and counts the rest as "+N more"; Week shows everything.
+  Prev / next move by a month (to the 1st) or a week. Undated nodes are listed apart.
 
 ### Fixed
 - Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the
@@ -72,5 +78,7 @@ All notable changes to this project are documented here. The format follows
   "Built-in tags" heading gets the group spacing.
 
 ### Changed
+- Day arithmetic, formatting, category colour, view items (`viewItems`, formerly `timelineItems`) and task / node
+  labels moved from `timeline-layout.ts` to `src/core/layout-common.ts`, shared by the Timeline and the Calendar.
 - The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.
 - Done-value override is now a list of closed-value uuids, not titles (a rename no longer breaks it).

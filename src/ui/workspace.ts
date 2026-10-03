@@ -10,7 +10,8 @@ import type { Dq } from "../core/schema";
 import { loadTagInfos } from "../core/schema";
 import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, type ViewConfig, type ViewKind } from "../core/view-config";
 import { titlesByUuid } from "../core/display-title";
-import { layoutTimeline, shiftAnchor, timelineItems, type TimelineLayout } from "../core/timeline-layout";
+import { viewItems } from "../core/layout-common";
+import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import type { SavedView, ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
@@ -247,7 +248,7 @@ function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
   return layoutTimeline({
-    items: timelineItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
     titles: titlesByUuid(s.nodes),
   });

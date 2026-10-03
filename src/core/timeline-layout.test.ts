@@ -7,9 +7,8 @@ import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
 import { JOURNAL_DAYS_QUERY, loadNodes, loadTasks, NODES_QUERY, TASKS_QUERY } from "./queries";
 import { titlesByUuid } from "./display-title";
-import {
-  addDays, daysBetween, layoutTimeline, shiftAnchor, timelineItems, timelineRange, type TimelineInput, type TimelineLayout, type Zoom,
-} from "./timeline-layout";
+import { viewItems } from "./layout-common";
+import { layoutTimeline, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -43,7 +42,7 @@ async function layout(tagTitle: string, zoom: Zoom, over: Partial<TimelineInput>
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutTimeline({
-    items: timelineItems(nodes, tasks, start, end, statusValues), zoom, anchor: TODAY, today: TODAY, weekStart: 0,
+    items: viewItems(nodes, tasks, start, end, statusValues), zoom, anchor: TODAY, today: TODAY, weekStart: 0,
     statusValues, titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -59,28 +58,10 @@ function synthetic(start: string, end: string | null, zoom: Zoom, anchor = TODAY
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
   const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
-  return layoutTimeline({ items: timelineItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, weekStart, statusValues, titles: new Map() });
+  return layoutTimeline({ items: viewItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, weekStart, statusValues, titles: new Map() });
 }
 
-describe("calendar-day arithmetic", () => {
-  it("adds days across month and year ends and leap days", () => {
-    expect(addDays("2026-09-30", 1)).toBe("2026-10-01");
-    expect(addDays("2026-12-31", 1)).toBe("2027-01-01");
-    expect(addDays("2028-02-28", 1)).toBe("2028-02-29");
-    expect(addDays("2026-03-01", -1)).toBe("2026-02-28");
-    expect(daysBetween("2026-09-13", "2026-10-23")).toBe(40);
-    expect(daysBetween("2026-12-30", "2027-01-02")).toBe(3);
-  });
-
-  it("counts every day once across both DST transitions (US 2026: 8 Mar and 1 Nov)", () => {
-    expect(addDays("2026-03-07", 1)).toBe("2026-03-08");
-    expect(addDays("2026-03-08", 1)).toBe("2026-03-09");
-    expect(addDays("2026-10-31", 1)).toBe("2026-11-01");
-    expect(addDays("2026-11-01", 1)).toBe("2026-11-02");
-    expect(daysBetween("2026-03-01", "2026-03-15")).toBe(14);
-    expect(daysBetween("2026-10-25", "2026-11-08")).toBe(14);
-  });
-
+describe("calendar days (arithmetic itself: layout-common.test.ts)", () => {
   it("lays a DST week out with seven distinct consecutive day columns and a bar of the right length", () => {
     const l = synthetic("2026-10-30", "2026-11-03", "week", "2026-11-01");
     expect(l.range).toMatchObject({ start: "2026-10-25", end: "2026-11-14", days: 21 });
@@ -191,7 +172,7 @@ describe("rows", () => {
     const p = tag("Project");
     const bare = nodes.map((n) => (n.title === "Mobile app" ? { ...n, dates: {} } : n));
     const l = layoutTimeline({
-      items: timelineItems(bare, tasks, dateIdent(p, "Start"), dateIdent(p, "End"), statusValues), zoom: "month", anchor: TODAY, today: TODAY,
+      items: viewItems(bare, tasks, dateIdent(p, "Start"), dateIdent(p, "End"), statusValues), zoom: "month", anchor: TODAY, today: TODAY,
       weekStart: 0, statusValues, titles: titlesByUuid(nodes),
     });
     expect(row(l, "Mobile app")).toMatchObject({ kind: "derived", bar: { from: 26, to: 27 } }); // Wireframes, Scheduled 9 Oct
@@ -254,7 +235,7 @@ describe("task rows", () => {
     const t = (id: number, title: string, deadline: string | null): PlannerTask =>
       ({ id, uuid: `t${id}`, title, status: null, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
     const tasks = [t(1, "b undated", null), t(2, "late", "2026-10-09"), t(3, "a undated", null), t(4, "early", "2026-10-02")];
-    const l = layoutTimeline({ items: timelineItems([node], tasks, dateIdent(p, "Start"), null, statusValues), zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
+    const l = layoutTimeline({ items: viewItems([node], tasks, dateIdent(p, "Start"), null, statusValues), zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
     expect(l.rows[0].tasks.map((x) => x.title)).toEqual(["early", "late", "a undated", "b undated"]);
     expect(l.rows[0].tasks[0].status).toBeNull();
   });

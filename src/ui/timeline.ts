@@ -2,7 +2,8 @@
 // names the action a click means. Pure state → HTML, like workspace.ts; the workspace owns state and events.
 // One CSS grid of day tracks (timeline.css): the label column, then `--pl-tl-days` tracks of `--pl-tl-day`; every
 // position is a day index from the layout (`grid-column: index + 2`).
-import { formatDay, type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
+import { formatDay } from "../core/layout-common";
+import { type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import type { LocalDate } from "../types";
 
 export type TimelineAction =
