@@ -154,7 +154,7 @@ const fixtureRows = () =>
  * property, a uuid or ident string blanks the value). `silent` makes every call do nothing, like a failed write;
  * `hold` (when set) delays the write calls until it resolves. `calls` records every call in order.
  */
-export function fakeGraph() {
+export function fakeGraph(opts: { projectCopies?: number } = {}) {
   const edits: Edits = new Map();
   const calls: unknown[][] = [];
   const state = { silent: false, hold: null as Promise<void> | null };
@@ -186,7 +186,7 @@ export function fakeGraph() {
       return v ? { id: v.id, ident: null } : null;
     },
   };
-  return { dq: fixtureDq({ edits }), writes, calls, edits, state };
+  return { dq: fixtureDq({ edits, projectCopies: opts.projectCopies }), writes, calls, edits, state };
 }
 
 /** A manual clock for `Later`: timers run only when `advance` moves time past them, in due order; `pending` counts live timers. */

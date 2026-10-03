@@ -70,6 +70,8 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
   (and **Earlier** for tags without a done notion, e.g. meetings).
 - Group by **node** (progress, open tasks, overdue first) or by **date**.
 - Done and canceled hidden; **Show done** reveals those in the range.
+- Folded buckets render their entries only once opened (the heading always shows the count);
+  by node, the first 100 groups render, then "Show 100 more of N" (T13a).
 
 ### Kanban
 - Columns = closed values of a chosen choice property (default Status) + "No <prop>".
@@ -77,6 +79,8 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - Cards sorted by **due/end date** (default), **priority** or **title**; no manual order.
 - Drag writes the column property, and the lane property when moved across lanes; dropping
   on "No <prop>" removes the value. Optimistic, rolled back if the write fails.
+- A cell renders its first 50 cards (plus a card being moved), then "Show 50 more of N";
+  column and lane counts stay the real totals (T13a).
 
 ## Technical approach
 

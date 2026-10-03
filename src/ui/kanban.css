@@ -61,3 +61,6 @@
 .pl-kb-move:disabled { cursor: progress; }
 .pl-kb-move-menu { left: auto; right: 0; min-width: 200px; cursor: default; }
 .pl-kb-move-head { margin: 0; padding: 4px 10px 2px; font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+
+/* A cell renders a page of cards at a time (T13a): the next page's button closes the cell */
+.pl-kb-more { justify-self: center; }

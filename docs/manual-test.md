@@ -259,8 +259,8 @@ performance.now() - t0
 | H7 | Repeat H5 on Timeline, Calendar and Agenda (change a node's End date) | Same targets for each view | | | | |
 | H8 | Kanban drag on #Load item (Status, then with Lead swimlanes) | The move shows at once (optimistic) and the quiet reload after it does not stall; note the time to settle | | | | |
 | H9 | Filters: tick Lead = Alice, Team = Ops; clear | The list narrows and widens at once; counts correct (check one against a query) | | | | |
-| H10 | Scroll the Timeline (2000 rows) and the Kanban columns | No visible jank; the main thread is not blocked for seconds | | | | |
-| H11 | Agenda "Later" and "No date" folds with hundreds of entries | Open without freezing; Earlier and Later hold the far-away nodes | | | | |
+| H10 | Scroll the Timeline and the Kanban columns | No visible jank. The Timeline has rows only for nodes in range and one line "N earlier · M later" above the grid; each side moves the range to the nearest such node. Kanban cells show 50 cards, then "Show 50 more of N" (counts in the heads are the totals) **[T13a]** | | | | |
+| H11 | Agenda "Later" and "No date" folds with hundreds of entries | Entries render only when a fold is opened (the count is in the heading), without freezing; by node the first 100 groups, then "Show 100 more of N" **[T13a]** | | | | |
 | H12 | Open and close Planner 5 times | Reopen is instant when nothing changed (no reload); `history` shows no growth of `totalMs` | | | | |
 | H13 | Memory: note the page's JS heap before and after opening Planner and switching all views | Record the numbers (no target) | | | | |
 | H14 | Seed `--seed-large 200` first on a fresh graph if the 2000 import fails or times out | Record which N imports; report the failure text | | | | |

@@ -3,7 +3,8 @@
 // One CSS grid (kanban.css): a header row of columns, then per lane a lane heading spanning the board and one cell per
 // column. Hooks: `data-kb-column` (header, value uuid or "none"), `data-kb-lane-head`, `data-kb-cell` with
 // `data-kb-col` / `data-kb-lane`, `data-kb-card` (uuid; `draggable`, `data-kb-pending`), `data-kb-open`, `data-kb-move`
-// and, in the open Move menu, `data-kb-to-col` / `data-kb-to-lane`.
+// and, in the open Move menu, `data-kb-to-col` / `data-kb-to-lane`. A cell renders `KANBAN_CELL_PAGE` cards at first and a
+// `data-kb-more="<cellKey>"` button for the next page; the counts in the heads are the real totals.
 import { NO_VALUE, type KanbanCard, type KanbanCell, type KanbanLayout, type KanbanSlot, type KanbanSort } from "../core/kanban";
 import type { ChoiceProp } from "../types";
 import { esc, flag, menu, options, segmented } from "./html";
@@ -13,7 +14,15 @@ export type KanbanAction =
   | { type: "open"; uuid: string }
   | { type: "moveMenu"; uuid: string }
   /** From the Move menu: the target column or lane (the other one stays). */
-  | { type: "moveTo"; uuid: string; column: string | null; lane: string | null };
+  | { type: "moveTo"; uuid: string; column: string | null; lane: string | null }
+  /** A capped cell's "Show more": render its next page of cards (`cell` = `cellKey`). */
+  | { type: "more"; cell: string };
+
+/** A cell renders this many cards at first and per "Show more" (T13a: 2,000 cards were ~24k elements). */
+export const KANBAN_CELL_PAGE = 50;
+
+/** A cell's key for the per-cell card limit: column key and lane key (empty without swimlanes). */
+export const cellKey = (cell: KanbanCell): string => `${cell.column.key}|${cell.lane?.key ?? ""}`;
 
 export interface KanbanToolbarInput {
   choiceProps: ChoiceProp[];
@@ -85,31 +94,50 @@ function renderCard(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout, mo
     + ` aria-label="Move ${esc(card.title)}"${flag("disabled", card.pending)}>⋯</button>${open ? renderMoveMenu(card, cell, layout) : ""}</span></div>`;
 }
 
-function renderCell(cell: KanbanCell, layout: KanbanLayout, moveOpen: string | null): string {
+/**
+ * The cards a cell renders: the first `limit`, plus any later one that is pending (an optimistic move shows where it
+ * went) or has its Move menu open.
+ */
+function shownCards(cell: KanbanCell, limit: number, moveOpen: string | null): KanbanCard[] {
+  return cell.cards.filter((c, i) => i < limit || c.pending || c.uuid === moveOpen);
+}
+
+function renderCell(cell: KanbanCell, layout: KanbanLayout, moveOpen: string | null, limits: ReadonlyMap<string, number>): string {
   const name = [cell.column.title, cell.lane?.title].filter(Boolean).join(", ");
+  const key = cellKey(cell);
+  const cards = shownCards(cell, limits.get(key) ?? KANBAN_CELL_PAGE, moveOpen);
+  const rest = cell.cards.length - cards.length;
+  const page = Math.min(rest, KANBAN_CELL_PAGE);
+  const more = rest > 0
+    ? `<button type="button" class="pl-btn pl-kb-more" data-kb-more="${esc(key)}">Show ${page} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`
+    : "";
   return `<div class="pl-kb-cell" role="list" aria-label="${esc(name)}" data-kb-cell data-kb-col="${esc(cell.column.key)}"`
     + `${cell.lane ? ` data-kb-lane="${esc(cell.lane.key)}"` : ""}${flag("data-none", cell.column.key === NO_VALUE || cell.lane?.key === NO_VALUE)}>`
-    + (cell.cards.length ? cell.cards.map((c) => renderCard(c, cell, layout, moveOpen)).join("") : `<span class="pl-kb-drop" aria-hidden="true">Drop here</span>`)
+    + (cell.cards.length ? cards.map((c) => renderCard(c, cell, layout, moveOpen)).join("") + more : `<span class="pl-kb-drop" aria-hidden="true">Drop here</span>`)
     + `</div>`;
 }
 
-/** The board. `heading` names the nodes (the tag, e.g. "#Project"); `moveOpen` = uuid of the card whose Move menu is open. */
-export function renderKanban(layout: KanbanLayout, heading: string, moveOpen: string | null): string {
+/**
+ * The board. `heading` names the nodes (the tag, e.g. "#Project"); `moveOpen` = uuid of the card whose Move menu is open;
+ * `limits` = cards to render per cell by `cellKey` (absent = `KANBAN_CELL_PAGE`).
+ */
+export function renderKanban(layout: KanbanLayout, heading: string, moveOpen: string | null, limits: ReadonlyMap<string, number>): string {
   const columnProp = layout.columns[0].prop;
   const lanes = layout.lanes.length ? layout.lanes[0].prop.ident : "";
   return `<div class="pl-kb" data-kanban data-kb-prop="${esc(columnProp.ident)}" data-kb-lane-prop="${esc(lanes)}" role="region" aria-label="${esc(`${heading} board by ${columnProp.title}`)}"`
     + ` style="--pl-kb-cols: ${layout.columns.length}">`
     + layout.columns.map(renderHead).join("")
-    + layout.rows.map((r) => (r.lane ? renderLane(r.lane) : "") + r.cells.map((c) => renderCell(c, layout, moveOpen)).join("")).join("")
+    + layout.rows.map((r) => (r.lane ? renderLane(r.lane) : "") + r.cells.map((c) => renderCell(c, layout, moveOpen, limits)).join("")).join("")
     + `</div>`;
 }
 
 /** The action a click on `target` asks for, or null when it is not a Kanban control. */
 export function kanbanAction(target: Element): KanbanAction | null {
-  const el = target.closest<HTMLElement>("[data-kb-sort], [data-kb-to-col], [data-kb-to-lane], [data-kb-move], [data-kb-open]");
+  const el = target.closest<HTMLElement>("[data-kb-sort], [data-kb-to-col], [data-kb-to-lane], [data-kb-move], [data-kb-more], [data-kb-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.kbSort) return { type: "sort", sort: d.kbSort as KanbanSort };
+  if (d.kbMore !== undefined) return { type: "more", cell: d.kbMore };
   if (d.kbToCol !== undefined) return { type: "moveTo", uuid: d.kbCard!, column: d.kbToCol, lane: null };
   if (d.kbToLane !== undefined) return { type: "moveTo", uuid: d.kbCard!, column: null, lane: d.kbToLane };
   if (d.kbMove) return { type: "moveMenu", uuid: d.kbMove };

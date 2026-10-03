@@ -151,7 +151,7 @@ describe("group by date", () => {
 
   it("a section with a heading per non-empty bucket, in order; empty buckets are not rendered", () => {
     expect(bucketKeys()).toEqual(["overdue", "today", "2026-10-05", "2026-10-08", "2026-10-09", "none"]);
-    for (const b of $$("[data-ag-bucket]")) expect(b.querySelectorAll("[data-ag-entry]").length).toBeGreaterThan(0);
+    for (const b of $$("section[data-ag-bucket]")) expect(b.querySelectorAll("[data-ag-entry]").length).toBeGreaterThan(0);
     expect(bucket("2026-10-04")).toBeNull();
     expect(bucket("later")).toBeNull();
     expect(bucket("earlier")).toBeNull();
@@ -160,7 +160,8 @@ describe("group by date", () => {
     expect(text("[data-ag-bucket=overdue] [data-ag-count]")).toBe("1");
   });
 
-  it("lists the entries of each bucket, tasks with their node", () => {
+  it("lists the entries of each bucket, tasks with their node", async () => {
+    await click("[data-ag-bucket=none] > summary");
     expect(entriesIn("overdue")).toEqual(["Acme contract"]);
     expect(entriesIn("today")).toEqual(["Acme rollout", "Website relaunch"]);
     expect(entriesIn("2026-10-05")).toEqual(["Draft brief Website relaunch"]);
@@ -183,6 +184,7 @@ describe("group by date", () => {
 
   it("Show done adds the done and canceled tasks to No date", async () => {
     await click("[data-ag-show-done]");
+    await click("[data-ag-bucket=none] > summary");
     expect(entriesIn("none")).toEqual(["Archive cleanup", "Ship homepage Website relaunch", "Survey users Website relaunch"]);
     expect(entry(SHIP).hasAttribute("data-done")).toBe(true);
   });
@@ -193,6 +195,46 @@ describe("group by date", () => {
     expect(bucketKeys()).toEqual(["today", "2026-10-04", "none"]);
     expect(entry(KICKOFF).querySelector(".pl-ag-when")!.textContent).toBe("3 Oct 10:30");
     expect(text("[data-ag-bucket='2026-10-04'] h2")).toBe("Tomorrow · Sun 4 Oct 1");
+  });
+});
+
+describe("rendering less at 2,000 nodes (T13a)", () => {
+  it("a folded bucket renders its entries only once opened; its heading keeps the count", async () => {
+    await click("[data-ag-group-by=date]");
+    expect(bucket("none")!.querySelectorAll("[data-ag-entry]")).toHaveLength(0);
+    expect(text("[data-ag-bucket=none] [data-ag-count]")).toBe("1");
+    await click("[data-ag-bucket=none] > summary");
+    expect(bucket("none")!.hasAttribute("open")).toBe(true);
+    expect(entriesIn("none")).toEqual(["Archive cleanup"]);
+    await click("[data-ag-bucket=none] > summary"); // folded again: entries dropped on the next render
+    expect(bucket("none")!.hasAttribute("open")).toBe(false);
+    await click("[data-ag-show-done]");
+    expect(bucket("none")!.querySelectorAll("[data-ag-entry]")).toHaveLength(0);
+    expect(text("[data-ag-bucket=none] [data-ag-count]")).toBe("3");
+  });
+
+  it("a bucket opened any other way (the open property) gets its entries too", async () => {
+    await click("[data-ag-group-by=date]");
+    (bucket("none") as HTMLDetailsElement).open = true;
+    await ws.idle();
+    expect(entriesIn("none")).toEqual(["Archive cleanup"]);
+  });
+
+  it("by node: the first 100 groups, then a Show more button that adds the next 100", async () => {
+    await setup({ dq: fixtureDq({ projectCopies: 220 }) }); // 224 nodes
+    expect(groups()).toHaveLength(100);
+    expect(text("[data-ag-more]")).toBe("Show 100 more of 124");
+    await click("[data-ag-more]");
+    expect(groups()).toHaveLength(200);
+    expect(text("[data-ag-more]")).toBe("Show 24 more");
+    await click("[data-ag-more]");
+    expect(groups()).toHaveLength(224);
+    expect($("[data-ag-more]")).toBeNull();
+  });
+
+  it("no Show more button when every group fits", () => {
+    expect(groups()).toHaveLength(4);
+    expect($("[data-ag-more]")).toBeNull();
   });
 });
 
@@ -236,6 +278,7 @@ describe("empty agenda", () => {
     expect($("[data-ag-empty]")).not.toBeNull();
     await click("[data-ag-show-done]");
     expect($("[data-ag-empty]")).toBeNull();
+    await click("[data-ag-bucket=none] > summary");
     expect(entriesIn("none")).toEqual(["Archive cleanup"]);
   });
 });

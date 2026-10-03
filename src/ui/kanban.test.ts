@@ -34,12 +34,12 @@ async function click(sel: string, init: MouseEventInit = {}) {
 }
 
 /** Opens the Planner on #Project in the Kanban, over a fake graph the board can write to. */
-async function setup() {
+async function setup(opts: { projectCopies?: number } = {}) {
   tags = await loadTagInfos(fixtureDq());
   document.body.innerHTML = "";
   root = document.createElement("div");
   document.body.append(root);
-  graph = fakeGraph();
+  graph = fakeGraph(opts);
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
   ws = createWorkspace(root, {
@@ -160,6 +160,37 @@ describe("board", () => {
     await click(`[data-view-open="${id}"]`);
     expect(ws.config()).toMatchObject({ kind: "kanban", laneProp: prop("Owner").ident, sort: "title" });
     expect($$("[data-kb-lane-head]")).toHaveLength(3);
+  });
+});
+
+describe("capped cells (T13a)", () => {
+  const doing = () => val("Status", "Doing").uuid;
+
+  it("a cell renders its first 50 cards and a Show more button; the column count stays the real total", async () => {
+    await setup({ projectCopies: 120 }); // Doing: Website relaunch + 120 copies
+    expect(cardsIn(doing())).toHaveLength(50);
+    expect(cardsIn(doing())[0]).toBe(SITE);
+    expect(text(`[data-kb-column="${doing()}"] [data-kb-count]`)).toBe("121");
+    const more = cell(doing()).querySelector<HTMLElement>("[data-kb-more]")!;
+    expect(more.tagName).toBe("BUTTON");
+    expect(more.textContent).toBe("Show 50 more of 71");
+    await click(`[data-kb-cell][data-kb-col="${doing()}"] [data-kb-more]`);
+    expect(cardsIn(doing())).toHaveLength(100);
+    expect(text(`[data-kb-cell][data-kb-col="${doing()}"] [data-kb-more]`)).toBe("Show 21 more");
+    await click(`[data-kb-cell][data-kb-col="${doing()}"] [data-kb-more]`);
+    expect(cardsIn(doing())).toHaveLength(121);
+    expect(cell(doing()).querySelector("[data-kb-more]")).toBeNull();
+  });
+
+  it("other cells have no button; drag from a capped cell still writes", async () => {
+    await setup({ projectCopies: 120 });
+    expect($$("[data-kb-more]")).toHaveLength(1);
+    const done = val("Status", "Done").uuid;
+    drag(card(SITE), cell(done));
+    await ws.idle();
+    expect(writeCalls()).toHaveLength(1);
+    expect(cardsIn(done)).toEqual([SITE]);
+    expect(text(`[data-kb-column="${doing()}"] [data-kb-count]`)).toBe("120");
   });
 });
 

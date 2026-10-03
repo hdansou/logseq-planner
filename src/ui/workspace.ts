@@ -20,8 +20,8 @@ import type { SavedView, ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
-import { agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
-import { kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
+import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
+import { KANBAN_CELL_PAGE, kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
@@ -102,6 +102,12 @@ interface State {
   pending: Map<string, PropertyWrite[]>;
   /** The card whose Move menu is (or was last) open. */
   moveCard: string | null;
+  /** Agenda: folded buckets the user opened (only those render their entries). Session state. */
+  agendaOpen: Set<string>;
+  /** Agenda by node: how many groups are rendered. Session state. */
+  agendaGroups: number;
+  /** Kanban: cards rendered per cell by `cellKey`, for cells whose "Show more" was used. Session state. */
+  kbShown: Map<string, number>;
 }
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -350,13 +356,13 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   }
   if (s.config.kind === "agenda") {
     const layout = agendaLayout(s, now(), tag, shown);
-    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
+    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
   }
   const c = s.config;
   const layout = kanbanLayout(s, now(), tag, shown);
   const prop = (ident: string | null) => tag.choiceProps.find((p) => p.ident === ident) ?? null;
   return {
-    view: renderKanban(layout, `#${tag.title}`, s.popover === "kb-move" ? s.moveCard : null),
+    view: renderKanban(layout, `#${tag.title}`, s.popover === "kb-move" ? s.moveCard : null, s.kbShown),
     toolbar: renderKanbanToolbar({ choiceProps: tag.choiceProps, columnProp: prop(c.columnProp)!, laneProp: prop(c.laneProp), sort: c.sort, hasPriority: priorityProp(tag) !== null, popover: s.popover }),
   };
 }
@@ -385,7 +391,8 @@ function selectorOf(el: Element): string {
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
-    anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null };
+    anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
+    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map() };
   const now = (): Now => {
     if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
     return { today: (deps.today ?? localToday)(), weekStart: s.weekStart };
@@ -705,6 +712,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => setConfig({ ...c, groupBy: a.groupBy }));
       case "showDone":
         return void run(() => setConfig({ ...c, showDone: !c.showDone }));
+      case "more":
+        return void run(() => void (s.agendaGroups += AGENDA_GROUP_PAGE));
     }
   }
 
@@ -717,6 +726,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return deps.openNode(a.uuid, { sidebar: shift });
       case "sort":
         return void run(() => setConfig({ ...c, sort: a.sort }));
+      case "more":
+        return void run(() => void s.kbShown.set(a.cell, (s.kbShown.get(a.cell) ?? KANBAN_CELL_PAGE) + KANBAN_CELL_PAGE));
       case "moveMenu": {
         const open = s.popover === "kb-move" && s.moveCard === a.uuid;
         s.popover = open ? null : "kb-move";
@@ -829,6 +840,19 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (!s.views.some((v) => v.id === s.viewId)) s.viewId = null;
     }
   }
+
+  /**
+   * An Agenda bucket folded or unfolded, by its summary or any other way (`toggle` does not bubble, hence capture):
+   * an opened bucket is redrawn with its entries; a folded one drops them on the next render.
+   */
+  root.addEventListener("toggle", (e) => {
+    const d = e.target as HTMLDetailsElement;
+    const key = d.dataset?.agBucket;
+    if (key === undefined || d.open === s.agendaOpen.has(key)) return;
+    if (!d.open) return void s.agendaOpen.delete(key);
+    s.agendaOpen.add(key);
+    void run(() => {});
+  }, true);
 
   root.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement;

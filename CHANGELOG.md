@@ -164,6 +164,13 @@ All notable changes to this project are documented here. The format follows
   range are replaced by one line above the grid, "412 earlier · 1,105 later"; each side is a button
   (`data-tl-jump="earlier|later"`, `data-tl-day`) that moves the range to the nearest of those nodes (latest end before
   the range, earliest start after it). The layout counts them (`earlier` / `later`) instead of building their rows.
+- Agenda (T13a): a folded bucket (Later, No date, Earlier) renders its entries only once opened, by its summary or any
+  other way (`toggle` event); the heading keeps the count. Opened buckets are session state, so a live refresh keeps
+  them open with their entries. By node, the first 100 groups render, then a "Show 100 more of N" button
+  (`data-ag-more`) adds the next 100. Summaries carry `data-ag-fold="<bucket>"` so focus returns to the right one.
+- Kanban (T13a): a cell renders its first 50 cards (plus a pending card or the one whose Move menu is open), then a
+  "Show 50 more of N" button (`data-kb-more="<column>|<lane>"`) adds the next 50; column and lane counts stay the real
+  totals; drag and the Move menu work on every rendered card.
 - Refresh (T13a): the signature of the data on screen is kept until other data is shown, so a live refresh serialises
   only the newly read data (about a megabyte of JSON at 2,000 nodes and tasks) instead of both; `viewItems` files the
   tasks by node id once instead of scanning every task for every node (2,000 × 2,000).
