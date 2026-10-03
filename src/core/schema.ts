@@ -1,0 +1,138 @@
+// Schema discovery: tags, their date and choice properties (inherited included), closed values.
+// Pure: no DOM, no SDK. The datascript call is injected (see `Dq`).
+import type { ChoiceProp, ClosedValue, DateProp, TagInfo } from "../types";
+
+/** `logseq.DB.datascriptQuery`-shaped call; `src/sdk.ts` supplies the real one. */
+export type Dq = (query: string, ...inputs: unknown[]) => Promise<unknown[]>;
+
+const ROOT_IDENT = ":logseq.class/Root";
+const CANCELED_IDENT = ":logseq.property/status.canceled";
+
+// Both queries are the ones scripts/probe.mjs ran live (fixtures tags.json, class-properties.json).
+export const TAGS_QUERY = `[:find (pull ?t [:db/id :db/ident :block/uuid :block/title :logseq.property/built-in?
+                        {:logseq.property.class/extends [:db/id :db/ident :block/title]}
+                        {:logseq.property.class/properties [:db/id :db/ident :block/title]}])
+          :where [?t :block/tags :logseq.class/Tag]]`;
+
+export const TAG_PROPERTIES_QUERY = `[:find ?tag-title (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type
+                        :db/cardinality :logseq.property/built-in? :logseq.property/hide? :logseq.property/public?
+                        {:logseq.property/default-value [:db/ident :block/title]}
+                        {:logseq.property/classes [:db/ident :block/title]}
+                        {:block/_closed-value-property [:db/id :db/ident :block/uuid :block/title :block/order
+                          :logseq.property/choice-checkbox-state :logseq.property/icon
+                          {:logseq.property/choice-classes [:db/ident :block/title]}]}])
+          :in $ [?tag-title ...]
+          :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?tag-title]
+                 [?t :logseq.property.class/properties ?p]]`;
+
+// Raw shapes as observed (docs/probes.md): pull-map keys keep their namespace except :block/* and :db/*.
+interface RawRef {
+  id: number;
+  ident?: string;
+  title?: string;
+}
+interface RawTag {
+  id: number;
+  uuid: string;
+  ident: string;
+  title: string;
+  ":logseq.property/built-in?"?: boolean;
+  ":logseq.property.class/extends"?: RawRef[];
+  ":logseq.property.class/properties"?: RawRef[];
+}
+interface RawClosedValue {
+  id: number;
+  uuid: string;
+  title: string;
+  ident?: string;
+  order: string;
+  ":logseq.property/choice-checkbox-state"?: boolean;
+}
+interface RawProp {
+  id: number;
+  ident: string;
+  title: string;
+  ":logseq.property/type"?: string;
+  "_closed-value-property"?: RawClosedValue[];
+}
+
+const toClosedValue = (v: RawClosedValue): ClosedValue => ({
+  id: v.id,
+  uuid: v.uuid,
+  title: v.title,
+  ident: v.ident ?? null,
+  order: v.order,
+  checkbox: v[":logseq.property/choice-checkbox-state"] ?? null,
+  canceled: v.ident === CANCELED_IDENT,
+});
+
+const byOrder = (a: ClosedValue, b: ClosedValue) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0);
+
+/** Date/DateTime and choice properties of a tag, own first then inherited (parents walked depth-first). */
+function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map<number, RawProp>) {
+  const dateProps: DateProp[] = [];
+  const choiceProps: ChoiceProp[] = [];
+  const seenTags = new Set<number>();
+  const seenProps = new Set<number>();
+  const visit = (t: RawTag) => {
+    if (seenTags.has(t.id)) return;
+    seenTags.add(t.id);
+    for (const ref of t[":logseq.property.class/properties"] ?? []) {
+      const p = propsById.get(ref.id);
+      if (!p || seenProps.has(p.id)) continue;
+      seenProps.add(p.id);
+      const type = p[":logseq.property/type"];
+      const closed = p["_closed-value-property"] ?? [];
+      if (type === "date" || type === "datetime") {
+        dateProps.push({ id: p.id, ident: p.ident, title: p.title, type });
+      } else if (type === "default" && closed.length > 0) {
+        choiceProps.push({
+          id: p.id,
+          ident: p.ident,
+          title: p.title,
+          values: closed.map(toClosedValue).sort(byOrder),
+        });
+      }
+    }
+    for (const parent of t[":logseq.property.class/extends"] ?? []) {
+      const next = tagsById.get(parent.id);
+      if (next) visit(next);
+    }
+  };
+  visit(tag);
+  return { dateProps, choiceProps };
+}
+
+/** Raw `TAGS_QUERY` and `TAG_PROPERTIES_QUERY` results → tags with inherited properties resolved. */
+export function buildTagInfos(rawTags: unknown[], rawProps: unknown[]): TagInfo[] {
+  const tags = (rawTags as [RawTag][]).map(([t]) => t);
+  const tagsById = new Map(tags.map((t) => [t.id, t]));
+  const propsById = new Map((rawProps as [string, RawProp][]).map(([, p]) => [p.id, p]));
+
+  const infos: TagInfo[] = tags
+    .filter((t) => t.ident !== ROOT_IDENT)
+    .map((t) => ({
+      id: t.id,
+      uuid: t.uuid,
+      ident: t.ident,
+      title: t.title,
+      builtIn: t[":logseq.property/built-in?"] === true,
+      parentIds: (t[":logseq.property.class/extends"] ?? []).filter((p) => p.ident !== ROOT_IDENT).map((p) => p.id),
+      childIds: [],
+      ...collectProps(t, tagsById, propsById),
+    }));
+  const infoById = new Map(infos.map((i) => [i.id, i]));
+  for (const info of infos) for (const pid of info.parentIds) infoById.get(pid)?.childIds.push(info.id);
+  return infos;
+}
+
+/** Runs both queries through the injected `dq` and builds the tag list. */
+export async function loadTagInfos(dq: Dq): Promise<TagInfo[]> {
+  const rawTags = await dq(TAGS_QUERY);
+  const owners = (rawTags as [RawTag][])
+    .map(([t]) => t)
+    .filter((t) => (t[":logseq.property.class/properties"] ?? []).length > 0)
+    .map((t) => t.title);
+  const rawProps = await dq(TAG_PROPERTIES_QUERY, owners);
+  return buildTagInfos(rawTags, rawProps);
+}

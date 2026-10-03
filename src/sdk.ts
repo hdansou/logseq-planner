@@ -1,5 +1,6 @@
 // No SDK import: the `logseq` global comes from index.ts; importing the SDK here breaks unit tests (gotcha §11).
 // Every SDK call and typing cast lives here. No casts are needed yet.
+import type { Dq } from "./core/schema";
 import type { AppDeps } from "./types";
 
 /** The real SDK behind `registerApp`. */
@@ -18,3 +19,6 @@ export const appDeps = (): AppDeps => ({
   },
   defer: (fn) => void setTimeout(fn, 0),
 });
+
+/** `logseq.DB.datascriptQuery` as the injectable `Dq` the core takes (string inputs are EDN-read; see CLAUDE.md). */
+export const datascriptQuery: Dq = (query, ...inputs) => logseq.DB.datascriptQuery(query, ...inputs);

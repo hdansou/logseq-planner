@@ -17,6 +17,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/app.ts` | `registerApp(deps, root)`: shell, open/close, deferred registrations | call `logseq.*` |
 | `src/sdk.ts` | every SDK call and typing cast | DOM rendering |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
+| `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
 | `src/storage.ts` | cache-first saved views (graph-backed) | anything else |

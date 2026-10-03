@@ -16,3 +16,6 @@ All notable changes to this project are documented here. The format follows
   tokens into `--pl-*` (shui channels in `hsl()`, hover must differ from float); re-resolved on
   theme and mode change, and again 250 ms and 1000 ms later (the host's stylesheet load is not
   observable), last resolve wins. `src/ui/theme.css` holds Inkwell defaults and the base component styles.
+- Schema discovery (T03): `src/core/schema.ts` lists tags as a tree (built-in vs own, parents via
+  `extends`) with date/DateTime and choice properties including inherited ones, and each choice's
+  closed values with the checkbox flag and Canceled-by-ident; `datascriptQuery` added to `src/sdk.ts`.
