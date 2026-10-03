@@ -68,6 +68,23 @@ describe("loadNodes", () => {
     expect(idents.some((i) => i.startsWith(":user.property/client-"))).toBe(false);
   });
 
+  it("an ident that is not a valid keyword is never put into the pull; the tag stays usable (T14)", async () => {
+    // Fixture property rows with ONLY their idents changed: Owner to one with a space, Meeting's Type to one with "]",
+    // End to a valid exotic one Logseq can generate ("Done?").
+    const props = (propsFixture.query.detail as [string, Record<string, unknown>][]).map(([t, p]) => [t,
+      t === "Project" && p.title === "Owner" ? { ...p, ident: ":user.property/own er" }
+        : t === "Meeting" && p.title === "Type" ? { ...p, ident: ":user.property/st]x" }
+        : t === "Project" && p.title === "End" ? { ...p, ident: ":user.property/done?-x" } : p]);
+    const odd = buildTagInfos(tagsFixture.query.detail as unknown[], props);
+    const q = nodesQuery(odd);
+    expect(q).not.toContain("own er");
+    expect(q).not.toContain("st]x");
+    expect(q).toContain("{:user.property/done?-x [:db/id :block/journal-day]}");
+    expect(nodePropIdents(odd)).not.toContain(":user.property/own er");
+    expect(q).toContain(":logseq.property/status"); // the other idents stay
+    expect(odd.find((t) => t.title === "Project")!.choiceProps.map((p) => p.title)).toEqual(["Status", "Owner"]); // the tag is still usable
+  });
+
   it("keeps the extends rule join of the node query", () => {
     expect(nodesQuery(tags)).toContain(":in $ ?tag %");
     expect(nodesQuery(tags)).not.toContain(":block/title ?tag-title");

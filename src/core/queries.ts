@@ -1,6 +1,6 @@
 // Graph queries for nodes and tasks. The datascript call is injected (see `Dq`); no SDK use here.
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
-import type { Dq } from "./schema";
+import { isPropertyIdent, type Dq } from "./schema";
 import { buildNodes, buildTasks, systemZone, type ZoneOffset } from "./normalize";
 
 /** Rules go last in `:in` as a string with a leading space (scripts/probe.mjs `RULES`). */
@@ -24,7 +24,8 @@ const NODE_ATTRS = ":db/id :block/uuid :block/title :block/tags";
  * (T13a: 2,000 nodes 276 ms → 77 ms live); a ref-typed value still comes back as `{id}`, a DateTime as epoch ms.
  */
 export function nodePropIdents(tags: TagInfo[]): string[] {
-  return [...new Set(tags.flatMap((t) => [...t.dateProps, ...t.choiceProps].map((p) => p.ident)))].sort();
+  // An ident that is not a valid keyword is skipped, never interpolated (T14): that property reads as no value.
+  return [...new Set(tags.flatMap((t) => [...t.dateProps, ...t.choiceProps].map((p) => p.ident)))].filter(isPropertyIdent).sort();
 }
 
 /**

@@ -5,6 +5,14 @@ import type { ChoiceProp, ClosedValue, DateProp, TagInfo } from "../types";
 /** `logseq.DB.datascriptQuery`-shaped call; `src/sdk.ts` supplies the real one. */
 export type Dq = (query: string, ...inputs: unknown[]) => Promise<unknown[]>;
 
+/**
+ * A full property ident as Logseq generates it: `:namespace/name`, both parts from `[0-9a-zA-Z*+!_'?<>=.-]` (logseq
+ * `normalize-ident-name-part`; e.g. "Done?", "A+B" and "Who's" give `?`, `+` and `'`). The one check used wherever an
+ * ident is put into a query string (`nodePull`, `choiceReadQuery`): anything else is never interpolated.
+ */
+const IDENT_RE = /^:[0-9a-zA-Z*+!_'?<>=.-]+\/[0-9a-zA-Z*+!_'?<>=.-]+$/;
+export const isPropertyIdent = (ident: string): boolean => IDENT_RE.test(ident);
+
 const ROOT_IDENT = ":logseq.class/Root";
 const CANCELED_IDENT = ":logseq.property/status.canceled";
 

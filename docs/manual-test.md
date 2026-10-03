@@ -303,6 +303,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | not run |  |  |  |
 | J8 | With Planner open in tab A, save a view in tab B (same graph); in A close and reopen Planner; then delete it in B and reopen in A | The view appears in A after the reopen, and is gone after the second | not run |  |  |  |
 | J9 | Kanban with swimlanes: stub the host so the lane write does nothing (as in the T11 silent-failure check), drag a card to another column and lane | Error ends "Status was put back to …, so the card has not moved."; the graph holds the old Status and Owner | not run |  |  |  |
+| J10 | Give #Project a choice property named "Done?" (or "Who's"), use it as the Kanban column property and move a card | The move is written and read back with no "Not a full property ident" error | not run |  |  |  |
 | J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 
 ## Not covered / known gaps

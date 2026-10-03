@@ -127,6 +127,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Idents (T14): one ident check, `isPropertyIdent` (`src/core/schema.ts`), accepts every ident Logseq generates (both
+  parts from `[0-9a-zA-Z*+!_'?<>=.-]`, as logseq `normalize-ident-name-part`), so the Kanban read-back no longer
+  rejects properties named "Done?", "A+B" or "Who's". The node pull uses the same check: an ident that does not match
+  is skipped (that property reads as no value; the tag stays usable) instead of being put into the query string.
 - Kanban (T14): a move across a column and a lane whose second write failed left the first property written (the card
   half moved). `writeMove` now writes the first property back to its previous value (`PropertyWrite.previous`) and
   reads it back; the error says "… Status was put back to Doing, so the card has not moved." or, when that fails too,

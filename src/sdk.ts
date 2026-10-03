@@ -1,6 +1,6 @@
 // No SDK import: the `logseq` global comes from index.ts; importing the SDK here breaks unit tests (gotcha §11).
 // Every SDK call and typing cast lives here.
-import type { Dq } from "./core/schema";
+import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
@@ -137,14 +137,13 @@ export const storageDeps = (): StorageDeps => ({
   removeBlock: async (uuid) => void (await logseq.Editor.removeBlock(uuid)),
 });
 
-const IDENT_RE = /^:[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
 /**
  * The node's value of a choice property, pulled the way T01's read-backs were (scripts/probe.mjs `readOwner`): by
  * uuid, the uuid passed as an EDN `#uuid` input. The ident goes into the pull pattern, so it must be a full keyword.
  */
 export function choiceReadQuery(ident: string): string {
-  if (!IDENT_RE.test(ident)) throw new Error(`Not a full property ident: ${ident}`);
+  if (!isPropertyIdent(ident)) throw new Error(`Not a full property ident: ${ident}`);
   return `[:find (pull ?b [:block/uuid {${ident} [:db/id :db/ident]}]) :in $ ?u :where [?b :block/uuid ?u]]`;
 }
 

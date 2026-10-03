@@ -83,6 +83,13 @@ describe("Kanban writes (T11; T01 observed shapes, docs/probes.md)", () => {
     expect(await kanbanWriteDeps().readChoice(UUID, ":logseq.property/status")).toEqual({ id: 10, ident: ":logseq.property/empty-placeholder" });
   });
 
+  it("accepts every ident Logseq generates (logseq normalize-ident-name-part: [0-9a-zA-Z*+!_'?<>=.-]) (T14)", () => {
+    for (const ident of [":user.property/done?-aB3", ":user.property/a+b-x", ":user.property/who's-x", ":user.property/*<>=!_.-"]) {
+      expect(choiceReadQuery(ident)).toContain(`{${ident} [:db/id :db/ident]}`);
+    }
+    for (const ident of [":user.property/a b", ":user.property/x]", ":user.property/x}", ":user.property/x\"y"]) expect(() => choiceReadQuery(ident)).toThrow(/ident/);
+  });
+
   it("an absent value reads as null; a missing block or a malformed ident fails", async () => {
     let rows: unknown[] = [[{ uuid: UUID }]];
     vi.stubGlobal("logseq", { DB: { datascriptQuery: async () => rows } });
