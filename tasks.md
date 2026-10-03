@@ -122,6 +122,11 @@ Total: about 10 hours.
   `#app`. `overrides` for dompurify and lodash-es copied from query-builder (npm audit 0).
   Live in the web app (Demo graph, `LSPluginCore.register` on :8293): toolbar button shows
   and opens the empty Planner, the iframe takes focus, Close and Escape hide it, no console
-  errors. Not checked live: the command palette entry. The dev server answers on
+  errors. The dev server answers on
   `localhost:8293` only, not `127.0.0.1`. The web app now starts with `pnpm watch`.
   Sub-agents run on lower models from T01 on.
+- 2026-10-03 T00 re-validated live on the test graph `plugin-test` (web app, separate
+  browser session): command palette shows "Planner: open" and Enter opens the Planner with
+  the iframe focused; Escape hides it without a click into the iframe; toolbar button
+  (real click) opens it; Close hides it; 0 console errors. Rule: every acceptance item is
+  exercised live on a test graph before a task is marked done; unit tests alone do not count.
