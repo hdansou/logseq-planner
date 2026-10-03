@@ -78,7 +78,9 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - Optional **swimlanes** by a second choice property + "No <prop>" lane.
 - Cards sorted by **due/end date** (default), **priority** or **title**; no manual order.
 - Drag writes the column property, and the lane property when moved across lanes; dropping
-  on "No <prop>" removes the value. Optimistic, rolled back if the write fails.
+  on "No <prop>" removes the value. Optimistic, rolled back if the write fails; when a move
+  needs two writes and the second fails, the first property is written back to its previous
+  value, and the error says whether that worked (T14).
 - A cell renders its first 50 cards (plus a card being moved), then "Show 50 more of N";
   column and lane counts stay the real totals (T13a).
 

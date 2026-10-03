@@ -197,7 +197,8 @@ deleted on another device appear.
 3. It reads the value back by pulling `[:block/uuid {ident [:db/id :db/ident]}]` for the node.
 4. A mismatch throws. Removal accepts an absent attribute or the
    `:logseq.property/empty-placeholder` entity, which the host sets when it clears a built-in
-   property.
+   property. When the second write of a two-write move fails, the first is written back to its
+   previous value (`PropertyWrite.previous`) and read back; the error says whether that worked.
 5. The workspace shows the move at once (`State.pending`), runs `writeMove`, then reloads
    from the graph whether the write worked or not. A failed write puts the card back and
    shows the error.

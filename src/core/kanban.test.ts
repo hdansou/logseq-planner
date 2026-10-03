@@ -195,7 +195,7 @@ describe("moveDescriptor", () => {
     const from = findCell(l, colKey(p(), "Status", "Doing"), null);
     const to = findCell(l, colKey(p(), "Status", "Done"), null);
     expect(moveDescriptor(from.cards[0], from, to)).toEqual<PropertyWrite[]>([
-      { kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: status().ident, title: "Status" }, value: value(p(), "Status", "Done") },
+      { kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: status().ident, title: "Status" }, value: value(p(), "Status", "Done"), previous: value(p(), "Status", "Doing") },
     ]);
   });
 
@@ -204,7 +204,7 @@ describe("moveDescriptor", () => {
     const from = findCell(l, colKey(p(), "Status", "Doing"), colKey(p(), "Owner", "Alice"));
     const to = findCell(l, colKey(p(), "Status", "Doing"), colKey(p(), "Owner", "Bob"));
     expect(moveDescriptor(from.cards[0], from, to)).toEqual([
-      { kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: owner().ident, title: "Owner" }, value: value(p(), "Owner", "Bob") },
+      { kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: owner().ident, title: "Owner" }, value: value(p(), "Owner", "Bob"), previous: value(p(), "Owner", "Alice") },
     ]);
   });
 
@@ -221,24 +221,24 @@ describe("moveDescriptor", () => {
     const l = await project({ laneProp: owner() });
     const from = findCell(l, colKey(p(), "Status", "Doing"), colKey(p(), "Owner", "Alice"));
     expect(moveDescriptor(from.cards[0], from, findCell(l, colKey(p(), "Status", "Doing"), NO_VALUE)))
-      .toEqual([{ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: owner().ident, title: "Owner" } }]);
+      .toEqual([{ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: owner().ident, title: "Owner" }, previous: value(p(), "Owner", "Alice") }]);
     expect(moveDescriptor(from.cards[0], from, findCell(l, NO_VALUE, colKey(p(), "Owner", "Alice"))))
-      .toEqual([{ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: status().ident, title: "Status" } }]);
+      .toEqual([{ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: status().ident, title: "Status" }, previous: value(p(), "Status", "Doing") }]);
   });
 
   it("from No <prop> to a value: a set", async () => {
     const l = await project({ laneProp: owner() });
     const from = findCell(l, colKey(p(), "Status", "Backlog"), NO_VALUE);
     const writes = moveDescriptor(from.cards[0], from, findCell(l, colKey(p(), "Status", "Backlog"), colKey(p(), "Owner", "Bob")));
-    expect(writes).toEqual([{ kind: "set", uuid: ARCHIVE, node: "Archive cleanup", prop: { ident: owner().ident, title: "Owner" }, value: value(p(), "Owner", "Bob") }]);
+    expect(writes).toEqual([{ kind: "set", uuid: ARCHIVE, node: "Archive cleanup", prop: { ident: owner().ident, title: "Owner" }, value: value(p(), "Owner", "Bob"), previous: null }]);
   });
 
   it("movedNode applies the writes to a copy (optimistic position)", async () => {
     const nodes = await loadNodes(dq, tags, p(), { childTags: true, zone: west5 });
     const site = nodes.find((n) => n.uuid === SITE)!;
     const moved = movedNode(site, [
-      { kind: "set", uuid: SITE, node: "", prop: { ident: status().ident, title: "Status" }, value: value(p(), "Status", "Done") },
-      { kind: "remove", uuid: SITE, node: "", prop: { ident: owner().ident, title: "Owner" } },
+      { kind: "set", uuid: SITE, node: "", prop: { ident: status().ident, title: "Status" }, value: value(p(), "Status", "Done"), previous: null },
+      { kind: "remove", uuid: SITE, node: "", prop: { ident: owner().ident, title: "Owner" }, previous: null },
     ]);
     expect(moved.choices[status().ident].title).toBe("Done");
     expect(moved.choices[owner().ident]).toBeUndefined();
@@ -248,9 +248,9 @@ describe("moveDescriptor", () => {
 
 describe("writeMove (T01: full ident, closed value entity id, read back)", () => {
   const p = () => tag("Project");
-  const set = (prop: string, title: string): PropertyWrite =>
-    ({ kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop }, value: value(p(), prop, title) });
-  const remove = (prop: string): PropertyWrite => ({ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop } });
+  const set = (prop: string, title: string, previous: string | null = null): PropertyWrite =>
+    ({ kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop }, value: value(p(), prop, title), previous: previous === null ? null : value(p(), prop, previous) });
+  const remove = (prop: string): PropertyWrite => ({ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop }, previous: null });
 
   type Stored = { id: number; ident: string | null } | null;
   /**
@@ -304,6 +304,51 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
     const d = deps({}, true);
     await expect(writeMove(d, [set("Status", "Done"), set("Owner", "Bob")])).rejects.toThrow();
     expect(d.upsertBlockProperty).toHaveBeenCalledTimes(1);
+  });
+
+  describe("partial move: the second write fails its read-back (T14)", () => {
+    const status = () => choiceProp(p(), "Status").ident;
+    const owner = () => choiceProp(p(), "Owner").ident;
+    const ref = (prop: string, title: string) => ({ id: value(p(), prop, title).id, ident: null });
+    /** Owner writes do nothing (fail their read-back); Status writes work unless `statusSilentAfter` writes happened. */
+    function partial(statusSilentAfter = Infinity) {
+      const stored: Record<string, { id: number; ident: string | null } | null> = { [status()]: ref("Status", "Doing"), [owner()]: ref("Owner", "Alice") };
+      let statusWrites = 0;
+      const d: KanbanWriteDeps = {
+        upsertBlockProperty: vi.fn(async (_u: string, key: string, id: number) => {
+          if (`:${key}` === status() && statusWrites++ < statusSilentAfter) stored[status()] = { id, ident: null };
+          return null;
+        }),
+        removeBlockProperty: vi.fn(async (_u: string, key: string) => {
+          if (`:${key}` === status() && statusWrites++ < statusSilentAfter) stored[status()] = null;
+          return null;
+        }),
+        readChoice: vi.fn(async (_u: string, ident: string) => stored[ident] ?? null),
+      };
+      return { d, stored };
+    }
+
+    it("the first write is put back to its previous value and read back; the error says so", async () => {
+      const { d, stored } = partial();
+      await expect(writeMove(d, [set("Status", "Done", "Doing"), set("Owner", "Bob", "Alice")])).rejects.toThrow(
+        'Owner of "Website relaunch" was not saved as Bob (read back differs). Status was put back to Doing, so the card has not moved.');
+      expect(stored[status()]!.id).toBe(value(p(), "Status", "Doing").id);
+      expect(d.upsertBlockProperty).toHaveBeenLastCalledWith(SITE, "logseq.property/status", value(p(), "Status", "Doing").id);
+      expect(d.readChoice).toHaveBeenLastCalledWith(SITE, status());
+    });
+
+    it("a first write that set a value where there was none is removed again", async () => {
+      const { d } = partial();
+      await expect(writeMove(d, [set("Status", "Done"), set("Owner", "Bob", "Alice")])).rejects.toThrow(/Status was put back to no value/);
+      expect(d.removeBlockProperty).toHaveBeenCalledWith(SITE, "logseq.property/status");
+    });
+
+    it("when putting the first write back fails too, the error says so", async () => {
+      const { d, stored } = partial(1); // the Status rollback is dropped
+      await expect(writeMove(d, [set("Status", "Done", "Doing"), set("Owner", "Bob", "Alice")])).rejects.toThrow(
+        'Owner of "Website relaunch" was not saved as Bob (read back differs). Putting Status back to Doing failed too: Status of "Website relaunch" was not saved as Doing (read back differs). The board shows what the graph holds.');
+      expect(stored[status()]!.id).toBe(value(p(), "Status", "Done").id);
+    });
   });
 
   it("removal: an absent attribute and the empty placeholder both count as removed (built-in Status, seen live)", async () => {

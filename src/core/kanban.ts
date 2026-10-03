@@ -93,8 +93,11 @@ export interface KanbanInput {
   pending: ReadonlySet<string>;
 }
 
-/** One property write of a move. `node` is the node's display title (for error messages). */
-export type PropertyWrite = { uuid: string; node: string; prop: { ident: string; title: string } } & (
+/**
+ * One property write of a move. `node` is the node's display title (for error messages); `previous` is the value the
+ * card had before (null = none), what a failed move puts back.
+ */
+export type PropertyWrite = { uuid: string; node: string; prop: { ident: string; title: string }; previous: ClosedValue | null } & (
   | { kind: "set"; value: ClosedValue }
   | { kind: "remove" }
 );
@@ -179,16 +182,16 @@ export function cardCell(layout: KanbanLayout, uuid: string): { card: KanbanCard
   throw new Error(`No Kanban card ${uuid}`);
 }
 
-const write = (card: KanbanCard, slot: KanbanSlot): PropertyWrite =>
+const write = (card: KanbanCard, from: KanbanSlot, slot: KanbanSlot): PropertyWrite =>
   slot.value
-    ? { kind: "set", uuid: card.uuid, node: card.title, prop: slot.prop, value: slot.value }
-    : { kind: "remove", uuid: card.uuid, node: card.title, prop: slot.prop };
+    ? { kind: "set", uuid: card.uuid, node: card.title, prop: slot.prop, value: slot.value, previous: from.value }
+    : { kind: "remove", uuid: card.uuid, node: card.title, prop: slot.prop, previous: from.value };
 
 /** The writes that move `card` from `from` to `to`: the column property when it changes, then the lane property when it does. */
 export function moveDescriptor(card: KanbanCard, from: KanbanCell, to: KanbanCell): PropertyWrite[] {
   const writes: PropertyWrite[] = [];
-  if (from.column.key !== to.column.key) writes.push(write(card, to.column));
-  if (from.lane && to.lane && from.lane.key !== to.lane.key) writes.push(write(card, to.lane));
+  if (from.column.key !== to.column.key) writes.push(write(card, from.column, to.column));
+  if (from.lane && to.lane && from.lane.key !== to.lane.key) writes.push(write(card, from.lane, to.lane));
   return writes;
 }
 
@@ -205,20 +208,49 @@ export function movedNode(node: PlannerNode, writes: PropertyWrite[]): PlannerNo
 /** The property key the write calls take: the full ident without its leading colon (the form T01's working calls used). */
 export const writeKey = (ident: string): string => ident.replace(/^:/, "");
 
-/** Writes a move in order, reading each property back; throws on the first write the graph does not hold. */
+/** One write and its read-back; throws (without advice on the board) when the graph does not hold it. */
+async function writeOne(deps: KanbanWriteDeps, w: PropertyWrite): Promise<void> {
+  const key = writeKey(w.prop.ident);
+  if (w.kind === "set") await deps.upsertBlockProperty(w.uuid, key, w.value.id);
+  else await deps.removeBlockProperty(w.uuid, key);
+  const read = await deps.readChoice(w.uuid, w.prop.ident);
+  // No value = the attribute is gone (user properties) or points at the empty placeholder (built-in Status, seen live).
+  const stored = read === null || isEmptyPlaceholder(read) ? null : read.id;
+  if (w.kind === "set" && stored !== w.value.id) throw new Error(`${w.prop.title} of "${w.node}" was not saved as ${w.value.title} (read back differs).`);
+  if (w.kind === "remove" && stored !== null) throw new Error(`${w.prop.title} of "${w.node}" was not removed (read back still has a value).`);
+}
+
+/** The write that puts `w`'s property back to the value it had before. */
+const undo = (w: PropertyWrite): PropertyWrite =>
+  w.previous ? { ...w, kind: "set", value: w.previous } : { kind: "remove", uuid: w.uuid, node: w.node, prop: w.prop, previous: null };
+
+const SHOWS_GRAPH = "The board shows what the graph holds.";
+
+/**
+ * Writes a move in order, reading each property back; throws on the first write the graph does not hold. When a later
+ * write fails after an earlier one worked (a cross-column and cross-lane move), the earlier ones are put back to their
+ * previous values, each read back (T14), and the error says whether that worked.
+ */
 export async function writeMove(deps: KanbanWriteDeps, writes: PropertyWrite[]): Promise<void> {
+  const done: PropertyWrite[] = [];
   for (const w of writes) {
-    const key = writeKey(w.prop.ident);
-    if (w.kind === "set") await deps.upsertBlockProperty(w.uuid, key, w.value.id);
-    else await deps.removeBlockProperty(w.uuid, key);
-    const read = await deps.readChoice(w.uuid, w.prop.ident);
-    // No value = the attribute is gone (user properties) or points at the empty placeholder (built-in Status, seen live).
-    const stored = read === null || isEmptyPlaceholder(read) ? null : read.id;
-    if (w.kind === "set" && stored !== w.value.id) {
-      throw new Error(`${w.prop.title} of "${w.node}" was not saved as ${w.value.title} (read back differs). The board shows what the graph holds.`);
+    try {
+      await writeOne(deps, w);
+    } catch (e) {
+      const failed = (e as Error).message;
+      if (!done.length) throw new Error(`${failed} ${SHOWS_GRAPH}`);
+      const back: string[] = [];
+      for (const d of [...done].reverse()) {
+        const was = d.previous?.title ?? "no value";
+        try {
+          await writeOne(deps, undo(d));
+        } catch (r) {
+          throw new Error(`${failed} Putting ${d.prop.title} back to ${was} failed too: ${(r as Error).message} ${SHOWS_GRAPH}`);
+        }
+        back.push(`${d.prop.title} was put back to ${was}`);
+      }
+      throw new Error(`${failed} ${back.join(", ")}, so the card has not moved.`);
     }
-    if (w.kind === "remove" && stored !== null) {
-      throw new Error(`${w.prop.title} of "${w.node}" was not removed (read back still has a value). The board shows what the graph holds.`);
-    }
+    done.push(w);
   }
 }

@@ -302,6 +302,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J6 | On "Planner views", edit one view block's hidden `planner-view-config` to `{"v":1,"config":{}}` (e.g. via the CLI), reopen Planner, open Saved views | The other views list and open; the broken one is greyed with "Cannot be opened: …" and can be deleted | not run |  |  |  |
 | J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | not run |  |  |  |
 | J8 | With Planner open in tab A, save a view in tab B (same graph); in A close and reopen Planner; then delete it in B and reopen in A | The view appears in A after the reopen, and is gone after the second | not run |  |  |  |
+| J9 | Kanban with swimlanes: stub the host so the lane write does nothing (as in the T11 silent-failure check), drag a card to another column and lane | Error ends "Status was put back to …, so the card has not moved."; the graph holds the old Status and Owner | not run |  |  |  |
 | J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 
 ## Not covered / known gaps

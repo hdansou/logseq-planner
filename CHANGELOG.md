@@ -127,6 +127,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Kanban (T14): a move across a column and a lane whose second write failed left the first property written (the card
+  half moved). `writeMove` now writes the first property back to its previous value (`PropertyWrite.previous`) and
+  reads it back; the error says "… Status was put back to Doing, so the card has not moved." or, when that fails too,
+  "Putting Status back to Doing failed too: …". The board reloads from the graph either way.
 - Saved views (T14): the list was read once per plugin lifetime, so views added or deleted on another device never
   showed. The store has `invalidate()`; the workspace drops the cache and lists the views again on every show
   (`Workspace.showViews`, from `app.ts`; the first show lists them as part of the load).
