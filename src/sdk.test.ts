@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
+import { BLOCK_TAGS_QUERY, choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -16,6 +16,21 @@ describe("strict views page query", () => {
     vi.stubGlobal("logseq", { DB: { datascriptQuery: async (q: string) => (sent.push(q), []) } });
     expect(await storageDeps().findPage("Planner views")).toBeNull();
     expect(sent[0]).toBe(pageQuery("Planner views"));
+  });
+});
+
+describe("saved-view block tags (T14, F3)", () => {
+  const UUID = "6a000000-0000-4000-8000-000000000001";
+  it("pulls the block's tags by #uuid input and counts them; none = 0; a missing block fails", async () => {
+    const sent: unknown[][] = [];
+    let rows: unknown[] = [[{ uuid: UUID, tags: [{ id: 223 }] }]];
+    vi.stubGlobal("logseq", { DB: { datascriptQuery: async (...args: unknown[]) => (sent.push(args), rows) } });
+    expect(await storageDeps().blockTags(UUID)).toBe(1);
+    expect(sent[0]).toEqual([BLOCK_TAGS_QUERY, `#uuid "${UUID}"`]);
+    rows = [[{ uuid: UUID }]];
+    expect(await storageDeps().blockTags(UUID)).toBe(0);
+    rows = [];
+    await expect(storageDeps().blockTags(UUID)).rejects.toThrow(/not found/);
   });
 });
 

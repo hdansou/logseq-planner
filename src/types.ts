@@ -198,6 +198,8 @@ export interface StorageDeps {
   /** Appends a block with `name` as text; the new uuid, or null when the SDK returned nothing. */
   appendBlock(pageUuid: string, name: string): Promise<string | null>;
   setConfig(uuid: string, text: string): Promise<void>;
+  /** How many tags the block carries (0 for a saved-view block the host did not tag, T14 F3). */
+  blockTags(uuid: string): Promise<number>;
   removeBlock(uuid: string): Promise<void>;
 }
 

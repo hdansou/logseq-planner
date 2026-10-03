@@ -173,8 +173,12 @@ whether the write worked or not (observed live, docs/probes.md).
    points to Recycle.
 3. Ensure the config property: create it hidden as a string when missing, hide it when it
    exists unhidden, change nothing otherwise. This runs before every write.
-4. Append a block, or set the property on an existing block.
-5. Read the block back and throw when it differs.
+4. Append a block, or set the property on an existing block. A new block's text is the name
+   after `sanitizeViewName` (no `#`, `[`, `]`, `{`, `}`; runs of `(` or `)` folded), because
+   the host turns `#word` in a block's text into a tag (T14).
+5. Read the block back and throw when it differs. A new block must also have no tags and
+   exactly the sanitised title. Any failure after the append removes that block again; when
+   the removal fails too, the error says so.
 
 The cache is updated before the write. The store looks the page up
 again before every write and drops its cache when the page is gone.

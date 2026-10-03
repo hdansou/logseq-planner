@@ -83,6 +83,11 @@ export const hostWeekStart = async (): Promise<number> =>
 /** `logseq.DB.datascriptQuery` as the injectable `Dq` the core takes (string inputs are EDN-read; see CLAUDE.md). */
 export const datascriptQuery: Dq = (query, ...inputs) => logseq.DB.datascriptQuery(query, ...inputs);
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The tags of one block, pulled by uuid (`#uuid` input). */
+export const BLOCK_TAGS_QUERY = `[:find (pull ?b [:block/uuid {:block/tags [:db/id]}]) :in $ ?u :where [?b :block/uuid ?u]]`;
+
 /** Escapes a string for use inside a datascript string literal. */
 const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
@@ -122,10 +127,16 @@ export const storageDeps = (): StorageDeps => ({
   },
   appendBlock: async (pageUuid, name) => (await logseq.Editor.appendBlockInPage(pageUuid, name))?.uuid ?? null,
   setConfig: async (uuid, text) => void (await logseq.Editor.upsertBlockProperty(uuid, CONFIG_KEY, text)),
+  // Pull by `#uuid` input, as `readChoice` (verified live in T11); `:block/tags` comes back as `tags: [{id}]`.
+  blockTags: async (uuid) => {
+    if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);
+    const rows = (await datascriptQuery(BLOCK_TAGS_QUERY, `#uuid "${uuid}"`)) as [{ tags?: unknown[] } | null][];
+    if (!rows.length) throw new Error(`Block ${uuid} not found when reading its tags back`);
+    return rows[0][0]?.tags?.length ?? 0;
+  },
   removeBlock: async (uuid) => void (await logseq.Editor.removeBlock(uuid)),
 });
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const IDENT_RE = /^:[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
 
 /**

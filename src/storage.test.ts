@@ -4,8 +4,9 @@ import propsFixture from "./core/__fixtures__/class-properties.json";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
-import { configSchemaFor, createViewStore, PAGE_TITLE } from "./storage";
+import { configSchemaFor, createViewStore, PAGE_TITLE, sanitizeViewName } from "./storage";
 import type { StorageDeps, ViewBlock } from "./types";
+import { hostTags, hostTitle } from "./ui/test-fakes";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
 const project = tags.find((t) => t.title === "Project")!;
@@ -16,7 +17,7 @@ const calendar = defaultViewConfig(meeting, "calendar");
 /** In-memory graph. `silent` makes the named writes resolve without changing anything, like the real API on failure. */
 function fakeGraph(opts: { silent?: Array<"createPage" | "appendBlock" | "setConfig" | "removeBlock"> } = {}) {
   const log: string[] = [];
-  const g = { page: null as string | null, blocks: [] as ViewBlock[], n: 0, ensured: 0, onWrite: (_: string) => {} };
+  const g = { page: null as string | null, blocks: [] as ViewBlock[], tags: new Map<string, number>(), n: 0, ensured: 0, onWrite: (_: string) => {} };
   const silent = (k: string) => (opts.silent ?? []).includes(k as never);
   const deps: StorageDeps = {
     findPage: async (title) => (log.push(`findPage ${title}`), g.page),
@@ -33,9 +34,11 @@ function fakeGraph(opts: { silent?: Array<"createPage" | "appendBlock" | "setCon
       g.onWrite("appendBlock");
       if (silent("appendBlock")) return "ghost";
       const uuid = `b-${++g.n}`;
-      g.blocks.push({ uuid, name, config: null });
+      g.blocks.push({ uuid, name: hostTitle(name), config: null });
+      g.tags.set(uuid, hostTags(name));
       return uuid;
     },
+    blockTags: async (u) => (log.push(`blockTags ${u}`), g.tags.get(u) ?? 0),
     setConfig: async (u, text) => {
       log.push(`setConfig ${u}`);
       g.onWrite("setConfig");
@@ -101,6 +104,67 @@ describe("recycled page", () => {
   });
 });
 
+describe("saved-view names (T14, F3)", () => {
+  it("sanitises: drops # [ ] { }, folds runs of ( or ) to one, collapses spaces", () => {
+    expect(sanitizeViewName("#Project kanban")).toBe("Project kanban");
+    expect(sanitizeViewName("  [[Roadmap]]  {{query x}} ((6a00)) ")).toBe("Roadmap query x (6a00)");
+    expect(sanitizeViewName("Q3 (draft)")).toBe("Q3 (draft)");
+    expect(sanitizeViewName("#[[]]")).toBe("");
+  });
+
+  it("writes and returns the sanitised name; the host cannot tag the block", async () => {
+    const { g, deps } = fakeGraph();
+    const store = createViewStore(deps);
+    const view = await store.create("#Project kanban", timeline);
+    expect(view.name).toBe("Project kanban");
+    expect(g.blocks[0].name).toBe("Project kanban");
+    expect(g.tags.get(view.id)).toBe(0);
+    expect((await store.list())[0].name).toBe("Project kanban");
+  });
+
+  it("a name that is only markup is rejected before touching the graph", async () => {
+    const { deps, log } = fakeGraph();
+    await expect(createViewStore(deps).create("#[[]]", timeline)).rejects.toThrow(/needs a name/);
+    expect(log).toEqual([]);
+  });
+
+  it("a block the host tagged anyway is removed and the error says why (no orphan)", async () => {
+    const { g, deps } = fakeGraph();
+    deps.blockTags = async () => 1;
+    const store = createViewStore(deps);
+    await expect(store.create("Roadmap", timeline)).rejects.toThrow('Saved view "Roadmap" was stored with tags or a changed title, so it was removed. Use a name without #, [[ ]], {{ }} or (( )).');
+    expect(g.blocks).toEqual([]);
+    expect(store.cached()).toEqual([]);
+  });
+
+  it("a block whose title the host rewrote is removed", async () => {
+    const { g, deps } = fakeGraph();
+    const append = deps.appendBlock;
+    deps.appendBlock = async (p) => append(p, "#Other");
+    await expect(createViewStore(deps).create("Roadmap", timeline)).rejects.toThrow(/stored with tags or a changed title/);
+    expect(g.blocks).toEqual([]);
+  });
+
+  it("a failed config write removes the block it created", async () => {
+    const { g, deps, log } = fakeGraph({ silent: ["setConfig"] });
+    await expect(createViewStore(deps).create("Roadmap", timeline)).rejects.toThrow(/was not stored/);
+    expect(log).toContain("removeBlock b-1");
+    expect(g.blocks).toEqual([]);
+  });
+
+  it("a config write that throws removes the block too", async () => {
+    const { g, deps } = fakeGraph();
+    deps.ensureConfigProperty = async () => { throw new Error("schema refused"); };
+    await expect(createViewStore(deps).create("Roadmap", timeline)).rejects.toThrow("schema refused");
+    expect(g.blocks).toEqual([]);
+  });
+
+  it("when removing the block fails as well, the error says so", async () => {
+    const { deps } = fakeGraph({ silent: ["setConfig", "removeBlock"] });
+    await expect(createViewStore(deps).create("Roadmap", timeline)).rejects.toThrow(/was not stored.*could not be removed: block b-1 still exists/);
+  });
+});
+
 describe("create", () => {
   it("creates the page, appends the block, ensures the schema right before the config write, reads back", async () => {
     const { g, deps, log } = fakeGraph();
@@ -116,6 +180,7 @@ describe("create", () => {
       "ensureProperty",
       "setConfig b-1",
       "readBlock b-1",
+      "blockTags b-1",
     ]);
     expect(g.blocks[0].config).toBe(serializeViewConfig(timeline));
     expect(await store.list()).toEqual([view]);

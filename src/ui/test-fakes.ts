@@ -183,10 +183,19 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   }
 };
 
+/**
+ * What the host does with a new block's text (seen live 2026-10-03, T14 F3): "#Project kanban" became the title
+ * "#[[<tag uuid>]] kanban" with the block tagged #Project; `[[…]]` makes a ref. The fakes rewrite each `#word` and tag
+ * the block; `[[` tags it too (one tag is enough for a read-back to see it).
+ */
+export const hostTitle = (name: string) => name.replace(/#([^\s#]+)/g, "#[[6a000000-0000-4000-8000-00000000aaaa]]");
+export const hostTags = (name: string) => (/#[^\s#]|\[\[/.test(name) ? 1 : 0);
+
 /** In-memory saved-views graph; `silent` writes resolve without storing anything, like the real API on failure. */
 export function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {}): StorageDeps {
   let page: string | null = opts.blocks ? "page-1" : null;
   let blocks: ViewBlock[] = opts.blocks ?? [];
+  const tags = new Map<string, number>();
   let n = 0;
   return {
     findPage: async () => page,
@@ -197,9 +206,11 @@ export function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {
     appendBlock: async (_p, name) => {
       if (opts.silent) return "ghost";
       const uuid = `b-${++n}`;
-      blocks.push({ uuid, name, config: null });
+      blocks.push({ uuid, name: hostTitle(name), config: null });
+      tags.set(uuid, hostTags(name));
       return uuid;
     },
+    blockTags: async (u) => tags.get(u) ?? 0,
     setConfig: async (u, text) => {
       const b = blocks.find((x) => x.uuid === u);
       if (b) b.config = text;

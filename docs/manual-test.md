@@ -298,6 +298,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J1 | Timeline in Week zoom: click the range label, the toolbar padding; Kanban: click the hint and the "Sort" label | The zoom, sort and other view settings do not change | not run |  |  |  |
 | J2 | Create tags titled "2026 goals", "true" and ":kw", tag a node with each, open each in Planner | Each tag shows its node | not run |  |  |  |
 | J3 | Two tags with the same title, one node each; open each | Each shows only its own node | not run |  |  |  |
+| J5 | Save a view with the suggested name; save another named "#Project [[x]] {{y}}" | Suggested name is "Project kanban" (no #); the second is saved as "Project x y"; neither block on "Planner views" has a tag; no view block shows up as a card | not run |  |  |  |
 | J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 
 ## Not covered / known gaps

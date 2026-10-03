@@ -25,6 +25,15 @@ export function configSchemaFor(existing: { type?: string; hide?: boolean } | nu
   return existing.hide ? null : { hide: true };
 }
 
+/**
+ * The name a saved view is written with and shown as. Rule: the characters `#`, `[`, `]`, `{` and `}` are dropped, runs
+ * of `(` or `)` become one, and spaces are collapsed and trimmed. The host turns `#word` and `[[…]]` in a block's text
+ * into tags and refs (seen live, T14 F3: "#Project kanban" tagged the view block #Project), `{{…}}` into a macro and
+ * `((…))` into a block ref; without these characters none of that can happen.
+ */
+export const sanitizeViewName = (name: string): string =>
+  name.replace(/[#[\]{}]/g, "").replace(/\(+/g, "(").replace(/\)+/g, ")").replace(/\s+/g, " ").trim();
+
 const mismatch = (what: string, id: string) => new Error(`Saved view ${what} was not stored (read back differs) for block ${id}`);
 
 /** The saved-views store the workspace uses. */
@@ -84,6 +93,17 @@ export function createViewStore(deps: StorageDeps) {
     return stored;
   }
 
+  /** Removes a block `create` appended after `failure`; the error to throw (naming a failed removal as well). */
+  async function removeAfter(id: string, failure: Error): Promise<Error> {
+    try {
+      await deps.removeBlock(id);
+      if (await deps.readBlock(id)) throw new Error(`block ${id} still exists`);
+      return failure;
+    } catch (e) {
+      return new Error(`${failure.message} The new block could not be removed: ${(e as Error).message}`);
+    }
+  }
+
   const find = (views: SavedView[], id: string) => {
     const i = views.findIndex((v) => v.id === id);
     if (i < 0) throw new Error(`Unknown saved view ${id}`);
@@ -96,8 +116,13 @@ export function createViewStore(deps: StorageDeps) {
     /** The cache as it is now (empty before the first `list`/write). */
     cached: (): SavedView[] => [...(cache ?? [])],
 
+    /**
+     * Saves a new view under `sanitizeViewName(name)`. After the block is appended, any failure (the config write, its
+     * read-back, a block the host tagged or whose title differs) removes that block again, so no orphan is left; when
+     * the removal fails too, the error says so.
+     */
     async create(name: string, config: ViewConfig): Promise<SavedView> {
-      const title = name.trim();
+      const title = sanitizeViewName(name);
       if (!title) throw new Error("A saved view needs a name");
       const views = await load();
       const entry: SavedView = { id: `pending-${++pending}`, name: title, config };
@@ -106,8 +131,14 @@ export function createViewStore(deps: StorageDeps) {
         const page = await livePage(true);
         const id = await deps.appendBlock(page, title);
         if (!id) throw new Error("appendBlock returned no block");
-        const stored = await writeConfig(id, serializeViewConfig(config));
-        if (stored.name.trim() !== title) throw mismatch("name", id);
+        try {
+          const stored = await writeConfig(id, serializeViewConfig(config));
+          if (stored.name !== title || (await deps.blockTags(id)) > 0) {
+            throw new Error(`Saved view "${title}" was stored with tags or a changed title, so it was removed. Use a name without #, [[ ]], {{ }} or (( )).`);
+          }
+        } catch (e) {
+          throw await removeAfter(id, e as Error);
+        }
         entry.id = id;
         return { ...entry };
       } catch (e) {

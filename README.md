@@ -136,6 +136,9 @@ under the name in the Name field. A saved view stores the tag, child tags, Start
 done values, filters and the view settings: Timeline zoom, Calendar layout, Agenda Group by
 and Show done, Kanban columns, swimlanes and sort. It does not store the period you are
 looking at. Saving always creates a new view. Deleting asks for no confirmation.
+A name loses the characters `#`, `[`, `]`, `{` and `}`, and runs of `(` or `)` become one, so
+Logseq cannot turn it into a tag, a link, a macro or a block ref ("#Project kanban" is saved as
+"Project kanban").
 
 ### Live refresh
 

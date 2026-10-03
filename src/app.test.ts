@@ -45,6 +45,7 @@ function fakeDeps() {
       appendBlock: async () => null,
       setConfig: async () => {},
       removeBlock: async () => {},
+      blockTags: async () => 0,
     },
     changes: {
       subscribe: feed.subscribe,

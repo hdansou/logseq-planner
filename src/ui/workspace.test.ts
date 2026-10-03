@@ -351,6 +351,17 @@ describe("saved views", () => {
     expect(text("[data-popover=views]")).toContain("No saved views");
   });
 
+  it("suggests a name without markup and shows the sanitised name after saving (T14, F3)", async () => {
+    const { ws, store } = await setup();
+    await pickTag(ws, "Project");
+    await click(ws, "[data-control=saved-views]");
+    expect($<HTMLInputElement>("[data-field=view-name]")!.value).toBe("Project timeline");
+    await click(ws, "[data-control=saved-views]");
+    await save(ws, "#Project [[kanban]]");
+    expect(text("[data-control=saved-views]")).toBe("Project kanban▾");
+    expect((await store.list()).map((v) => v.name)).toEqual(["Project kanban"]);
+  });
+
   it("shows a store error and lets the user dismiss it", async () => {
     const { ws } = await setup({ storage: fakeStorage({ silent: true }) });
     await pickTag(ws, "Project");

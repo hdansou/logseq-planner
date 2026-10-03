@@ -16,7 +16,7 @@ import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeli
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { cardCell, findCell, layoutKanban, moveDescriptor, movedNode, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
-import type { SavedView, ViewStore } from "../storage";
+import { sanitizeViewName, type SavedView, type ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
@@ -192,7 +192,7 @@ function renderTopBar(s: State): string {
           .join("")}</ul>`
       : `<p class="pl-hint">No saved views yet.</p>`;
     const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
-    const suggestion = tag && s.config ? `#${tag.title} ${KIND_LABEL[s.config.kind].toLowerCase()}` : "";
+    const suggestion = tag && s.config ? sanitizeViewName(`${tag.title} ${KIND_LABEL[s.config.kind].toLowerCase()}`) : "";
     const save = s.config
       ? `<div class="pl-save"><label for="pl-view-name">Name</label><input id="pl-view-name" class="pl-input" data-field="view-name" value="${esc(suggestion)}" autocomplete="off">`
         + `<button type="button" class="pl-btn pl-btn-primary" data-action="save-view">Save current view</button></div>`

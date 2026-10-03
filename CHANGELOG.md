@@ -127,6 +127,12 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Saved views (T14): the suggested name has no markup ("Project kanban", was "#Project kanban", which made Logseq tag
+  the view block #Project and show it as a card on the board). Every name is sanitised before it is written
+  (`sanitizeViewName`: `#`, `[`, `]`, `{`, `}` dropped, runs of `(` or `)` folded, spaces collapsed); the UI shows the
+  sanitised name. After the append the store also checks that the block has no tags (`blockTags`, a pull by `#uuid`)
+  and exactly the sanitised title; otherwise, or when the config write or its read-back fails, the new block is removed
+  again, and the error says so if that removal fails too.
 - Queries (T14): the node and task queries take the tag's entity id (a number) instead of its title. The host EDN-reads a
   top-level string input, so a tag titled "2026 goals", "true" or ":kw" loaded no nodes (seen live), and two tags with
   the same title merged. The title join is gone; `readRaw` keys staleness on the tag id, so renaming the view's tag
