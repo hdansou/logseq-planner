@@ -28,3 +28,10 @@ All notable changes to this project are documented here. The format follows
   done / (all - canceled), decides done/canceled values (built-in flags, name guess for user choices,
   explicit list wins) and filters nodes by choice values. `PlannerTask` now carries `deadline` and
   `scheduled` as local dates; `loadTasks` takes an optional zone.
+- Saved views (T06): `src/core/view-config.ts` (`ViewConfig`, defaults by the Start/End, Scheduled/Deadline,
+  first-date rule, fail-fast validation, versioned JSON) and `src/storage.ts` (cache-first CRUD on the
+  "Planner views" page, one block per view, hidden string property; every write is read back and throws on a
+  mismatch). Not yet verified live.
+
+### Changed
+- Done-value override is now a list of closed-value uuids, not titles (a rename no longer breaks it).

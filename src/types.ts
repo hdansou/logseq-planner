@@ -137,3 +137,32 @@ export interface Rollup {
   done: number;
   total: number;
 }
+
+/** One saved-view block on the plugin page; `config` is null when the block has no config property. */
+export interface ViewBlock {
+  uuid: string;
+  /** The block's text = the view's name. */
+  name: string;
+  /** The raw config string (hidden property), unparsed. */
+  config: string | null;
+}
+
+/**
+ * The SDK calls `createViewStore` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. The write
+ * API resolves null on success and on failure, so the store never trusts a write: it reads back.
+ */
+export interface StorageDeps {
+  /** uuid of the page with exactly this title (strict datascript query), or null. */
+  findPage(title: string): Promise<string | null>;
+  createPage(title: string): Promise<void>;
+  /** Makes sure the hidden string config property exists; called right before every config write. */
+  ensureConfigProperty(): Promise<void>;
+  /** Top-level blocks of the page, in order, each with its raw config property. */
+  listBlocks(pageUuid: string): Promise<ViewBlock[]>;
+  /** One block by uuid, or null when it does not exist. */
+  readBlock(uuid: string): Promise<ViewBlock | null>;
+  /** Appends a block with `name` as text; the new uuid, or null when the SDK returned nothing. */
+  appendBlock(pageUuid: string, name: string): Promise<string | null>;
+  setConfig(uuid: string, text: string): Promise<void>;
+  removeBlock(uuid: string): Promise<void>;
+}

@@ -152,10 +152,18 @@ describe("done values", () => {
     expect(isCanceled(user("Closed"))).toBe(false);
   });
 
-  it("lets an explicit list win over the guess", () => {
-    expect(isDone(user("Shipped"), ["shipped"])).toBe(true);
-    expect(isDone(user("Done"), ["Shipped"])).toBe(false);
-    expect(isDone(user("Done"), [])).toBe(false);
+  it("lets an explicit list of closed-value uuids win over the guess", () => {
+    const shipped = { ...user("Shipped"), uuid: "uuid-shipped" };
+    const done = { ...user("Done"), uuid: "uuid-done" };
+    expect(isDone(shipped, ["uuid-shipped"])).toBe(true);
+    expect(isDone(done, ["uuid-shipped"])).toBe(false);
+    expect(isDone(done, [])).toBe(false);
+  });
+
+  it("keeps matching after a rename because the override is by uuid, not title", () => {
+    const renamed = { ...user("Released"), uuid: "uuid-shipped" };
+    expect(isDone(renamed, ["uuid-shipped"])).toBe(true);
+    expect(isDone({ ...user("Shipped"), uuid: "other" }, ["uuid-shipped"])).toBe(false);
   });
 });
 

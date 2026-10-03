@@ -23,7 +23,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/core/nodes.ts` | pure `resolveSpan` (mapped / point / derived / undated), `rollup`, `isDone` / `isCanceled`, `filterNodes`, `tasksOf` | query, touch DOM or SDK |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
-| `src/storage.ts` | cache-first saved views (graph-backed) | anything else |
+| `src/core/view-config.ts` | `ViewConfig` (tags/props by ident, closed values by uuid), `defaultViewConfig`, `validateViewConfig`, versioned JSON, `toChoiceFilters` | touch DOM or SDK |
+| `src/storage.ts` | `createViewStore(StorageDeps)`: cache-first saved views on the "Planner views" page, config in hidden string property `planner-view-config`; every write read back | call `logseq.*` (deps from `storageDeps()` in sdk.ts) |
 | `src/dev-probe.ts` | dev-only SDK hook for `scripts/probe.mjs` (behind `import.meta.env.DEV`) | ship in builds |
 | `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |
 | `docs/` | design notes, probe results, manual test | — |

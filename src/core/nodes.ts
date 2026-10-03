@@ -34,12 +34,12 @@ const lower = (v: ClosedValue) => v.title.trim().toLowerCase();
 const isBuiltIn = (v: ClosedValue) => v.ident !== null;
 
 /**
- * Does `value` close its node or task? An explicit `doneTitles` list (the view's saved choice,
- * matched case-insensitively) wins; otherwise built-in values use their checkbox flag or Canceled
+ * Does `value` close its node or task? An explicit `doneUuids` list (the view's saved choice, closed-value
+ * uuids so a rename does not break it) wins; otherwise built-in values use their checkbox flag or Canceled
  * flag, and user values are guessed by name.
  */
-export function isDone(value: ClosedValue, doneTitles?: string[]): boolean {
-  if (doneTitles) return doneTitles.some((t) => t.trim().toLowerCase() === lower(value));
+export function isDone(value: ClosedValue, doneUuids?: string[]): boolean {
+  if (doneUuids) return doneUuids.includes(value.uuid);
   if (isBuiltIn(value)) return value.checkbox === true || value.canceled;
   return GUESS_DONE.has(lower(value));
 }
