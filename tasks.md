@@ -115,3 +115,5 @@ Total: about 10 hours.
   Inkwell design (REQUIREMENTS.md, docs/design.md). Skills refreshed the same day.
 - 2026-10-03 Session ended before T00 code. Resume at T00 (design notes above). Working
   rules: TDD, DRY, KISS; document as we go; keep tasks.md current; commit per item.
+  Next session develops with sub-agents: one tasks.md item per agent; the main session
+  coordinates, reviews each result and keeps tasks.md current.
