@@ -65,7 +65,8 @@ All notable changes to this project are documented here. The format follows
   Calendar. A missing or invalid value fails with a visible error instead of falling back to Sunday.
 - Calendar view (T09): `src/ui/calendar.ts` + `calendar.css` replace the Calendar placeholder. Toolbar with prev / next,
   Today, the range label ("October 2026", "27 Sep – 3 Oct 2026") and the Month / Week switch (the layout is saved with a
-  view; the anchor is not and is shared with the Timeline). Month: weekday headers, five or six week rows, days of other
+  view; the anchor is not: it is session state shared with the Timeline, and opening a saved view keeps the period on
+  screen). Month: weekday headers, five or six week rows, days of other
   months shaded, today's number in the accent colour; bands in the node's category colour, squared off with a mark where
   they continue into the previous or next week, dashed when derived from tasks; chips for one-date nodes and task
   deadlines (⚑, the node's colour, late ones in red, done ones struck through), the time when there is one; "+N more"
@@ -73,6 +74,8 @@ All notable changes to this project are documented here. The format follows
   the grid. Click opens the node or task and hides Planner; Shift+click opens it in the right sidebar.
 
 ### Fixed
+- Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
+  first grid track is a fixed `--pl-cal-head-h` (28px) instead of `auto`, which nothing sized and collapsed to 0.
 - Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the
   remaining height; the fixed row template put the body in an auto-sized row whenever no error row was shown.
 - Theme (T07): a host font family is followed by a generic fallback stack, so a family the frame cannot load no

@@ -50,9 +50,11 @@ function renderWeek(w: CalendarWeek, week: boolean): string {
     ? `<button type="button" class="pl-cal-more" data-cal-more="${d.day}" style="grid-column: ${i + 1}; grid-row: ${w.rows + 2}"`
       + ` aria-label="${d.more} more on ${formatDay(d.day)}, show the week">+${d.more} more</button>`
     : "").join("");
-  // Explicit rows so a day cell's `grid-row: 1 / -1` reaches the bottom: numbers, item rows, the "+N more" row, filler.
+  // Explicit rows so a day cell's `grid-row: 1 / -1` reaches the bottom: the day-number row, item rows, the "+N more" row,
+  // filler. The number row has a fixed height: nothing else sizes it (the number sits in the day cell spanning every row),
+  // so `auto` collapsed to 0 and lane-0 bands covered the numbers (T09 D1).
   const rows = w.rows + (more ? 1 : 0);
-  const template = `auto${rows ? ` repeat(${rows}, minmax(var(--pl-cal-item-h), auto))` : ""} 1fr`;
+  const template = `var(--pl-cal-head-h)${rows ? ` repeat(${rows}, minmax(var(--pl-cal-item-h), auto))` : ""} 1fr`;
   return `<div class="pl-cal-week" data-cal-week="${w.start}" role="group" aria-label="Week of ${formatDay(w.start)}" style="grid-template-rows: ${template}">`
     + w.days.map(renderDay).join("") + w.bands.map(renderBand).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
 }

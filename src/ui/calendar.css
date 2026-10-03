@@ -2,8 +2,9 @@
    category colour arrives as --pl-node-fill / --pl-node-hue from [data-cat] (theme.css).
    One grid per week row: seven equal columns; row 1 holds the day numbers, then one row per item row (bands and chips,
    grid-row = row + 2), then the "+N more" row in Month. The rows are written inline (calendar.ts) so that the day
-   cells' `grid-row: 1 / -1` reaches the bottom. */
-.pl-cal { --pl-cal-item-h: 20px; min-width: 560px; border-bottom: 1px solid var(--pl-line-soft); font-size: 12.5px; }
+   cells' `grid-row: 1 / -1` reaches the bottom. Row 1 is --pl-cal-head-h tall: the number's 22px box plus its 4px + 2px
+   vertical margins (nothing else sizes that row; `auto` collapsed to 0 and bands covered the numbers). */
+.pl-cal { --pl-cal-head-h: 28px; --pl-cal-item-h: 20px; min-width: 560px; border-bottom: 1px solid var(--pl-line-soft); font-size: 12.5px; }
 .pl-cal[data-layout="week"] { --pl-cal-item-h: 22px; }
 
 /* Weekday headers (Month): sticky on vertical scroll */
@@ -19,7 +20,8 @@
 .pl-cal-day:nth-of-type(7) { border-right: 0; }
 .pl-cal-day[data-outside] { background: var(--pl-fill); }
 .pl-cal-day[data-outside] .pl-cal-num { color: var(--pl-label-2); }
-/* Round day numbers; today in accent at 700 on a transparent background (design.md) */
+/* Round day numbers; today in accent at 700 on a transparent background (design.md). Height + vertical margins must fit
+   --pl-cal-head-h; today changes colour and weight only. */
 .pl-cal-num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin: 4px 4px 2px; padding: 0 5px; box-sizing: border-box;
   border-radius: 980px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .pl-cal-day[data-today] .pl-cal-num { color: var(--pl-today); font-weight: 700; }

@@ -274,6 +274,29 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(calendarCss).toMatch(/\.pl-cal-band,\s*\.pl-cal-chip\s*\{[^}]*z-index:\s*1/);
   });
 
+  // D1 (live, T09): the first grid row was `auto`, sized by nothing (the number lives in the day cell spanning 1 / -1), so it
+  // collapsed to 0px and lane-0 bands covered the day numbers. happy-dom cannot compute track sizes, so this checks the
+  // inline template (both layouts) and that the stylesheet's fixed row fits the number's box, today included.
+  it("reserves a fixed first row for the day number / label in both layouts, tall enough for the number", async () => {
+    const px = (decl: string, rule: string) => {
+      const m = new RegExp(`${rule}\\s*\\{[^}]*${decl}:\\s*([^;}]+)`).exec(calendarCss);
+      if (!m) throw new Error(`no ${decl} in ${rule}`);
+      return m[1].trim();
+    };
+    const head = Number(/^(\d+(?:\.\d+)?)px$/.exec(px("--pl-cal-head-h", "\\.pl-cal"))![1]);
+    const num = Number(/^(\d+)px$/.exec(px("height", "\\.pl-cal-num"))![1]);
+    const margins = px("margin", "\\.pl-cal-num").split(/\s+/).map((v) => Number(v.replace("px", "")));
+    expect(num + margins[0] + margins[2]).toBeLessThanOrEqual(head);
+    // today only recolours and bolds the number: no size, margin or padding change
+    expect(calendarCss).not.toMatch(/\[data-today\][^{]*\.pl-cal-num\s*\{[^}]*(?:height|margin|padding|font-size)/);
+    for (const layout of ["month", "week"]) {
+      await click(`[data-cal-layout=${layout}]`);
+      const weeks = $$("[data-cal-week]");
+      expect(weeks.length).toBeGreaterThan(0);
+      for (const w of weeks) expect(w.style.gridTemplateRows || style(w)).toMatch(/^(?:grid-template-rows:\s*)?var\(--pl-cal-head-h\)\s/);
+    }
+  });
+
   it("today in the accent colour; outside days dimmed; titles truncate", () => {
     expect(calendarCss).toMatch(/\[data-today\][^{]*\.pl-cal-num\s*\{[^}]*var\(--pl-today\)[^}]*font-weight:\s*700/);
     expect(calendarCss).toMatch(/\[data-outside\][^{]*\{[^}]*var\(--pl-fill\)/);
