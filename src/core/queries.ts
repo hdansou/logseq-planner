@@ -47,3 +47,21 @@ export async function loadTasks(dq: Dq, nodes: PlannerNode[], zone: ZoneOffset =
   if (nodes.length === 0) return [];
   return buildTasks(await dq(TASKS_QUERY), nodes, zone);
 }
+
+/**
+ * uuid → title for blocks by uuid string. The uuids are passed as ONE collection input of plain strings: the host
+ * EDN-reads only top-level string inputs (frontend/worker/handler/query.cljs `query-input-value`), and a collection
+ * input worked live with numbers and strings (T01/T04); a collection of uuid values has not been tried, so each block's
+ * uuid is turned into its string with `(str ?u)` and joined on `?s` (datascript joins a function binding to a variable
+ * that is already bound). Rows: `[uuid-string title]`.
+ */
+export const TITLES_QUERY = `[:find ?s ?title
+          :in $ [?s ...]
+          :where [?b :block/uuid ?u] [(str ?u) ?s] [?b :block/title ?title]]`;
+
+/** Titles of the blocks with these (lower-case) uuids; one query, none when `uuids` is empty. Unknown uuids are absent. */
+export async function loadTitles(dq: Dq, uuids: string[]): Promise<Map<string, string>> {
+  if (uuids.length === 0) return new Map();
+  const rows = (await dq(TITLES_QUERY, uuids)) as [string, string][];
+  return new Map(rows.map(([u, title]) => [u.toLowerCase(), title]));
+}

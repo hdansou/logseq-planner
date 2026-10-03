@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayTitle, LINK_PLACEHOLDER, titlesByUuid } from "./display-title";
+import { displayTitle, LINK_PLACEHOLDER, refUuids, titlesByUuid } from "./display-title";
 
 const SITE = "6a000000-0000-4000-8000-000000000001";
 const MOBILE = "6a000000-0000-4000-8000-000000000002";
@@ -30,5 +30,13 @@ describe("displayTitle (T04 open item: inline refs show the node's name)", () =>
   it("is case-insensitive on the uuid and leaves plain titles unchanged", () => {
     expect(displayTitle(`x [[${SITE.toUpperCase()}]]`, titles)).toBe("x Website relaunch");
     expect(displayTitle("Ship homepage", titles)).toBe("Ship homepage");
+  });
+});
+
+describe("refUuids (titles of linked nodes outside the loaded set)", () => {
+  it("collects each inline [[uuid]] once, lower-cased, in order; plain [[text]] and bare uuids are not refs", () => {
+    expect(refUuids([`Draft brief [[${SITE}]]`, `Sync [[${SITE.toUpperCase()}]] with [[${MOBILE}]]`, "No refs [[Some page]]", `bare ${MOBILE}`]))
+      .toEqual([SITE, MOBILE]);
+    expect(refUuids([])).toEqual([]);
   });
 });

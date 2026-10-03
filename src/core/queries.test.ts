@@ -5,7 +5,7 @@ import datesFixture from "./__fixtures__/dates.json";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { loadNodes, loadTasks, NODES_QUERY, TASKS_QUERY, JOURNAL_DAYS_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { loadNodes, loadTasks, loadTitles, NODES_QUERY, TASKS_QUERY, TITLES_QUERY, JOURNAL_DAYS_QUERY, CLASS_EXTENDS_RULES } from "./queries";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { ZoneOffset } from "./normalize";
 
@@ -175,5 +175,24 @@ describe("loadTasks", () => {
     const { dq, calls } = fakeDq();
     expect(await loadTasks(dq, [])).toEqual([]);
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("loadTitles (titles of linked nodes that are not loaded)", () => {
+  const SITE = "6a000000-0000-4000-8000-000000000001";
+
+  it("sends no query when nothing is missing", async () => {
+    const sent: unknown[] = [];
+    expect(await loadTitles(async (...a) => (sent.push(a), []), [])).toEqual(new Map());
+    expect(sent).toEqual([]);
+  });
+
+  it("one query: uuids as a collection of plain strings, compared with (str ?u); rows [uuid-string title]", async () => {
+    const sent: unknown[][] = [];
+    const titles = await loadTitles(async (...a) => (sent.push(a), [[SITE, "Website relaunch"]]), [SITE, "6a000000-0000-4000-8000-0000000000ff"]);
+    expect(sent).toEqual([[TITLES_QUERY, [SITE, "6a000000-0000-4000-8000-0000000000ff"]]]);
+    expect(TITLES_QUERY).toContain(":in $ [?s ...]");
+    expect(TITLES_QUERY).toContain("[?b :block/uuid ?u] [(str ?u) ?s]");
+    expect(titles).toEqual(new Map([[SITE, "Website relaunch"]]));
   });
 });

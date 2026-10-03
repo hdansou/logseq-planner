@@ -4,13 +4,13 @@
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
-import { loadNodes, loadTasks } from "../core/queries";
+import { loadNodes, loadTasks, loadTitles } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos } from "../core/schema";
 import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, type ViewConfig, type ViewKind } from "../core/view-config";
-import { titlesByUuid } from "../core/display-title";
+import { refUuids, titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
@@ -60,6 +60,8 @@ interface State {
   config: ViewConfig | null;
   nodes: PlannerNode[];
   tasks: PlannerTask[];
+  /** Titles of every node and linked block the loaded titles reference, by lower-case uuid (loaded nodes + one lookup per load). */
+  titles: ReadonlyMap<string, string>;
   views: SavedView[];
   /** The saved view the current config came from or was saved as. */
   viewId: string | null;
@@ -253,7 +255,7 @@ function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   return layoutTimeline({
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
-    titles: titlesByUuid(s.nodes),
+    titles: s.titles,
   });
 }
 
@@ -265,7 +267,7 @@ function calendarLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   return layoutCalendar({
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     layout: c.layout, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
-    titles: titlesByUuid(s.nodes),
+    titles: s.titles,
   });
 }
 
@@ -277,7 +279,7 @@ function agendaLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerN
   return layoutAgenda({
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: tag.choiceProps, doneValues: c.doneValues,
-    titles: titlesByUuid(s.nodes),
+    titles: s.titles,
   });
 }
 
@@ -290,7 +292,7 @@ function kanbanLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerN
   return layoutKanban({
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     columnProp: prop(c.columnProp), laneProp: c.laneProp === null ? null : prop(c.laneProp), sort: c.sort, today: now.today,
-    choiceProps: tag.choiceProps, doneValues: c.doneValues, titles: titlesByUuid(s.nodes), pending: new Set(s.pending.keys()),
+    choiceProps: tag.choiceProps, doneValues: c.doneValues, titles: s.titles, pending: new Set(s.pending.keys()),
   });
 }
 
@@ -357,7 +359,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false,
+  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null };
   const now = (): Now => {
     if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
@@ -389,6 +391,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const tag = tagOf(config);
     s.nodes = await loadNodes(deps.dq, s.tags, tag, { childTags: config.childTags, zone: deps.zone });
     s.tasks = await loadTasks(deps.dq, s.nodes, deps.zone);
+    // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
+    const known = titlesByUuid(s.nodes);
+    const missing = refUuids([...s.nodes, ...s.tasks].map((x) => x.title)).filter((u) => !known.has(u));
+    s.titles = new Map([...known, ...(await loadTitles(deps.dq, missing))]);
   }
 
   async function loadData() {
@@ -413,6 +419,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     s.viewId = null;
     s.nodes = [];
     s.tasks = [];
+    s.titles = new Map();
     await loadData();
   };
 

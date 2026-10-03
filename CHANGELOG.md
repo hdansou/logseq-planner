@@ -105,6 +105,11 @@ All notable changes to this project are documented here. The format follows
   does not hold puts the card back and its error shows in the error bar. A tag without a choice property shows "#Tag has
   no choice properties" instead of a board. `menu` and `options` moved to `src/ui/html.ts`. Not yet verified live.
 ### Fixed
+- Linked titles (T11): an inline `[[uuid]]` ref to a node that is not among the loaded ones (a #Task linking a #Project
+  page, seen live on the #Task board as "Draft brief (link)") now shows that node's title in every view. Each data load
+  collects the referenced uuids (`refUuids`, `src/core/display-title.ts`) and looks up the missing ones with one
+  datascript query (`loadTitles` / `TITLES_QUERY`, `src/core/queries.ts`: plain uuid strings as one collection input,
+  joined on `(str ?u)`); no query is sent when every linked node is loaded. A uuid that does not resolve keeps "(link)".
 - Kanban (T11): moving a card to "No Status" was reported as a failure although it worked. Removing a built-in property
   leaves the attribute pointing at the `:logseq.property/empty-placeholder` entity (seen live) instead of retracting it;
   the read-back now pulls `:db/ident` and accepts an absent attribute or the placeholder (recognised by ident) as removed,

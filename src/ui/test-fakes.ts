@@ -5,14 +5,9 @@ import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { JOURNAL_DAYS_QUERY, NODES_QUERY, TASKS_QUERY } from "../core/queries";
+import { JOURNAL_DAYS_QUERY, NODES_QUERY, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
-/**
- * Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting only.
- * `projectCopies` adds that many copies of Website relaunch ("Website relaunch 2", …; same dates, no tasks) to crowd a
- * calendar day.
- */
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
 export type Edits = Map<string, Record<string, number | null>>;
 
@@ -28,7 +23,43 @@ function edited(row: Record<string, unknown>, edits?: Edits): Record<string, unk
   return out;
 }
 
-export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits } = {}): Dq => async (query, ...inputs) => {
+type Row = Record<string, unknown>;
+const taskRows = () => (tasksFixture.taskRefs.detail as unknown as [Row][]).map(([t]) => t);
+
+/**
+ * The fixture #Task blocks in the shape `pull [*]` gives a node (NODES_QUERY): the T01 task pull carries tags and Status
+ * as `{ident, title}`, so they are turned into `{id}` refs through the tag and closed-value ids of the same fixtures.
+ */
+function taskNodeRows(): [Row][] {
+  const tags = (tagsFixture.query.detail as unknown as [{ id: number; ident: string }][]).map(([t]) => t);
+  const props = propsFixture.query.detail as unknown as [string, { ident: string; "_closed-value-property"?: { id: number; ident?: string }[] }][];
+  const statusValues = props.map(([, p]) => p).find((p) => p.ident === ":logseq.property/status")!["_closed-value-property"]!;
+  return taskRows().map((t) => {
+    const status = t[":logseq.property/status"] as { ident: string } | undefined;
+    const row: Row = { id: t.id, uuid: t.uuid, title: t.title, tags: (t.tags as { ident: string }[]).map((x) => ({ id: tags.find((g) => g.ident === x.ident)!.id })) };
+    if (status) row[":logseq.property/status"] = { id: statusValues.find((v) => v.ident === status.ident)!.id };
+    return [row];
+  });
+}
+
+/** uuid → title of every block in the fixtures (nodes, tasks and the blocks tasks reference): the TITLES_QUERY answer. */
+function fixtureTitles(): Map<string, string> {
+  const blocks = [
+    ...(nodesFixture.projectWithExtends.detail as unknown as [Row][]).map(([n]) => n),
+    ...(nodesFixture.meeting.detail as unknown as [Row][]).map(([n]) => n),
+    ...taskRows(),
+    ...taskRows().flatMap((t) => (t.refs as Row[] | undefined) ?? []),
+  ];
+  return new Map(blocks.map((b) => [String(b.uuid), String(b.title)]));
+}
+
+/**
+ * Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting, and
+ * with `taskNodes` for Task (the fixture task blocks). TITLES_QUERY is answered from every fixture block's uuid and title.
+ * `projectCopies` adds that many copies of Website relaunch ("Website relaunch 2", …; same dates, no tasks) to crowd a
+ * calendar day; `edits` applies values written by `fakeGraph`.
+ */
+export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean } = {}): Dq => async (query, ...inputs) => {
   if (query === TAGS_QUERY) return opts.noTags ? [] : (tagsFixture.query.detail as unknown[]);
   if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
   if (query === NODES_QUERY) {
@@ -41,11 +72,16 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
       }]);
       return [...rows, ...copies].map(([n]) => [edited(n, opts.edits)]);
     }
+    if (inputs[0] === "Task" && opts.taskNodes) return taskNodeRows();
     if (inputs[0] === "Meeting") return (nodesFixture.meeting.detail as unknown as [Record<string, unknown>][]).map(([n]) => [edited(n, opts.edits)]);
     return [];
   }
   if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
   if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
+  if (query === TITLES_QUERY) {
+    const titles = fixtureTitles();
+    return (inputs[0] as string[]).filter((u) => titles.has(u)).map((u) => [u, titles.get(u)]);
+  }
   throw new Error(`unexpected query ${query}`);
 };
 

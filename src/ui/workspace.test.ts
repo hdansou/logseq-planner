@@ -6,7 +6,7 @@ import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
 import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
-import { loadNodes, loadTasks } from "../core/queries";
+import { loadNodes, loadTasks, TITLES_QUERY } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
 
 let tags: TagInfo[];
@@ -425,5 +425,50 @@ describe("week start (Logseq preferredStartOfWeek, read on every open)", () => {
   it("shows the error when the host value is invalid", async () => {
     await setup({ weekStart: async () => { throw new Error("Logseq preferredStartOfWeek is \"x\", expected 0–6"); } });
     expect(text("[data-region=error]")).toContain("preferredStartOfWeek");
+  });
+});
+
+describe("linked titles outside the loaded nodes (T11 live finding)", () => {
+  const SITE = "6a000000-0000-4000-8000-000000000001";
+  /** The fixture graph with its #Task blocks as #Task nodes, recording every query sent. */
+  const recording = (over: Partial<Record<string, unknown[]>> = {}) => {
+    const base = fixtureDq({ taskNodes: true });
+    const sent: { query: string; inputs: unknown[] }[] = [];
+    const dq: Dq = async (query, ...inputs) => {
+      sent.push({ query, inputs });
+      return over[query] ?? base(query, ...inputs);
+    };
+    return { dq, titleLookups: () => sent.filter((x) => x.query === TITLES_QUERY) };
+  };
+  const cardTitles = () => $$("[data-kb-card] .pl-kb-title").map((e) => e.textContent);
+
+  it("#Task board: a task whose title links a #Project node shows the project's title; one lookup, missing uuids only", async () => {
+    const { dq, titleLookups } = recording();
+    const { ws } = await setup({ dq });
+    await pickTag(ws, "Task");
+    await click(ws, "[data-view-kind=kanban]");
+    expect(cardTitles()).toEqual(expect.arrayContaining(["Draft brief Website relaunch", "Ship homepage Website relaunch", "Survey users Website relaunch"]));
+    expect(cardTitles().join(" ")).not.toContain("(link)");
+    expect(titleLookups()).toHaveLength(1); // the Task load; switching the view kind does not reload
+    expect(titleLookups()[0].inputs).toEqual([[SITE]]);
+  });
+
+  it("sends no lookup when every linked node is loaded (#Project: its tasks link loaded projects)", async () => {
+    const { dq, titleLookups } = recording();
+    const { ws } = await setup({ dq });
+    const before = titleLookups().length; // Meeting on open: no refs
+    await pickTag(ws, "Project");
+    await click(ws, "[data-view-kind=agenda]");
+    expect(text("[data-region=view]")).toContain("Draft brief Website relaunch");
+    expect(titleLookups().length).toBe(before);
+    expect(before).toBe(0);
+  });
+
+  it("a uuid the lookup does not resolve keeps the (link) placeholder", async () => {
+    const { dq } = recording({ [TITLES_QUERY]: [] });
+    const { ws } = await setup({ dq });
+    await pickTag(ws, "Task");
+    await click(ws, "[data-view-kind=kanban]");
+    expect(cardTitles()).toEqual(expect.arrayContaining(["Draft brief (link)"]));
   });
 });

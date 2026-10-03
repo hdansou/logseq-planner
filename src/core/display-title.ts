@@ -14,3 +14,12 @@ export const titlesByUuid = (nodes: { uuid: string; title: string }[]): Readonly
 /** `title` with every `[[uuid]]` replaced by that node's title (placeholder when unknown) and other `[[text]]` unbracketed. */
 export const displayTitle = (title: string, titles: ReadonlyMap<string, string>): string =>
   title.replace(REF, (_, inner: string) => (UUID.test(inner) ? titles.get(inner.toLowerCase()) ?? LINK_PLACEHOLDER : inner));
+
+/** Every uuid an inline `[[uuid]]` ref in `titles` points at, once each, lower-cased, in first-seen order. */
+export function refUuids(titles: Iterable<string>): string[] {
+  const out = new Set<string>();
+  for (const title of titles) {
+    for (const [, inner] of title.matchAll(REF)) if (UUID.test(inner)) out.add(inner.toLowerCase());
+  }
+  return [...out];
+}
