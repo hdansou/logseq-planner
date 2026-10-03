@@ -136,7 +136,7 @@ describe("loadTasks", () => {
   const load = async () => {
     const { dq } = fakeDq();
     const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
-    return { nodes, tasks: await loadTasks(dq, nodes) };
+    return { nodes, tasks: await loadTasks(dq, nodes, west5) };
   };
   const task = (tasks: PlannerTask[], start: string) => tasks.find((t) => t.title.startsWith(start));
 
@@ -150,6 +150,13 @@ describe("loadTasks", () => {
     expect(task(tasks, "Acme contract")).toMatchObject({ nodeIds: [acme.id] });
     expect(task(tasks, "Ship homepage")?.status?.ident).toBe(":logseq.property/status.done");
     expect(task(tasks, "Survey users")?.status?.ident).toBe(":logseq.property/status.canceled");
+  });
+
+  it("carries the task's Deadline and Scheduled as local dates, null when absent", async () => {
+    const { tasks } = await load();
+    expect(task(tasks, "Draft brief")).toMatchObject({ deadline: { day: "2026-10-05", time: "17:00" }, scheduled: null });
+    expect(task(tasks, "Acme contract")).toMatchObject({ deadline: { day: "2026-10-02", time: "12:00" }, scheduled: null });
+    expect(task(tasks, "Wireframes")).toMatchObject({ deadline: null, scheduled: { day: "2026-10-09", time: "09:00" } });
   });
 
   it("leaves out a task with no ref to a loaded node", async () => {

@@ -23,3 +23,8 @@ All notable changes to this project are documented here. The format follows
   the #Task blocks that reference them; `src/core/normalize.ts` maps Date values (journal page
   `journal-day`) and DateTime values (epoch ms, injectable zone offset) to local `YYYY-MM-DD` / `HH:MM`
   and choice values to the tag's closed values.
+- Spans, rollups, filters (T05): `src/core/nodes.ts` resolves a node's span (mapped Start/End, one date =
+  point, derived from linked tasks' Scheduled/Deadline, else undated), rolls tasks up as
+  done / (all - canceled), decides done/canceled values (built-in flags, name guess for user choices,
+  explicit list wins) and filters nodes by choice values. `PlannerTask` now carries `deadline` and
+  `scheduled` as local dates; `loadTasks` takes an optional zone.

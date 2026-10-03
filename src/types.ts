@@ -106,4 +106,34 @@ export interface PlannerTask {
   status: TaskStatus | null;
   /** Ids of the loaded nodes it references (inline `[[uuid]]` refs and node-property links alike). */
   nodeIds: number[];
+  /** The task's built-in Deadline (DateTime) as a local date; null when unset. */
+  deadline: LocalDate | null;
+  /** The task's built-in Scheduled (DateTime) as a local date; null when unset. */
+  scheduled: LocalDate | null;
+}
+
+/** How a node sits on the time axis. */
+export type SpanKind =
+  /** Both mapped Start and End. */
+  | "mapped"
+  /** No mapped date: earliest to latest Scheduled/Deadline of its linked tasks (drawn dashed). */
+  | "derived"
+  /** One date (mapped): a point; `start` and `end` are equal. */
+  | "point"
+  /** No date at all: listed apart; `start` and `end` are null. */
+  | "undated";
+
+export interface NodeSpan {
+  kind: SpanKind;
+  start: LocalDate | null;
+  end: LocalDate | null;
+}
+
+/** Selected choice values by property ident: closed-value ids, `null` = "No value". Absent or empty = no filter. */
+export type ChoiceFilters = Record<string, (number | null)[]>;
+
+/** Done / (all − canceled) over a node's tasks. */
+export interface Rollup {
+  done: number;
+  total: number;
 }

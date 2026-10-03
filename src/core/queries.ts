@@ -43,7 +43,7 @@ export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: Loa
 }
 
 /** #Task blocks whose `:block/refs` hit one of `nodes` (inline refs and node-property links). */
-export async function loadTasks(dq: Dq, nodes: PlannerNode[]): Promise<PlannerTask[]> {
+export async function loadTasks(dq: Dq, nodes: PlannerNode[], zone: ZoneOffset = systemZone): Promise<PlannerTask[]> {
   if (nodes.length === 0) return [];
-  return buildTasks(await dq(TASKS_QUERY), nodes);
+  return buildTasks(await dq(TASKS_QUERY), nodes, zone);
 }

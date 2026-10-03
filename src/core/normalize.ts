@@ -39,6 +39,8 @@ interface RawTask {
   title: string;
   ":logseq.property/status"?: { ident: string; title: string };
   refs?: { id: number }[];
+  ":logseq.property/deadline"?: number;
+  ":logseq.property/scheduled"?: number;
 }
 /** One row of the journal-day query (`:keys raw journal-day`). */
 interface RawJournalDay {
@@ -123,8 +125,10 @@ export function buildNodes(
   });
 }
 
-/** Raw `TASKS_QUERY` rows → the tasks whose `:block/refs` hit one of `nodes`. */
-export function buildTasks(raw: unknown[], nodes: PlannerNode[]): PlannerTask[] {
+const dateTimeOrNull = (v: number | undefined, zone: ZoneOffset) => (typeof v === "number" ? localDateTime(v, zone) : null);
+
+/** Raw `TASKS_QUERY` rows (DateTime values are epoch ms) → the tasks whose `:block/refs` hit one of `nodes`. */
+export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffset = systemZone): PlannerTask[] {
   const nodeIds = new Set(nodes.map((n) => n.id));
   const tasks: PlannerTask[] = [];
   for (const [t] of raw as [RawTask][]) {
@@ -137,6 +141,8 @@ export function buildTasks(raw: unknown[], nodes: PlannerNode[]): PlannerTask[] 
       title: t.title,
       status: s ? { ident: s.ident, title: s.title } : null,
       nodeIds: hits,
+      deadline: dateTimeOrNull(t[":logseq.property/deadline"], zone),
+      scheduled: dateTimeOrNull(t[":logseq.property/scheduled"], zone),
     });
   }
   return tasks;
