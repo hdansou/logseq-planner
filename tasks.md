@@ -93,7 +93,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       move writes two props, drop on "No" removes, failed write rolls back. Accept: live move
       survives reload. Est: ~60 min
 
-- [ ] **T12 Live updates and click** — `src/ui/changes.ts`. Debounced `DB.onChanged` + slow
+- [x] **T12 Live updates and click** — `src/ui/changes.ts`. Debounced `DB.onChanged` + slow
       poll; keep scroll and expanded rows; click opens node and hides UI, Shift+click opens
       the right sidebar. Test first: debounce and state preservation with fakes. Accept:
       editing a task elsewhere redraws the view. Est: ~30 min
@@ -351,3 +351,21 @@ Total: about 10 hours.
   Decisions taken in T11 (change if wrong): the last closed value of Priority ranks
   highest; columns and lanes show every closed value regardless of filters; "No <prop>"
   is always shown; a card is done when any of its choice values is done.
+- 2026-10-03 T12 done (869508c). 395 unit tests. `src/ui/changes.ts`: `DB.onChanged`
+  debounced 100 ms, 30 s poll, both only while visible; hidden = mark stale, refresh
+  once on the next open. Click / Shift+click were already done in T08–T11. Live on
+  `plugin-test` (host `datascript_query` wrapped to count reloads): a Status set from
+  the host moved the Kanban card 138 ms after the write returned; an unrelated block
+  edit reloaded data but left the DOM untouched (same nodes); on the Timeline a refresh
+  kept the navigated range, the expanded row, the view scroll and the focused filter
+  checkbox while the progress went 50% → 100%; the Agenda's unfolded "No date" stayed
+  open and its entries updated; with the Tag menu open nothing redrew for 2 s and the
+  change appeared on Escape; while hidden, an edit caused 0 reloads and reopening showed
+  it; reopening with no edits caused 0 reloads; a tag created from the host appeared in
+  the tag tree and disappeared when deleted; 34 s idle and visible produced poll
+  reloads with no visible change; ⌘Z in the app after a Planner move put the card back;
+  an edit from a second browser tab on the same graph moved the card in the first tab.
+  Minor, open: reopening after a stale hide runs two reloads instead of one (second one
+  changes nothing). Reopening when not stale no longer re-reads saved views.
+  Not verified live: deferral during a drag in progress; sync; a second desktop window;
+  reload time at ~2,000 nodes (T13).
