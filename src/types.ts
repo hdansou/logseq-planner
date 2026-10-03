@@ -14,6 +14,8 @@ export interface AppDeps {
 
 /** The SDK calls `watchTheme` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface ThemeDeps {
+  /** Runs `fn` after `ms` milliseconds (setTimeout in production). */
+  later(fn: () => void, ms: number): void;
   getUserConfigs(): Promise<{ preferredThemeMode?: string } | undefined>;
   resolveThemeCssPropsVals(names: string[]): Promise<Record<string, string | undefined> | null | undefined>;
   onThemeModeChanged(cb: (e: { mode: string }) => void): void;

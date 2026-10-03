@@ -10,6 +10,7 @@ export const appDeps = (): AppDeps => ({
   showMainUI: () => logseq.showMainUI(),
   hideMainUI: () => logseq.hideMainUI(),
   theme: {
+    later: (fn, ms) => void setTimeout(fn, ms),
     getUserConfigs: () => logseq.App.getUserConfigs(),
     resolveThemeCssPropsVals: (names) => logseq.UI.resolveThemeCssPropsVals(names),
     onThemeModeChanged: (cb) => void logseq.App.onThemeModeChanged(cb),

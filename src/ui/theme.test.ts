@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
-import { PL_MAP, THEME_TOKENS, plVars, watchTheme } from "./theme";
+import { PL_MAP, RERESOLVE_DELAYS_MS, THEME_TOKENS, plVars, watchTheme } from "./theme";
 import type { ThemeDeps } from "../types";
 import css from "./theme.css?inline";
 
@@ -61,13 +61,15 @@ describe("stylesheet defaults", () => {
 function fakeTheme(mode: string | undefined, vals: Record<string, string> = {}) {
   let onMode: (m: { mode: string }) => void = () => {};
   let onTheme: () => void = () => {};
+  const timers: Array<{ fn: () => void; ms: number }> = [];
   const deps = {
+    later: vi.fn((fn: () => void, ms: number) => void timers.push({ fn, ms })),
     getUserConfigs: vi.fn(async () => ({ preferredThemeMode: mode })),
     resolveThemeCssPropsVals: vi.fn(async () => vals),
     onThemeModeChanged: vi.fn((cb) => void (onMode = cb)),
     onThemeChanged: vi.fn((cb) => void (onTheme = cb)),
   } satisfies ThemeDeps;
-  return { deps, fireMode: (mode: string) => onMode({ mode }), fireTheme: () => onTheme() };
+  return { deps, timers, fireMode: (mode: string) => onMode({ mode }), fireTheme: () => onTheme() };
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
@@ -110,5 +112,35 @@ describe("watchTheme", () => {
     t.fireTheme();
     await flush();
     expect(style.getPropertyValue("--pl-surface")).toBe("");
+  });
+
+  it("re-resolves after the stylesheet may have loaded (theme change and mode change)", async () => {
+    const t = fakeTheme("light", { "--background": "0 0% 100%" });
+    await watchTheme(t.deps, document);
+    const style = document.documentElement.style;
+    t.deps.resolveThemeCssPropsVals.mockResolvedValue({ "--background": "0 0% 10%" });
+    t.fireTheme();
+    await flush();
+    expect(t.timers.map((x) => x.ms)).toEqual(RERESOLVE_DELAYS_MS);
+    t.deps.resolveThemeCssPropsVals.mockResolvedValue({ "--background": "0 0% 20%" });
+    t.timers.splice(0).forEach((x) => x.fn());
+    await flush();
+    expect(style.getPropertyValue("--pl-surface")).toBe("hsl(0 0% 20%)");
+    t.fireMode("dark");
+    expect(t.timers.map((x) => x.ms)).toEqual(RERESOLVE_DELAYS_MS);
+  });
+
+  it("last call wins: a slow earlier resolve does not overwrite a newer one", async () => {
+    const t = fakeTheme("light");
+    await watchTheme(t.deps, document);
+    let settleOld: (v: Record<string, string>) => void = () => {};
+    t.deps.resolveThemeCssPropsVals.mockReturnValueOnce(new Promise((r) => void (settleOld = r)));
+    t.fireTheme();
+    t.deps.resolveThemeCssPropsVals.mockResolvedValueOnce({ "--background": "0 0% 30%" });
+    t.fireTheme();
+    await flush();
+    settleOld({ "--background": "0 0% 99%" });
+    await flush();
+    expect(document.documentElement.style.getPropertyValue("--pl-surface")).toBe("hsl(0 0% 30%)");
   });
 });

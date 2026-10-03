@@ -13,6 +13,7 @@ function fakeDeps() {
     showMainUI: vi.fn(),
     hideMainUI: vi.fn(),
     theme: {
+      later: vi.fn(),
       getUserConfigs: vi.fn(async () => ({ preferredThemeMode: "light" })),
       resolveThemeCssPropsVals: vi.fn(async () => ({})),
       onThemeModeChanged: vi.fn(),

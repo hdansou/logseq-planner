@@ -48,21 +48,34 @@ export function plVars(vals: Record<string, string | undefined>): Record<string,
   return out;
 }
 
+/**
+ * The host fires theme-changed as it injects the new stylesheet, and the plugin cannot see that load
+ * finish (cross-origin), so tokens are resolved again after these delays.
+ */
+export const RERESOLVE_DELAYS_MS = [250, 1000];
+
 /** Applies the host's mode and tokens now, and again on every mode or theme change. */
 export async function watchTheme(deps: ThemeDeps, doc: Document): Promise<void> {
   const root = doc.documentElement;
+  let latest = 0;
   const applyTokens = async () => {
+    const call = ++latest;
     const next = plVars((await deps.resolveThemeCssPropsVals(THEME_TOKENS)) ?? {});
+    if (call !== latest) return; // a newer resolve owns the result
     for (const [name] of PL_MAP) root.style.removeProperty(name);
     for (const [name, v] of Object.entries(next)) root.style.setProperty(name, v);
   };
   const applyMode = (mode: string | undefined) => root.classList.toggle("dark", mode === "dark");
 
+  const applyTokensAgain = () => {
+    void applyTokens();
+    for (const ms of RERESOLVE_DELAYS_MS) deps.later(() => void applyTokens(), ms);
+  };
   deps.onThemeModeChanged(({ mode }) => {
     applyMode(mode);
-    void applyTokens();
+    applyTokensAgain();
   });
-  deps.onThemeChanged(() => void applyTokens());
+  deps.onThemeChanged(applyTokensAgain);
   applyMode((await deps.getUserConfigs())?.preferredThemeMode);
   await applyTokens();
 }
