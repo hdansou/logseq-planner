@@ -90,10 +90,18 @@ describe("empty states", () => {
   it("shows a placeholder with the node count for a view kind not built yet", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
-    await click(ws, "[data-view-kind=agenda]");
+    await click(ws, "[data-view-kind=kanban]");
     expect($("[data-empty]")).toBeNull();
     expect(text("[data-region=view-placeholder]")).toContain("4 nodes");
-    expect(text("[data-region=view-placeholder]")).toContain("Agenda");
+    expect(text("[data-region=view-placeholder]")).toContain("Kanban");
+  });
+
+  it("renders the Agenda for the agenda kind (T10)", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    await click(ws, "[data-view-kind=agenda]");
+    expect($("[data-region=view] [data-agenda]")).not.toBeNull();
+    expect($("[data-region=view-placeholder]")).toBeNull();
   });
 
   it("renders the Timeline for the timeline kind (T08)", async () => {
@@ -207,7 +215,7 @@ describe("tasks of the visible nodes (T07 D4)", () => {
     const all = await loadTasks(fixtureDq(), nodes, zone);
     const expected = all.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
     expect(expected).toBeLessThan((await loadTasks(fixtureDq(), await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone }), zone)).length);
-    await click(ws, "[data-view-kind=agenda]"); // the placeholder states the counts
+    await click(ws, "[data-view-kind=kanban]"); // the placeholder states the counts
     expect(text("[data-region=view-placeholder]")).toContain(`${nodes.length} nodes · ${expected} linked task`);
   });
 });

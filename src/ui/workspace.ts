@@ -2,7 +2,7 @@
 // Start, End, done values), tag tree and choice filters, a per-view toolbar slot and the main area.
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
-// The Timeline (T08) and the Calendar (T09) render into the view area and the toolbar slot; the other kinds show a placeholder.
+// The Timeline (T08), the Calendar (T09) and the Agenda (T10) render into the view area and the toolbar slot; Kanban shows a placeholder.
 import { loadNodes, loadTasks } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
@@ -13,10 +13,12 @@ import { titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
+import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import type { SavedView, ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
+import { agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 export interface WorkspaceDeps {
@@ -270,7 +272,19 @@ function calendarLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   });
 }
 
-/** The main area (loading, an empty state, the Timeline, the Calendar or the placeholder for a kind not built yet) and its toolbar. */
+/** The Agenda layout for the visible nodes. */
+function agendaLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): AgendaLayout {
+  const c = s.config!;
+  if (c.kind !== "agenda") throw new Error(`agendaLayout called for a ${c.kind} view`);
+  const statusValues = taskStatusValues(s.tags);
+  return layoutAgenda({
+    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: tag.choiceProps, doneValues: c.doneValues,
+    titles: titlesByUuid(s.nodes),
+  });
+}
+
+/** The main area (loading, an empty state, the Timeline, the Calendar, the Agenda or the placeholder for Kanban, not built yet) and its toolbar. */
 function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
   const view = (html: string) => ({ view: html, toolbar: "" });
   if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
@@ -293,6 +307,10 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   if (s.config.kind === "calendar") {
     const layout = calendarLayout(s, now(), shown);
     return { view: renderCalendar(layout, `#${tag.title}`), toolbar: renderCalendarToolbar(layout) };
+  }
+  if (s.config.kind === "agenda") {
+    const layout = agendaLayout(s, now(), tag, shown);
+    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
   }
   const kind = KIND_LABEL[s.config.kind];
   return view(`<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
@@ -424,6 +442,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (tl) return void timeline(tl, (e as MouseEvent).shiftKey);
     const cal = calendarAction(t);
     if (cal) return void calendar(cal, (e as MouseEvent).shiftKey);
+    const ag = agendaAction(t);
+    if (ag) return void agenda(ag, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
       const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views" } as const)[ctl.dataset.control as string];
@@ -512,6 +532,20 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
           setConfig({ ...c, layout: "week" });
           s.anchor = a.day;
         }, () => "[data-cal-layout=week]");
+    }
+  }
+
+  /** Agenda controls: Group by and Show done are view config (saved with a view). */
+  function agenda(a: NonNullable<ReturnType<typeof agendaAction>>, shift: boolean) {
+    const c = s.config!;
+    if (c.kind !== "agenda") throw new Error(`Agenda control in a ${c.kind} view`);
+    switch (a.type) {
+      case "open":
+        return deps.openNode(a.uuid, { sidebar: shift });
+      case "group":
+        return void run(() => setConfig({ ...c, groupBy: a.groupBy }));
+      case "showDone":
+        return void run(() => setConfig({ ...c, showDone: !c.showDone }));
     }
   }
 

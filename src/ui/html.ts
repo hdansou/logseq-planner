@@ -23,3 +23,8 @@ export function segmented(label: string, attr: string, items: [string, string][]
   return `<div class="pl-seg" role="group" aria-label="${esc(label)}">${items
     .map(([value, text]) => `<button type="button" data-${attr}="${value}" aria-pressed="${value === current}">${esc(text)}</button>`).join("")}</div>`;
 }
+
+/** A pill button that is on or off (`aria-pressed`), carrying the boolean attribute `data-<attr>`. */
+export function toggleButton(label: string, attr: string, pressed: boolean): string {
+  return `<button type="button" class="pl-btn pl-toggle" data-${attr} aria-pressed="${pressed}">${esc(label)}</button>`;
+}

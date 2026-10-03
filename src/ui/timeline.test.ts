@@ -96,9 +96,9 @@ describe("toolbar", () => {
     await click("[data-view-kind=calendar]");
     expect($("[data-tl-zoom]")).toBeNull();
     expect($("[data-timeline]")).toBeNull();
-    await click("[data-view-kind=agenda]");
+    await click("[data-view-kind=kanban]");
     expect($("[data-tl-zoom]")).toBeNull();
-    expect(text("[data-region=view-placeholder]")).toContain("Agenda");
+    expect(text("[data-region=view-placeholder]")).toContain("Kanban");
   });
 });
 

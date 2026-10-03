@@ -78,7 +78,12 @@ All notable changes to this project are documented here. The format follows
   when its tag has a done notion, else Earlier). Done (a node by the view's done values, a task by its Status flags) and
   canceled entries are hidden unless Show done, which reveals those under Today, a day, Earlier (14 days back at most) and
   No date. Entries sort by date, then time, then title; empty buckets are not listed. `today` is injected.
-
+- Agenda view (T10): `src/ui/agenda.ts` + `agenda.css` replace the Agenda placeholder. Toolbar with a Group by Node / Date
+  switch and a Show done toggle (both are saved with a view). By date: a panel per non-empty bucket (Overdue in red, Today in
+  the accent colour, each of the next 14 days, then folded Later than 14 days, No date and Earlier), tasks with their node's
+  chip. By node: a panel per node with its dates, Status and Owner, progress and its tasks underneath. Entries are
+  buttons with the status icon, date and "N days late"; click opens the node or task and hides Planner, Shift+click opens
+  it in the right sidebar. An empty agenda says so and points at Show done. `toggleButton` joins the shared HTML helpers.
 ### Fixed
 - Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
   first grid track is a fixed `--pl-cal-head-h` (28px) instead of `auto`, which nothing sized and collapsed to 0.
