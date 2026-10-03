@@ -7,8 +7,20 @@ import { buildNodes, buildTasks, journalPageIds, systemZone, type ZoneOffset } f
 export const CLASS_EXTENDS_RULES = ` [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]
   [(class-extends ?p ?c) [?t :logseq.property.class/extends ?p] (class-extends ?t ?c)]]`;
 
-// Same as probe query `nodesOfTagWithExtends` (fixture nodes.json).
-export const NODES_QUERY = `[:find (pull ?b [*])
+/** What `buildNodes` reads besides the properties: `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` (plain refs → `{id}`). */
+const NODE_ATTRS = ":db/id :block/uuid :block/title :block/tags";
+
+/**
+ * The Date/DateTime and choice property idents of every tag (own and inherited), each once, sorted: what normalisation
+ * can read on a node (the props of each tag it carries, `propsOf` in normalize.ts). A narrow pull instead of `pull [*]`
+ * (T13a: 2,000 nodes 276 ms → 77 ms live); a ref-typed value still comes back as `{id}`, a DateTime as epoch ms.
+ */
+export function nodePropIdents(tags: TagInfo[]): string[] {
+  return [...new Set(tags.flatMap((t) => [...t.dateProps, ...t.choiceProps].map((p) => p.ident)))].sort();
+}
+
+// Same join as probe query `nodesOfTagWithExtends` (fixture nodes.json), with the narrow pull.
+export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${[NODE_ATTRS, ...nodePropIdents(tags)].join(" ")}])
           :in $ ?tag-title %
           :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]
                  [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]`;
@@ -19,13 +31,19 @@ export const JOURNAL_DAYS_QUERY = `[:find ?raw ?journal-day
           :in $ [?raw ...]
           :where [?raw :block/journal-day ?journal-day]]`;
 
-// Same pull as probe query `taskRefs` (fixture tasks.json), over every #Task block of the graph.
+/**
+ * #Task blocks that reference a node of the tag (same tag join as `nodesQuery`), pulling what `buildTasks` reads: Status
+ * with its ident (the empty placeholder is recognised by it), Deadline, Scheduled and the refs' ids. T13a: bound by the
+ * tag instead of every #Task of the graph, and no nested tag or ref titles (2,033 rows 314 ms → ~100 ms live).
+ */
 export const TASKS_QUERY = `[:find (pull ?b [:db/id :block/uuid :block/title
-                        {:block/tags [:db/ident :block/title]}
                         {:logseq.property/status [:db/ident :block/title]}
                         :logseq.property/deadline :logseq.property/scheduled
-                        {:block/refs [:db/id :db/ident :block/uuid :block/title {:block/tags [:db/ident]}]}])
-          :where [?b :block/tags :logseq.class/Task]]`;
+                        {:block/refs [:db/id]}])
+          :in $ ?tag-title %
+          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]
+                 [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
+                 [?b :block/refs ?n] [?b :block/tags :logseq.class/Task]]`;
 
 export interface LoadNodesOptions {
   /** Include nodes of tags that extend `tag` (any depth). */
@@ -36,16 +54,20 @@ export interface LoadNodesOptions {
 
 /** Nodes of `tag` (plus extending tags when `childTags`) with their dates and choice values mapped. */
 export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<PlannerNode[]> {
-  const raw = await dq(NODES_QUERY, tag.title, CLASS_EXTENDS_RULES);
+  const raw = await dq(nodesQuery(tags), tag.title, CLASS_EXTENDS_RULES);
   const pageIds = journalPageIds(raw, tags, tag, opts.childTags);
   const days = pageIds.length > 0 ? await dq(JOURNAL_DAYS_QUERY, pageIds) : [];
   return buildNodes(raw, days, tags, tag, opts.childTags, opts.zone ?? systemZone);
 }
 
-/** #Task blocks whose `:block/refs` hit one of `nodes` (inline refs and node-property links). */
-export async function loadTasks(dq: Dq, nodes: PlannerNode[], zone: ZoneOffset = systemZone): Promise<PlannerTask[]> {
-  if (nodes.length === 0) return [];
-  return buildTasks(await dq(TASKS_QUERY), nodes, zone);
+/**
+ * The nodes of `tag` and the #Task blocks whose `:block/refs` hit them (inline refs and node-property links). The task
+ * query does not need the nodes (it joins on the tag), so both are asked at once; `buildTasks` keeps the tasks that hit
+ * a loaded node (with child tags off the query also returns tasks of child-tag nodes).
+ */
+export async function loadNodesAndTasks(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<{ nodes: PlannerNode[]; tasks: PlannerTask[] }> {
+  const [nodes, rawTasks] = await Promise.all([loadNodes(dq, tags, tag, opts), dq(TASKS_QUERY, tag.title, CLASS_EXTENDS_RULES)]);
+  return { nodes, tasks: buildTasks(rawTasks, nodes, opts.zone ?? systemZone) };
 }
 
 /**

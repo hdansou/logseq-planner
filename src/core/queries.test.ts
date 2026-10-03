@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import nodesFixture from "./__fixtures__/nodes.json";
-import tasksFixture from "./__fixtures__/tasks.json";
-import datesFixture from "./__fixtures__/dates.json";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { loadNodes, loadTasks, loadTitles, NODES_QUERY, TASKS_QUERY, TITLES_QUERY, JOURNAL_DAYS_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY, JOURNAL_DAYS_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { fixtureDq } from "../ui/test-fakes";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { ZoneOffset } from "./normalize";
 
@@ -22,18 +20,13 @@ interface Call {
   query: string;
   inputs: unknown[];
 }
-/** A fake `dq` that answers each known query from the T01 fixtures and records the calls. */
+/** The fixture `dq` (src/ui/test-fakes.ts: answers each known query from the T01 fixtures), recording the calls. */
 function fakeDq() {
   const calls: Call[] = [];
+  const base = fixtureDq();
   const dq = async (query: string, ...inputs: unknown[]) => {
     calls.push({ query, inputs });
-    if (query === NODES_QUERY) {
-      const title = inputs[0];
-      return title === "Project" ? nodesFixture.projectWithExtends.detail : title === "Meeting" ? nodesFixture.meeting.detail : [];
-    }
-    if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
-    if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
-    throw new Error(`unexpected query ${query}`);
+    return base(query, ...inputs);
   };
   return { dq, calls };
 }
@@ -54,6 +47,26 @@ describe("loadNodes", () => {
     const { dq, calls } = fakeDq();
     await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
     expect(calls[0].inputs).toEqual(["Project", CLASS_EXTENDS_RULES]);
+  });
+
+  it("pulls only id, uuid, title, tags and the date and choice properties of every tag (T13a: no pull [*])", async () => {
+    const { dq, calls } = fakeDq();
+    await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    const idents = nodePropIdents(tags);
+    expect(calls[0].query).toBe(nodesQuery(tags));
+    expect(calls[0].query).not.toContain("[*]");
+    expect(calls[0].query).toContain(`(pull ?b [:db/id :block/uuid :block/title :block/tags ${idents.join(" ")}])`);
+    // Project's own Start/End/Status/Owner, Meeting's Date/Type and Task's Deadline/Scheduled/Status/Priority, each once
+    const project = tag("Project");
+    for (const p of [...project.dateProps, ...project.choiceProps, ...tag("Meeting").dateProps, ...tag("Task").dateProps]) expect(idents).toContain(p.ident);
+    expect(new Set(idents).size).toBe(idents.length);
+    // never a text property (Client project's Client) or an attribute normalisation does not read
+    expect(idents.some((i) => i.startsWith(":user.property/client-"))).toBe(false);
+  });
+
+  it("keeps the extends rule join of the node query", () => {
+    expect(nodesQuery(tags)).toContain(":in $ ?tag-title %");
+    expect(nodesQuery(tags)).toContain("(or [(= ?t ?tag)] (class-extends ?tag ?t))");
   });
 
   it("includes nodes of extending tags when child tags are on", async () => {
@@ -127,16 +140,16 @@ describe("loadNodes", () => {
   });
 
   it("fails fast when a Date value's journal page is unknown", async () => {
-    const dq = async (query: string) => (query === JOURNAL_DAYS_QUERY ? [] : (nodesFixture.projectWithExtends.detail as unknown[]));
+    const base = fixtureDq();
+    const dq = async (query: string, ...inputs: unknown[]) => (query === JOURNAL_DAYS_QUERY ? [] : base(query, ...inputs));
     await expect(loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 })).rejects.toThrow(/journal/);
   });
 });
 
-describe("loadTasks", () => {
+describe("loadNodesAndTasks", () => {
   const load = async () => {
     const { dq } = fakeDq();
-    const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
-    return { nodes, tasks: await loadTasks(dq, nodes, west5) };
+    return loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
   };
   const task = (tasks: PlannerTask[], start: string) => tasks.find((t) => t.title.startsWith(start));
 
@@ -171,10 +184,33 @@ describe("loadTasks", () => {
     for (const t of tasks) for (const id of t.nodeIds) expect(ids.has(id)).toBe(true);
   });
 
-  it("sends no query when there are no nodes", async () => {
+  it("the task query is bound to the tag's nodes (tag title + extends rules) and pulls no nested tags or ref titles (T13a)", async () => {
     const { dq, calls } = fakeDq();
-    expect(await loadTasks(dq, [])).toEqual([]);
-    expect(calls).toHaveLength(0);
+    await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    const call = calls.find((c) => c.query === TASKS_QUERY)!;
+    expect(call.inputs).toEqual(["Project", CLASS_EXTENDS_RULES]);
+    expect(TASKS_QUERY).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
+    expect(TASKS_QUERY).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
+    expect(TASKS_QUERY).toContain("{:block/refs [:db/id]}");
+    expect(TASKS_QUERY).not.toContain("{:block/tags");
+  });
+
+  it("asks for the tasks without waiting for the nodes (both queries in flight together)", async () => {
+    const { dq, calls } = fakeDq();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const held = async (q: string, ...i: unknown[]) => (q === nodesQuery(tags) ? (await gate, dq(q, ...i)) : dq(q, ...i));
+    const done = loadNodesAndTasks(held, tags, tag("Project"), { childTags: true, zone: west5 });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(calls.map((c) => c.query)).toContain(TASKS_QUERY);
+    release();
+    expect((await done).tasks).toHaveLength(5);
+  });
+
+  it("an empty tag has no nodes and no tasks", async () => {
+    const { dq } = fakeDq();
+    expect(await loadNodesAndTasks(dq, tags, tag("Page"), { childTags: true, zone: west5 })).toEqual({ nodes: [], tasks: [] });
   });
 });
 

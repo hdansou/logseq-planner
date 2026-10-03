@@ -4,7 +4,7 @@
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
-import { loadNodes, loadTasks, loadTitles } from "../core/queries";
+import { loadNodesAndTasks, loadTitles } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
@@ -431,8 +431,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
   async function readData(config: ViewConfig, tags: TagInfo[]) {
     const tag = validateViewConfig(config, tags);
-    const nodes = await loadNodes(deps.dq, tags, tag, { childTags: config.childTags, zone: deps.zone });
-    const tasks = await loadTasks(deps.dq, nodes, deps.zone);
+    const { nodes, tasks } = await loadNodesAndTasks(deps.dq, tags, tag, { childTags: config.childTags, zone: deps.zone });
     // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
     const known = titlesByUuid(nodes);
     const missing = refUuids([...nodes, ...tasks].map((x) => x.title)).filter((u) => !known.has(u));

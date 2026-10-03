@@ -24,8 +24,8 @@ export function localDateTime(epochMs: number, zone: ZoneOffset): LocalDate {
   };
 }
 
-// Raw shapes as observed (fixtures nodes.json, tasks.json, dates.json): `pull [*]` keys keep their
-// namespace except :block/*; entity values are `{id}`, DateTime values are epoch ms numbers.
+// Raw shapes as observed (fixtures nodes.json, tasks.json, dates.json; the narrow T13a pulls checked live): pull keys keep
+// their namespace except :block/*; entity values of plain attributes are `{id}`, DateTime values are epoch ms numbers.
 interface RawNode {
   id: number;
   uuid: string;
@@ -105,7 +105,7 @@ export function journalPageIds(raw: unknown[], tags: TagInfo[], tag: TagInfo, ch
   return [...ids];
 }
 
-/** Raw `NODES_QUERY` rows + journal-day rows → nodes with mapped dates and choices. */
+/** Raw `nodesQuery` rows + journal-day rows → nodes with mapped dates and choices. */
 export function buildNodes(
   raw: unknown[],
   rawJournalDays: unknown[],
@@ -147,7 +147,7 @@ export function buildNodes(
 
 const dateTimeOrNull = (v: number | undefined, zone: ZoneOffset) => (typeof v === "number" ? localDateTime(v, zone) : null);
 
-/** Raw `TASKS_QUERY` rows (DateTime values are epoch ms) → the tasks whose `:block/refs` hit one of `nodes`. */
+/** Raw `TASKS_QUERY` rows (DateTime values are epoch ms, refs `{id}`) → the tasks whose `:block/refs` hit one of `nodes`. */
 export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffset = systemZone): PlannerTask[] {
   const nodeIds = new Set(nodes.map((n) => n.id));
   const tasks: PlannerTask[] = [];

@@ -153,6 +153,13 @@ All notable changes to this project are documented here. The format follows
   targets and the known gaps.
 
 ### Changed
+- Queries (T13a): the node query pulls only `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` and the Date/DateTime
+  and choice property idents of the graph's tags (`nodePropIdents` / `nodesQuery`, built from the tag list) instead of
+  `pull [*]`; the task query is bound to tasks that reference a node of the tag (same tag + `class-extends` join) and
+  pulls Status (ident, title), Deadline, Scheduled and the refs' ids only, instead of every #Task in the graph with
+  nested tags and ref titles. Both are asked at once (`loadNodesAndTasks`; `loadTasks` is gone). Same nodes, tasks and
+  views as before; on the 2,000-node seed the node pull went from 276 ms to about 80 ms and the task pull from 314 ms to
+  about 100 ms when run live by hand.
 - The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in
   `src/ui/html.ts`; the category colour rules are generic `[data-cat]` rules in `theme.css` (`--pl-node-fill`,
   `--pl-node-hue`) and the undated-list link is `.pl-link`, shared by both views.

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import nodesFixture from "./__fixtures__/nodes.json";
-import tasksFixture from "./__fixtures__/tasks.json";
-import datesFixture from "./__fixtures__/dates.json";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { loadNodes, loadTasks, NODES_QUERY, TASKS_QUERY, JOURNAL_DAYS_QUERY } from "./queries";
+import { loadNodes, loadNodesAndTasks } from "./queries";
+import { fixtureDq } from "../ui/test-fakes";
 import { filterNodes, isCanceled, isDone, resolveSpan, rollup, tasksOf } from "./nodes";
 import type { ClosedValue, LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
@@ -16,12 +14,7 @@ const tag = (title: string): TagInfo => {
   return t;
 };
 const west5 = () => -300;
-const dq = async (query: string, ...inputs: unknown[]) => {
-  if (query === NODES_QUERY) return inputs[0] === "Project" ? nodesFixture.projectWithExtends.detail : nodesFixture.meeting.detail;
-  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
-  if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
-  throw new Error(`unexpected query ${query}`);
-};
+const dq = fixtureDq();
 const prop = (t: TagInfo, title: string) => {
   const p = [...t.dateProps, ...t.choiceProps].find((x) => x.title === title);
   if (!p) throw new Error(`no prop ${title}`);
@@ -65,8 +58,7 @@ describe("resolveSpan", () => {
   });
 
   it("derives from the fixture's linked task for Acme-like nodes without mapped dates", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
-    const tasks = await loadTasks(dq, nodes, west5);
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, project, { childTags: true, zone: west5 });
     const bare = { ...byTitle(nodes, "Acme rollout"), dates: {} };
     expect(resolveSpan(bare, tasks, startId, endId)).toEqual({ kind: "derived", start: d("2026-10-02", "12:00"), end: d("2026-10-02", "12:00") });
   });
@@ -107,8 +99,8 @@ describe("rollup", () => {
   };
 
   it("counts done over all tasks minus canceled", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
-    const tasks = tasksOf(byTitle(nodes, "Website relaunch"), await loadTasks(dq, nodes, west5));
+    const { nodes, tasks: all } = await loadNodesAndTasks(dq, tags, project, { childTags: true, zone: west5 });
+    const tasks = tasksOf(byTitle(nodes, "Website relaunch"), all);
     expect(tasks).toHaveLength(3); // Todo, Done, Canceled
     expect(rollup(tasks, status)).toEqual({ done: 1, total: 2 });
   });

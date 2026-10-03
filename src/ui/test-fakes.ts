@@ -4,8 +4,8 @@ import propsFixture from "../core/__fixtures__/class-properties.json";
 import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
-import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { JOURNAL_DAYS_QUERY, NODES_QUERY, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
+import { buildTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
+import { JOURNAL_DAYS_QUERY, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -26,8 +26,28 @@ function edited(row: Record<string, unknown>, edits?: Edits): Record<string, unk
 type Row = Record<string, unknown>;
 const taskRows = () => (tasksFixture.taskRefs.detail as unknown as [Row][]).map(([t]) => t);
 
+/** The fixture tags as the loaders see them: `nodesQuery` is built from them. */
+const fixtureTags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
+
+/** Pull-map key of an attribute (`:db/id` → `id`, `:block/title` → `title`, a property keeps its ident). */
+const pullKey = (attr: string) => (attr.startsWith(":block/") ? attr.slice(7) : attr === ":db/id" ? "id" : attr);
+
+/** A `pull [*]` fixture row cut down to the attributes `nodesQuery` pulls (absent attributes stay absent, like a real pull). */
+function narrowNode(row: Row): Row {
+  const keys = [":db/id", ":block/uuid", ":block/title", ":block/tags", ...nodePropIdents(fixtureTags)].map(pullKey);
+  return Object.fromEntries(keys.filter((k) => k in row).map((k) => [k, row[k]]));
+}
+
+/** A fixture task row (T01 pull) cut down to the `TASKS_QUERY` pull: Status `{ident, title}`, Deadline, Scheduled, refs as `{id}`. */
+function narrowTask(t: Row): Row {
+  const out: Row = { id: t.id, uuid: t.uuid, title: t.title };
+  for (const k of [":logseq.property/status", ":logseq.property/deadline", ":logseq.property/scheduled"]) if (k in t) out[k] = t[k];
+  if (t.refs) out.refs = (t.refs as Row[]).map((r) => ({ id: r.id }));
+  return out;
+}
+
 /**
- * The fixture #Task blocks in the shape `pull [*]` gives a node (NODES_QUERY): the T01 task pull carries tags and Status
+ * The fixture #Task blocks in the shape `pull [*]` gives a node (cut down by `narrowNode` for `nodesQuery`): the T01 task pull carries tags and Status
  * as `{ident, title}`, so they are turned into `{id}` refs through the tag and closed-value ids of the same fixtures.
  */
 function taskNodeRows(): [Row][] {
@@ -62,8 +82,22 @@ function fixtureTitles(): Map<string, string> {
 export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean } = {}): Dq => async (query, ...inputs) => {
   if (query === TAGS_QUERY) return opts.noTags ? [] : (tagsFixture.query.detail as unknown[]);
   if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
-  if (query === NODES_QUERY) {
-    if (inputs[0] === "Project") {
+  if (query === nodesQuery(fixtureTags)) return nodeRows(inputs[0]).map(([n]) => [narrowNode(n)]);
+  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
+  if (query === TASKS_QUERY) {
+    // Bound by the tag: the fixture tasks that reference one of its nodes (child tags included, as the query's rule does).
+    const ids = new Set(nodeRows(inputs[0]).map(([n]) => n.id));
+    return taskRows().filter((t) => ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t)]);
+  }
+  if (query === TITLES_QUERY) {
+    const titles = fixtureTitles();
+    return (inputs[0] as string[]).filter((u) => titles.has(u)).map((u) => [u, titles.get(u)]);
+  }
+  throw new Error(`unexpected query ${query}`);
+
+  /** The `pull [*]` fixture rows of the nodes of tag `title` (child tags included), with the edits applied. */
+  function nodeRows(title: unknown): [Row][] {
+    if (title === "Project") {
       const rows = nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][];
       const site = rows.find(([n]) => n.title === "Website relaunch")![0];
       const copies = Array.from({ length: opts.projectCopies ?? 0 }, (_, i) => [{
@@ -72,17 +106,10 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
       }]);
       return [...rows, ...copies].map(([n]) => [edited(n, opts.edits)]);
     }
-    if (inputs[0] === "Task" && opts.taskNodes) return taskNodeRows();
-    if (inputs[0] === "Meeting") return (nodesFixture.meeting.detail as unknown as [Record<string, unknown>][]).map(([n]) => [edited(n, opts.edits)]);
+    if (title === "Task" && opts.taskNodes) return taskNodeRows();
+    if (title === "Meeting") return (nodesFixture.meeting.detail as unknown as [Record<string, unknown>][]).map(([n]) => [edited(n, opts.edits)]);
     return [];
   }
-  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
-  if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
-  if (query === TITLES_QUERY) {
-    const titles = fixtureTitles();
-    return (inputs[0] as string[]).filter((u) => titles.has(u)).map((u) => [u, titles.get(u)]);
-  }
-  throw new Error(`unexpected query ${query}`);
 };
 
 /** In-memory saved-views graph; `silent` writes resolve without storing anything, like the real API on failure. */

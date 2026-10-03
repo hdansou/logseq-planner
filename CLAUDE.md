@@ -18,7 +18,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/sdk.ts` | every SDK call and typing cast; full-screen container style; `hostWeekStart()` (`preferredStartOfWeek`, number or numeric string); `changesSdk()` (`DB.onChanged`, cancelable `setTimeout`, `ui:visible:changed`, `beforeunload`); `kanbanWriteDeps()` (`upsertBlockProperty` / `removeBlockProperty` passed through unchanged, `readChoice` = pull by `#uuid` input, `choiceReadQuery`) | DOM rendering inside the frame |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
-| `src/core/queries.ts` | `loadNodes` / `loadTasks` (injected `Dq`): nodes of a tag ± child tags, #Task blocks whose refs hit them; `loadTitles(dq, uuids)`: one `TITLES_QUERY` (uuid strings as a collection, `(str ?u)`), none when empty | use the SDK, filter/span logic (`nodes.ts`) |
+| `src/core/queries.ts` | `loadNodes` / `loadNodesAndTasks` (injected `Dq`): nodes of a tag ± child tags with a narrow pull (`nodesQuery(tags)`: id, uuid, title, tags + every tag's date/choice idents, `nodePropIdents`), and the #Task blocks that reference a node of the tag (`TASKS_QUERY`, same tag join, asked together with the nodes); `loadTitles(dq, uuids)`: one `TITLES_QUERY` (uuid strings as a collection, `(str ?u)`), none when empty | use the SDK, filter/span logic (`nodes.ts`), `pull [*]` |
 | `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset`; `choiceValueOf` (only a closed value counts) and `isEmptyPlaceholder` (`:logseq.property/empty-placeholder` = no value, by ident) | read process TZ outside `systemZone` |
 | `src/core/nodes.ts` | pure `resolveSpan` (mapped / point / derived / undated), `rollup`, `isDone` / `isCanceled`, `filterNodes`, `tasksOf` | query, touch DOM or SDK |
 | `src/core/display-title.ts` | `displayTitle(title, titles)`: inline `[[uuid]]` refs → the node's title, `(link)` when unknown; `titlesByUuid(nodes)`, `refUuids(titles)`; every view renders titles through it with the workspace's `State.titles` (loaded nodes + `loadTitles` for the rest) | show a raw uuid |
@@ -80,7 +80,9 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 
 Co-located `src/**/*.test.ts`; DOM tests start with `// @vitest-environment happy-dom`.
 Core tests run against probe fixtures in `src/core/__fixtures__/`. SDK calls are injected,
-so tests pass fakes.
+so tests pass fakes. Every loader test uses `fixtureDq` (`src/ui/test-fakes.ts`): it answers the
+exact query strings and cuts the `pull [*]` fixture rows down to what the narrow pulls return
+(never hand-written rows).
 
 ## Where to look
 

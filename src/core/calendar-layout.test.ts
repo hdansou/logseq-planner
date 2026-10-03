@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadTagInfos } from "./schema";
-import { loadNodes, loadTasks } from "./queries";
+import { loadNodesAndTasks } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
@@ -25,8 +25,7 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 /** Lays the fixture nodes of `tagTitle` out with the tag's default Start/End (Meeting: Date only). */
 async function layout(tagTitle: string, view: CalendarView, over: Partial<CalendarInput> = {}): Promise<CalendarLayout> {
   const t = tag(tagTitle);
-  const nodes = await loadNodes(dq, tags, t, { childTags: true, zone: west5 });
-  const tasks = await loadTasks(dq, nodes, west5);
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutCalendar({
@@ -169,8 +168,7 @@ describe("bands (span nodes)", () => {
 
   it("derived spans are bands flagged derived", async () => {
     const t = tag("Project");
-    const nodes = await loadNodes(dq, tags, t, { childTags: true, zone: west5 });
-    const tasks = await loadTasks(dq, nodes, west5);
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
     const bare = nodes.map((n) => (n.title === "Mobile app" ? { ...n, dates: {} } : n));
     const l = layoutCalendar({
       items: viewItems(bare, tasks, dateIdent(t, "Start"), dateIdent(t, "End"), statusValues), layout: "month", anchor: TODAY, today: TODAY,

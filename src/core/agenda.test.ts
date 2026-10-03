@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadTagInfos } from "./schema";
-import { loadNodes, loadTasks } from "./queries";
+import { loadNodesAndTasks } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import { HORIZON_DAYS, layoutAgenda, type AgendaInput, type AgendaLayout } from "./agenda";
@@ -30,8 +30,7 @@ const taskStatus = (title: string) => {
 /** The fixture nodes of `tagTitle` with the tag's default Start/End (Meeting: Date only), laid out for today. */
 async function layout(tagTitle: string, over: Partial<AgendaInput> = {}): Promise<AgendaLayout> {
   const t = tag(tagTitle);
-  const nodes = await loadNodes(dq, tags, t, { childTags: true, zone: west5 });
-  const tasks = await loadTasks(dq, nodes, west5);
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutAgenda({

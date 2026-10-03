@@ -2,7 +2,7 @@
 // Workspace.refresh (T12): the quiet reload that live updates trigger.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadTagInfos, TAGS_QUERY, type Dq } from "../core/schema";
-import { NODES_QUERY } from "../core/queries";
+import { nodesQuery } from "../core/queries";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
@@ -45,7 +45,7 @@ async function setup(wrap: (dq: Dq) => Dq = (dq) => dq) {
 }
 const setStatus = (title: string) => graph.edits.set(SITE, { [STATUS]: status(title).id });
 const columnOf = (uuid: string) => $(`[data-kb-card="${uuid}"]`)?.closest<HTMLElement>("[data-kb-cell]")?.dataset.kbCol;
-const nodeQueries = () => dqCalls.filter((q) => q === NODES_QUERY).length;
+const nodeQueries = () => dqCalls.filter((q) => q === nodesQuery(tags)).length;
 
 async function kanban() {
   await click(`[data-tag-id="${tag("Project").id}"]`);
@@ -99,7 +99,7 @@ describe("redraw", () => {
   it("a failing reload shows the error and keeps the old view", async () => {
     let fail = false;
     await setup((base) => async (q, ...i) => {
-      if (fail && q === NODES_QUERY) throw new Error("db gone");
+      if (fail && q === nodesQuery(tags)) throw new Error("db gone");
       return base(q, ...i);
     });
     const html = $("[data-region=view]")!.innerHTML;
@@ -183,7 +183,7 @@ describe("what defers a redraw", () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     let hold = false;
-    await setup((base) => async (q, ...i) => (q === NODES_QUERY && hold ? (await gate, base(q, ...i)) : base(q, ...i)));
+    await setup((base) => async (q, ...i) => (q === nodesQuery(tags) && hold ? (await gate, base(q, ...i)) : base(q, ...i)));
     await kanban();
     hold = true;
     setStatus("Done");

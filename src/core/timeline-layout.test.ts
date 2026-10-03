@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
-import nodesFixture from "./__fixtures__/nodes.json";
-import tasksFixture from "./__fixtures__/tasks.json";
-import datesFixture from "./__fixtures__/dates.json";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { JOURNAL_DAYS_QUERY, loadNodes, loadTasks, NODES_QUERY, TASKS_QUERY } from "./queries";
+import { loadNodesAndTasks } from "./queries";
+import { fixtureDq } from "../ui/test-fakes";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import { layoutTimeline, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
@@ -18,12 +16,7 @@ const tag = (title: string): TagInfo => {
   return t;
 };
 const west5 = () => -300;
-const dq = async (query: string, ...inputs: unknown[]) => {
-  if (query === NODES_QUERY) return inputs[0] === "Project" ? nodesFixture.projectWithExtends.detail : nodesFixture.meeting.detail;
-  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
-  if (query === TASKS_QUERY) return tasksFixture.taskRefs.detail as unknown[];
-  throw new Error(`unexpected query ${query}`);
-};
+const dq = fixtureDq();
 const dateIdent = (t: TagInfo, title: string) => t.dateProps.find((p) => p.title === title)!.ident;
 const statusValues = tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")!.values;
 const TODAY = "2026-10-03"; // a Saturday
@@ -31,8 +24,7 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 
 async function load(tagTitle: string) {
   const t = tag(tagTitle);
-  const nodes = await loadNodes(dq, tags, t, { childTags: true, zone: west5 });
-  const tasks = await loadTasks(dq, nodes, west5);
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
   return { t, nodes, tasks };
 }
 

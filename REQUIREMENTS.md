@@ -86,7 +86,8 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
   `*.test.ts`, DOM tests opt into happy-dom per file; dev-only code behind
   `import.meta.env.DEV`; pinned dev port 8293 (preview 8294) with `--strictPort`.
 - Data access: datascript queries for tag schema (incl. `:logseq.property.class/extends`),
-  tagged nodes with mapped properties, and #Task refs. Date (journal ref) and DateTime (ms)
+  tagged nodes with mapped properties, and #Task refs. Pulls name the attributes they read
+  (no `pull [*]`), and the task query is bound to tasks that reference a node of the tag. Date (journal ref) and DateTime (ms)
   both normalised to local ISO days; DateTime keeps HH:MM for labels.
 - Writes: saved views (hidden string property, schema ensured before each write) and Kanban
   moves (closed-value property write). Nothing else.

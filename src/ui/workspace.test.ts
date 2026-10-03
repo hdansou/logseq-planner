@@ -6,7 +6,7 @@ import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
 import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
-import { loadNodes, loadTasks, TITLES_QUERY } from "../core/queries";
+import { loadNodes, loadNodesAndTasks, TITLES_QUERY } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
 
 let tags: TagInfo[];
@@ -224,12 +224,11 @@ describe("tasks of the visible nodes (T07 D4)", () => {
     const zone = () => -300;
     const nodes = (await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone })).filter((n) => n.choices[owner.ident]?.id === alice.id);
     const ids = new Set(nodes.map((n) => n.id));
-    const all = await loadTasks(fixtureDq(), nodes, zone);
-    const expected = all.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
-    expect(expected).toBeLessThan((await loadTasks(fixtureDq(), await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone }), zone)).length);
+    const loaded = await loadNodesAndTasks(fixtureDq(), tags, tag("Project"), { childTags: true, zone });
+    const expected = loaded.tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
+    expect(expected).toBeLessThan(loaded.tasks.length);
     const config = { ...defaultViewConfig(tag("Project")), filters: { [owner.ident]: [alice.uuid] } };
-    const all2 = await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone });
-    const shown = visibleData(config, tag("Project"), all2, await loadTasks(fixtureDq(), all2, zone));
+    const shown = visibleData(config, tag("Project"), loaded.nodes, loaded.tasks);
     expect(shown.nodes.map((n) => n.id)).toEqual(nodes.map((n) => n.id));
     expect(shown.tasks).toHaveLength(expected);
     await click(ws, "[data-view-kind=kanban]"); // the board shows only the filtered nodes

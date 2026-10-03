@@ -3,7 +3,7 @@ import writesFixture from "./__fixtures__/writes.json";
 import nodesFixture from "./__fixtures__/nodes.json";
 import { EMPTY_PLACEHOLDER } from "./normalize";
 import { loadTagInfos } from "./schema";
-import { loadNodes, loadTasks, NODES_QUERY } from "./queries";
+import { loadNodes, loadNodesAndTasks, nodesQuery } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
@@ -33,8 +33,7 @@ const ARCHIVE = "6a000000-0000-4000-8000-000000000004";
 /** #Project from the fixtures (child tags included), columns by Status, optional Owner lanes. */
 async function project(over: Partial<KanbanInput> = {}): Promise<KanbanLayout> {
   const t = tag("Project");
-  const nodes = await loadNodes(dq, tags, t, { childTags: true, zone: west5 });
-  const tasks = await loadTasks(dq, nodes, west5);
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")!.ident;
   return layoutKanban({
@@ -326,7 +325,7 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
     const t = tag("Project");
     const status = choiceProp(t, "Status").ident;
     const rows = (nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][]).map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
-    const nodes = await loadNodes(async (q, ...i) => (q === NODES_QUERY ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(async (q, ...i) => (q === nodesQuery(tags) ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
     expect(nodes.find((n) => n.uuid === ARCHIVE)!.choices[status]).toBeUndefined();
     const l = await project({ items: viewItems(nodes, [], null, null, statusValues) });
     expect(cardsIn(l, NO_VALUE)).toEqual(["Archive cleanup"]);
