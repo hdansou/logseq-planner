@@ -130,3 +130,7 @@ Total: about 10 hours.
   the iframe focused; Escape hides it without a click into the iframe; toolbar button
   (real click) opens it; Close hides it; 0 console errors. Rule: every acceptance item is
   exercised live on a test graph before a task is marked done; unit tests alone do not count.
+  Run against a build of 59b7df9 served with `vite preview` on :8294, because the dev
+  server on :8293 reloads the iframe whenever a source file changes and a reloaded iframe
+  no longer answers the toolbar button (seen while T01 edited `src/index.ts`). Live checks
+  use a stable build, not a dev server another task is editing under.
