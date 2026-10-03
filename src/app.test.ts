@@ -5,10 +5,16 @@ import type { AppDeps } from "./types";
 import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY } from "./core/schema";
+import { DEBOUNCE_MS } from "./ui/changes";
+import { fakeChangeFeed, fakeClock } from "./ui/test-fakes";
 
 /** Fake SDK: records every call; `defer` queues work so the test decides when it runs. */
 function fakeDeps() {
   const deferred: Array<() => void> = [];
+  const clock = fakeClock();
+  const feed = fakeChangeFeed();
+  const visibility: Array<(visible: boolean) => void> = [];
+  const unload: Array<() => void> = [];
   const deps = {
     registerUIItem: vi.fn(),
     registerCommandPalette: vi.fn(),
@@ -40,10 +46,16 @@ function fakeDeps() {
       setConfig: async () => {},
       removeBlock: async () => {},
     },
+    changes: {
+      subscribe: feed.subscribe,
+      later: clock.later,
+      onVisibleChanged: (cb: (visible: boolean) => void) => void visibility.push(cb),
+      onUnload: (cb: () => void) => void unload.push(cb),
+    },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
-  return { deps, flush };
+  return { deps, flush, clock, feed, visibility, unload };
 }
 
 /** The model handler the toolbar button's `data-on-click` names. */
@@ -169,5 +181,69 @@ describe("registerApp", () => {
     expect(deps.openInSidebar).toHaveBeenCalledWith("u-2");
     expect(deps.openPage).toHaveBeenCalledTimes(1);
     expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("live updates (T12)", () => {
+  const tagQueries = (deps: ReturnType<typeof fakeDeps>["deps"]) => deps.dq.mock.calls.filter(([q]) => q === TAGS_QUERY).length;
+  const opened = async () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    f.flush();
+    modelHandler(f.deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
+    return f;
+  };
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    root = document.createElement("div");
+    document.body.append(root);
+  });
+  let root: HTMLElement;
+
+  it("subscribes only after the deferred registrations, and a change while open reloads once", async () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    expect(f.feed.count()).toBe(0);
+    f.flush();
+    expect(f.feed.count()).toBe(1);
+    modelHandler(f.deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
+    expect(tagQueries(f.deps)).toBe(1);
+    f.feed.fire();
+    f.feed.fire();
+    f.clock.advance(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(tagQueries(f.deps)).toBe(2));
+  });
+
+  it("closing (Escape) stops the refreshes; reopening reloads once because a change came in meanwhile", async () => {
+    const f = await opened();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(f.deps.hideMainUI).toHaveBeenCalled();
+    f.feed.fire();
+    f.clock.advance(DEBOUNCE_MS * 2);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tagQueries(f.deps)).toBe(1);
+    modelHandler(f.deps)();
+    await vi.waitFor(() => expect(tagQueries(f.deps)).toBe(2));
+  });
+
+  it("the host's visibility event drives it too (hidden by the host, then shown)", async () => {
+    const f = await opened();
+    f.visibility.forEach((cb) => cb(false));
+    f.feed.fire();
+    f.clock.advance(DEBOUNCE_MS * 2);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(tagQueries(f.deps)).toBe(1);
+    f.visibility.forEach((cb) => cb(true));
+    await vi.waitFor(() => expect(tagQueries(f.deps)).toBe(2));
+  });
+
+  it("unload unsubscribes and cancels the timers", async () => {
+    const f = await opened();
+    f.feed.fire();
+    f.unload.forEach((cb) => cb());
+    expect(f.feed.count()).toBe(0);
+    expect(f.clock.pending()).toBe(0);
   });
 });

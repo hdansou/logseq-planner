@@ -44,6 +44,13 @@ export interface WorkspaceDeps {
 export interface Workspace {
   /** (Re)loads tags, saved views and the current view's nodes; call on every open. */
   open(): Promise<void>;
+  /**
+   * Quiet reload for live updates (T12): re-reads the host week start, the tags and the current view's data, and redraws
+   * only when something differs from what is shown, keeping scroll, expanded rows, unfolded buckets and focus. Waits (and
+   * resolves) while a popover is open, a Kanban write is pending or a card is being dragged, then runs once it is over.
+   * Never rejects: a failure shows in the error bar.
+   */
+  refresh(): Promise<void>;
   /** Closes an open popover and returns true; false when there is nothing to close (the app then closes Planner). */
   escape(): boolean;
   /** Resolves when every queued action has finished (tests, focus after open). */
@@ -88,6 +95,8 @@ interface Now {
 }
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
+/** The elements that scroll inside the workspace: the view area (both axes: the Kanban board and the Timeline scroll sideways) and the sidebar. */
+const SCROLL_REGIONS = ["[data-region=view]", "[data-region=sidebar]"];
 const byTitle = (a: TagInfo, b: TagInfo) => a.title.localeCompare(b.title);
 
 // ---------------------------------------------------------------- pure helpers
@@ -366,13 +375,31 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return { today: (deps.today ?? localToday)(), weekStart: s.weekStart };
   };
   let queue: Promise<void> = Promise.resolve();
+  /** A live refresh is waiting for a popover to close, a Kanban write to finish or a drag to end. */
+  let wantRefresh = false;
+  /** The Kanban card being dragged (HTML5 drag events are delegated on the root below). */
+  let dragging: string | null = null;
+  /** Something the user is in the middle of that a redraw must not disturb. */
+  const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
 
-  const render = (focus?: string) => {
+  /** `keep`: also carry the scroll of the scrolling regions and the open state of `details` over the redraw (live refresh). */
+  const render = (focus?: string, keep = false) => {
     const doc = root.ownerDocument;
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
+    const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
+    const folds = keep ? [...root.querySelectorAll<HTMLDetailsElement>("details")].map((d) => [selectorOf(d), d.open] as const) : [];
     root.innerHTML = renderWorkspace(s, now);
+    for (const [sel, open] of folds) {
+      const d = root.querySelector<HTMLDetailsElement>(sel);
+      if (d) d.open = open;
+    }
+    SCROLL_REGIONS.forEach((sel, i) => {
+      const el = scrolls[i] && root.querySelector<HTMLElement>(sel);
+      if (el) Object.assign(el, { scrollTop: scrolls[i]!.top, scrollLeft: scrolls[i]!.left });
+    });
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
+    refreshWhenFree(); // a redraw that was waiting for a popover, a write or a drag
   };
 
   const tagOf = (config: ViewConfig) => validateViewConfig(config, s.tags);
@@ -385,16 +412,20 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return queue;
   };
 
+  /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
+  async function readData(config: ViewConfig, tags: TagInfo[]) {
+    const tag = validateViewConfig(config, tags);
+    const nodes = await loadNodes(deps.dq, tags, tag, { childTags: config.childTags, zone: deps.zone });
+    const tasks = await loadTasks(deps.dq, nodes, deps.zone);
+    // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
+    const known = titlesByUuid(nodes);
+    const missing = refUuids([...nodes, ...tasks].map((x) => x.title)).filter((u) => !known.has(u));
+    return { nodes, tasks, titles: new Map([...known, ...(await loadTitles(deps.dq, missing))]) as ReadonlyMap<string, string> };
+  }
+
   /** Re-reads the current view's nodes and tasks from the graph, without the loading state (a Kanban move reloads this way). */
   async function fetchData() {
-    const config = s.config!;
-    const tag = tagOf(config);
-    s.nodes = await loadNodes(deps.dq, s.tags, tag, { childTags: config.childTags, zone: deps.zone });
-    s.tasks = await loadTasks(deps.dq, s.nodes, deps.zone);
-    // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
-    const known = titlesByUuid(s.nodes);
-    const missing = refUuids([...s.nodes, ...s.tasks].map((x) => x.title)).filter((u) => !known.has(u));
-    s.titles = new Map([...known, ...(await loadTitles(deps.dq, missing))]);
+    Object.assign(s, await readData(s.config!, s.tags));
   }
 
   async function loadData() {
@@ -427,39 +458,84 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
   const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" ? "input" : "[aria-selected=true]"}`;
 
-  async function open() {
-    return run(async () => {
-      s.loading = true;
-      s.popover = null;
-      render();
+  async function openBody() {
+    s.loading = true;
+    s.popover = null;
+    render();
+    try {
+      s.weekStart = await deps.weekStart();
+      s.tags = await loadTagInfos(deps.dq);
+    } finally {
+      s.loading = false;
+    }
+    try {
+      s.views = await deps.views.list();
+    } catch (e) {
+      s.error = (e as Error).message;
+    }
+    if (s.config) {
       try {
-        s.weekStart = await deps.weekStart();
-        s.tags = await loadTagInfos(deps.dq);
-      } finally {
-        s.loading = false;
-      }
-      try {
-        s.views = await deps.views.list();
+        tagOf(s.config);
       } catch (e) {
-        s.error = (e as Error).message;
+        s.error = `${(e as Error).message}. Showing the default view instead.`;
+        s.config = null;
+        s.viewId = null;
       }
-      if (s.config) {
-        try {
-          tagOf(s.config);
-        } catch (e) {
-          s.error = `${(e as Error).message}. Showing the default view instead.`;
-          s.config = null;
-          s.viewId = null;
-        }
-      }
-      if (!s.config) {
-        const t = initialTag(s.tags);
-        if (!t) return;
-        s.config = defaultViewConfig(t);
-      }
-      await loadData();
-    });
+    }
+    if (!s.config) {
+      const t = initialTag(s.tags);
+      if (!t) return;
+      s.config = defaultViewConfig(t);
+    }
+    await loadData();
   }
+  const open = () => run(openBody);
+
+  /** What is on screen, as one comparable string: a reload that produces the same signature needs no redraw. */
+  const signature = (data: { tags: TagInfo[]; nodes: PlannerNode[]; tasks: PlannerTask[]; titles: ReadonlyMap<string, string> }, weekStart: number | null) =>
+    JSON.stringify([data.tags, data.nodes, data.tasks, [...data.titles], weekStart, localToday()]);
+
+  /** One live refresh, on the queue. Applies nothing when the user got busy while it loaded: it is asked again later. */
+  async function reload() {
+    if (busy()) return void (wantRefresh = true);
+    if (!s.config) {
+      await openBody(); // nothing shown yet (no tags before): the first load
+      return void render();
+    }
+    const weekStart = await deps.weekStart();
+    const tags = await loadTagInfos(deps.dq);
+    let config: ViewConfig | null = s.config;
+    let error: string | null = null;
+    try {
+      validateViewConfig(config, tags);
+    } catch (e) {
+      // The tag or a property the view uses is gone from the graph: show the default view, like open() does.
+      error = `${(e as Error).message}. Showing the default view instead.`;
+      const t = initialTag(tags);
+      config = t ? defaultViewConfig(t) : null;
+    }
+    const data = config ? await readData(config, tags) : { nodes: [], tasks: [], titles: new Map<string, string>() };
+    if (busy()) return void (wantRefresh = true); // a popover, a write or a drag started while loading: drop the result
+    const same = config === s.config && signature({ tags, ...data }, weekStart) === signature(s, s.weekStart);
+    if (same) return;
+    if (config !== s.config) {
+      s.config = config;
+      s.viewId = null;
+      s.error = error;
+    }
+    Object.assign(s, { tags, weekStart, ...data });
+    render(undefined, true);
+  }
+
+  function refresh(): Promise<void> {
+    wantRefresh = false;
+    queue = queue.then(reload).catch((e: unknown) => {
+      s.error = e instanceof Error ? e.message : String(e);
+      render(undefined, true);
+    });
+    return queue;
+  }
+  const refreshWhenFree = () => void (wantRefresh && !busy() && refresh());
 
   root.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
@@ -640,8 +716,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }, () => focus);
   }
 
-  /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered here; the DOM is not re-rendered until the drop. */
-  let dragging: string | null = null;
+  /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   root.addEventListener("dragstart", (e) => {
     const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card]");
@@ -682,6 +757,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     dragging = null;
     clearMarks("data-kb-dragging");
     clearMarks("data-kb-over");
+    refreshWhenFree();
   });
 
   const save = () => {
@@ -758,6 +834,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       render(trigger(p));
       return true;
     },
+    refresh,
     idle: () => queue,
     config: () => s.config,
   };

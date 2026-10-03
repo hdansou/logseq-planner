@@ -161,3 +161,40 @@ export function fakeGraph() {
   };
   return { dq: fixtureDq({ edits }), writes, calls, edits, state };
 }
+
+/** A manual clock for `Later`: timers run only when `advance` moves time past them, in due order; `pending` counts live timers. */
+export function fakeClock() {
+  let now = 0;
+  let next = 0;
+  const timers = new Map<number, { at: number; fn: () => void }>();
+  const later = (fn: () => void, ms: number) => {
+    const id = next++;
+    timers.set(id, { at: now + ms, fn });
+    return () => void timers.delete(id);
+  };
+  const advance = (ms: number) => {
+    const end = now + ms;
+    for (;;) {
+      const due = [...timers.entries()].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0];
+      if (!due) break;
+      timers.delete(due[0]);
+      now = due[1].at;
+      due[1].fn();
+    }
+    now = end;
+  };
+  return { later, advance, pending: () => timers.size };
+}
+
+/** A `DB.onChanged` stand-in: `fire()` is an event; `subscribe` returns the unsubscribe. */
+export function fakeChangeFeed() {
+  const subs = new Set<() => void>();
+  return {
+    subscribe: (cb: () => void) => {
+      subs.add(cb);
+      return () => void subs.delete(cb);
+    },
+    fire: () => subs.forEach((cb) => cb()),
+    count: () => subs.size,
+  };
+}

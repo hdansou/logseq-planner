@@ -30,6 +30,20 @@ export interface AppDeps {
   storage: StorageDeps;
   /** The SDK behind Kanban moves. */
   kanban: KanbanWriteDeps;
+  /** The SDK behind live updates (T12). */
+  changes: ChangesSdk;
+}
+
+/** The SDK and timer calls `createChanges` and `registerApp` need for live updates; `src/sdk.ts` supplies the real ones. */
+export interface ChangesSdk {
+  /** `DB.onChanged`: the callback gets no data (the payload is unusable, docs/probes.md). Returns the unsubscribe. */
+  subscribe(cb: () => void): () => void;
+  /** setTimeout that returns its cancel function. */
+  later(fn: () => void, ms: number): () => void;
+  /** The host's `ui:visible:changed` event: Planner shown or hidden by any means. */
+  onVisibleChanged(cb: (visible: boolean) => void): void;
+  /** Runs `cb` when the plugin unloads. */
+  onUnload(cb: () => void): void;
 }
 
 /** The SDK calls `watchTheme` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */

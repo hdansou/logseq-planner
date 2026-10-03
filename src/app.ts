@@ -1,4 +1,5 @@
 import { createViewStore } from "./storage";
+import { createChanges } from "./ui/changes";
 import type { AppDeps } from "./types";
 import { watchTheme } from "./ui/theme";
 import { createWorkspace } from "./ui/workspace";
@@ -30,8 +31,15 @@ export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boo
  */
 export function registerApp(deps: AppDeps, root: HTMLElement): void {
   const doc = root.ownerDocument;
-  const close = () => deps.hideMainUI();
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener(deps), weekStart: deps.weekStart, kanban: deps.kanban });
+  let changes: ReturnType<typeof createChanges> | null = null; // created with the deferred registrations
+  const close = () => {
+    deps.hideMainUI();
+    changes?.setVisible(false);
+  };
+  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban });
+  // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
+  let loaded = false;
+  const refresh = () => (loaded ? workspace.refresh() : ((loaded = true), workspace.open()));
   doc.documentElement.classList.toggle("pl-mac-desktop", deps.macWindowButtons);
 
   const focusIn = () => {
@@ -41,7 +49,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement): void {
   };
   const open = () => {
     deps.showMainUI();
-    void workspace.open();
+    changes?.setVisible(true);
     for (const ms of FOCUS_RETRIES_MS) deps.later(focusIn, ms);
   };
 
@@ -50,6 +58,9 @@ export function registerApp(deps: AppDeps, root: HTMLElement): void {
   });
 
   deps.defer(() => {
+    changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
+    deps.changes.onVisibleChanged((visible) => changes?.setVisible(visible));
+    deps.changes.onUnload(() => changes?.stop());
     void watchTheme(deps.theme, doc);
     deps.provideModel({ [OPEN_HANDLER]: open });
     deps.registerUIItem("toolbar", {

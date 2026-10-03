@@ -104,6 +104,13 @@ All notable changes to this project are documented here. The format follows
   then the writes run and are read back, and the board is reloaded from the graph either way, so a write the graph
   does not hold puts the card back and its error shows in the error bar. A tag without a choice property shows "#Tag has
   no choice properties" instead of a board. `menu` and `options` moved to `src/ui/html.ts`. Not yet verified live.
+- Live updates (T12): `src/ui/changes.ts` turns `DB.onChanged` (a bare wake-up) into one quiet reload 100 ms after
+  the last event of a burst, plus a 30 s poll while Planner is visible; hidden, it only marks the data stale and
+  refreshes once on the next show. `Workspace.refresh()` re-reads week start, tags (so new tags, properties and closed
+  values appear) and the view's data; redraws only when a signature of tags/nodes/tasks/titles/today differs; keeps
+  anchor, expanded rows, scroll of the view and sidebar, unfolded `details`, focus; waits while a popover is open or
+  a card is dragged, and after a pending Kanban write.
+
 ### Fixed
 - Linked titles (T11): an inline `[[uuid]]` ref to a node that is not among the loaded ones (a #Task linking a #Project
   page, seen live on the #Task board as "Draft brief (link)") now shows that node's title in every view. Each data load

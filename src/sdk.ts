@@ -3,7 +3,7 @@
 import type { Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
-import type { AppDeps, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
+import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /** Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI. */
 const FULL_SCREEN: Record<string, string> = {
@@ -47,6 +47,7 @@ export const appDeps = (): AppDeps => ({
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
   kanban: kanbanWriteDeps(),
+  changes: changesSdk(),
   theme: {
     later: (fn, ms) => void setTimeout(fn, ms),
     getUserConfigs: () => logseq.App.getUserConfigs(),
@@ -55,6 +56,20 @@ export const appDeps = (): AppDeps => ({
     onThemeChanged: (cb) => void logseq.App.onThemeChanged(cb),
   },
   defer: (fn) => void setTimeout(fn, 0),
+});
+
+/**
+ * The real SDK behind live updates. `DB.onChanged` returns its unsubscribe (typed `IUserOffHook`); its payload is ignored
+ * on purpose (docs/probes.md). `ui:visible:changed` carries `{ visible }` (LSPluginUserEvents).
+ */
+export const changesSdk = (): ChangesSdk => ({
+  subscribe: (cb) => logseq.DB.onChanged(() => cb()),
+  later: (fn, ms) => {
+    const id = setTimeout(fn, ms);
+    return () => clearTimeout(id);
+  },
+  onVisibleChanged: (cb) => void logseq.on("ui:visible:changed", (e: { visible: boolean }) => cb(e.visible)),
+  onUnload: (cb) => logseq.beforeunload(async () => cb()),
 });
 
 /**
