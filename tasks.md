@@ -83,7 +83,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       Week, "+N more" opens the week. Test first: lanes, week start, time sort; happy-dom
       render of both layouts. Est: ~60 min
 
-- [ ] **T10 Agenda** — `src/core/agenda.ts`, `src/ui/agenda.ts`. Buckets (overdue, today,
+- [x] **T10 Agenda** — `src/core/agenda.ts`, `src/ui/agenda.ts`. Buckets (overdue, today,
       14 days, later, no date, earlier), group by node or date, Show done. Test first:
       bucketing, horizon, show-done; happy-dom render. Est: ~40 min
 
@@ -301,3 +301,23 @@ Total: about 10 hours.
   to Week.
   Polish, not done: a band that continues on both sides shows its title mid-row rather
   than at the left edge.
+- 2026-10-03 T10 done (fb9d54c, f9d037d). 313 unit tests. Live on `plugin-test`, no
+  defect found. #Project by date: Overdue = Acme contract "due 2 Oct 12:00, 1 day late"
+  (red, Acme rollout chip); Today · Sat 3 Oct = Acme rollout, Website relaunch; Mon 5
+  Oct = Draft brief Website relaunch; Thu 8 Oct = Mobile app; Fri 9 Oct = Wireframes
+  "scheduled 9 Oct 09:00"; No date (folded) = Archive cleanup. Show done adds Ship
+  homepage (done) and Survey users (canceled) under No date. By node: Acme rollout
+  first (overdue task), Website relaunch 1/2, Mobile app, Archive cleanup, with status
+  and owner; Show done adds the two tasks under Website relaunch. #Meeting: Today
+  Kickoff 10:30, Tomorrow Late review 23:45, No date Untimed meeting; three groups by
+  node. Click opens and hides Planner; Shift+click opens in the sidebar. Group by and
+  Show done are saved with a view and restored. Done override: Owner = Alice as done
+  hides Website relaunch and Acme rollout by date and keeps their groups (open tasks)
+  by node. Empty state: filter Backlog + Backlog as done → "Nothing on the agenda";
+  Show done brings Archive cleanup back.
+  Decisions taken in T10 (change if wrong): a running span is filed under Today; a
+  node is done if any of its choice values is done; with Show done on, done items show
+  only within ±14 days or under No date, never under Later; empty buckets (Today
+  included) are omitted; canceled counts as done.
+  Process note from the agent: the UI tests were written first but only run after the
+  UI existed, so they were not seen failing.
