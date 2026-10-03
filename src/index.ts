@@ -1,5 +1,6 @@
 import "@logseq/libs";
 import "./ui/theme.css";
+import "./ui/workspace.css";
 import { registerApp } from "./app";
 import { appDeps } from "./sdk";
 

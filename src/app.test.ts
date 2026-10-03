@@ -2,6 +2,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerApp } from "./app";
 import type { AppDeps } from "./types";
+import tagsFixture from "./core/__fixtures__/tags.json";
+import propsFixture from "./core/__fixtures__/class-properties.json";
+import { TAG_PROPERTIES_QUERY, TAGS_QUERY } from "./core/schema";
 
 /** Fake SDK: records every call; `defer` queues work so the test decides when it runs. */
 function fakeDeps() {
@@ -20,6 +23,20 @@ function fakeDeps() {
       onThemeChanged: vi.fn(),
     },
     defer: vi.fn((fn: () => void) => void deferred.push(fn)),
+    later: vi.fn(),
+    macWindowButtons: false,
+    // Tags from the T01 fixtures; no nodes anywhere.
+    dq: vi.fn(async (query: string) => (query === TAGS_QUERY ? tagsFixture.query.detail : query === TAG_PROPERTIES_QUERY ? propsFixture.query.detail : [])),
+    storage: {
+      findPage: async () => null,
+      createPage: async () => {},
+      ensureConfigProperty: async () => {},
+      listBlocks: async () => [],
+      readBlock: async () => null,
+      appendBlock: async () => null,
+      setConfig: async () => {},
+      removeBlock: async () => {},
+    },
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
   return { deps, flush };
@@ -58,11 +75,43 @@ describe("registerApp", () => {
     );
   });
 
-  it("registers no default keybinding", () => {
+  it("binds g shift+p outside editing (free in the host keymap, gotcha 33)", () => {
     const { deps, flush } = fakeDeps();
     registerApp(deps, root);
     flush();
-    expect(deps.registerCommandPalette.mock.calls[0][0]).not.toHaveProperty("keybinding");
+    expect(deps.registerCommandPalette.mock.calls[0][0].keybinding).toEqual({ binding: "g shift+p", mode: "non-editing" });
+  });
+
+  it("opening loads the workspace and moves focus into the frame", async () => {
+    const { deps, flush } = fakeDeps();
+    registerApp(deps, root);
+    flush();
+    modelHandler(deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
+    expect(deps.dq).toHaveBeenCalledWith(TAGS_QUERY);
+    expect(deps.later.mock.calls.map(([, ms]) => ms)).toEqual([50, 300, 800]);
+  });
+
+  it("marks the frame for the macOS window buttons on desktop", () => {
+    const { deps } = fakeDeps();
+    registerApp({ ...deps, macWindowButtons: true }, root);
+    expect(document.documentElement.classList.contains("pl-mac-desktop")).toBe(true);
+    document.documentElement.classList.remove("pl-mac-desktop");
+  });
+
+  it("Escape closes an open popover before it hides the main UI", async () => {
+    const { deps, flush } = fakeDeps();
+    registerApp(deps, root);
+    flush();
+    modelHandler(deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")).not.toBeNull());
+    root.querySelector<HTMLButtonElement>("[data-control=tag]")!.click();
+    await vi.waitFor(() => expect(root.querySelector("[data-popover=tag]")).not.toBeNull());
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(root.querySelector("[data-popover=tag]")).toBeNull();
+    expect(deps.hideMainUI).not.toHaveBeenCalled();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
   });
 
   it("opens the main UI from the toolbar button and the command palette", () => {

@@ -3,13 +3,25 @@
 /** The SDK calls `registerApp` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface AppDeps {
   registerUIItem(type: "toolbar", item: { key: string; template: string }): void;
-  registerCommandPalette(command: { key: string; label: string }, action: () => void): void;
+  registerCommandPalette(
+    command: { key: string; label: string; keybinding?: { binding: string; mode: "global" | "non-editing" | "editing" } },
+    action: () => void,
+  ): void;
   provideModel(model: Record<string, () => void>): void;
+  /** Shows the main UI full-screen (container styled directly, see CLAUDE.md). */
   showMainUI(): void;
   hideMainUI(): void;
   theme: ThemeDeps;
   /** Runs `fn` after `main()` returns, so registrations do not delay the ready handshake (gotcha §18). */
   defer(fn: () => void): void;
+  /** Runs `fn` after `ms` milliseconds (setTimeout in production). */
+  later(fn: () => void, ms: number): void;
+  /** True on the macOS desktop app, where the full-screen frame covers the window buttons. */
+  macWindowButtons: boolean;
+  /** `logseq.DB.datascriptQuery` for the loaders (the `Dq` of src/core/schema.ts). */
+  dq(query: string, ...inputs: unknown[]): Promise<unknown[]>;
+  /** The SDK behind the saved-views store. */
+  storage: StorageDeps;
 }
 
 /** The SDK calls `watchTheme` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */

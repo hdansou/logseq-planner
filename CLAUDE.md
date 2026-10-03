@@ -14,14 +14,15 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | Path | Owns | Never does |
 |---|---|---|
 | `src/index.ts` | entry: imports `@logseq/libs`, hands `appDeps()` to `registerApp` | business logic |
-| `src/app.ts` | `registerApp(deps, root)`: shell, open/close, deferred registrations | call `logseq.*` |
-| `src/sdk.ts` | every SDK call and typing cast | DOM rendering |
+| `src/app.ts` | `registerApp(deps, root)`: creates the workspace, open (full-screen + focus retries) / close, Escape order, `g shift+p` binding, deferred registrations | call `logseq.*` |
+| `src/sdk.ts` | every SDK call and typing cast; full-screen container style | DOM rendering inside the frame |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
 | `src/core/queries.ts` | `loadNodes` / `loadTasks` (injected `Dq`): nodes of a tag ± child tags, #Task blocks whose refs hit them | use the SDK, filter/span logic (`nodes.ts`) |
 | `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset` | read process TZ outside `systemZone` |
 | `src/core/nodes.ts` | pure `resolveSpan` (mapped / point / derived / undated), `rollup`, `isDone` / `isCanceled`, `filterNodes`, `tasksOf` | query, touch DOM or SDK |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
+| `src/ui/workspace.ts` + `workspace.css` | `createWorkspace(root, {dq, views, onClose})`: top bar, settings bar, tag tree, filters, view toolbar slot, empty states; pure `State` → HTML render functions, delegated events, actions queued (`idle()`), errors shown in `[data-region=error]` | call `logseq.*`, render a view (T08–T11) |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
 | `src/core/view-config.ts` | `ViewConfig` (tags/props by ident, closed values by uuid), `defaultViewConfig`, `validateViewConfig`, versioned JSON, `toChoiceFilters` | touch DOM or SDK |
 | `src/storage.ts` | `createViewStore(StorageDeps)`: cache-first saved views on the "Planner views" page, config in hidden string property `planner-view-config`; every write read back | call `logseq.*` (deps from `storageDeps()` in sdk.ts) |

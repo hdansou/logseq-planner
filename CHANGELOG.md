@@ -32,6 +32,13 @@ All notable changes to this project are documented here. The format follows
   first-date rule, fail-fast validation, versioned JSON) and `src/storage.ts` (cache-first CRUD on the
   "Planner views" page, one block per view, hidden string property; every write is read back and throws on a
   mismatch). Not yet verified live.
+- Workspace shell (T07): `src/ui/workspace.ts` + `workspace.css`. Full-screen frame (container styled directly,
+  `setMainUIInlineStyle` when cross-origin; room for the macOS window buttons on desktop); top bar with the view
+  switch, saved views (list, open, save current, delete) and Close; settings bar (tag, child tags, Start, End, done
+  values); tag tree (own tags first, built-in tags, children nested); choice filters with "No value" and counts;
+  per-view toolbar slot; empty states (no tags, no date properties, no nodes, no matches) and a placeholder per view
+  kind. Store and validation errors are shown in a dismissible message. Escape closes an open menu first, then
+  Planner. Default shortcut `g shift+p` (non-editing), checked free against the host keymap.
 
 ### Changed
 - The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.

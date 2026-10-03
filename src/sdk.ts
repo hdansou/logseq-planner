@@ -1,16 +1,46 @@
 // No SDK import: the `logseq` global comes from index.ts; importing the SDK here breaks unit tests (gotcha §11).
-// Every SDK call and typing cast lives here. No casts are needed yet.
+// Every SDK call and typing cast lives here.
 import type { Dq } from "./core/schema";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, StorageDeps, ViewBlock } from "./types";
+
+/** Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI. */
+const FULL_SCREEN: Record<string, string> = {
+  position: "fixed", zIndex: "999", top: "0", left: "0", right: "auto", width: "100vw", height: "100vh",
+};
+
+/**
+ * Styles the main-UI container directly (gotcha §15: a persisted layout makes the host drop position/size keys from
+ * `setMainUIInlineStyle`). The container is only reachable when the frame is same-origin with the host; a cross-origin
+ * frame (dev server, web app) falls back to `setMainUIInlineStyle`, which applies them while no layout is persisted.
+ * Planner never sets `draggable`, so the host never persists one.
+ */
+function setContainerStyle(style: Record<string, string>): void {
+  let el: HTMLElement | null = null;
+  try {
+    el = parent.document.querySelector<HTMLElement>(`.lsp-iframe-sandbox-container[data-pid="${logseq.baseInfo.id}"]`);
+  } catch {
+    // cross-origin: parent.document is not readable
+  }
+  if (!el) return logseq.setMainUIInlineStyle(style as never);
+  delete el.dataset.inited_layout;
+  for (const [k, v] of Object.entries(style)) el.style.setProperty(k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`), v, "important");
+}
 
 /** The real SDK behind `registerApp`. */
 export const appDeps = (): AppDeps => ({
   registerUIItem: (type, item) => logseq.App.registerUIItem(type, item),
   registerCommandPalette: (command, action) => logseq.App.registerCommandPalette(command, action),
   provideModel: (model) => logseq.provideModel(model),
-  showMainUI: () => logseq.showMainUI(),
-  hideMainUI: () => logseq.hideMainUI(),
+  showMainUI: () => {
+    setContainerStyle(FULL_SCREEN);
+    logseq.showMainUI({ autoFocus: true });
+  },
+  hideMainUI: () => logseq.hideMainUI({ restoreEditingCursor: true }),
+  later: (fn, ms) => void setTimeout(fn, ms),
+  macWindowButtons: /Mac/.test(navigator.platform) && /Electron/.test(navigator.userAgent),
+  dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
+  storage: storageDeps(),
   theme: {
     later: (fn, ms) => void setTimeout(fn, ms),
     getUserConfigs: () => logseq.App.getUserConfigs(),

@@ -27,6 +27,9 @@ export function configSchemaFor(existing: { type?: string; hide?: boolean } | nu
 
 const mismatch = (what: string, id: string) => new Error(`Saved view ${what} was not stored (read back differs) for block ${id}`);
 
+/** The saved-views store the workspace uses. */
+export type ViewStore = ReturnType<typeof createViewStore>;
+
 export function createViewStore(deps: StorageDeps) {
   let cache: SavedView[] | null = null;
   let pageUuid: string | null = null;
