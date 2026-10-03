@@ -148,6 +148,9 @@ All notable changes to this project are documented here. The format follows
   it is absent) records the first load (query time, render time) and every live refresh (debounced trigger to DOM updated)
   through the optional `Timing` hook of `createWorkspace`, exposed as `window.__plannerTimings`;
   `npm run probe -- --timings` prints it (docs/probes.md).
+- Manual checklist (T13): `docs/manual-test.md`, the live end-to-end pass as tables (open / shell / views by tag / Kanban
+  moves / live refresh / themes / week start / large graph / accessibility) with the seed's real values, the timing
+  targets and the known gaps.
 
 ### Changed
 - The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in

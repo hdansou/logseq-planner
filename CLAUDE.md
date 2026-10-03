@@ -42,7 +42,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/dev-timings.ts` | dev-only `Timing` recorder (`createTimings`, `installTimings` → `window.__plannerTimings`): first load and live refresh, query vs render ms; installed in `src/index.ts` behind `import.meta.env.DEV`, passed as `registerApp`'s third argument → `createWorkspace({timing})`; `src/dev-timings.test.ts` asserts the production bundle lacks it | ship in builds, log, change behaviour |
 | `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |
 | `scripts/seed-large.edn.mjs` | `buildLargeSeed({n, today, seed, propPrefix})` → `{nodes, tasks, edn}`: pure deterministic load-test seed (#Load item, page "Planner load test"), tested in `src/seed-large.test.ts`; `probe.mjs --seed-large [N]` imports it in chunks | use Math.random, run on graphs other than plugin-test / Demo |
-| `docs/` | design notes, probe results, manual test | — |
+| `docs/` | design notes, probe results, `manual-test.md` (T13 live checklist) | — |
 
 ## Workflow
 
