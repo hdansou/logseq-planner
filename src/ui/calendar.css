@@ -1,0 +1,64 @@
+/* Calendar (T09; docs/design.md "Calendar"). Tokens only: every colour is a --pl-* variable from theme.css; the node's
+   category colour arrives as --pl-node-fill / --pl-node-hue from [data-cat] (theme.css).
+   One grid per week row: seven equal columns; row 1 holds the day numbers, then one row per item row (bands and chips,
+   grid-row = row + 2), then the "+N more" row in Month. The rows are written inline (calendar.ts) so that the day
+   cells' `grid-row: 1 / -1` reaches the bottom. */
+.pl-cal { --pl-cal-item-h: 20px; min-width: 560px; border-bottom: 1px solid var(--pl-line-soft); font-size: 12.5px; }
+.pl-cal[data-layout="week"] { --pl-cal-item-h: 22px; }
+
+/* Weekday headers (Month): sticky on vertical scroll */
+.pl-cal-weekdays { position: sticky; top: 0; z-index: 2; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--pl-surface); }
+.pl-cal-weekdays span { padding: 4px 8px; font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+
+/* Week rows and day cells (the backdrop) */
+.pl-cal-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; min-height: 108px; padding-bottom: 6px;
+  border-top: 1px solid var(--pl-line-soft); }
+.pl-cal[data-layout="week"] .pl-cal-week { min-height: 420px; }
+.pl-cal-day { grid-row: 1 / -1; min-width: 0; border-right: 1px solid var(--pl-line-soft); }
+.pl-cal-day:nth-of-type(7) { border-right: 0; }
+.pl-cal-day[data-outside] { background: var(--pl-fill); }
+.pl-cal-day[data-outside] .pl-cal-num { color: var(--pl-label-2); }
+/* Round day numbers; today in accent at 700 on a transparent background (design.md) */
+.pl-cal-num { display: inline-grid; place-items: center; min-width: 22px; height: 22px; margin: 4px 4px 2px; padding: 0 5px; box-sizing: border-box;
+  border-radius: 980px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.pl-cal-day[data-today] .pl-cal-num { color: var(--pl-today); font-weight: 700; }
+
+/* Bands and chips: buttons above the day cells */
+.pl-cal-band, .pl-cal-chip { all: unset; box-sizing: border-box; position: relative; z-index: 1; display: flex; align-items: center; gap: 5px;
+  min-width: 0; min-height: 18px; overflow: hidden; white-space: nowrap; font-size: 11.5px; line-height: 16px; cursor: pointer; }
+.pl-cal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+/* Band: highlight fill with the hue as a start stroke; squared off (with a mark) where it continues into the next or previous week */
+.pl-cal-band { margin: 0 4px; padding: 1px 7px; border-radius: 5px; background: var(--pl-node-fill); box-shadow: inset 3px 0 0 var(--pl-node-hue);
+  color: var(--pl-label); font-weight: 500; text-overflow: ellipsis; }
+.pl-cal-band[data-cont-before] { margin-left: 0; padding-left: 4px; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: none; }
+.pl-cal-band[data-cont-after] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.pl-cal-band[data-cont-after] .pl-cal-cont { margin-left: auto; }
+.pl-cal-band[data-kind="derived"] { background: transparent; box-shadow: none; border: 1.5px dashed var(--pl-node-hue); }
+.pl-cal-cont { flex: none; color: var(--pl-label-2); }
+
+/* Chips: a dot in the node's hue, the time, the title (⚑ for a task deadline) */
+.pl-cal-chip { margin: 0 4px; padding: 1px 6px; border-radius: 6px; color: var(--pl-label); transition: background-color .12s; }
+.pl-cal-chip:hover { background: var(--pl-fill-strong); }
+.pl-cal-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pl-node-hue); }
+.pl-cal-time { flex: none; font-size: 11px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-cal-chip[data-late] { background: var(--pl-red-soft); color: var(--pl-red-text); font-weight: 600; }
+.pl-cal-chip[data-done] .pl-cal-title { color: var(--pl-label-2); text-decoration: line-through; }
+/* Week: roomier chips on a panel fill, title on its own line, the node underneath */
+.pl-cal[data-layout="week"] .pl-cal-chip { flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 1px 4px; padding: 5px 8px; border-radius: 10px;
+  white-space: normal; font-size: 12.5px; line-height: 17px; }
+.pl-cal[data-layout="week"] .pl-cal-chip:not([data-late]) { background: var(--pl-fill); }
+.pl-cal[data-layout="week"] .pl-cal-chip:not([data-late]):hover { background: var(--pl-fill-strong); }
+.pl-cal[data-layout="week"] .pl-cal-chip .pl-cal-title { flex-basis: 100%; }
+.pl-cal-node { flex-basis: 100%; font-size: 11.5px; color: var(--pl-label-2); }
+
+/* "+N more" (Month) */
+.pl-cal-more { all: unset; position: relative; z-index: 1; justify-self: start; margin: 0 4px; padding: 0 6px; border-radius: 6px; font-size: 11.5px;
+  color: var(--pl-label-2); cursor: pointer; transition: background-color .12s; }
+.pl-cal-more:hover { color: var(--pl-label); background: var(--pl-fill); }
+
+.pl-cal-band:focus-visible, .pl-cal-chip:focus-visible, .pl-cal-more:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+
+/* Undated list */
+.pl-cal-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }

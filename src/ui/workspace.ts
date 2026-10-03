@@ -2,7 +2,7 @@
 // Start, End, done values), tag tree and choice filters, a per-view toolbar slot and the main area.
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
-// The Timeline (T08) renders into the view area and the toolbar slot; the other kinds show a placeholder.
+// The Timeline (T08) and the Calendar (T09) render into the view area and the toolbar slot; the other kinds show a placeholder.
 import { loadNodes, loadTasks } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
@@ -12,8 +12,11 @@ import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, typ
 import { titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
+import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import type { SavedView, ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
+import { esc } from "./html";
+import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 export interface WorkspaceDeps {
@@ -57,7 +60,7 @@ interface State {
   error: string | null;
   /** The built-in tags group of the tag tree is open (collapsed by default; opened when a built-in tag is selected). */
   builtInOpen: boolean;
-  /** Timeline anchor day; null = today. Session state: never saved with a view. */
+  /** Timeline / Calendar anchor day (shared, so switching kinds keeps the period); null = today. Session state: never saved with a view. */
   anchor: string | null;
   /** Node ids whose task rows are expanded (Timeline). Session state. */
   expanded: Set<number>;
@@ -74,7 +77,6 @@ interface Now {
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
 const KIND_TASK: Record<ViewKind, string> = { timeline: "T08", calendar: "T09", agenda: "T10", kanban: "T11" };
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 const byTitle = (a: TagInfo, b: TagInfo) => a.title.localeCompare(b.title);
 
@@ -256,7 +258,19 @@ function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   });
 }
 
-/** The main area (loading, an empty state, the Timeline or the placeholder for a kind not built yet) and its toolbar. */
+/** The Calendar layout for the visible nodes. */
+function calendarLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): CalendarLayout {
+  const c = s.config!;
+  if (c.kind !== "calendar") throw new Error(`calendarLayout called for a ${c.kind} view`);
+  const statusValues = taskStatusValues(s.tags);
+  return layoutCalendar({
+    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    layout: c.layout, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
+    titles: titlesByUuid(s.nodes),
+  });
+}
+
+/** The main area (loading, an empty state, the Timeline, the Calendar or the placeholder for a kind not built yet) and its toolbar. */
 function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
   const view = (html: string) => ({ view: html, toolbar: "" });
   if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
@@ -275,6 +289,10 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   if (s.config.kind === "timeline") {
     const layout = timelineLayout(s, now(), shown);
     return { view: renderTimeline(layout, `#${tag.title}`, s.expanded), toolbar: renderTimelineToolbar(layout) };
+  }
+  if (s.config.kind === "calendar") {
+    const layout = calendarLayout(s, now(), shown);
+    return { view: renderCalendar(layout, `#${tag.title}`), toolbar: renderCalendarToolbar(layout) };
   }
   const kind = KIND_LABEL[s.config.kind];
   return view(`<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
@@ -404,6 +422,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     const tl = timelineAction(t);
     if (tl) return void timeline(tl, (e as MouseEvent).shiftKey);
+    const cal = calendarAction(t);
+    if (cal) return void calendar(cal, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
       const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views" } as const)[ctl.dataset.control as string];
@@ -470,6 +490,28 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => void (s.anchor = null));
       case "toggle":
         return void run(() => void (s.expanded.has(a.nodeId) ? s.expanded.delete(a.nodeId) : s.expanded.add(a.nodeId)));
+    }
+  }
+
+  /** Calendar controls: the layout is view config (saved with a view); the anchor is session state. */
+  function calendar(a: NonNullable<ReturnType<typeof calendarAction>>, shift: boolean) {
+    const c = s.config!;
+    if (c.kind !== "calendar") throw new Error(`Calendar control in a ${c.kind} view`);
+    switch (a.type) {
+      case "open":
+        return deps.openNode(a.uuid, { sidebar: shift });
+      case "layout":
+        return void run(() => setConfig({ ...c, layout: a.layout }));
+      case "nav":
+        return void run(() => void (s.anchor = shiftCalendarAnchor(s.anchor ?? now().today, c.layout, a.dir)));
+      case "today":
+        return void run(() => void (s.anchor = null));
+      case "more":
+        // "+N more" opens the Week layout on that day's week; the button is gone after the render, so focus the Week switch.
+        return void run(() => {
+          setConfig({ ...c, layout: "week" });
+          s.anchor = a.day;
+        }, () => "[data-cal-layout=week]");
     }
   }
 

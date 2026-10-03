@@ -92,11 +92,13 @@ describe("toolbar", () => {
     expect(document.activeElement).toBe($("[data-tl-nav=next]"));
   });
 
-  it("is only shown for the Timeline; other kinds keep their placeholder", async () => {
+  it("is only shown for the Timeline; kinds not built yet keep their placeholder", async () => {
     await click("[data-view-kind=calendar]");
     expect($("[data-tl-zoom]")).toBeNull();
     expect($("[data-timeline]")).toBeNull();
-    expect(text("[data-region=view-placeholder]")).toContain("Calendar");
+    await click("[data-view-kind=agenda]");
+    expect($("[data-tl-zoom]")).toBeNull();
+    expect(text("[data-region=view-placeholder]")).toContain("Agenda");
   });
 });
 

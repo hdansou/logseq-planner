@@ -81,6 +81,14 @@ html, body { margin: 0; background: var(--pl-surface); color: var(--pl-label); f
 .pl-chip[data-cat="3"] { background: var(--pl-cat-3-soft); } .pl-chip[data-cat="4"] { background: var(--pl-cat-4-soft); }
 .pl-chip[data-cat="5"] { background: var(--pl-cat-5-soft); } .pl-chip[data-cat="6"] { background: var(--pl-cat-6-soft); }
 .pl-chip[data-cat="7"] { background: var(--pl-cat-7-soft); }
+/* Category per node (design.md: one colour per node, label-coloured text): any element with data-cat 1–6 gets the
+   highlight fill and a status-hue stroke colour for its descendants (Timeline bars, Calendar bands and chips). */
+[data-cat="1"] { --pl-node-fill: var(--pl-cat-1-soft); --pl-node-hue: var(--pl-blue); }
+[data-cat="2"] { --pl-node-fill: var(--pl-cat-2-soft); --pl-node-hue: var(--pl-green); }
+[data-cat="3"] { --pl-node-fill: var(--pl-cat-3-soft); --pl-node-hue: var(--pl-orange); }
+[data-cat="4"] { --pl-node-fill: var(--pl-cat-4-soft); --pl-node-hue: var(--pl-purple); }
+[data-cat="5"] { --pl-node-fill: var(--pl-cat-5-soft); --pl-node-hue: var(--pl-red-text); }
+[data-cat="6"] { --pl-node-fill: var(--pl-cat-6-soft); --pl-node-hue: var(--pl-label-2); }
 
 /* Panels and cards */
 .pl-panel { background: var(--pl-fill); border-radius: 12px; }

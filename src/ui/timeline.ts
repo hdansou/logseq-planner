@@ -5,6 +5,7 @@
 import { formatDay } from "../core/layout-common";
 import { type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import type { LocalDate } from "../types";
+import { esc, flag, segmented, viewNav } from "./html";
 
 export type TimelineAction =
   | { type: "zoom"; zoom: Zoom }
@@ -15,20 +16,12 @@ export type TimelineAction =
 
 const ZOOMS: [Zoom, string][] = [["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-const flag = (name: string, on: boolean) => (on ? ` ${name}` : "");
 /** Day index → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
 const dates = (a: LocalDate, b: LocalDate) => (a.day === b.day ? formatDay(a.day) : `${formatDay(a.day)} – ${formatDay(b.day)}`);
 
 export function renderTimelineToolbar(layout: TimelineLayout): string {
-  const zoom = ZOOMS.map(([z, text]) => `<button type="button" data-tl-zoom="${z}" aria-pressed="${z === layout.zoom}">${text}</button>`).join("");
-  return `<div class="pl-tl-nav">`
-    + `<button type="button" class="pl-btn pl-tl-step" data-tl-nav="prev" aria-label="Previous">‹</button>`
-    + `<b class="pl-tl-range" data-tl-range aria-live="polite">${esc(layout.range.label)}</b>`
-    + `<button type="button" class="pl-btn pl-tl-step" data-tl-nav="next" aria-label="Next">›</button>`
-    + `<button type="button" class="pl-btn" data-tl-nav="today">Today</button></div>`
-    + `<span class="pl-spacer"></span><div class="pl-seg" role="group" aria-label="Zoom">${zoom}</div>`;
+  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
 }
 
 function renderSpan(r: TimelineRow): string {
@@ -86,7 +79,7 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
     `<i class="pl-tl-cell"${flag("data-weekend", c.weekend)}${flag("data-week-start", c.weekStart)}${flag("data-month-start", c.monthStart)} style="grid-column: ${col(c.from)} / ${col(c.to)}"></i>`).join("");
   const today = layout.todayAt === null ? "" : `<div class="pl-tl-today" data-tl-today aria-hidden="true" style="--pl-tl-today: ${layout.todayAt}"></div>`;
   const undated = layout.undated.length
-    ? `<p class="pl-tl-undated" data-tl-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-tl-link" data-tl-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
+    ? `<p class="pl-tl-undated" data-tl-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-tl-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
     : "";
   return `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-days: ${range.days}">`
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`

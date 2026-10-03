@@ -63,6 +63,14 @@ All notable changes to this project are documented here. The format follows
 - Week start (T09): Logseq's `preferredStartOfWeek` (0–6 = Monday–Sunday, default 6 = Sunday; a number live, a numeric
   string accepted) is read through `hostWeekStart()` in `src/sdk.ts` on every open and drives the Timeline and the
   Calendar. A missing or invalid value fails with a visible error instead of falling back to Sunday.
+- Calendar view (T09): `src/ui/calendar.ts` + `calendar.css` replace the Calendar placeholder. Toolbar with prev / next,
+  Today, the range label ("October 2026", "27 Sep – 3 Oct 2026") and the Month / Week switch (the layout is saved with a
+  view; the anchor is not and is shared with the Timeline). Month: weekday headers, five or six week rows, days of other
+  months shaded, today's number in the accent colour; bands in the node's category colour, squared off with a mark where
+  they continue into the previous or next week, dashed when derived from tasks; chips for one-date nodes and task
+  deadlines (⚑, the node's colour, late ones in red, done ones struck through), the time when there is one; "+N more"
+  opens the Week layout on that week. Week: seven tall day columns, chips with time and node. Undated nodes listed under
+  the grid. Click opens the node or task and hides Planner; Shift+click opens it in the right sidebar.
 
 ### Fixed
 - Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the
@@ -81,6 +89,9 @@ All notable changes to this project are documented here. The format follows
   "Built-in tags" heading gets the group spacing.
 
 ### Changed
+- The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in
+  `src/ui/html.ts`; the category colour rules are generic `[data-cat]` rules in `theme.css` (`--pl-node-fill`,
+  `--pl-node-hue`) and the undated-list link is `.pl-link`, shared by both views.
 - Day arithmetic, formatting, category colour, view items (`viewItems`, formerly `timelineItems`) and task / node
   labels moved from `timeline-layout.ts` to `src/core/layout-common.ts`, shared by the Timeline and the Calendar.
 - The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.

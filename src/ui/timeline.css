@@ -2,11 +2,6 @@
    One grid of day tracks shared by the head, the backdrop and every row: the label column, then --pl-tl-days
    tracks of --pl-tl-day. Week columns in Quarter span seven narrow day tracks. */
 
-/* Toolbar */
-.pl-tl-nav { display: inline-flex; align-items: center; gap: 6px; }
-.pl-tl-step { padding: 4px 11px; }
-.pl-tl-range { min-width: 190px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-
 /* Grid. isolation keeps the z-index ladder below inside the timeline:
    backdrop 0 < bars and marks 1 < today line 2 < sticky labels 3 < sticky head 4. */
 .pl-tl { --pl-tl-label-w: 240px; --pl-tl-day: 18px; position: relative; isolation: isolate; width: max-content; min-width: 100%; font-size: 13px; }
@@ -50,32 +45,24 @@
 .pl-tl-task[data-done] .pl-tl-name { color: var(--pl-label-2); }
 .pl-tl-task[data-status="canceled"] .pl-tl-name { text-decoration: line-through; }
 
-/* Category per node: highlight fill + status-hue stroke (design.md: one colour per node, label-coloured text) */
-.pl-tl-row[data-cat="1"] { --pl-tl-soft: var(--pl-cat-1-soft); --pl-tl-hue: var(--pl-blue); }
-.pl-tl-row[data-cat="2"] { --pl-tl-soft: var(--pl-cat-2-soft); --pl-tl-hue: var(--pl-green); }
-.pl-tl-row[data-cat="3"] { --pl-tl-soft: var(--pl-cat-3-soft); --pl-tl-hue: var(--pl-orange); }
-.pl-tl-row[data-cat="4"] { --pl-tl-soft: var(--pl-cat-4-soft); --pl-tl-hue: var(--pl-purple); }
-.pl-tl-row[data-cat="5"] { --pl-tl-soft: var(--pl-cat-5-soft); --pl-tl-hue: var(--pl-red-text); }
-.pl-tl-row[data-cat="6"] { --pl-tl-soft: var(--pl-cat-6-soft); --pl-tl-hue: var(--pl-label-2); }
-
 /* Bars: fill + 1px inset stroke; progress is a 3px strip along the bottom; derived = dashed outline */
 .pl-tl-bar { all: unset; box-sizing: border-box; grid-row: 1; position: relative; z-index: 1; display: block; min-width: 6px; height: 20px;
-  margin: 0 1px; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--pl-tl-soft);
-  box-shadow: inset 0 0 0 1px var(--pl-tl-hue); color: var(--pl-label); font-size: 11.5px; font-weight: 500; line-height: 20px; white-space: nowrap; }
-.pl-tl-bar[data-kind="derived"] { background: transparent; box-shadow: none; border: 1.5px dashed var(--pl-tl-hue); line-height: 17px; }
+  margin: 0 1px; border-radius: 6px; overflow: hidden; cursor: pointer; background: var(--pl-node-fill);
+  box-shadow: inset 0 0 0 1px var(--pl-node-hue); color: var(--pl-label); font-size: 11.5px; font-weight: 500; line-height: 20px; white-space: nowrap; }
+.pl-tl-bar[data-kind="derived"] { background: transparent; box-shadow: none; border: 1.5px dashed var(--pl-node-hue); line-height: 17px; }
 .pl-tl-bar[data-clip-start] { margin-left: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .pl-tl-bar[data-clip-end] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
 .pl-tl-bar:focus-visible, .pl-tl-diamond:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 1px; }
 .pl-tl-bar-text { position: relative; padding: 0 7px; }
 .pl-tl-bar[data-clip-start] .pl-tl-bar-text { padding-left: 14px; }
-.pl-tl-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--pl-tl-hue); }
+.pl-tl-progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--pl-node-hue); }
 .pl-tl-clip { position: absolute; top: 0; padding: 0 3px; color: var(--pl-label-2); }
 .pl-tl-clip[data-tl-clip="start"] { left: 0; }
 .pl-tl-clip[data-tl-clip="end"] { right: 0; }
 
 /* Points (one-date nodes) */
 .pl-tl-diamond { all: unset; grid-row: 1; justify-self: center; position: relative; z-index: 1; width: 11px; height: 11px;
-  border-radius: 2px; transform: rotate(45deg); background: var(--pl-tl-hue); cursor: pointer; }
+  border-radius: 2px; transform: rotate(45deg); background: var(--pl-node-hue); cursor: pointer; }
 
 /* A node wholly outside the range */
 .pl-tl-outside { grid-row: 1; grid-column: 2 / -1; padding: 0 6px; white-space: nowrap; font-size: 11.5px; color: var(--pl-label-2); }
@@ -101,7 +88,3 @@
 
 /* Undated footnote */
 .pl-tl-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }
-.pl-tl-link { all: unset; border-radius: 4px; color: var(--pl-label); cursor: pointer; text-decoration: underline;
-  text-decoration-color: var(--pl-line); text-underline-offset: 2px; }
-.pl-tl-link:hover { text-decoration-color: currentColor; }
-.pl-tl-link:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
