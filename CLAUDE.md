@@ -19,6 +19,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
 | `src/storage.ts` | cache-first saved views (graph-backed) | anything else |
+| `src/dev-probe.ts` | dev-only SDK hook for `scripts/probe.mjs` (behind `import.meta.env.DEV`) | ship in builds |
+| `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |
 | `docs/` | design notes, probe results, manual test | — |
 
 ## Workflow

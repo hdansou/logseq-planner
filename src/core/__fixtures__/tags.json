@@ -1,0 +1,1334 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "getAllTags": {
+    "call": "logseq.Editor.getAllTags()",
+    "ok": true,
+    "detail": [
+      {
+        "ident": ":logseq.class/Template",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 5,
+        "name": "template",
+        "uuid": "00000002-1720-8548-4600-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Template",
+        "content": "Template",
+        "title": "Template",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          166
+        ]
+      },
+      {
+        "ident": ":logseq.class/Task",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 170,
+        "name": "task",
+        "uuid": "00000002-1282-1814-5700-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Task",
+        "content": "Task",
+        "title": "Task",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          75,
+          82,
+          87,
+          89
+        ]
+      },
+      {
+        "ident": ":logseq.class/Comments",
+        "updatedAt": 1791051108372,
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "message-circle"
+        },
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 171,
+        "name": "comments",
+        "uuid": "00000002-2556-9161-5000-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Comments",
+        "content": "Comments",
+        "title": "Comments",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/hide-from-node": true,
+        ":logseq.property.class/properties": [
+          69
+        ]
+      },
+      {
+        "ident": ":logseq.class/Comment",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 172,
+        "name": "comment",
+        "uuid": "00000002-1323-0695-4000-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Comment",
+        "content": "Comment",
+        "title": "Comment",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/hide-from-node": true
+      },
+      {
+        "ident": ":logseq.class/Query",
+        "updatedAt": 1791051108372,
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "search"
+        },
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 173,
+        "name": "query",
+        "uuid": "00000002-2324-8016-6000-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Query",
+        "content": "Query",
+        "title": "Query",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          49
+        ]
+      },
+      {
+        "ident": ":logseq.class/Card",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 174,
+        "name": "card",
+        "uuid": "00000002-1358-2811-0900-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Card",
+        "content": "Card",
+        "title": "Card",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          144,
+          145
+        ]
+      },
+      {
+        "ident": ":logseq.class/Cards",
+        "updatedAt": 1791051108372,
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "search"
+        },
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 175,
+        "name": "cards",
+        "uuid": "00000002-1284-2651-6700-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Cards",
+        "content": "Cards",
+        "title": "Cards",
+        ":logseq.property.class/extends": [
+          173
+        ]
+      },
+      {
+        "ident": ":logseq.class/Code-block",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 177,
+        "name": "code",
+        "uuid": "00000002-1454-9866-4100-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Code",
+        "content": "Code",
+        "title": "Code",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/hide-from-node": true,
+        ":logseq.property.class/properties": [
+          35,
+          37
+        ]
+      },
+      {
+        "ident": ":logseq.class/Quote-block",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 178,
+        "name": "quote",
+        "uuid": "00000002-1176-1666-1700-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Quote",
+        "content": "Quote",
+        "title": "Quote",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/hide-from-node": true,
+        ":logseq.property.class/properties": [
+          35
+        ]
+      },
+      {
+        "ident": ":logseq.class/Math-block",
+        "updatedAt": 1791051108372,
+        "createdAt": 1791051108372,
+        "tags": [
+          2
+        ],
+        "id": 179,
+        "name": "math",
+        "uuid": "00000002-2038-9631-2100-000000000000",
+        ":logseq.property/built-in?": true,
+        "fullTitle": "Math",
+        "content": "Math",
+        "title": "Math",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/hide-from-node": true,
+        ":logseq.property.class/properties": [
+          35
+        ]
+      },
+      {
+        "ident": ":user.class/Project-NobOOFIJ",
+        "updatedAt": 1791051442539,
+        "createdAt": 1791051442539,
+        "tags": [
+          2
+        ],
+        "id": 223,
+        "name": "project",
+        "uuid": "00000002-1358-3903-1900-000000000000",
+        "fullTitle": "Project",
+        "content": "Project",
+        "title": "Project",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          75,
+          211,
+          212,
+          213
+        ],
+        "refs": [
+          {
+            "id": 1
+          },
+          {
+            "id": 40
+          },
+          {
+            "id": 42
+          },
+          {
+            "id": 211
+          },
+          {
+            "id": 2
+          },
+          {
+            "id": 213
+          },
+          {
+            "id": 23
+          },
+          {
+            "id": 212
+          },
+          {
+            "id": 75
+          }
+        ]
+      },
+      {
+        "ident": ":user.class/ClientProject-GPwqlTj3",
+        "updatedAt": 1791051442539,
+        "createdAt": 1791051442539,
+        "tags": [
+          2
+        ],
+        "id": 224,
+        "name": "clientproject",
+        "uuid": "00000002-1851-5287-0000-000000000000",
+        "fullTitle": "Client project",
+        "content": "Client project",
+        "title": "Client project",
+        ":logseq.property.class/extends": [
+          223
+        ],
+        ":logseq.property.class/properties": [
+          216
+        ],
+        "refs": [
+          {
+            "id": 2
+          },
+          {
+            "id": 23
+          },
+          {
+            "id": 40
+          },
+          {
+            "id": 42
+          },
+          {
+            "id": 216
+          },
+          {
+            "id": 223
+          }
+        ]
+      },
+      {
+        "ident": ":user.class/Meeting-IIPq9EjO",
+        "updatedAt": 1791051442539,
+        "createdAt": 1791051442539,
+        "tags": [
+          2
+        ],
+        "id": 225,
+        "name": "meeting",
+        "uuid": "00000002-1681-0833-1400-000000000000",
+        "fullTitle": "Meeting",
+        "content": "Meeting",
+        "title": "Meeting",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          217,
+          218
+        ],
+        "refs": [
+          {
+            "id": 1
+          },
+          {
+            "id": 2
+          },
+          {
+            "id": 23
+          },
+          {
+            "id": 40
+          },
+          {
+            "id": 42
+          },
+          {
+            "id": 217
+          },
+          {
+            "id": 218
+          }
+        ]
+      }
+    ]
+  },
+  "getTagProject": {
+    "call": "logseq.Editor.getTag(\"Project\")",
+    "ok": true,
+    "detail": null
+  },
+  "getTagClientProject": {
+    "call": "logseq.Editor.getTag(\"Client project\")",
+    "ok": true,
+    "detail": null
+  },
+  "getTagMeeting": {
+    "call": "logseq.Editor.getTag(\"Meeting\")",
+    "ok": true,
+    "detail": null
+  },
+  "getTagLowercase": {
+    "call": "logseq.Editor.getTag(\"project\")",
+    "ok": true,
+    "detail": null
+  },
+  "getTagTask": {
+    "call": "logseq.Editor.getTag(\"Task\")",
+    "ok": true,
+    "detail": null
+  },
+  "getTagsByNameProject": {
+    "call": "logseq.Editor.getTagsByName(\"Project\")",
+    "ok": true,
+    "detail": [
+      {
+        "ident": ":user.class/Project-NobOOFIJ",
+        "updatedAt": 1791051442539,
+        "createdAt": 1791051442539,
+        "tags": [
+          2
+        ],
+        "id": 223,
+        "name": "project",
+        "uuid": "00000002-1358-3903-1900-000000000000",
+        "fullTitle": "Project",
+        "content": "Project",
+        "title": "Project",
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          75,
+          211,
+          212,
+          213
+        ],
+        "refs": [
+          {
+            "id": 1
+          },
+          {
+            "id": 40
+          },
+          {
+            "id": 42
+          },
+          {
+            "id": 211
+          },
+          {
+            "id": 2
+          },
+          {
+            "id": 213
+          },
+          {
+            "id": 23
+          },
+          {
+            "id": 212
+          },
+          {
+            "id": 75
+          }
+        ]
+      }
+    ]
+  },
+  "getTagByUuid": {
+    "call": "logseq.Editor.getTag(\"00000002-1358-3903-1900-000000000000\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          2
+        ],
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          75,
+          211,
+          212,
+          213
+        ],
+        ":logseq.property.class/enable-bidirectional?": false
+      },
+      "ident": ":user.class/Project-NobOOFIJ",
+      "updatedAt": 1791051442539,
+      "createdAt": 1791051442539,
+      "tags": [
+        2
+      ],
+      "id": 223,
+      "rawTitle": "Project",
+      "name": "project",
+      "uuid": "00000002-1358-3903-1900-000000000000",
+      "fullTitle": "Project",
+      "content": "Project",
+      "title": "Project",
+      ":logseq.property.class/extends": [
+        1
+      ],
+      ":logseq.property.class/properties": [
+        75,
+        211,
+        212,
+        213
+      ],
+      "collapsed?": false,
+      "refs": [
+        {
+          "ident": ":logseq.class/Root",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 1,
+          "rawTitle": "Root Tag",
+          "name": "root tag",
+          "uuid": "00000002-2737-8382-7000-000000000000",
+          "fullTitle": "Root Tag",
+          "content": "Root Tag",
+          "title": "Root Tag"
+        },
+        {
+          "ident": ":logseq.class/Tag",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 2,
+          "rawTitle": "Tag",
+          "name": "tag",
+          "uuid": "00000002-5389-0208-3000-000000000000",
+          "fullTitle": "Tag",
+          "content": "Tag",
+          "title": "Tag"
+        },
+        {
+          "ident": "tags",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 23,
+          "rawTitle": "Tags",
+          "name": "tags",
+          "uuid": "00000002-1814-9483-4000-000000000000",
+          "fullTitle": "Tags",
+          "content": "Tags",
+          "title": "Tags"
+        },
+        {
+          "ident": ":logseq.property.class/extends",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 40,
+          "rawTitle": "Extends",
+          "name": "extends",
+          "uuid": "00000002-7475-9380-3000-000000000000",
+          "fullTitle": "Extends",
+          "content": "Extends",
+          "title": "Extends"
+        },
+        {
+          "ident": ":logseq.property.class/properties",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 42,
+          "rawTitle": "Tag Properties",
+          "name": "tag properties",
+          "uuid": "00000002-2123-7120-5000-000000000000",
+          "fullTitle": "Tag Properties",
+          "content": "Tag Properties",
+          "title": "Tag Properties"
+        },
+        {
+          "ident": ":logseq.property/status",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 75,
+          "rawTitle": "Status",
+          "name": "status",
+          "uuid": "00000002-9072-1685-3000-000000000000",
+          "fullTitle": "Status",
+          "content": "Status",
+          "title": "Status"
+        },
+        {
+          "ident": ":user.property/start-Sd0PMVjj",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 211,
+          "rawTitle": "Start",
+          "name": "start",
+          "uuid": "00000002-1700-3435-4100-000000000000",
+          "fullTitle": "Start",
+          "content": "Start",
+          "title": "Start"
+        },
+        {
+          "ident": ":user.property/end-aREJ7Xcz",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 212,
+          "rawTitle": "End",
+          "name": "end",
+          "uuid": "00000002-1716-7161-6200-000000000000",
+          "fullTitle": "End",
+          "content": "End",
+          "title": "End"
+        },
+        {
+          "ident": ":user.property/owner-rDOlrnNh",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 213,
+          "rawTitle": "Owner",
+          "name": "owner",
+          "uuid": "00000002-2017-2733-8600-000000000000",
+          "fullTitle": "Owner",
+          "content": "Owner",
+          "title": "Owner"
+        }
+      ]
+    }
+  },
+  "getTagByIdent": {
+    "call": "logseq.Editor.getTag(\":user.class/Project-NobOOFIJ\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          2
+        ],
+        ":logseq.property.class/extends": [
+          1
+        ],
+        ":logseq.property.class/properties": [
+          75,
+          211,
+          212,
+          213
+        ],
+        ":logseq.property.class/enable-bidirectional?": false
+      },
+      "ident": ":user.class/Project-NobOOFIJ",
+      "updatedAt": 1791051442539,
+      "createdAt": 1791051442539,
+      "tags": [
+        2
+      ],
+      "id": 223,
+      "rawTitle": "Project",
+      "name": "project",
+      "uuid": "00000002-1358-3903-1900-000000000000",
+      "fullTitle": "Project",
+      "content": "Project",
+      "title": "Project",
+      ":logseq.property.class/extends": [
+        1
+      ],
+      ":logseq.property.class/properties": [
+        75,
+        211,
+        212,
+        213
+      ],
+      "collapsed?": false,
+      "refs": [
+        {
+          "ident": ":logseq.class/Root",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 1,
+          "rawTitle": "Root Tag",
+          "name": "root tag",
+          "uuid": "00000002-2737-8382-7000-000000000000",
+          "fullTitle": "Root Tag",
+          "content": "Root Tag",
+          "title": "Root Tag"
+        },
+        {
+          "ident": ":logseq.class/Tag",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 2,
+          "rawTitle": "Tag",
+          "name": "tag",
+          "uuid": "00000002-5389-0208-3000-000000000000",
+          "fullTitle": "Tag",
+          "content": "Tag",
+          "title": "Tag"
+        },
+        {
+          "ident": "tags",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 23,
+          "rawTitle": "Tags",
+          "name": "tags",
+          "uuid": "00000002-1814-9483-4000-000000000000",
+          "fullTitle": "Tags",
+          "content": "Tags",
+          "title": "Tags"
+        },
+        {
+          "ident": ":logseq.property.class/extends",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 40,
+          "rawTitle": "Extends",
+          "name": "extends",
+          "uuid": "00000002-7475-9380-3000-000000000000",
+          "fullTitle": "Extends",
+          "content": "Extends",
+          "title": "Extends"
+        },
+        {
+          "ident": ":logseq.property.class/properties",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 42,
+          "rawTitle": "Tag Properties",
+          "name": "tag properties",
+          "uuid": "00000002-2123-7120-5000-000000000000",
+          "fullTitle": "Tag Properties",
+          "content": "Tag Properties",
+          "title": "Tag Properties"
+        },
+        {
+          "ident": ":logseq.property/status",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 75,
+          "rawTitle": "Status",
+          "name": "status",
+          "uuid": "00000002-9072-1685-3000-000000000000",
+          "fullTitle": "Status",
+          "content": "Status",
+          "title": "Status"
+        },
+        {
+          "ident": ":user.property/start-Sd0PMVjj",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 211,
+          "rawTitle": "Start",
+          "name": "start",
+          "uuid": "00000002-1700-3435-4100-000000000000",
+          "fullTitle": "Start",
+          "content": "Start",
+          "title": "Start"
+        },
+        {
+          "ident": ":user.property/end-aREJ7Xcz",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 212,
+          "rawTitle": "End",
+          "name": "end",
+          "uuid": "00000002-1716-7161-6200-000000000000",
+          "fullTitle": "End",
+          "content": "End",
+          "title": "End"
+        },
+        {
+          "ident": ":user.property/owner-rDOlrnNh",
+          "tags": [
+            ":logseq.class/Property"
+          ],
+          "id": 213,
+          "rawTitle": "Owner",
+          "name": "owner",
+          "uuid": "00000002-2017-2733-8600-000000000000",
+          "fullTitle": "Owner",
+          "content": "Owner",
+          "title": "Owner"
+        }
+      ]
+    }
+  },
+  "query": {
+    "query": "[:find (pull ?t [:db/id :db/ident :block/uuid :block/title :logseq.property/built-in?\n                        {:logseq.property.class/extends [:db/id :db/ident :block/title]}\n                        {:logseq.property.class/properties [:db/id :db/ident :block/title]}])\n          :where [?t :block/tags :logseq.class/Tag]]",
+    "call": "logseq.DB.datascriptQuery(\"[:find (pull ?t [:db/id :db/ident :block/uuid :block/title :logseq.property/built-in?\\n                        {:logseq.property.class/extends [:db/id :db/ident :block/title]}\\n                        {:logseq.property.class/properties [:db/id :db/ident :block/title]}])\\n          :where [?t :block/tags :logseq.class/Tag]]\")",
+    "ok": true,
+    "detail": [
+      [
+        {
+          "title": "Cards",
+          "uuid": "00000002-1284-2651-6700-000000000000",
+          "id": 175,
+          "ident": ":logseq.class/Cards",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Query",
+              "id": 173,
+              "ident": ":logseq.class/Query"
+            }
+          ],
+          "content": "Cards",
+          "full-title": "Cards"
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Math-block",
+          "id": 179,
+          "uuid": "00000002-2038-9631-2100-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Math",
+          "title": "Math",
+          "full-title": "Math",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Node Display Type",
+              "id": 35,
+              "ident": ":logseq.property.node/display-type"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "title": "Client project",
+          "uuid": "00000002-1851-5287-0000-000000000000",
+          "id": 224,
+          "ident": ":user.class/ClientProject-GPwqlTj3",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Project",
+              "id": 223,
+              "ident": ":user.class/Project-NobOOFIJ"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Client",
+              "id": 216,
+              "ident": ":user.property/client-wYAINCWr"
+            }
+          ],
+          "content": "Client project",
+          "full-title": "Client project"
+        }
+      ],
+      [
+        {
+          "title": "Whiteboard",
+          "uuid": "00000002-1013-6984-5200-000000000000",
+          "id": 169,
+          "ident": ":logseq.class/Whiteboard",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Page",
+              "id": 4,
+              "ident": ":logseq.class/Page"
+            }
+          ],
+          "content": "Whiteboard",
+          "full-title": "Whiteboard"
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Query",
+          "id": 173,
+          "uuid": "00000002-2324-8016-6000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Query",
+          "title": "Query",
+          "full-title": "Query",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Query",
+              "id": 49,
+              "ident": ":logseq.property/query"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Quote-block",
+          "id": 178,
+          "uuid": "00000002-1176-1666-1700-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Quote",
+          "title": "Quote",
+          "full-title": "Quote",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Node Display Type",
+              "id": 35,
+              "ident": ":logseq.property.node/display-type"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "title": "Tag",
+          "uuid": "00000002-5389-0208-3000-000000000000",
+          "id": 2,
+          "ident": ":logseq.class/Tag",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          "content": "Tag",
+          "full-title": "Tag"
+        }
+      ],
+      [
+        {
+          "title": "Comment",
+          "uuid": "00000002-1323-0695-4000-000000000000",
+          "id": 172,
+          "ident": ":logseq.class/Comment",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          "content": "Comment",
+          "full-title": "Comment"
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Template",
+          "id": 5,
+          "uuid": "00000002-1720-8548-4600-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Template",
+          "title": "Template",
+          "full-title": "Template",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Apply template to tags",
+              "id": 166,
+              "ident": ":logseq.property/template-applied-to"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Card",
+          "id": 174,
+          "uuid": "00000002-1358-2811-0900-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Card",
+          "title": "Card",
+          "full-title": "Card",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Due",
+              "id": 144,
+              "ident": ":logseq.property.fsrs/due"
+            },
+            {
+              "title": "State",
+              "id": 145,
+              "ident": ":logseq.property.fsrs/state"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Task",
+          "id": 170,
+          "uuid": "00000002-1282-1814-5700-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Task",
+          "title": "Task",
+          "full-title": "Task",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Status",
+              "id": 75,
+              "ident": ":logseq.property/status"
+            },
+            {
+              "title": "Priority",
+              "id": 82,
+              "ident": ":logseq.property/priority"
+            },
+            {
+              "title": "Deadline",
+              "id": 87,
+              "ident": ":logseq.property/deadline"
+            },
+            {
+              "title": "Scheduled",
+              "id": 89,
+              "ident": ":logseq.property/scheduled"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Asset",
+          "id": 176,
+          "uuid": "00000002-7975-0297-0000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Asset",
+          "title": "Asset",
+          "full-title": "Asset",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "File Type",
+              "id": 132,
+              "ident": ":logseq.property.asset/type"
+            },
+            {
+              "title": "File Size",
+              "id": 135,
+              "ident": ":logseq.property.asset/size"
+            },
+            {
+              "title": "File checksum",
+              "id": 138,
+              "ident": ":logseq.property.asset/checksum"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Comments",
+          "id": 171,
+          "uuid": "00000002-2556-9161-5000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Comments",
+          "title": "Comments",
+          "full-title": "Comments",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Commented blocks",
+              "id": 69,
+              "ident": ":logseq.property.comments/blocks"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "title": "Property",
+          "uuid": "00000002-1038-7670-4800-000000000000",
+          "id": 3,
+          "ident": ":logseq.class/Property",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          "content": "Property",
+          "full-title": "Property"
+        }
+      ],
+      [
+        {
+          "title": "Root Tag",
+          "uuid": "00000002-2737-8382-7000-000000000000",
+          "id": 1,
+          "ident": ":logseq.class/Root",
+          ":logseq.property/built-in?": true,
+          "content": "Root Tag",
+          "full-title": "Root Tag"
+        }
+      ],
+      [
+        {
+          "title": "Meeting",
+          "uuid": "00000002-1681-0833-1400-000000000000",
+          "id": 225,
+          "ident": ":user.class/Meeting-IIPq9EjO",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Date",
+              "id": 217,
+              "ident": ":user.property/date-BYomm66x"
+            },
+            {
+              "title": "Type",
+              "id": 218,
+              "ident": ":user.property/type-wvs-FyOh"
+            }
+          ],
+          "content": "Meeting",
+          "full-title": "Meeting"
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Code-block",
+          "id": 177,
+          "uuid": "00000002-1454-9866-4100-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Code",
+          "title": "Code",
+          "full-title": "Code",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Node Display Type",
+              "id": 35,
+              "ident": ":logseq.property.node/display-type"
+            },
+            {
+              "title": "Code Mode",
+              "id": 37,
+              "ident": ":logseq.property.code/lang"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "ident": ":logseq.class/Pdf-annotation",
+          "id": 180,
+          "uuid": "00000002-5049-5962-0000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "PDF Annotation",
+          "title": "PDF Annotation",
+          "full-title": "PDF Annotation",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Asset",
+              "id": 54,
+              "ident": ":logseq.property/asset"
+            },
+            {
+              "title": "ls-type",
+              "id": 55,
+              "ident": ":logseq.property/ls-type"
+            },
+            {
+              "title": "Annotation type",
+              "id": 56,
+              "ident": ":logseq.property.pdf/hl-type"
+            },
+            {
+              "title": "Annotation color",
+              "id": 57,
+              "ident": ":logseq.property.pdf/hl-color"
+            },
+            {
+              "title": "Annotation page",
+              "id": 63,
+              "ident": ":logseq.property.pdf/hl-page"
+            },
+            {
+              "title": "Annotation image",
+              "id": 64,
+              "ident": ":logseq.property.pdf/hl-image"
+            },
+            {
+              "title": "Annotation data",
+              "id": 65,
+              "ident": ":logseq.property.pdf/hl-value"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "title": "Journal",
+          "uuid": "00000002-1979-7410-8100-000000000000",
+          "id": 168,
+          "ident": ":logseq.class/Journal",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Page",
+              "id": 4,
+              "ident": ":logseq.class/Page"
+            }
+          ],
+          "content": "Journal",
+          "full-title": "Journal"
+        }
+      ],
+      [
+        {
+          "title": "Page",
+          "uuid": "00000002-1484-3403-2900-000000000000",
+          "id": 4,
+          "ident": ":logseq.class/Page",
+          ":logseq.property/built-in?": true,
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          "content": "Page",
+          "full-title": "Page"
+        }
+      ],
+      [
+        {
+          "title": "Project",
+          "uuid": "00000002-1358-3903-1900-000000000000",
+          "id": 223,
+          "ident": ":user.class/Project-NobOOFIJ",
+          ":logseq.property.class/extends": [
+            {
+              "title": "Root Tag",
+              "id": 1,
+              "ident": ":logseq.class/Root"
+            }
+          ],
+          ":logseq.property.class/properties": [
+            {
+              "title": "Status",
+              "id": 75,
+              "ident": ":logseq.property/status"
+            },
+            {
+              "title": "Start",
+              "id": 211,
+              "ident": ":user.property/start-Sd0PMVjj"
+            },
+            {
+              "title": "End",
+              "id": 212,
+              "ident": ":user.property/end-aREJ7Xcz"
+            },
+            {
+              "title": "Owner",
+              "id": 213,
+              "ident": ":user.property/owner-rDOlrnNh"
+            }
+          ],
+          "content": "Project",
+          "full-title": "Project"
+        }
+      ]
+    ]
+  }
+}

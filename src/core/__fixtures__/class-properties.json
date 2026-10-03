@@ -1,0 +1,444 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "query": {
+    "query": "[:find ?tag-title (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type\n                        :db/cardinality :logseq.property/built-in? :logseq.property/hide? :logseq.property/public?\n                        {:logseq.property/default-value [:db/ident :block/title]}\n                        {:logseq.property/classes [:db/ident :block/title]}\n                        {:block/_closed-value-property [:db/id :db/ident :block/uuid :block/title :block/order\n                          :logseq.property/choice-checkbox-state :logseq.property/icon\n                          {:logseq.property/choice-classes [:db/ident :block/title]}]}])\n          :in $ [?tag-title ...]\n          :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?tag-title]\n                 [?t :logseq.property.class/properties ?p]]",
+    "inputs": [
+      [
+        "Project",
+        "Client project",
+        "Meeting",
+        "Task"
+      ]
+    ],
+    "call": "logseq.DB.datascriptQuery(\"[:find ?tag-title (pull ?p [:db/id :db/ident :block/uuid :block/title :logseq.property/type\\n                        :db/cardinality :logseq.property/built-in? :logseq.property/hide? :logseq.property/public?\\n                        {:logseq.property/default-value [:db/ident :block/title]}\\n                        {:logseq.property/classes [:db/ident :block/title]}\\n                        {:block/_closed-value-property [:db/id :db/ident :block/uuid :block/title :block/order\\n                          :logseq.property/choice-checkbox-state :logseq.property/icon\\n                          {:logseq.property/choice-classes [:db/ident :block/title]}]}])\\n          :in $ [?tag-title ...]\\n          :where [?t :block/tags :logseq.class/Tag] [?t :block/title ?tag-title]\\n                 [?t :logseq.property.class/properties ?p]]\", [\"Project\",\"Client project\",\"Meeting\",\"Task\"])",
+    "ok": true,
+    "detail": [
+      [
+        "Project",
+        {
+          "title": "End",
+          "uuid": "00000002-1716-7161-6200-000000000000",
+          "cardinality": ":db.cardinality/one",
+          "id": 212,
+          "ident": ":user.property/end-aREJ7Xcz",
+          ":logseq.property/type": "date",
+          "content": "End",
+          "full-title": "End"
+        }
+      ],
+      [
+        "Task",
+        {
+          "ident": ":logseq.property/scheduled",
+          ":logseq.property/public?": true,
+          ":logseq.property/type": "datetime",
+          "id": 89,
+          "uuid": "00000002-1644-5209-4300-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Scheduled",
+          "title": "Scheduled",
+          "full-title": "Scheduled",
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Client project",
+        {
+          "title": "Client",
+          "uuid": "00000002-1098-8558-9900-000000000000",
+          "cardinality": ":db.cardinality/one",
+          "id": 216,
+          "ident": ":user.property/client-wYAINCWr",
+          ":logseq.property/type": "default",
+          "content": "Client",
+          "full-title": "Client"
+        }
+      ],
+      [
+        "Project",
+        {
+          "ident": ":user.property/owner-rDOlrnNh",
+          ":logseq.property/type": "default",
+          "id": 213,
+          "uuid": "00000002-2017-2733-8600-000000000000",
+          "content": "Owner",
+          "title": "Owner",
+          "_closed-value-property": [
+            {
+              "order": "b53",
+              "title": "Alice",
+              "uuid": "6a000000-0000-4000-8000-000000000101",
+              "id": 214,
+              "content": "Alice",
+              "full-title": "Alice"
+            },
+            {
+              "order": "b54",
+              "title": "Bob",
+              "uuid": "6a000000-0000-4000-8000-000000000102",
+              "id": 215,
+              "content": "Bob",
+              "full-title": "Bob"
+            }
+          ],
+          "full-title": "Owner",
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Task",
+        {
+          "ident": ":logseq.property/priority",
+          ":logseq.property/public?": true,
+          ":logseq.property/type": "default",
+          "id": 82,
+          "uuid": "00000002-2392-2841-1000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Priority",
+          "title": "Priority",
+          "_closed-value-property": [
+            {
+              "order": "b2d",
+              "title": "Low",
+              "uuid": "00000002-2107-4537-4800-000000000000",
+              "id": 83,
+              "ident": ":logseq.property/priority.low",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "priorityLvlLow"
+              },
+              "content": "Low",
+              "full-title": "Low"
+            },
+            {
+              "order": "b2e",
+              "title": "Medium",
+              "uuid": "00000002-1829-3222-7800-000000000000",
+              "id": 84,
+              "ident": ":logseq.property/priority.medium",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "priorityLvlMedium"
+              },
+              "content": "Medium",
+              "full-title": "Medium"
+            },
+            {
+              "order": "b2f",
+              "title": "High",
+              "uuid": "00000002-5672-2766-8000-000000000000",
+              "id": 85,
+              "ident": ":logseq.property/priority.high",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "priorityLvlHigh"
+              },
+              "content": "High",
+              "full-title": "High"
+            },
+            {
+              "order": "b2g",
+              "title": "Urgent",
+              "uuid": "00000002-1996-4346-6700-000000000000",
+              "id": 86,
+              "ident": ":logseq.property/priority.urgent",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "priorityLvlUrgent"
+              },
+              "content": "Urgent",
+              "full-title": "Urgent"
+            }
+          ],
+          "full-title": "Priority",
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Meeting",
+        {
+          "title": "Date",
+          "uuid": "00000002-1795-9680-6700-000000000000",
+          "cardinality": ":db.cardinality/one",
+          "id": 217,
+          "ident": ":user.property/date-BYomm66x",
+          ":logseq.property/type": "datetime",
+          "content": "Date",
+          "full-title": "Date"
+        }
+      ],
+      [
+        "Project",
+        {
+          "ident": ":logseq.property/status",
+          ":logseq.property/public?": true,
+          ":logseq.property/type": "default",
+          "id": 75,
+          "uuid": "00000002-9072-1685-3000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Status",
+          "title": "Status",
+          "_closed-value-property": [
+            {
+              "order": "b2W",
+              "title": "Backlog",
+              "uuid": "00000002-7233-3491-0000-000000000000",
+              "id": 76,
+              "ident": ":logseq.property/status.backlog",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Backlog"
+              },
+              "content": "Backlog",
+              "full-title": "Backlog"
+            },
+            {
+              "ident": ":logseq.property/status.todo",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Todo"
+              },
+              "id": 77,
+              "uuid": "00000002-1615-5853-7700-000000000000",
+              ":logseq.property/choice-checkbox-state": false,
+              "content": "Todo",
+              "order": "b2X",
+              "title": "Todo",
+              "full-title": "Todo"
+            },
+            {
+              "order": "b2Y",
+              "title": "Doing",
+              "uuid": "00000002-1840-1229-0800-000000000000",
+              "id": 78,
+              "ident": ":logseq.property/status.doing",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "InProgress50"
+              },
+              "content": "Doing",
+              "full-title": "Doing"
+            },
+            {
+              "order": "b2Z",
+              "title": "In Review",
+              "uuid": "00000002-1870-0014-4300-000000000000",
+              "id": 79,
+              "ident": ":logseq.property/status.in-review",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "InReview"
+              },
+              "content": "In Review",
+              "full-title": "In Review"
+            },
+            {
+              "ident": ":logseq.property/status.done",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Done"
+              },
+              "id": 80,
+              "uuid": "00000002-1827-5820-8200-000000000000",
+              ":logseq.property/choice-checkbox-state": true,
+              "content": "Done",
+              "order": "b2a",
+              "title": "Done",
+              "full-title": "Done"
+            },
+            {
+              "order": "b2b",
+              "title": "Canceled",
+              "uuid": "00000002-7526-4326-2000-000000000000",
+              "id": 81,
+              "ident": ":logseq.property/status.canceled",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Cancelled"
+              },
+              "content": "Canceled",
+              "full-title": "Canceled"
+            }
+          ],
+          "full-title": "Status",
+          ":logseq.property/default-value": {
+            "title": "Todo",
+            "ident": ":logseq.property/status.todo"
+          },
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Meeting",
+        {
+          "ident": ":user.property/type-wvs-FyOh",
+          ":logseq.property/type": "default",
+          "id": 218,
+          "uuid": "00000002-1854-5917-2500-000000000000",
+          "content": "Type",
+          "title": "Type",
+          "_closed-value-property": [
+            {
+              "order": "b58",
+              "title": "Planning",
+              "uuid": "6a000000-0000-4000-8000-000000000111",
+              "id": 219,
+              "content": "Planning",
+              "full-title": "Planning"
+            },
+            {
+              "order": "b59",
+              "title": "Review",
+              "uuid": "6a000000-0000-4000-8000-000000000112",
+              "id": 220,
+              "content": "Review",
+              "full-title": "Review"
+            },
+            {
+              "order": "b5A",
+              "title": "1:1",
+              "uuid": "6a000000-0000-4000-8000-000000000113",
+              "id": 221,
+              "content": "1:1",
+              "full-title": "1:1"
+            }
+          ],
+          "full-title": "Type",
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Task",
+        {
+          "ident": ":logseq.property/status",
+          ":logseq.property/public?": true,
+          ":logseq.property/type": "default",
+          "id": 75,
+          "uuid": "00000002-9072-1685-3000-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Status",
+          "title": "Status",
+          "_closed-value-property": [
+            {
+              "order": "b2W",
+              "title": "Backlog",
+              "uuid": "00000002-7233-3491-0000-000000000000",
+              "id": 76,
+              "ident": ":logseq.property/status.backlog",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Backlog"
+              },
+              "content": "Backlog",
+              "full-title": "Backlog"
+            },
+            {
+              "ident": ":logseq.property/status.todo",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Todo"
+              },
+              "id": 77,
+              "uuid": "00000002-1615-5853-7700-000000000000",
+              ":logseq.property/choice-checkbox-state": false,
+              "content": "Todo",
+              "order": "b2X",
+              "title": "Todo",
+              "full-title": "Todo"
+            },
+            {
+              "order": "b2Y",
+              "title": "Doing",
+              "uuid": "00000002-1840-1229-0800-000000000000",
+              "id": 78,
+              "ident": ":logseq.property/status.doing",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "InProgress50"
+              },
+              "content": "Doing",
+              "full-title": "Doing"
+            },
+            {
+              "order": "b2Z",
+              "title": "In Review",
+              "uuid": "00000002-1870-0014-4300-000000000000",
+              "id": 79,
+              "ident": ":logseq.property/status.in-review",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "InReview"
+              },
+              "content": "In Review",
+              "full-title": "In Review"
+            },
+            {
+              "ident": ":logseq.property/status.done",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Done"
+              },
+              "id": 80,
+              "uuid": "00000002-1827-5820-8200-000000000000",
+              ":logseq.property/choice-checkbox-state": true,
+              "content": "Done",
+              "order": "b2a",
+              "title": "Done",
+              "full-title": "Done"
+            },
+            {
+              "order": "b2b",
+              "title": "Canceled",
+              "uuid": "00000002-7526-4326-2000-000000000000",
+              "id": 81,
+              "ident": ":logseq.property/status.canceled",
+              ":logseq.property/icon": {
+                "type": "tabler-icon",
+                "id": "Cancelled"
+              },
+              "content": "Canceled",
+              "full-title": "Canceled"
+            }
+          ],
+          "full-title": "Status",
+          ":logseq.property/default-value": {
+            "title": "Todo",
+            "ident": ":logseq.property/status.todo"
+          },
+          "cardinality": ":db.cardinality/one"
+        }
+      ],
+      [
+        "Project",
+        {
+          "title": "Start",
+          "uuid": "00000002-1700-3435-4100-000000000000",
+          "cardinality": ":db.cardinality/one",
+          "id": 211,
+          "ident": ":user.property/start-Sd0PMVjj",
+          ":logseq.property/type": "date",
+          "content": "Start",
+          "full-title": "Start"
+        }
+      ],
+      [
+        "Task",
+        {
+          "ident": ":logseq.property/deadline",
+          ":logseq.property/public?": true,
+          ":logseq.property/type": "datetime",
+          "id": 87,
+          "uuid": "00000002-1685-9016-0400-000000000000",
+          ":logseq.property/built-in?": true,
+          "content": "Deadline",
+          "title": "Deadline",
+          "full-title": "Deadline",
+          "cardinality": ":db.cardinality/one"
+        }
+      ]
+    ]
+  }
+}

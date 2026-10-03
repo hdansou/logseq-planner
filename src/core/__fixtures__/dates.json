@@ -1,0 +1,252 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "timezoneOffsetMinutes": 300,
+  "date": {
+    "query": "[:find ?title ?prop-title ?raw ?journal-day\n          :keys title property raw journal-day\n          :where [?b :block/page ?pg] [?pg :block/title \"Planner probe\"] [?b :block/title ?title]\n                 [?p :logseq.property/type :date] [?p :db/ident ?pi] [?p :block/title ?prop-title]\n                 [?b ?pi ?raw] [?raw :block/journal-day ?journal-day]]",
+    "call": "logseq.DB.datascriptQuery(\"[:find ?title ?prop-title ?raw ?journal-day\\n          :keys title property raw journal-day\\n          :where [?b :block/page ?pg] [?pg :block/title \\\"Planner probe\\\"] [?b :block/title ?title]\\n                 [?p :logseq.property/type :date] [?p :db/ident ?pi] [?p :block/title ?prop-title]\\n                 [?b ?pi ?raw] [?raw :block/journal-day ?journal-day]]\")",
+    "ok": true,
+    "detail": [
+      {
+        "title": "Website relaunch",
+        "property": "End",
+        "raw": 198,
+        "journal-day": 20261023
+      },
+      {
+        "title": "Website relaunch",
+        "property": "Start",
+        "raw": 199,
+        "journal-day": 20260923
+      },
+      {
+        "title": "Acme rollout",
+        "property": "Start",
+        "raw": 207,
+        "journal-day": 20260930
+      },
+      {
+        "title": "Mobile app",
+        "property": "Start",
+        "raw": 208,
+        "journal-day": 20261008
+      },
+      {
+        "title": "Acme rollout",
+        "property": "End",
+        "raw": 208,
+        "journal-day": 20261008
+      }
+    ]
+  },
+  "datetime": {
+    "query": "[:find ?title ?prop-title ?raw\n          :keys title property raw\n          :where [?b :block/page ?pg] [?pg :block/title \"Planner probe\"] [?b :block/title ?title]\n                 [?p :logseq.property/type :datetime] [?p :db/ident ?pi] [?p :block/title ?prop-title]\n                 [?b ?pi ?raw]]",
+    "call": "logseq.DB.datascriptQuery(\"[:find ?title ?prop-title ?raw\\n          :keys title property raw\\n          :where [?b :block/page ?pg] [?pg :block/title \\\"Planner probe\\\"] [?b :block/title ?title]\\n                 [?p :logseq.property/type :datetime] [?p :db/ident ?pi] [?p :block/title ?prop-title]\\n                 [?b ?pi ?raw]]\")",
+    "ok": true,
+    "detail": [
+      {
+        "title": "Loose task",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Loose task",
+        "property": "Node updated at",
+        "raw": 1791052254756
+      },
+      {
+        "title": "Untimed meeting",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Survey users [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Acme contract",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Acme contract",
+        "property": "Deadline",
+        "raw": 1790960400000
+      },
+      {
+        "title": "Acme rollout",
+        "property": "Node created at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Website relaunch",
+        "property": "Node updated at",
+        "raw": 1791052228792
+      },
+      {
+        "title": "Wireframes",
+        "property": "Scheduled",
+        "raw": 1791554400000
+      },
+      {
+        "title": "Survey users [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Kickoff",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Untimed meeting",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Late review",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Late review",
+        "property": "Date",
+        "raw": 1791175500000
+      },
+      {
+        "title": "Ship homepage [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Ship homepage [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Mobile app",
+        "property": "Node created at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Archive cleanup",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Wireframes",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Deadline",
+        "raw": 1791237600000
+      },
+      {
+        "title": "Late review",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Acme contract",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Kickoff",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Wireframes",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node created at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+        "property": "Node updated at",
+        "raw": 1791052227652
+      },
+      {
+        "title": "Kickoff",
+        "property": "Date",
+        "raw": 1791041400000
+      },
+      {
+        "title": "Acme",
+        "property": "Node updated at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Archive cleanup",
+        "property": "Node updated at",
+        "raw": 1791051442540
+      },
+      {
+        "title": "Acme rollout",
+        "property": "Node updated at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Acme",
+        "property": "Node created at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Website relaunch",
+        "property": "Node created at",
+        "raw": 1791051442539
+      },
+      {
+        "title": "Mobile app",
+        "property": "Node updated at",
+        "raw": 1791052195258
+      }
+    ]
+  },
+  "journalPageOfStart": {
+    "query": "[:find (pull ?j [*]) :in $ ?u :where [?b :block/uuid ?u] [?b :block/page ?pg] [?pg :block/title \"Planner probe\"]\n          [?p :logseq.property/type :date] [?p :db/ident ?pi] [?b ?pi ?j]]",
+    "inputs": [
+      "#uuid \"6a000000-0000-4000-8000-000000000002\""
+    ],
+    "call": "logseq.DB.datascriptQuery(\"[:find (pull ?j [*]) :in $ ?u :where [?b :block/uuid ?u] [?b :block/page ?pg] [?pg :block/title \\\"Planner probe\\\"]\\n          [?p :logseq.property/type :date] [?p :db/ident ?pi] [?b ?pi ?j]]\", \"#uuid \\\"6a000000-0000-4000-8000-000000000002\\\"\")",
+    "ok": true,
+    "detail": [
+      [
+        {
+          "tags": [
+            {
+              "id": 168
+            }
+          ],
+          "id": 208,
+          "updated-at": 1791051442539,
+          "name": "oct 8th, 2026",
+          "uuid": "00000001-2026-1008-0000-000000000000",
+          "created-at": 1791051442539,
+          "content": "Oct 8th, 2026",
+          "title": "Oct 8th, 2026",
+          "full-title": "Oct 8th, 2026",
+          "journal-day": 20261008,
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 168
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}

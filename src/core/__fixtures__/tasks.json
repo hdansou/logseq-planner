@@ -1,0 +1,532 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "taskRefs": {
+    "query": "[:find (pull ?b [:db/id :block/uuid :block/title\n                        {:block/tags [:db/ident :block/title]}\n                        {:logseq.property/status [:db/ident :block/title]}\n                        :logseq.property/deadline :logseq.property/scheduled\n                        {:block/refs [:db/id :db/ident :block/uuid :block/title {:block/tags [:db/ident]}]}])\n          :where [?b :block/tags :logseq.class/Task] [?b :block/page ?pg] [?pg :block/title \"Planner probe\"]]",
+    "call": "logseq.DB.datascriptQuery(\"[:find (pull ?b [:db/id :block/uuid :block/title\\n                        {:block/tags [:db/ident :block/title]}\\n                        {:logseq.property/status [:db/ident :block/title]}\\n                        :logseq.property/deadline :logseq.property/scheduled\\n                        {:block/refs [:db/id :db/ident :block/uuid :block/title {:block/tags [:db/ident]}]}])\\n          :where [?b :block/tags :logseq.class/Task] [?b :block/page ?pg] [?pg :block/title \\\"Planner probe\\\"]]\")",
+    "ok": true,
+    "detail": [
+      [
+        {
+          ":logseq.property/status": {
+            "title": "Todo",
+            "ident": ":logseq.property/status.todo"
+          },
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "id": 206,
+          "uuid": "6a000000-0000-4000-8000-000000000021",
+          "content": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+          "title": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+          "full-title": "Draft brief [[Website relaunch]]",
+          ":logseq.property/deadline": 1791237600000,
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Deadline",
+              "uuid": "00000002-1685-9016-0400-000000000000",
+              "id": 87,
+              "ident": ":logseq.property/deadline",
+              "content": "Deadline",
+              "full-title": "Deadline"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":user.class/Project-NobOOFIJ"
+                }
+              ],
+              "title": "Website relaunch",
+              "uuid": "6a000000-0000-4000-8000-000000000001",
+              "id": 195,
+              "content": "Website relaunch",
+              "full-title": "Website relaunch"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          ":logseq.property/status": {
+            "title": "Todo",
+            "ident": ":logseq.property/status.todo"
+          },
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "id": 204,
+          "uuid": "6a000000-0000-4000-8000-000000000025",
+          "content": "Acme contract",
+          "title": "Acme contract",
+          "full-title": "Acme contract",
+          ":logseq.property/deadline": 1790960400000,
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Deadline",
+              "uuid": "00000002-1685-9016-0400-000000000000",
+              "id": 87,
+              "ident": ":logseq.property/deadline",
+              "content": "Deadline",
+              "full-title": "Deadline"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":user.class/ClientProject-GPwqlTj3"
+                }
+              ],
+              "title": "Acme rollout",
+              "uuid": "6a000000-0000-4000-8000-000000000003",
+              "id": 200,
+              "content": "Acme rollout",
+              "full-title": "Acme rollout"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Project",
+              "uuid": "00000002-1653-1039-3800-000000000000",
+              "id": 222,
+              "ident": ":user.property/project-j2tQGXZ2",
+              "content": "Project",
+              "full-title": "Project"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            }
+          ],
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "title": "Loose task",
+          "uuid": "6a000000-0000-4000-8000-000000000026",
+          "id": 202,
+          ":logseq.property/status": {
+            "title": "Todo",
+            "ident": ":logseq.property/status.todo"
+          },
+          "content": "Loose task",
+          "full-title": "Loose task"
+        }
+      ],
+      [
+        {
+          ":logseq.property/scheduled": 1791554400000,
+          ":logseq.property/status": {
+            "title": "Doing",
+            "ident": ":logseq.property/status.doing"
+          },
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "id": 201,
+          "uuid": "6a000000-0000-4000-8000-000000000024",
+          "content": "Wireframes",
+          "title": "Wireframes",
+          "full-title": "Wireframes",
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Scheduled",
+              "uuid": "00000002-1644-5209-4300-000000000000",
+              "id": 89,
+              "ident": ":logseq.property/scheduled",
+              "content": "Scheduled",
+              "full-title": "Scheduled"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":user.class/Project-NobOOFIJ"
+                }
+              ],
+              "title": "Mobile app",
+              "uuid": "6a000000-0000-4000-8000-000000000002",
+              "id": 205,
+              "content": "Mobile app",
+              "full-title": "Mobile app"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Project",
+              "uuid": "00000002-1653-1039-3800-000000000000",
+              "id": 222,
+              "ident": ":user.property/project-j2tQGXZ2",
+              "content": "Project",
+              "full-title": "Project"
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":user.class/Project-NobOOFIJ"
+                }
+              ],
+              "title": "Website relaunch",
+              "uuid": "6a000000-0000-4000-8000-000000000001",
+              "id": 195,
+              "content": "Website relaunch",
+              "full-title": "Website relaunch"
+            }
+          ],
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "title": "Ship homepage [[6a000000-0000-4000-8000-000000000001]]",
+          "uuid": "6a000000-0000-4000-8000-000000000022",
+          "id": 196,
+          ":logseq.property/status": {
+            "title": "Done",
+            "ident": ":logseq.property/status.done"
+          },
+          "content": "Ship homepage [[6a000000-0000-4000-8000-000000000001]]",
+          "full-title": "Ship homepage [[Website relaunch]]"
+        }
+      ],
+      [
+        {
+          "refs": [
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Tags",
+              "uuid": "00000002-1814-9483-4000-000000000000",
+              "id": 23,
+              "ident": "tags",
+              "content": "Tags",
+              "full-title": "Tags"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Property"
+                }
+              ],
+              "title": "Status",
+              "uuid": "00000002-9072-1685-3000-000000000000",
+              "id": 75,
+              "ident": ":logseq.property/status",
+              "content": "Status",
+              "full-title": "Status"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":logseq.class/Tag"
+                }
+              ],
+              "title": "Task",
+              "uuid": "00000002-1282-1814-5700-000000000000",
+              "id": 170,
+              "ident": ":logseq.class/Task",
+              "content": "Task",
+              "full-title": "Task"
+            },
+            {
+              "tags": [
+                {
+                  "ident": ":user.class/Project-NobOOFIJ"
+                }
+              ],
+              "title": "Website relaunch",
+              "uuid": "6a000000-0000-4000-8000-000000000001",
+              "id": 195,
+              "content": "Website relaunch",
+              "full-title": "Website relaunch"
+            }
+          ],
+          "tags": [
+            {
+              "title": "Task",
+              "ident": ":logseq.class/Task"
+            }
+          ],
+          "title": "Survey users [[6a000000-0000-4000-8000-000000000001]]",
+          "uuid": "6a000000-0000-4000-8000-000000000023",
+          "id": 194,
+          ":logseq.property/status": {
+            "title": "Canceled",
+            "ident": ":logseq.property/status.canceled"
+          },
+          "content": "Survey users [[6a000000-0000-4000-8000-000000000001]]",
+          "full-title": "Survey users [[Website relaunch]]"
+        }
+      ]
+    ]
+  },
+  "tasksOfProject": {
+    "query": "[:find ?node-title ?task-title\n          :in $ ?tag-title %\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\n                 [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))\n                 [?task :block/tags :logseq.class/Task] [?task :block/refs ?n]\n                 [?n :block/title ?node-title] [?task :block/title ?task-title]]",
+    "inputs": [
+      "Project",
+      "<rules>"
+    ],
+    "call": "logseq.DB.datascriptQuery(\"[:find ?node-title ?task-title\\n          :in $ ?tag-title %\\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\\n                 [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))\\n                 [?task :block/tags :logseq.class/Task] [?task :block/refs ?n]\\n                 [?n :block/title ?node-title] [?task :block/title ?task-title]]\", \"Project\", \" [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]\\n  [(class-extends ?p ?c) [?t :logseq.property.class/extends ?p] (class-extends ?t ?c)]]\")",
+    "ok": true,
+    "detail": [
+      [
+        "Website relaunch",
+        "Survey users [[6a000000-0000-4000-8000-000000000001]]"
+      ],
+      [
+        "Website relaunch",
+        "Ship homepage [[6a000000-0000-4000-8000-000000000001]]"
+      ],
+      [
+        "Mobile app",
+        "Wireframes"
+      ],
+      [
+        "Acme rollout",
+        "Acme contract"
+      ],
+      [
+        "Website relaunch",
+        "Draft brief [[6a000000-0000-4000-8000-000000000001]]"
+      ]
+    ]
+  }
+}

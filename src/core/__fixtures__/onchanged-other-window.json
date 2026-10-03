@@ -1,0 +1,185 @@
+{
+  "capturedAt": "2026-10-03T18:30:53.665Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "secondTabGraph": {
+    "url": "logseq_db_plugin-test",
+    "name": "logseq_db_plugin-test",
+    "path": "memory:///plugin-test"
+  },
+  "edited": "update_block sent from tab 2",
+  "events": [
+    {
+      "receivedAt": 1791052250034,
+      "payload": {
+        "blocks": [
+          {
+            "updatedAt": 1791052250004,
+            "createdAt": 1791051442540,
+            "breadcrumb": [
+              {
+                "id": 226,
+                "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+                "title": "Planner probe",
+                "name": "planner probe",
+                "tags": [
+                  {
+                    "id": 4,
+                    "uuid": "00000002-1484-3403-2900-000000000000",
+                    "ident": "logseq.class/Page"
+                  }
+                ],
+                "rawTitle": "Planner probe",
+                "refs": [
+                  {
+                    "id": 4,
+                    "uuid": "00000002-1484-3403-2900-000000000000",
+                    "ident": "logseq.class/Page",
+                    "title": "Page",
+                    "name": "page",
+                    "tags": [
+                      {
+                        "id": 2,
+                        "uuid": "00000002-5389-0208-3000-000000000000",
+                        "ident": "logseq.class/Tag"
+                      }
+                    ]
+                  },
+                  {
+                    "id": 23,
+                    "uuid": "00000002-1814-9483-4000-000000000000",
+                    "ident": "block/tags",
+                    "title": "Tags",
+                    "name": "tags",
+                    "tags": [
+                      {
+                        "id": 3,
+                        "uuid": "00000002-1038-7670-4800-000000000000",
+                        "ident": "logseq.class/Property"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "parent": {
+              "id": 226,
+              "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+              "title": "Planner probe",
+              "name": "planner probe",
+              "tags": [
+                {
+                  "id": 4,
+                  "uuid": "00000002-1484-3403-2900-000000000000",
+                  "ident": "logseq.class/Page"
+                }
+              ]
+            },
+            "txId": 536871058,
+            "tags": [
+              {
+                "id": 170,
+                "uuid": "00000002-1282-1814-5700-000000000000",
+                "ident": "logseq.class/Task",
+                "title": "Task",
+                "name": "task",
+                "tags": [
+                  {
+                    "id": 2,
+                    "uuid": "00000002-5389-0208-3000-000000000000",
+                    "ident": "logseq.class/Tag"
+                  }
+                ]
+              }
+            ],
+            "id": 202,
+            "positionedProperties": {
+              "blockLeft": [
+                "00000002-9072-1685-3000-000000000000"
+              ]
+            },
+            "refsCount": 0,
+            "rawTitle": "Loose task (edited in tab 2)",
+            "uuid": "6a000000-0000-4000-8000-000000000026",
+            "status": {
+              "id": 77,
+              "uuid": "00000002-1615-5853-7700-000000000000",
+              "ident": "logseq.property/status.todo",
+              "title": "Todo",
+              "icon": {
+                "type": "tabler-icon",
+                "id": "Todo"
+              }
+            },
+            "order": "b5P",
+            "title": "Loose task (edited in tab 2)",
+            "page": {
+              "id": 226,
+              "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+              "title": "Planner probe",
+              "name": "planner probe",
+              "tags": [
+                {
+                  "id": 4,
+                  "uuid": "00000002-1484-3403-2900-000000000000",
+                  "ident": "logseq.class/Page"
+                }
+              ]
+            },
+            "refs": [
+              {
+                "id": 23,
+                "uuid": "00000002-1814-9483-4000-000000000000",
+                "ident": "block/tags",
+                "title": "Tags",
+                "name": "tags",
+                "tags": [
+                  {
+                    "id": 3,
+                    "uuid": "00000002-1038-7670-4800-000000000000",
+                    "ident": "logseq.class/Property"
+                  }
+                ]
+              },
+              {
+                "id": 75,
+                "uuid": "00000002-9072-1685-3000-000000000000",
+                "ident": "logseq.property/status",
+                "title": "Status",
+                "name": "status",
+                "tags": [
+                  {
+                    "id": 3,
+                    "uuid": "00000002-1038-7670-4800-000000000000",
+                    "ident": "logseq.class/Property"
+                  }
+                ]
+              },
+              {
+                "id": 170,
+                "uuid": "00000002-1282-1814-5700-000000000000",
+                "ident": "logseq.class/Task",
+                "title": "Task",
+                "name": "task",
+                "tags": [
+                  {
+                    "id": 2,
+                    "uuid": "00000002-5389-0208-3000-000000000000",
+                    "ident": "logseq.class/Tag"
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "deletedBlockUuids": [],
+        "txData": [],
+        "txMeta": {
+          "clientId": "64a58504-df15-4b5b-9237-1cf762bf044f",
+          "outlinerOp": "save-block"
+        }
+      }
+    }
+  ]
+}

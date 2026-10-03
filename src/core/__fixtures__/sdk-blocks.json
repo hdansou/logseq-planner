@@ -1,0 +1,818 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "project": {
+    "call": "logseq.Editor.getBlock(\"6a000000-0000-4000-8000-000000000001\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ],
+        ":logseq.property/status": {
+          "id": 78,
+          "uuid": "00000002-1840-1229-0800-000000000000",
+          "title": "Doing",
+          "rawTitle": "Doing",
+          ":logseq.property/icon": {
+            "type": "tablerIcon",
+            "id": "InProgress50"
+          },
+          "ident": ":logseq.property/status.doing",
+          "content": "Doing",
+          "fullTitle": "Doing"
+        },
+        ":user.property/end-aREJ7Xcz": {
+          "journalDay": 20261023,
+          "tags": [
+            ":logseq.class/Journal"
+          ],
+          "id": 198,
+          "rawTitle": "Oct 23rd, 2026",
+          "name": "oct 23rd, 2026",
+          "uuid": "00000001-2026-1023-0000-000000000000",
+          "fullTitle": "Oct 23rd, 2026",
+          "content": "Oct 23rd, 2026",
+          "title": "Oct 23rd, 2026"
+        },
+        ":user.property/owner-rDOlrnNh": {
+          "id": 214,
+          "uuid": "6a000000-0000-4000-8000-000000000101",
+          "title": "Alice",
+          "rawTitle": "Alice",
+          "content": "Alice",
+          "fullTitle": "Alice"
+        },
+        ":user.property/start-Sd0PMVjj": {
+          "journalDay": 20260923,
+          "tags": [
+            ":logseq.class/Journal"
+          ],
+          "id": 199,
+          "rawTitle": "Sep 23rd, 2026",
+          "name": "sep 23rd, 2026",
+          "uuid": "00000001-2026-0923-0000-000000000000",
+          "fullTitle": "Sep 23rd, 2026",
+          "content": "Sep 23rd, 2026",
+          "title": "Sep 23rd, 2026"
+        }
+      },
+      "parentId": 226,
+      "pageId": 226,
+      "updatedAt": 1791052228792,
+      ":user.property/end-aREJ7Xcz": {
+        "journalDay": 20261023,
+        "tags": [
+          ":logseq.class/Journal"
+        ],
+        "id": 198,
+        "rawTitle": "Oct 23rd, 2026",
+        "name": "oct 23rd, 2026",
+        "uuid": "00000001-2026-1023-0000-000000000000",
+        "fullTitle": "Oct 23rd, 2026",
+        "content": "Oct 23rd, 2026",
+        "title": "Oct 23rd, 2026"
+      },
+      "createdAt": 1791051442539,
+      ":user.property/owner-rDOlrnNh": {
+        "id": 214,
+        "uuid": "6a000000-0000-4000-8000-000000000101",
+        "title": "Alice",
+        "rawTitle": "Alice",
+        "content": "Alice",
+        "fullTitle": "Alice"
+      },
+      ":user.property/start-Sd0PMVjj": {
+        "journalDay": 20260923,
+        "tags": [
+          ":logseq.class/Journal"
+        ],
+        "id": 199,
+        "rawTitle": "Sep 23rd, 2026",
+        "name": "sep 23rd, 2026",
+        "uuid": "00000001-2026-0923-0000-000000000000",
+        "fullTitle": "Sep 23rd, 2026",
+        "content": "Sep 23rd, 2026",
+        "title": "Sep 23rd, 2026"
+      },
+      "parent": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      ":logseq.property/status": {
+        "id": 78,
+        "uuid": "00000002-1840-1229-0800-000000000000",
+        "title": "Doing",
+        "rawTitle": "Doing",
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "InProgress50"
+        },
+        "ident": ":logseq.property/status.doing",
+        "content": "Doing",
+        "fullTitle": "Doing"
+      },
+      "children": [],
+      "tags": [
+        {
+          "ident": ":user.class/Project-NobOOFIJ",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 223,
+          "rawTitle": "Project",
+          "name": "project",
+          "uuid": "00000002-1358-3903-1900-000000000000",
+          "fullTitle": "Project",
+          "content": "Project",
+          "title": "Project"
+        }
+      ],
+      "id": 195,
+      "rawTitle": "Website relaunch",
+      "uuid": "6a000000-0000-4000-8000-000000000001",
+      "fullTitle": "Website relaunch",
+      "pageName": "planner probe",
+      "content": "Website relaunch",
+      "order": "b5C",
+      "title": "Website relaunch",
+      "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "page": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      "collapsed?": false,
+      "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "refs": [
+        {
+          "id": 23
+        },
+        {
+          "id": 75
+        },
+        {
+          "id": 198
+        },
+        {
+          "id": 199
+        },
+        {
+          "id": 211
+        },
+        {
+          "id": 212
+        },
+        {
+          "id": 213
+        },
+        {
+          "id": 223
+        }
+      ]
+    }
+  },
+  "projectProperties": {
+    "call": "logseq.Editor.getBlockProperties(\"6a000000-0000-4000-8000-000000000001\")",
+    "ok": true,
+    "detail": {
+      ":logseq.property/status": "Doing",
+      ":block/tags": [
+        "Project"
+      ],
+      ":user.property/end-aREJ7Xcz": "Oct 23rd, 2026",
+      ":user.property/owner-rDOlrnNh": "Alice",
+      ":user.property/start-Sd0PMVjj": "Sep 23rd, 2026"
+    }
+  },
+  "clientProject": {
+    "call": "logseq.Editor.getBlock(\"6a000000-0000-4000-8000-000000000003\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          {
+            "ident": ":user.class/ClientProject-GPwqlTj3",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 224,
+            "rawTitle": "Client project",
+            "name": "clientproject",
+            "uuid": "00000002-1851-5287-0000-000000000000",
+            "fullTitle": "Client project",
+            "content": "Client project",
+            "title": "Client project"
+          }
+        ],
+        ":logseq.property/status": {
+          "id": 79,
+          "uuid": "00000002-1870-0014-4300-000000000000",
+          "title": "In Review",
+          "rawTitle": "In Review",
+          ":logseq.property/icon": {
+            "type": "tablerIcon",
+            "id": "InReview"
+          },
+          "ident": ":logseq.property/status.in-review",
+          "content": "In Review",
+          "fullTitle": "In Review"
+        },
+        ":user.property/client-wYAINCWr": {
+          "id": 227,
+          "uuid": "6ac146b2-9e23-4b1b-96cb-b55096e30b1d",
+          "title": "Acme",
+          "rawTitle": "Acme",
+          "content": "Acme",
+          "fullTitle": "Acme"
+        },
+        ":user.property/end-aREJ7Xcz": {
+          "journalDay": 20261008,
+          "tags": [
+            ":logseq.class/Journal"
+          ],
+          "id": 208,
+          "rawTitle": "Oct 8th, 2026",
+          "name": "oct 8th, 2026",
+          "uuid": "00000001-2026-1008-0000-000000000000",
+          "fullTitle": "Oct 8th, 2026",
+          "content": "Oct 8th, 2026",
+          "title": "Oct 8th, 2026"
+        },
+        ":user.property/owner-rDOlrnNh": {
+          "id": 214,
+          "uuid": "6a000000-0000-4000-8000-000000000101",
+          "title": "Alice",
+          "rawTitle": "Alice",
+          "content": "Alice",
+          "fullTitle": "Alice"
+        },
+        ":user.property/start-Sd0PMVjj": {
+          "journalDay": 20260930,
+          "tags": [
+            ":logseq.class/Journal"
+          ],
+          "id": 207,
+          "rawTitle": "Sep 30th, 2026",
+          "name": "sep 30th, 2026",
+          "uuid": "00000001-2026-0930-0000-000000000000",
+          "fullTitle": "Sep 30th, 2026",
+          "content": "Sep 30th, 2026",
+          "title": "Sep 30th, 2026"
+        }
+      },
+      "parentId": 226,
+      "pageId": 226,
+      "updatedAt": 1791051442539,
+      ":user.property/end-aREJ7Xcz": {
+        "journalDay": 20261008,
+        "tags": [
+          ":logseq.class/Journal"
+        ],
+        "id": 208,
+        "rawTitle": "Oct 8th, 2026",
+        "name": "oct 8th, 2026",
+        "uuid": "00000001-2026-1008-0000-000000000000",
+        "fullTitle": "Oct 8th, 2026",
+        "content": "Oct 8th, 2026",
+        "title": "Oct 8th, 2026"
+      },
+      "createdAt": 1791051442539,
+      ":user.property/owner-rDOlrnNh": {
+        "id": 214,
+        "uuid": "6a000000-0000-4000-8000-000000000101",
+        "title": "Alice",
+        "rawTitle": "Alice",
+        "content": "Alice",
+        "fullTitle": "Alice"
+      },
+      ":user.property/start-Sd0PMVjj": {
+        "journalDay": 20260930,
+        "tags": [
+          ":logseq.class/Journal"
+        ],
+        "id": 207,
+        "rawTitle": "Sep 30th, 2026",
+        "name": "sep 30th, 2026",
+        "uuid": "00000001-2026-0930-0000-000000000000",
+        "fullTitle": "Sep 30th, 2026",
+        "content": "Sep 30th, 2026",
+        "title": "Sep 30th, 2026"
+      },
+      "parent": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      ":logseq.property/status": {
+        "id": 79,
+        "uuid": "00000002-1870-0014-4300-000000000000",
+        "title": "In Review",
+        "rawTitle": "In Review",
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "InReview"
+        },
+        "ident": ":logseq.property/status.in-review",
+        "content": "In Review",
+        "fullTitle": "In Review"
+      },
+      "children": [],
+      "tags": [
+        {
+          "ident": ":user.class/ClientProject-GPwqlTj3",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 224,
+          "rawTitle": "Client project",
+          "name": "clientproject",
+          "uuid": "00000002-1851-5287-0000-000000000000",
+          "fullTitle": "Client project",
+          "content": "Client project",
+          "title": "Client project"
+        }
+      ],
+      "id": 200,
+      "rawTitle": "Acme rollout",
+      "uuid": "6a000000-0000-4000-8000-000000000003",
+      "fullTitle": "Acme rollout",
+      "pageName": "planner probe",
+      "content": "Acme rollout",
+      "order": "b5E",
+      "title": "Acme rollout",
+      "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "page": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      ":user.property/client-wYAINCWr": {
+        "id": 227,
+        "uuid": "6ac146b2-9e23-4b1b-96cb-b55096e30b1d",
+        "title": "Acme",
+        "rawTitle": "Acme",
+        "content": "Acme",
+        "fullTitle": "Acme"
+      },
+      "collapsed?": false,
+      "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "refs": [
+        {
+          "id": 23
+        },
+        {
+          "id": 75
+        },
+        {
+          "id": 207
+        },
+        {
+          "id": 208
+        },
+        {
+          "id": 211
+        },
+        {
+          "id": 212
+        },
+        {
+          "id": 213
+        },
+        {
+          "id": 216
+        },
+        {
+          "id": 224
+        }
+      ]
+    }
+  },
+  "meeting": {
+    "call": "logseq.Editor.getBlock(\"6a000000-0000-4000-8000-000000000011\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          {
+            "ident": ":user.class/Meeting-IIPq9EjO",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 225,
+            "rawTitle": "Meeting",
+            "name": "meeting",
+            "uuid": "00000002-1681-0833-1400-000000000000",
+            "fullTitle": "Meeting",
+            "content": "Meeting",
+            "title": "Meeting"
+          }
+        ],
+        ":user.property/date-BYomm66x": 1791041400000,
+        ":user.property/type-wvs-FyOh": {
+          "id": 219,
+          "uuid": "6a000000-0000-4000-8000-000000000111",
+          "title": "Planning",
+          "rawTitle": "Planning",
+          "content": "Planning",
+          "fullTitle": "Planning"
+        }
+      },
+      "parentId": 226,
+      "pageId": 226,
+      "updatedAt": 1791051442540,
+      "createdAt": 1791051442540,
+      ":user.property/date-BYomm66x": 1791041400000,
+      "parent": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      "children": [],
+      "tags": [
+        {
+          "ident": ":user.class/Meeting-IIPq9EjO",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 225,
+          "rawTitle": "Meeting",
+          "name": "meeting",
+          "uuid": "00000002-1681-0833-1400-000000000000",
+          "fullTitle": "Meeting",
+          "content": "Meeting",
+          "title": "Meeting"
+        }
+      ],
+      "id": 210,
+      "rawTitle": "Kickoff",
+      "uuid": "6a000000-0000-4000-8000-000000000011",
+      "fullTitle": "Kickoff",
+      "pageName": "planner probe",
+      ":user.property/type-wvs-FyOh": {
+        "id": 219,
+        "uuid": "6a000000-0000-4000-8000-000000000111",
+        "title": "Planning",
+        "rawTitle": "Planning",
+        "content": "Planning",
+        "fullTitle": "Planning"
+      },
+      "content": "Kickoff",
+      "order": "b5H",
+      "title": "Kickoff",
+      "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "page": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      "collapsed?": false,
+      "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "refs": [
+        {
+          "id": 23
+        },
+        {
+          "id": 193
+        },
+        {
+          "id": 217
+        },
+        {
+          "id": 218
+        },
+        {
+          "id": 225
+        }
+      ]
+    }
+  },
+  "task": {
+    "call": "logseq.Editor.getBlock(\"6a000000-0000-4000-8000-000000000021\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          {
+            "ident": ":logseq.class/Task",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 170,
+            "rawTitle": "Task",
+            "name": "task",
+            "uuid": "00000002-1282-1814-5700-000000000000",
+            "fullTitle": "Task",
+            "content": "Task",
+            "title": "Task"
+          }
+        ],
+        ":logseq.property/deadline": 1791237600000,
+        ":logseq.property/status": {
+          "id": 77,
+          "uuid": "00000002-1615-5853-7700-000000000000",
+          "title": "Todo",
+          "rawTitle": "Todo",
+          ":logseq.property/icon": {
+            "type": "tablerIcon",
+            "id": "Todo"
+          },
+          "ident": ":logseq.property/status.todo",
+          "content": "Todo",
+          "fullTitle": "Todo"
+        }
+      },
+      "parentId": 226,
+      "pageId": 226,
+      "updatedAt": 1791052227652,
+      "createdAt": 1791051442540,
+      "parent": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      ":logseq.property/status": {
+        "id": 77,
+        "uuid": "00000002-1615-5853-7700-000000000000",
+        "title": "Todo",
+        "rawTitle": "Todo",
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "Todo"
+        },
+        "ident": ":logseq.property/status.todo",
+        "content": "Todo",
+        "fullTitle": "Todo"
+      },
+      "children": [],
+      "tags": [
+        {
+          "ident": ":logseq.class/Task",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 170,
+          "rawTitle": "Task",
+          "name": "task",
+          "uuid": "00000002-1282-1814-5700-000000000000",
+          "fullTitle": "Task",
+          "content": "Task",
+          "title": "Task"
+        }
+      ],
+      "id": 206,
+      "rawTitle": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+      "uuid": "6a000000-0000-4000-8000-000000000021",
+      "fullTitle": "Draft brief [[Website relaunch]]",
+      "pageName": "planner probe",
+      "content": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+      "order": "b5K",
+      "title": "Draft brief [[6a000000-0000-4000-8000-000000000001]]",
+      ":logseq.property/deadline": 1791237600000,
+      "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "page": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      "collapsed?": false,
+      "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "refs": [
+        {
+          "id": 23
+        },
+        {
+          "id": 75
+        },
+        {
+          "id": 87
+        },
+        {
+          "id": 170
+        },
+        {
+          "id": 195
+        }
+      ]
+    }
+  },
+  "taskByNodeProperty": {
+    "call": "logseq.Editor.getBlock(\"6a000000-0000-4000-8000-000000000024\")",
+    "ok": true,
+    "detail": {
+      "properties": {
+        "tags": [
+          {
+            "ident": ":logseq.class/Task",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 170,
+            "rawTitle": "Task",
+            "name": "task",
+            "uuid": "00000002-1282-1814-5700-000000000000",
+            "fullTitle": "Task",
+            "content": "Task",
+            "title": "Task"
+          }
+        ],
+        ":logseq.property/scheduled": 1791554400000,
+        ":logseq.property/status": {
+          "id": 78,
+          "uuid": "00000002-1840-1229-0800-000000000000",
+          "title": "Doing",
+          "rawTitle": "Doing",
+          ":logseq.property/icon": {
+            "type": "tablerIcon",
+            "id": "InProgress50"
+          },
+          "ident": ":logseq.property/status.doing",
+          "content": "Doing",
+          "fullTitle": "Doing"
+        },
+        ":user.property/project-j2tQGXZ2": {
+          "id": 205,
+          "tags": [
+            ":user.class/Project-NobOOFIJ"
+          ],
+          "uuid": "6a000000-0000-4000-8000-000000000002",
+          "title": "Mobile app",
+          "rawTitle": "Mobile app",
+          "content": "Mobile app",
+          "fullTitle": "Mobile app"
+        }
+      },
+      "parentId": 226,
+      "pageId": 226,
+      "updatedAt": 1791051442540,
+      ":logseq.property/scheduled": 1791554400000,
+      "createdAt": 1791051442540,
+      "parent": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      ":logseq.property/status": {
+        "id": 78,
+        "uuid": "00000002-1840-1229-0800-000000000000",
+        "title": "Doing",
+        "rawTitle": "Doing",
+        ":logseq.property/icon": {
+          "type": "tablerIcon",
+          "id": "InProgress50"
+        },
+        "ident": ":logseq.property/status.doing",
+        "content": "Doing",
+        "fullTitle": "Doing"
+      },
+      "children": [],
+      "tags": [
+        {
+          "ident": ":logseq.class/Task",
+          "tags": [
+            ":logseq.class/Tag"
+          ],
+          "id": 170,
+          "rawTitle": "Task",
+          "name": "task",
+          "uuid": "00000002-1282-1814-5700-000000000000",
+          "fullTitle": "Task",
+          "content": "Task",
+          "title": "Task"
+        }
+      ],
+      "id": 201,
+      "rawTitle": "Wireframes",
+      "uuid": "6a000000-0000-4000-8000-000000000024",
+      "fullTitle": "Wireframes",
+      "pageName": "planner probe",
+      "content": "Wireframes",
+      "order": "b5N",
+      "title": "Wireframes",
+      ":user.property/project-j2tQGXZ2": {
+        "id": 205,
+        "tags": [
+          ":user.class/Project-NobOOFIJ"
+        ],
+        "uuid": "6a000000-0000-4000-8000-000000000002",
+        "title": "Mobile app",
+        "rawTitle": "Mobile app",
+        "content": "Mobile app",
+        "fullTitle": "Mobile app"
+      },
+      "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "page": {
+        "id": 226,
+        "tags": [
+          ":logseq.class/Page"
+        ],
+        "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "title": "Planner probe",
+        "rawTitle": "Planner probe",
+        "name": "planner probe",
+        "content": "Planner probe",
+        "fullTitle": "Planner probe"
+      },
+      "collapsed?": false,
+      "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+      "refs": [
+        {
+          "id": 23
+        },
+        {
+          "id": 75
+        },
+        {
+          "id": 89
+        },
+        {
+          "id": 170
+        },
+        {
+          "id": 205
+        },
+        {
+          "id": 222
+        }
+      ]
+    }
+  }
+}

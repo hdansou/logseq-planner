@@ -1,0 +1,1519 @@
+{
+  "capturedAt": "2026-10-03T18:32:41.299Z",
+  "graph": "logseq_db_plugin-test",
+  "host": "Logseq web app dev build (pnpm watch) at http://localhost:3001",
+  "via": "plugin SDK through src/dev-probe.ts (scripts/probe.mjs)",
+  "projectWithExtends": {
+    "query": "[:find (pull ?b [*])\n          :in $ ?tag-title %\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\n                 [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]",
+    "inputs": [
+      "Project",
+      "<rules>"
+    ],
+    "call": "logseq.DB.datascriptQuery(\"[:find (pull ?b [*])\\n          :in $ ?tag-title %\\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\\n                 [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]\", \"Project\", \" [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]\\n  [(class-extends ?p ?c) [?t :logseq.property.class/extends ?p] (class-extends ?t ?c)]]\")",
+    "ok": true,
+    "detail": [
+      [
+        {
+          ":user.property/end-aREJ7Xcz": {
+            "id": 198
+          },
+          ":user.property/owner-rDOlrnNh": {
+            "id": 214
+          },
+          ":user.property/start-Sd0PMVjj": {
+            "id": 199
+          },
+          "parent": {
+            "id": 226
+          },
+          ":logseq.property/status": {
+            "id": 78
+          },
+          "tags": [
+            {
+              "id": 223
+            }
+          ],
+          "id": 195,
+          "updated-at": 1791052228792,
+          "uuid": "6a000000-0000-4000-8000-000000000001",
+          "created-at": 1791051442539,
+          "content": "Website relaunch",
+          "order": "b5C",
+          "title": "Website relaunch",
+          "full-title": "Website relaunch",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 75
+            },
+            {
+              "id": 198
+            },
+            {
+              "id": 199
+            },
+            {
+              "id": 211
+            },
+            {
+              "id": 212
+            },
+            {
+              "id": 213
+            },
+            {
+              "id": 223
+            }
+          ]
+        }
+      ],
+      [
+        {
+          "parent": {
+            "id": 226
+          },
+          ":logseq.property/status": {
+            "id": 76
+          },
+          "tags": [
+            {
+              "id": 223
+            }
+          ],
+          "id": 197,
+          "updated-at": 1791051442540,
+          "uuid": "6a000000-0000-4000-8000-000000000004",
+          "created-at": 1791051442540,
+          "content": "Archive cleanup",
+          "order": "b5G",
+          "title": "Archive cleanup",
+          "full-title": "Archive cleanup",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 75
+            },
+            {
+              "id": 223
+            }
+          ]
+        }
+      ],
+      [
+        {
+          ":user.property/owner-rDOlrnNh": {
+            "id": 215
+          },
+          ":user.property/start-Sd0PMVjj": {
+            "id": 208
+          },
+          "parent": {
+            "id": 226
+          },
+          ":logseq.property/status": {
+            "id": 77
+          },
+          "tags": [
+            {
+              "id": 223
+            }
+          ],
+          "id": 205,
+          "updated-at": 1791052195258,
+          "uuid": "6a000000-0000-4000-8000-000000000002",
+          "created-at": 1791051442539,
+          "content": "Mobile app",
+          "order": "b5D",
+          "title": "Mobile app",
+          "full-title": "Mobile app",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 75
+            },
+            {
+              "id": 208
+            },
+            {
+              "id": 211
+            },
+            {
+              "id": 213
+            },
+            {
+              "id": 223
+            }
+          ]
+        }
+      ],
+      [
+        {
+          ":user.property/end-aREJ7Xcz": {
+            "id": 208
+          },
+          ":user.property/owner-rDOlrnNh": {
+            "id": 214
+          },
+          ":user.property/start-Sd0PMVjj": {
+            "id": 207
+          },
+          "parent": {
+            "id": 226
+          },
+          ":logseq.property/status": {
+            "id": 79
+          },
+          "tags": [
+            {
+              "id": 224
+            }
+          ],
+          "id": 200,
+          "updated-at": 1791051442539,
+          "uuid": "6a000000-0000-4000-8000-000000000003",
+          "created-at": 1791051442539,
+          "content": "Acme rollout",
+          "order": "b5E",
+          "title": "Acme rollout",
+          "full-title": "Acme rollout",
+          "page": {
+            "id": 226
+          },
+          ":user.property/client-wYAINCWr": {
+            "id": 227
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 75
+            },
+            {
+              "id": 207
+            },
+            {
+              "id": 208
+            },
+            {
+              "id": 211
+            },
+            {
+              "id": 212
+            },
+            {
+              "id": 213
+            },
+            {
+              "id": 216
+            },
+            {
+              "id": 224
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "meeting": {
+    "query": "[:find (pull ?b [*])\n          :in $ ?tag-title %\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\n                 [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]",
+    "inputs": [
+      "Meeting",
+      "<rules>"
+    ],
+    "call": "logseq.DB.datascriptQuery(\"[:find (pull ?b [*])\\n          :in $ ?tag-title %\\n          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]\\n                 [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]\", \"Meeting\", \" [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]\\n  [(class-extends ?p ?c) [?t :logseq.property.class/extends ?p] (class-extends ?t ?c)]]\")",
+    "ok": true,
+    "detail": [
+      [
+        {
+          "parent": {
+            "id": 226
+          },
+          "tags": [
+            {
+              "id": 225
+            }
+          ],
+          "id": 203,
+          "updated-at": 1791051442540,
+          "uuid": "6a000000-0000-4000-8000-000000000013",
+          "created-at": 1791051442540,
+          "content": "Untimed meeting",
+          "order": "b5J",
+          "title": "Untimed meeting",
+          "full-title": "Untimed meeting",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 225
+            }
+          ]
+        }
+      ],
+      [
+        {
+          ":user.property/date-BYomm66x": 1791175500000,
+          "parent": {
+            "id": 226
+          },
+          "tags": [
+            {
+              "id": 225
+            }
+          ],
+          "id": 209,
+          "updated-at": 1791051442540,
+          "uuid": "6a000000-0000-4000-8000-000000000012",
+          "created-at": 1791051442540,
+          ":user.property/type-wvs-FyOh": {
+            "id": 220
+          },
+          "content": "Late review",
+          "order": "b5I",
+          "title": "Late review",
+          "full-title": "Late review",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 217
+            },
+            {
+              "id": 218
+            },
+            {
+              "id": 225
+            }
+          ]
+        }
+      ],
+      [
+        {
+          ":user.property/date-BYomm66x": 1791041400000,
+          "parent": {
+            "id": 226
+          },
+          "tags": [
+            {
+              "id": 225
+            }
+          ],
+          "id": 210,
+          "updated-at": 1791051442540,
+          "uuid": "6a000000-0000-4000-8000-000000000011",
+          "created-at": 1791051442540,
+          ":user.property/type-wvs-FyOh": {
+            "id": 219
+          },
+          "content": "Kickoff",
+          "order": "b5H",
+          "title": "Kickoff",
+          "full-title": "Kickoff",
+          "page": {
+            "id": 226
+          },
+          "refs": [
+            {
+              "id": 23
+            },
+            {
+              "id": 193
+            },
+            {
+              "id": 217
+            },
+            {
+              "id": 218
+            },
+            {
+              "id": 225
+            }
+          ]
+        }
+      ]
+    ]
+  },
+  "getTagObjectsProject": {
+    "call": "logseq.Editor.getTagObjects(\"Project\")",
+    "ok": false,
+    "detail": {
+      "message": "Not a tag",
+      "data": {
+        "meta": null,
+        "cnt": 1,
+        "arr": [
+          {
+            "ns": null,
+            "name": "input",
+            "fqn": "input",
+            "_hash": 556931961,
+            "cljs$lang$protocol_mask$partition0$": 2153775105,
+            "cljs$lang$protocol_mask$partition1$": 4096
+          },
+          "Project"
+        ],
+        "__hash": null,
+        "cljs$lang$protocol_mask$partition0$": 16647951,
+        "cljs$lang$protocol_mask$partition1$": 401412
+      },
+      "cause": null,
+      "name": "Error",
+      "stack": "Error: Not a tag\n    at new cljs$core$ExceptionInfo (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37305:10)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$3] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37366:9)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$2] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37362:26)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:161)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:339)\n    at Object.eval [as resolve] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.js:95:98)\n    at processNextTick (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:75:25)\n    at transition (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:135:12)\n    at PromiseImpl.resolve (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:212:9)\n    at Object.eval [as complete] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:51:18)"
+    }
+  },
+  "getTagObjectsClientProject": {
+    "call": "logseq.Editor.getTagObjects(\"Client project\")",
+    "ok": false,
+    "detail": {
+      "message": "Not a tag",
+      "data": {
+        "meta": null,
+        "cnt": 1,
+        "arr": [
+          {
+            "ns": null,
+            "name": "input",
+            "fqn": "input",
+            "_hash": 556931961,
+            "cljs$lang$protocol_mask$partition0$": 2153775105,
+            "cljs$lang$protocol_mask$partition1$": 4096
+          },
+          "Client project"
+        ],
+        "__hash": null,
+        "cljs$lang$protocol_mask$partition0$": 16647951,
+        "cljs$lang$protocol_mask$partition1$": 401412
+      },
+      "cause": null,
+      "name": "Error",
+      "stack": "Error: Not a tag\n    at new cljs$core$ExceptionInfo (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37305:10)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$3] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37366:9)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$2] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37362:26)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:161)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:339)\n    at Object.eval [as resolve] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.js:95:98)\n    at processNextTick (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:75:25)\n    at transition (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:135:12)\n    at PromiseImpl.resolve (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:212:9)\n    at Object.eval [as complete] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:51:18)"
+    }
+  },
+  "getTagObjectsMeeting": {
+    "call": "logseq.Editor.getTagObjects(\"Meeting\")",
+    "ok": false,
+    "detail": {
+      "message": "Not a tag",
+      "data": {
+        "meta": null,
+        "cnt": 1,
+        "arr": [
+          {
+            "ns": null,
+            "name": "input",
+            "fqn": "input",
+            "_hash": 556931961,
+            "cljs$lang$protocol_mask$partition0$": 2153775105,
+            "cljs$lang$protocol_mask$partition1$": 4096
+          },
+          "Meeting"
+        ],
+        "__hash": null,
+        "cljs$lang$protocol_mask$partition0$": 16647951,
+        "cljs$lang$protocol_mask$partition1$": 401412
+      },
+      "cause": null,
+      "name": "Error",
+      "stack": "Error: Not a tag\n    at new cljs$core$ExceptionInfo (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37305:10)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$3] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37366:9)\n    at cljs$core$ex_info.eval [as cljs$core$IFn$_invoke$arity$2] (http://localhost:3001/static/js/cljs-runtime/cljs.core.js:37362:26)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:161)\n    at eval (http://localhost:3001/static/js/cljs-runtime/logseq.api.db_based.js:333:339)\n    at Object.eval [as resolve] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.js:95:98)\n    at processNextTick (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:75:25)\n    at transition (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:135:12)\n    at PromiseImpl.resolve (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:212:9)\n    at Object.eval [as complete] (http://localhost:3001/static/js/cljs-runtime/promesa.impl.promise.js:51:18)"
+    }
+  },
+  "getTagObjectsByUuid": {
+    "call": "logseq.Editor.getTagObjects(\"00000002-1358-3903-1900-000000000000\")",
+    "ok": true,
+    "detail": [
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791052228792,
+        ":user.property/end-aREJ7Xcz": 198,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 214,
+        ":user.property/start-Sd0PMVjj": 199,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 78,
+        "tags": [
+          223
+        ],
+        "id": 195,
+        "rawTitle": "Website relaunch",
+        "uuid": "6a000000-0000-4000-8000-000000000001",
+        "fullTitle": "Website relaunch",
+        "pageName": "planner probe",
+        "content": "Website relaunch",
+        "order": "b5C",
+        "title": "Website relaunch",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20261023,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 198,
+            "rawTitle": "Oct 23rd, 2026",
+            "name": "oct 23rd, 2026",
+            "uuid": "00000001-2026-1023-0000-000000000000",
+            "fullTitle": "Oct 23rd, 2026",
+            "content": "Oct 23rd, 2026",
+            "title": "Oct 23rd, 2026"
+          },
+          {
+            "journalDay": 20260923,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 199,
+            "rawTitle": "Sep 23rd, 2026",
+            "name": "sep 23rd, 2026",
+            "uuid": "00000001-2026-0923-0000-000000000000",
+            "fullTitle": "Sep 23rd, 2026",
+            "content": "Sep 23rd, 2026",
+            "title": "Sep 23rd, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/end-aREJ7Xcz",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 212,
+            "rawTitle": "End",
+            "name": "end",
+            "uuid": "00000002-1716-7161-6200-000000000000",
+            "fullTitle": "End",
+            "content": "End",
+            "title": "End"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791051442540,
+        "createdAt": 1791051442540,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 76,
+        "tags": [
+          223
+        ],
+        "id": 197,
+        "rawTitle": "Archive cleanup",
+        "uuid": "6a000000-0000-4000-8000-000000000004",
+        "fullTitle": "Archive cleanup",
+        "pageName": "planner probe",
+        "content": "Archive cleanup",
+        "order": "b5G",
+        "title": "Archive cleanup",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791052195258,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 215,
+        ":user.property/start-Sd0PMVjj": 208,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 77,
+        "tags": [
+          223
+        ],
+        "id": 205,
+        "rawTitle": "Mobile app",
+        "uuid": "6a000000-0000-4000-8000-000000000002",
+        "fullTitle": "Mobile app",
+        "pageName": "planner probe",
+        "content": "Mobile app",
+        "order": "b5D",
+        "title": "Mobile app",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20261008,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 208,
+            "rawTitle": "Oct 8th, 2026",
+            "name": "oct 8th, 2026",
+            "uuid": "00000001-2026-1008-0000-000000000000",
+            "fullTitle": "Oct 8th, 2026",
+            "content": "Oct 8th, 2026",
+            "title": "Oct 8th, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791051442539,
+        ":user.property/end-aREJ7Xcz": 208,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 214,
+        ":user.property/start-Sd0PMVjj": 207,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 79,
+        "tags": [
+          224
+        ],
+        "id": 200,
+        "rawTitle": "Acme rollout",
+        "uuid": "6a000000-0000-4000-8000-000000000003",
+        "fullTitle": "Acme rollout",
+        "pageName": "planner probe",
+        "content": "Acme rollout",
+        "order": "b5E",
+        "title": "Acme rollout",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":user.property/client-wYAINCWr": 227,
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20260930,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 207,
+            "rawTitle": "Sep 30th, 2026",
+            "name": "sep 30th, 2026",
+            "uuid": "00000001-2026-0930-0000-000000000000",
+            "fullTitle": "Sep 30th, 2026",
+            "content": "Sep 30th, 2026",
+            "title": "Sep 30th, 2026"
+          },
+          {
+            "journalDay": 20261008,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 208,
+            "rawTitle": "Oct 8th, 2026",
+            "name": "oct 8th, 2026",
+            "uuid": "00000001-2026-1008-0000-000000000000",
+            "fullTitle": "Oct 8th, 2026",
+            "content": "Oct 8th, 2026",
+            "title": "Oct 8th, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/end-aREJ7Xcz",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 212,
+            "rawTitle": "End",
+            "name": "end",
+            "uuid": "00000002-1716-7161-6200-000000000000",
+            "fullTitle": "End",
+            "content": "End",
+            "title": "End"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.property/client-wYAINCWr",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 216,
+            "rawTitle": "Client",
+            "name": "client",
+            "uuid": "00000002-1098-8558-9900-000000000000",
+            "fullTitle": "Client",
+            "content": "Client",
+            "title": "Client"
+          },
+          {
+            "ident": ":user.class/ClientProject-GPwqlTj3",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 224,
+            "rawTitle": "Client project",
+            "name": "clientproject",
+            "uuid": "00000002-1851-5287-0000-000000000000",
+            "fullTitle": "Client project",
+            "content": "Client project",
+            "title": "Client project"
+          }
+        ]
+      }
+    ]
+  },
+  "getTagObjectsByIdent": {
+    "call": "logseq.Editor.getTagObjects(\":user.class/Project-NobOOFIJ\")",
+    "ok": true,
+    "detail": [
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791052228792,
+        ":user.property/end-aREJ7Xcz": 198,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 214,
+        ":user.property/start-Sd0PMVjj": 199,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 78,
+        "tags": [
+          223
+        ],
+        "id": 195,
+        "rawTitle": "Website relaunch",
+        "uuid": "6a000000-0000-4000-8000-000000000001",
+        "fullTitle": "Website relaunch",
+        "pageName": "planner probe",
+        "content": "Website relaunch",
+        "order": "b5C",
+        "title": "Website relaunch",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20261023,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 198,
+            "rawTitle": "Oct 23rd, 2026",
+            "name": "oct 23rd, 2026",
+            "uuid": "00000001-2026-1023-0000-000000000000",
+            "fullTitle": "Oct 23rd, 2026",
+            "content": "Oct 23rd, 2026",
+            "title": "Oct 23rd, 2026"
+          },
+          {
+            "journalDay": 20260923,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 199,
+            "rawTitle": "Sep 23rd, 2026",
+            "name": "sep 23rd, 2026",
+            "uuid": "00000001-2026-0923-0000-000000000000",
+            "fullTitle": "Sep 23rd, 2026",
+            "content": "Sep 23rd, 2026",
+            "title": "Sep 23rd, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/end-aREJ7Xcz",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 212,
+            "rawTitle": "End",
+            "name": "end",
+            "uuid": "00000002-1716-7161-6200-000000000000",
+            "fullTitle": "End",
+            "content": "End",
+            "title": "End"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791051442540,
+        "createdAt": 1791051442540,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 76,
+        "tags": [
+          223
+        ],
+        "id": 197,
+        "rawTitle": "Archive cleanup",
+        "uuid": "6a000000-0000-4000-8000-000000000004",
+        "fullTitle": "Archive cleanup",
+        "pageName": "planner probe",
+        "content": "Archive cleanup",
+        "order": "b5G",
+        "title": "Archive cleanup",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791052195258,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 215,
+        ":user.property/start-Sd0PMVjj": 208,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 77,
+        "tags": [
+          223
+        ],
+        "id": 205,
+        "rawTitle": "Mobile app",
+        "uuid": "6a000000-0000-4000-8000-000000000002",
+        "fullTitle": "Mobile app",
+        "pageName": "planner probe",
+        "content": "Mobile app",
+        "order": "b5D",
+        "title": "Mobile app",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20261008,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 208,
+            "rawTitle": "Oct 8th, 2026",
+            "name": "oct 8th, 2026",
+            "uuid": "00000001-2026-1008-0000-000000000000",
+            "fullTitle": "Oct 8th, 2026",
+            "content": "Oct 8th, 2026",
+            "title": "Oct 8th, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.class/Project-NobOOFIJ",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 223,
+            "rawTitle": "Project",
+            "name": "project",
+            "uuid": "00000002-1358-3903-1900-000000000000",
+            "fullTitle": "Project",
+            "content": "Project",
+            "title": "Project"
+          }
+        ]
+      },
+      {
+        "parentId": 226,
+        "pageId": 226,
+        "updatedAt": 1791051442539,
+        ":user.property/end-aREJ7Xcz": 208,
+        "createdAt": 1791051442539,
+        ":user.property/owner-rDOlrnNh": 214,
+        ":user.property/start-Sd0PMVjj": 207,
+        "parent": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":logseq.property/status": 79,
+        "tags": [
+          224
+        ],
+        "id": 200,
+        "rawTitle": "Acme rollout",
+        "uuid": "6a000000-0000-4000-8000-000000000003",
+        "fullTitle": "Acme rollout",
+        "pageName": "planner probe",
+        "content": "Acme rollout",
+        "order": "b5E",
+        "title": "Acme rollout",
+        "parentUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "page": {
+          "id": 226,
+          "tags": [
+            ":logseq.class/Page"
+          ],
+          "uuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+          "title": "Planner probe",
+          "rawTitle": "Planner probe",
+          "name": "planner probe",
+          "content": "Planner probe",
+          "fullTitle": "Planner probe"
+        },
+        ":user.property/client-wYAINCWr": 227,
+        "pageUuid": "5ef2941d-3d5e-409e-99e9-85b33fc34cc3",
+        "refs": [
+          {
+            "ident": "tags",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 23,
+            "rawTitle": "Tags",
+            "name": "tags",
+            "uuid": "00000002-1814-9483-4000-000000000000",
+            "fullTitle": "Tags",
+            "content": "Tags",
+            "title": "Tags"
+          },
+          {
+            "ident": ":logseq.property/status",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 75,
+            "rawTitle": "Status",
+            "name": "status",
+            "uuid": "00000002-9072-1685-3000-000000000000",
+            "fullTitle": "Status",
+            "content": "Status",
+            "title": "Status"
+          },
+          {
+            "journalDay": 20260930,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 207,
+            "rawTitle": "Sep 30th, 2026",
+            "name": "sep 30th, 2026",
+            "uuid": "00000001-2026-0930-0000-000000000000",
+            "fullTitle": "Sep 30th, 2026",
+            "content": "Sep 30th, 2026",
+            "title": "Sep 30th, 2026"
+          },
+          {
+            "journalDay": 20261008,
+            "tags": [
+              ":logseq.class/Journal"
+            ],
+            "id": 208,
+            "rawTitle": "Oct 8th, 2026",
+            "name": "oct 8th, 2026",
+            "uuid": "00000001-2026-1008-0000-000000000000",
+            "fullTitle": "Oct 8th, 2026",
+            "content": "Oct 8th, 2026",
+            "title": "Oct 8th, 2026"
+          },
+          {
+            "ident": ":user.property/start-Sd0PMVjj",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 211,
+            "rawTitle": "Start",
+            "name": "start",
+            "uuid": "00000002-1700-3435-4100-000000000000",
+            "fullTitle": "Start",
+            "content": "Start",
+            "title": "Start"
+          },
+          {
+            "ident": ":user.property/end-aREJ7Xcz",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 212,
+            "rawTitle": "End",
+            "name": "end",
+            "uuid": "00000002-1716-7161-6200-000000000000",
+            "fullTitle": "End",
+            "content": "End",
+            "title": "End"
+          },
+          {
+            "ident": ":user.property/owner-rDOlrnNh",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 213,
+            "rawTitle": "Owner",
+            "name": "owner",
+            "uuid": "00000002-2017-2733-8600-000000000000",
+            "fullTitle": "Owner",
+            "content": "Owner",
+            "title": "Owner"
+          },
+          {
+            "ident": ":user.property/client-wYAINCWr",
+            "tags": [
+              ":logseq.class/Property"
+            ],
+            "id": 216,
+            "rawTitle": "Client",
+            "name": "client",
+            "uuid": "00000002-1098-8558-9900-000000000000",
+            "fullTitle": "Client",
+            "content": "Client",
+            "title": "Client"
+          },
+          {
+            "ident": ":user.class/ClientProject-GPwqlTj3",
+            "tags": [
+              ":logseq.class/Tag"
+            ],
+            "id": 224,
+            "rawTitle": "Client project",
+            "name": "clientproject",
+            "uuid": "00000002-1851-5287-0000-000000000000",
+            "fullTitle": "Client project",
+            "content": "Client project",
+            "title": "Client project"
+          }
+        ]
+      }
+    ]
+  }
+}
