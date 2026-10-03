@@ -127,6 +127,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Workspace (T14): a click anywhere in the view toolbar (the range label, the hint, a field label, its padding) no
+  longer counts as a view switch that reset the view's settings to the kind's defaults. The toolbar container's kind
+  hook is now `data-toolbar-kind`; `data-view-kind` is only on the top bar's view-switch buttons.
 - Linked titles (T11): an inline `[[uuid]]` ref to a node that is not among the loaded ones (a #Task linking a #Project
   page, seen live on the #Task board as "Draft brief (link)") now shows that node's title in every view. Each data load
   collects the referenced uuids (`refUuids`, `src/core/display-title.ts`) and looks up the missing ones with one

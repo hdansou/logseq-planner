@@ -377,7 +377,7 @@ function renderWorkspace(s: State, now: () => Now): string {
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
     + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" aria-label="View settings"></div>`)
     + `<div class="pl-body"><aside class="pl-sidebar" data-region="sidebar">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside>`
-    + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-view-kind="${kind}">${main.toolbar}</div>`
+    + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main></div></div>`;
 }
 

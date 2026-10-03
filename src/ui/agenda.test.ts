@@ -72,7 +72,7 @@ describe("toolbar", () => {
     expect(done.textContent).toBe("Show done");
     expect($("[data-cal-nav]")).toBeNull();
     expect($("[data-tl-zoom]")).toBeNull();
-    expect($("[data-region=view-toolbar]")!.dataset.viewKind).toBe("agenda");
+    expect($("[data-region=view-toolbar]")!.dataset.toolbarKind).toBe("agenda");
   });
 
   it("Group by is view config, saved with a view", async () => {

@@ -298,7 +298,25 @@ describe("view switch", () => {
     expect($("[data-view-kind=kanban]")!.getAttribute("aria-pressed")).toBe("true");
     expect($("[data-view-kind=timeline]")!.getAttribute("aria-pressed")).toBe("false");
     expect($("[data-region=view] [data-kanban]")).not.toBeNull();
-    expect($("[data-region=view-toolbar]")!.dataset.viewKind).toBe("kanban");
+    expect($("[data-region=view-toolbar]")!.dataset.toolbarKind).toBe("kanban");
+  });
+
+  it("a click on the toolbar's range label, hint text, a field label or its padding changes nothing (T14 review)", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    await click(ws, "[data-tl-zoom=week]");
+    const before = JSON.stringify(ws.config());
+    for (const sel of ["[data-tl-range]", "[data-region=view-toolbar]"]) {
+      await click(ws, sel);
+      expect(JSON.stringify(ws.config()), sel).toBe(before);
+    }
+    await click(ws, "[data-view-kind=kanban]");
+    await click(ws, "[data-kb-sort=title]");
+    const board = JSON.stringify(ws.config());
+    for (const sel of ["[data-region=view-toolbar] .pl-hint", "[data-region=view-toolbar] .pl-field-label", "[data-region=view-toolbar]"]) {
+      await click(ws, sel);
+      expect(JSON.stringify(ws.config()), sel).toBe(board);
+    }
   });
 });
 
