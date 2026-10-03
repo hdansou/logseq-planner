@@ -16,11 +16,17 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       `logseq.supportsDB`/`supportsDBOnly`), `vite.config.ts` (test config, `publicDir: false`),
       `tsconfig.json`, `index.html`, `icon.svg`, `.gitignore`, `src/index.ts`,
       `src/__sdk_guard__.ts`, `src/types.ts`, `src/sdk.ts`, `CHANGELOG.md`, `README.md`.
-      SDK pin checked against `npm view @logseq/libs@next`. `main()` minimal, registrations
-      deferred; toolbar button + command palette entry open an empty full-screen "Planner".
-      Test first: `src/index.test.ts` asserts the registrations are deferred and the open
-      handler calls `showMainUI`. Accept: loads in the web app, button opens the empty UI.
-      Est: ~30 min
+      SDK pin checked against `npm view @logseq/libs@next` (0.3.4 on 2026-10-03).
+      `main()` minimal, registrations deferred; toolbar button + command palette entry open an
+      empty full-screen "Planner"; Escape and a Close button hide it.
+      Design (decided, not built): registration lives in `src/app.ts` as
+      `registerApp(deps)` with injected `{ registerUIItem, registerCommandPalette,
+      provideModel, showMainUI, hideMainUI, defer }`; `src/index.ts` only wires the real SDK.
+      No default keybinding yet (pick one in T07 after a collision check, gotcha §33).
+      `.gitignore` copied from query-builder. Full-screen container styling waits for T07.
+      Test first: `src/app.test.ts` (happy-dom) asserts registrations go through `defer`,
+      the open handler calls `showMainUI`, Escape calls `hideMainUI`.
+      Accept: loads in the web app on :8293, button opens the empty UI. Est: ~30 min
 
 - [ ] **T01 Live probe** — `scripts/probe.mjs`, `docs/probes.md`, `src/core/__fixtures__/*.json`.
       Seed `plugin-test` with #Project (Start/End Date, Status/Owner choice), #Client project
@@ -106,4 +112,6 @@ Total: about 10 hours.
 ## Progress log
 
 - 2026-10-03 Plan written; views scoped; aligned with the logseq-plugin-dev standard and
-  Inkwell design (REQUIREMENTS.md, docs/design.md).
+  Inkwell design (REQUIREMENTS.md, docs/design.md). Skills refreshed the same day.
+- 2026-10-03 Session ended before T00 code. Resume at T00 (design notes above). Working
+  rules: TDD, DRY, KISS; document as we go; keep tasks.md current; commit per item.
