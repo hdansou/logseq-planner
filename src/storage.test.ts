@@ -156,7 +156,7 @@ describe("create", () => {
   it("throws when the page was not really created", async () => {
     const { deps } = fakeGraph({ silent: ["createPage"] });
     const store = createViewStore(deps);
-    await expect(store.create("Roadmap", timeline)).rejects.toThrow(/page/i);
+    await expect(store.create("Roadmap", timeline)).rejects.toThrow('Page "Planner views" could not be created. If it is in the recycle bin, restore it or delete it permanently, then save again.');
     expect(store.cached()).toEqual([]);
   });
 
