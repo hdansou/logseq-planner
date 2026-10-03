@@ -28,7 +28,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       the open handler calls `showMainUI`, Escape calls `hideMainUI`.
       Accept: loads in the web app on :8293, button opens the empty UI. Est: ~30 min
 
-- [ ] **T01 Live probe** — `scripts/probe.mjs`, `docs/probes.md`, `src/core/__fixtures__/*.json`.
+- [x] **T01 Live probe** — `scripts/probe.mjs`, `docs/probes.md`, `src/core/__fixtures__/*.json`.
       Seed `plugin-test` with #Project (Start/End Date, Status/Owner choice), #Client project
       (extends #Project), #Meeting (DateTime Date, Type choice), tasks referencing projects.
       Record raw shapes: tags + extends, class properties own/inherited with types and closed
@@ -135,3 +135,23 @@ Total: about 10 hours.
   server on :8293 reloads the iframe whenever a source file changes and a reloaded iframe
   no longer answers the toolbar button (seen while T01 edited `src/index.ts`). Live checks
   use a stable build, not a dev server another task is editing under.
+- 2026-10-03 T01 done (8a23bc2, 8d0adf2). `npm run probe` drives the SDK inside the plugin
+  iframe through a dev-only hook; fixtures in `src/core/__fixtures__/`, answers in
+  docs/probes.md. The coordinator re-ran the probe on a fresh page load: same outcomes.
+  Findings that bind later tasks (details and fixtures in docs/probes.md):
+  - T03: `getTag(title)` returns null and `getTagObjects(title)` throws; use datascript.
+    Inherited class properties are not listed on the child tag: walk
+    `:logseq.property.class/extends`. Choice = type `default` + closed-value entities.
+    Only Todo/Done carry a checkbox state; recognise Canceled by ident.
+  - T04: Date value = ref to a journal page (read `journal-day`); DateTime = epoch ms.
+    Take date props from the tag's own + inherited properties only (created-at/updated-at
+    are datetime too). `[?task :block/refs ?n]` covers inline refs and node properties.
+    Fixture idents carry random suffixes: resolve by title in tests.
+  - T11: `upsertBlockProperty` resolves null on success and on failure. Write with the full
+    ident and the closed value's entity id (or title), then read back. A uuid string or an
+    ident string silently clears/blanks the value; an unqualified key creates a plugin
+    property.
+  - T12: `DB.onChanged` fires for local edits, another tab, the plugin's own writes and
+    undo; payload keys are mangled and `txData` is empty, so use it only to re-query.
+  Not answered: `DB.onChanged` under sync and from a second desktop window. Not checked on
+  the desktop build (the web app checkout is d2ab7726ab, 2026-09-02).
