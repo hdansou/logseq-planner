@@ -111,3 +111,13 @@ describe("loadTagInfos", () => {
     expect(result).toEqual(tags);
   });
 });
+
+describe("multi-value choice properties (T14 review)", () => {
+  it("are not offered: a choice property whose cardinality is many is left out", () => {
+    // The fixture's Owner row with ONLY its cardinality changed to many (no live graph had one when the fixture was taken).
+    const many = (rawProps as [string, Record<string, unknown>][]).map(([t, p]) => [t, p.title === "Owner" ? { ...p, cardinality: ":db.cardinality/many" } : p]);
+    const project = buildTagInfos(rawTags, many).find((t) => t.title === "Project")!;
+    expect(titles(project.choiceProps)).toEqual(["Status"]);
+    expect(titles(byTitle("Project").choiceProps)).toEqual(["Status", "Owner"]);
+  });
+});

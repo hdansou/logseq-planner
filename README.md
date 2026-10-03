@@ -221,6 +221,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   rendered.
 - A Date property value with no journal day fails with an error instead of a guess.
 - Nodes and tasks in Recycle, or on a page in Recycle, are not shown.
+- A choice property that allows several values is not offered for filters, Kanban or done
+  values.
 
 **Large tags**
 

@@ -53,8 +53,13 @@ interface RawProp {
   ident: string;
   title: string;
   ":logseq.property/type"?: string;
+  /** `:db/cardinality` (pull key without `:db/`): `:db.cardinality/one` or `/many`. */
+  cardinality?: string;
   "_closed-value-property"?: RawClosedValue[];
 }
+
+/** A choice holds one value only with this cardinality: filters, Kanban columns and done values assume one value per node. */
+const ONE = ":db.cardinality/one";
 
 const toClosedValue = (v: RawClosedValue): ClosedValue => ({
   id: v.id,
@@ -68,7 +73,10 @@ const toClosedValue = (v: RawClosedValue): ClosedValue => ({
 
 const byOrder = (a: ClosedValue, b: ClosedValue) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0);
 
-/** Date/DateTime and choice properties of a tag, own first then inherited (parents walked depth-first). */
+/**
+ * Date/DateTime and choice properties of a tag, own first then inherited (parents walked depth-first). A choice
+ * property counts only with cardinality one (T14): a many-valued one is not offered for filters, Kanban or done values.
+ */
 function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map<number, RawProp>) {
   const dateProps: DateProp[] = [];
   const choiceProps: ChoiceProp[] = [];
@@ -85,7 +93,7 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
       const closed = p["_closed-value-property"] ?? [];
       if (type === "date" || type === "datetime") {
         dateProps.push({ id: p.id, ident: p.ident, title: p.title, type });
-      } else if (type === "default" && closed.length > 0) {
+      } else if (type === "default" && closed.length > 0 && p.cardinality === ONE) {
         choiceProps.push({
           id: p.id,
           ident: p.ident,
