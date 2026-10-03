@@ -18,6 +18,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/sdk.ts` | every SDK call and typing cast | DOM rendering |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
+| `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
 | `src/storage.ts` | cache-first saved views (graph-backed) | anything else |
 | `src/dev-probe.ts` | dev-only SDK hook for `scripts/probe.mjs` (behind `import.meta.env.DEV`) | ship in builds |
 | `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |

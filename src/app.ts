@@ -1,4 +1,5 @@
 import type { AppDeps } from "./types";
+import { watchTheme } from "./ui/theme";
 
 const OPEN = "planner-open";
 const OPEN_HANDLER = "openPlanner";
@@ -11,11 +12,12 @@ export function registerApp(deps: AppDeps, root: HTMLElement): void {
   const open = () => deps.showMainUI();
   const close = () => deps.hideMainUI();
 
-  root.innerHTML = `<header><h1>Planner</h1><button type="button" data-action="close">Close</button></header>`;
+  root.innerHTML = `<header><h1>Planner</h1><button type="button" class="pl-btn" data-action="close">Close</button></header>`;
   root.querySelector("[data-action=close]")!.addEventListener("click", close);
   root.ownerDocument.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
   deps.defer(() => {
+    void watchTheme(deps.theme, root.ownerDocument);
     deps.provideModel({ [OPEN_HANDLER]: open });
     deps.registerUIItem("toolbar", {
       key: OPEN,

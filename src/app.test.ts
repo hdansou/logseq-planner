@@ -12,6 +12,12 @@ function fakeDeps() {
     provideModel: vi.fn(),
     showMainUI: vi.fn(),
     hideMainUI: vi.fn(),
+    theme: {
+      getUserConfigs: vi.fn(async () => ({ preferredThemeMode: "light" })),
+      resolveThemeCssPropsVals: vi.fn(async () => ({})),
+      onThemeModeChanged: vi.fn(),
+      onThemeChanged: vi.fn(),
+    },
     defer: vi.fn((fn: () => void) => void deferred.push(fn)),
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());

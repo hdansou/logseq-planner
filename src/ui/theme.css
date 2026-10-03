@@ -1,0 +1,86 @@
+/* Planner tokens. Inkwell values are the defaults; src/ui/theme.ts overrides them inline on <html>
+   from the host theme. Dark keys off html.dark (mirrored from the host), never the OS colour-scheme media query. */
+:root {
+  --pl-surface: #ffffff; --pl-sidebar: #f2f2f5; --pl-float: #ffffff;
+  --pl-label: #1d1d1f; --pl-label-2: #6e6e73; --pl-label-3: #aeaeb2;
+  --pl-line: #d2d2d7; --pl-line-soft: #e8e8ed;
+  --pl-fill: #78788014; --pl-fill-strong: #7878801f; --pl-hover: #dcdee1;
+  --pl-tint: #223b3b; --pl-on-tint: #ffffff; --pl-tint-soft: #dfe8e8; --pl-ring: var(--pl-tint);
+  --pl-today: #9c2529;
+  --pl-cat-1-soft: #d6e8ff; --pl-cat-2-soft: #d4f5dc; --pl-cat-3-soft: #fff1a8; --pl-cat-4-soft: #efdefa;
+  --pl-cat-5-soft: #f9d4e6; --pl-cat-6-soft: #e8e8ed; --pl-cat-7-soft: #ffdcd9;
+  --pl-green: #1f9a40; --pl-green-text: #1f7a35; --pl-green-soft: #e3f7e8;
+  --pl-orange: #c96a00; --pl-orange-text: #b03d00; --pl-orange-soft: #fff0db;
+  --pl-red: #f2352a; --pl-red-text: #c4141f; --pl-red-soft: #ffe4e2;
+  --pl-blue: #007aff; --pl-blue-text: #0055d4; --pl-blue-soft: #dbecff;
+  --pl-purple: #af52de; --pl-purple-text: #8330b0; --pl-purple-soft: #f4e7fa;
+  --pl-shadow-float: 0 0 0 .5px rgba(0, 0, 0, .12), 0 12px 40px rgba(0, 0, 0, .18);
+  --pl-font: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+html.dark {
+  --pl-surface: #1c1c1e; --pl-sidebar: #161618; --pl-float: #2c2c2e;
+  --pl-label: #f5f5f7; --pl-label-2: #98989d; --pl-label-3: #636366;
+  --pl-line: #38383a; --pl-line-soft: #2c2c2e;
+  --pl-fill: #7878802e; --pl-fill-strong: #78788047; --pl-hover: #404244;
+  --pl-tint: #b3c6c6; --pl-on-tint: #000000; --pl-tint-soft: #213232;
+  --pl-today: #e8878a;
+  --pl-cat-1-soft: #173a5e; --pl-cat-2-soft: #1d4a2a; --pl-cat-3-soft: #5a4a0c; --pl-cat-4-soft: #46285a;
+  --pl-cat-5-soft: #57203f; --pl-cat-6-soft: #3a3a3c; --pl-cat-7-soft: #5a2422;
+  --pl-green: #30d158; --pl-green-text: #4be07a; --pl-green-soft: #20442b;
+  --pl-orange: #ff9f0a; --pl-orange-text: #ffb340; --pl-orange-soft: #4e391a;
+  --pl-red: #ff453a; --pl-red-text: #ff7a70; --pl-red-soft: #4e2524;
+  --pl-blue: #0a84ff; --pl-blue-text: #5aaeff; --pl-blue-soft: #183350;
+  --pl-purple: #bf5af2; --pl-purple-text: #d68cff; --pl-purple-soft: #402a4d;
+  --pl-shadow-float: 0 0 0 .5px rgba(255, 255, 255, .12), 0 12px 40px rgba(0, 0, 0, .6);
+}
+
+html, body { margin: 0; background: var(--pl-surface); color: var(--pl-label); font: 14px/1.4 var(--pl-font); }
+:focus-visible { outline: none; border-color: var(--pl-tint); box-shadow: 0 0 0 3px var(--pl-tint-soft); }
+
+/* Buttons */
+.pl-btn { border: 0; border-radius: 980px; padding: 6px 14px; font: inherit; cursor: pointer; transition: background-color .12s;
+  background: var(--pl-fill-strong); color: var(--pl-label); }
+.pl-btn:hover { background: var(--pl-hover); }
+.pl-btn-primary, .pl-btn-primary:hover { background: var(--pl-tint); color: var(--pl-on-tint); }
+
+/* Segmented control */
+.pl-seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 980px; background: var(--pl-fill); }
+.pl-seg > button { border: 0; border-radius: 980px; padding: 4px 12px; font: inherit; color: var(--pl-label); background: transparent; cursor: pointer; }
+.pl-seg > button[aria-pressed="true"], .pl-seg > button.is-selected { background: var(--pl-tint-soft); font-weight: 600; }
+
+/* Selects and inputs */
+.pl-input, .pl-select { border: 1px solid var(--pl-line); border-radius: 10px; padding: 6px 10px; font: inherit;
+  background: var(--pl-surface); color: var(--pl-label); }
+.pl-input:focus, .pl-select:focus { border-color: var(--pl-tint); box-shadow: 0 0 0 3px var(--pl-tint-soft); }
+
+/* Popovers, menus, toasts: one elevation, no border */
+.pl-popover, .pl-toast { background: var(--pl-float); color: var(--pl-label); border-radius: 14px; box-shadow: var(--pl-shadow-float); }
+.pl-popover .pl-row { border-radius: 9px; padding: 6px 10px; cursor: pointer; transition: background-color .12s; }
+.pl-popover .pl-row:hover { background: var(--pl-hover); }
+
+/* Left sidebar */
+.pl-sidebar { background: var(--pl-sidebar); border-right: 1px solid var(--pl-line-soft); }
+.pl-sidebar .pl-row { border-radius: 8px; padding: 5px 10px; font-size: 14px; cursor: pointer; transition: background-color .12s; }
+.pl-sidebar .pl-row:hover { background: var(--pl-fill); }
+.pl-sidebar .pl-row.is-active { background: var(--pl-tint-soft); font-weight: 600; }
+.pl-sidebar .pl-row.is-active .pl-hash { color: var(--pl-tint); }
+.pl-group-header { font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+
+/* Tags and category chips */
+.pl-tag, .pl-chip { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; border-radius: 980px;
+  font-size: 12.5px; font-weight: 500; color: var(--pl-label); }
+.pl-tag { background: var(--pl-fill-strong); }
+.pl-chip { background: var(--pl-fill-strong); }
+.pl-chip[data-cat="1"] { background: var(--pl-cat-1-soft); } .pl-chip[data-cat="2"] { background: var(--pl-cat-2-soft); }
+.pl-chip[data-cat="3"] { background: var(--pl-cat-3-soft); } .pl-chip[data-cat="4"] { background: var(--pl-cat-4-soft); }
+.pl-chip[data-cat="5"] { background: var(--pl-cat-5-soft); } .pl-chip[data-cat="6"] { background: var(--pl-cat-6-soft); }
+.pl-chip[data-cat="7"] { background: var(--pl-cat-7-soft); }
+
+/* Panels and cards */
+.pl-panel { background: var(--pl-fill); border-radius: 12px; }
+.pl-card { background: var(--pl-surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--pl-line); }
+
+input[type="checkbox"] { accent-color: var(--pl-tint); }
+
+/* Today: accent, never tint */
+.pl-today { color: var(--pl-today); font-weight: 700; background: transparent; }

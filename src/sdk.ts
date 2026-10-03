@@ -9,5 +9,11 @@ export const appDeps = (): AppDeps => ({
   provideModel: (model) => logseq.provideModel(model),
   showMainUI: () => logseq.showMainUI(),
   hideMainUI: () => logseq.hideMainUI(),
+  theme: {
+    getUserConfigs: () => logseq.App.getUserConfigs(),
+    resolveThemeCssPropsVals: (names) => logseq.UI.resolveThemeCssPropsVals(names),
+    onThemeModeChanged: (cb) => void logseq.App.onThemeModeChanged(cb),
+    onThemeChanged: (cb) => void logseq.App.onThemeChanged(cb),
+  },
   defer: (fn) => void setTimeout(fn, 0),
 });

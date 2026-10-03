@@ -12,3 +12,6 @@ All notable changes to this project are documented here. The format follows
   Escape and Close hide it. `@logseq/libs` ^0.3.4.
 - Live probe (T01): `npm run probe` records tag schema, node, task-ref, date, `DB.onChanged`
   and closed-value write shapes as fixtures; findings in `docs/probes.md`.
+- Theme (T02): `src/ui/theme.ts` mirrors the host mode onto `<html class="dark">` and resolves host
+  tokens into `--pl-*` (shui channels in `hsl()`, hover must differ from float); re-resolved on
+  theme and mode change. `src/ui/theme.css` holds Inkwell defaults and the base component styles.
