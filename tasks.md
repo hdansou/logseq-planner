@@ -72,7 +72,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       no nodes, no matches). Test first (happy-dom): each empty state and the settings bar
       for a fixture schema. Accept: switching tags live updates the bar. Est: ~60 min
 
-- [ ] **T08 Timeline** — `src/core/timeline-layout.ts`, `src/ui/timeline.ts`. Week / Month /
+- [x] **T08 Timeline** — `src/core/timeline-layout.ts`, `src/ui/timeline.ts`. Week / Month /
       Quarter; rows sorted by start, progress strip, derived dashed, diamonds, expandable
       task rows, today line, clip marks, undated footnote, prev/next/today. Test first:
       layout for all three zooms (week columns in Quarter, clipping, derived, points);
@@ -249,3 +249,28 @@ Total: about 10 hours.
   Open: the left column stops below the last filter instead of running to the bottom of
   the window (fix with the first view, T08); the macOS desktop window-button padding and
   the `g Shift+P` chord are unverified on the desktop app.
+- 2026-10-03 T08 done (15963ed, d84b977). 202 unit tests. Live on `plugin-test` (build on
+  :8294; positions read from the rendered DOM and checked against the day columns):
+  #Meeting opens in Month with diamonds on 3 Oct and 4 Oct, today line on 3 Oct, footnote
+  "No dates: Untimed meeting". #Project: Month (13 Sep – 7 Nov, 56 day columns) Website
+  relaunch bar 23 Sep → 23 Oct "50%" 1/2, Acme rollout 30 Sep → 8 Oct, Mobile app
+  diamond on 8 Oct, footnote Archive cleanup; Week (20 Sep – 10 Oct, 21 columns) Website
+  bar clipped at the right with "›"; Quarter (30 Aug – 26 Dec, 17 week columns) bars and
+  today line at the right day fractions. Next shows left clips "‹"; far ahead shows the
+  "‹ 23 Sep – 23 Oct" hints; Today returns. Expanded task rows: titles show the node
+  name instead of the raw `[[uuid]]` (T04 item closed); deadline marker 5 Oct, late
+  deadline 2 Oct in red, scheduled ring 9 Oct, "no date" for the others; done greyed,
+  canceled struck through. Click on a name, a diamond, an undated name or a task opens
+  it and hides Planner; Shift+click on a bar opens it in the right sidebar and Planner
+  stays. Zoom is saved with a view and restored. Calendar/Agenda/Kanban keep their
+  placeholders with no timeline toolbar. Left column runs to the window bottom (T07
+  item closed). Screenshots checked in default light, Inkwell light and Inkwell dark.
+  Decisions taken in T08 (change if wrong): Week = 3 weeks of day columns, Month = an
+  8-week window (not a calendar month), Quarter = 17 week columns, as in the prototype;
+  dates read "23 Sep"; week starts on Sunday (the host's start-of-week preference is not
+  read yet; do it in T09); a node outside the range keeps its row with a hint; category
+  colour is a hash of the node uuid; an unknown `[[uuid]]` shows "(link)".
+  Not verified: Logseq's default dark theme for this view (the profile's dark theme was
+  Inkwell); Shift+Enter on a focused bar; the desktop app.
+  Method: the seed can vanish on reload; re-seed needs the dev plugin (:8293) registered
+  (probe hook), then unregister it and register the :8294 build.
