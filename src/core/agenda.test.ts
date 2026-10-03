@@ -213,6 +213,29 @@ describe("overdue and late", () => {
     expect(entry(l, "overdue", "Ended").when).toBe("20 Sep – 30 Sep, 3 days late");
   });
 
+  it("a task with only a past Scheduled date is overdue, filed and counted from that date", () => {
+    const l = synthetic([["P", "2026-10-06", "2026-10-06", "Doing"]], {}, [task(1, 1, "Sched only", "Todo", null, d("2026-09-30", "09:00"))]);
+    expect(entry(l, "overdue", "Sched only")).toMatchObject({ late: true, at: d("2026-09-30", "09:00"), when: "scheduled 30 Sep 09:00, 3 days late" });
+    expect(entry(l, "overdue", "Sched only").label).toBe("Sched only, Todo, scheduled 30 Sep 09:00, 3 days late, P");
+  });
+
+  it("a past Deadline with a later Scheduled date is overdue from the Deadline", () => {
+    const l = synthetic([["P", "2026-10-06", "2026-10-06", "Doing"]], {}, [task(1, 1, "Both", "Todo", d("2026-10-01"), d("2026-10-10"))]);
+    expect(entry(l, "overdue", "Both")).toMatchObject({ late: true, at: d("2026-10-01"), when: "scheduled 10 Oct, due 1 Oct, 2 days late" });
+  });
+
+  it("a Scheduled date in the past before a Deadline ahead is not late and keeps its filing", () => {
+    const l = synthetic([["P", "2026-10-06", "2026-10-06", "Doing"]], {}, [task(1, 1, "Running", "Todo", d("2026-10-09"), d("2026-10-01"))]);
+    expect(titles(l, "overdue")).toBeNull();
+    expect(entry(l, "today", "Running").late).toBe(false);
+  });
+
+  it("a done task with a past Scheduled date is not overdue", () => {
+    const l = synthetic([["P", "2026-10-06", "2026-10-06", "Doing"]], { showDone: true }, [task(1, 1, "Finished", "Done", null, d("2026-09-30"))]);
+    expect(titles(l, "overdue")).toBeNull();
+    expect(entry(l, "earlier", "Finished").late).toBe(false);
+  });
+
   it("an open entry that is not past is not late", () => {
     const l = synthetic([["P", "2026-10-06", "2026-10-06", "Doing"]], {}, [task(1, 1, "Soon", "Todo", d("2026-10-05", "17:00"))]);
     expect(entry(l, "2026-10-05", "Soon").late).toBe(false);

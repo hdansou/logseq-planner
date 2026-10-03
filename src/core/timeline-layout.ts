@@ -5,7 +5,7 @@
 import type { ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, compareDates, daysBetween, formatDay, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState, weekday,
+  addDays, categoryOf, compareDates, daysBetween, dueDate, formatDay, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState, weekday,
   weekdayName, type ViewItem,
 } from "./layout-common";
 
@@ -60,7 +60,7 @@ export interface TimelineMarker {
   date: LocalDate;
   /** Day index. */
   at: number;
-  /** An open task's deadline before today. */
+  /** The marker of an open task's due date (Deadline, else Scheduled), when that is before today. */
   late: boolean;
 }
 
@@ -183,7 +183,7 @@ function taskRow(task: PlannerTask, input: TimelineInput, range: TimelineRange):
     if (!date) continue;
     const at = indexOn(range, date.day);
     if (at < 0 || at >= range.days) continue;
-    markers.push({ kind, date, at, late: kind === "deadline" && isLate(task, done, input.today) });
+    markers.push({ kind, date, at, late: date === dueDate(task) && isLate(task, done, input.today) });
   }
   const title = displayTitle(task.title, input.titles);
   return { task, title, done, markers, status, label: taskLabel(task, title) };

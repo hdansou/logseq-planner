@@ -10,6 +10,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
 (see the limits in README.md). It has not been released.
 
 ### Added
+- Lateness counts the Scheduled date (N03b): a task's due date is its Deadline, or its Scheduled date when it
+  has no Deadline, and an open task is late when its due day is before today (`dueDate` / `isLate` in
+  `layout-common.ts`, the only definition). A scheduled-only task past its date gets a red scheduled marker in the
+  Timeline (border) and is Overdue in the Agenda, filed and counted from that date. A past Deadline with a later
+  Scheduled date is now Overdue (it was filed by the later date). The Calendar still shows Deadlines only.
 - Requirements, task plan, design notes (Inkwell-based) and agent instructions for v1.
 - Scaffold (T00): toolbar button and "Planner: open" command open an empty Planner;
   Escape and Close hide it. `@logseq/libs` ^0.3.4.

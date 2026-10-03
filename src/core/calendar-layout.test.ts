@@ -208,6 +208,12 @@ describe("chips", () => {
     expect(chipsOn(l, "2026-10-09")).toEqual([]); // Wireframes has Scheduled 9 Oct only
   });
 
+  it("a task with only a past Scheduled date has no chip (Scheduled is not shown), so lateness adds none", () => {
+    const task: PlannerTask = { id: 8, uuid: "t8", title: "Sched only", status: null, nodeIds: [1], deadline: null, scheduled: d("2026-10-01") };
+    const l = synthetic([["One", "2026-10-01", "2026-10-02"]], "month", {}, [task]);
+    expect(chipsOn(l, "2026-10-01").filter((c) => c.kind === "deadline")).toEqual([]);
+  });
+
   it("a task linked to two nodes gives one chip, in the first node's colour", () => {
     const task: PlannerTask = { id: 9, uuid: "t9", title: "Shared", status: null, nodeIds: [1, 2], deadline: d("2026-10-14"), scheduled: null };
     const l = synthetic([["One", "2026-10-12", "2026-10-13"], ["Two", "2026-10-20", null]], "month", {}, [task]);

@@ -37,6 +37,10 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
   property, values named Done, Completed, Canceled, Cancelled or Closed count as done by
   default; the user can change the set; it is saved with the view. Used for rollups,
   Agenda hiding, Kanban and late marking.
+- **Late tasks.** A task's due date is its Deadline, or its Scheduled date when it has no
+  Deadline. An open task is late when its due day is before today. One rule for every view:
+  a red marker in the Timeline (the due date's marker), a red chip in the Calendar (which
+  shows Deadlines only), the Agenda's Overdue bucket, filed and counted from the due date.
 - **Saved views** stored in the graph on a plugin-owned page (one block per view, config as
   a hidden string property holding JSON). Sync with the graph; reused later by the side
   panel and in-page block.

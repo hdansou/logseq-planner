@@ -213,6 +213,11 @@ describe("task rows", () => {
     expect($$("[data-tl-task]")).toHaveLength(0);
   });
 
+  it("a late marker is red on both shapes: the scheduled ring by its border, the deadline diamond by its fill", () => {
+    expect(timelineCss).toMatch(/\.pl-tl-marker\[data-late\]\s*\{[^}]*border-color:\s*var\(--pl-red\)/);
+    expect(timelineCss).toMatch(/\.pl-tl-marker\[data-tl-marker="deadline"\]\[data-late\]\s*\{[^}]*background:\s*var\(--pl-red\)/);
+  });
+
   it("marks an open task past its deadline as late", async () => {
     await click(`[data-tl-toggle="${rowOf("Acme rollout").dataset.tlRow}"]`);
     expect($("[data-tl-task] [data-tl-marker=deadline]")!.hasAttribute("data-late")).toBe(true);

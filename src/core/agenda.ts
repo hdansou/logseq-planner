@@ -4,8 +4,11 @@
 // Filing rules (REQUIREMENTS "Agenda"):
 // - An entry has a start and an end day. A node uses its resolved span (Start/End, one date = a point); a task uses
 //   Scheduled and Deadline (one of them = a point). No date = "none".
-// - It ended before today: Overdue when it is open and could be late (a task always can; a node only when its tag has
-//   a done notion), else Earlier. Done entries are never overdue.
+// - A task is late by `isLate` (layout-common): open, and its due date (Deadline, else Scheduled) is before today. A late
+//   task is Overdue, filed and sorted at its due date and "N days late" counts from it, whatever its other date is.
+//   A task that is not late is filed by the rules below.
+// - A node that ended before today: Overdue when it is open and its tag has a done notion, else Earlier. Done entries
+//   are never overdue.
 // - It covers today (started on or before today, ends today or later): Today. Starts later: its start day while that is
 //   within 14 days, else Later.
 // - Done (a node by the view's done values, a task by its Status flags; canceled counts) and canceled entries are hidden
@@ -15,7 +18,7 @@
 import type { ChoiceProp, ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, compareDates, dayCount, daysBetween, formatDate, formatDay, taskLabel, taskState, weekdayName, type ViewItem,
+  addDays, categoryOf, compareDates, dayCount, daysBetween, dueDate, formatDate, formatDay, isLate, taskLabel, taskState, weekdayName, type ViewItem,
 } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 
@@ -42,7 +45,7 @@ export interface AgendaEntry {
   /** Sort date: the end when it ended, the start when it is ahead, today when it covers today (with the time of that day's start or end). */
   at: LocalDate | null;
   done: boolean;
-  /** Open and past its end: it is in Overdue. */
+  /** Open and past its due date (a node: its end): it is in Overdue. */
   late: boolean;
   /** "due 5 Oct 17:00", "23 Sep – 23 Oct", "due 2 Oct 12:00, 1 day late", "no date". */
   when: string;
@@ -176,15 +179,17 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     const ends = [task.scheduled, task.deadline].filter((x): x is LocalDate => x !== null).sort(compareDates);
     const start = ends[0] ?? null;
     const end = ends[ends.length - 1] ?? null;
-    const { bucket, at } = file(start, end, done, true, today);
-    const late = bucket === "overdue";
+    const due = dueDate(task);
+    const late = isLate(task, done, today);
+    // A late task is filed and sorted at its due date (a Deadline passed with a later Scheduled date is still late).
+    const { bucket, at } = late ? { bucket: "overdue", at: due } : file(start, end, done, true, today);
     const when = whenText(
       [task.scheduled && `scheduled ${formatDate(task.scheduled)}`, task.deadline && `due ${formatDate(task.deadline)}`].filter((x): x is string => !!x),
-      end, late, today,
+      due, late, today,
     );
     return {
       kind: "task", uuid: task.uuid, title, node: nodeTitle, cat, status, bucket, at, done, late, when,
-      label: [taskLabel(task, title), late && `${dayCount(daysBetween(end!.day, today))} late`, nodeTitle].filter(Boolean).join(", "),
+      label: [taskLabel(task, title), late && `${dayCount(daysBetween(due!.day, today))} late`, nodeTitle].filter(Boolean).join(", "),
     };
   }
 

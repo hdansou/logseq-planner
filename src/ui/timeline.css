@@ -78,7 +78,8 @@
 .pl-tl-marker { grid-row: 1; justify-self: center; position: relative; z-index: 1; box-sizing: border-box; width: 9px; height: 9px;
   border-radius: 50%; border: 1.5px solid var(--pl-label-2); }
 .pl-tl-marker[data-tl-marker="deadline"] { border: 0; border-radius: 2px; transform: rotate(45deg); background: var(--pl-label-2); }
-.pl-tl-marker[data-late] { background: var(--pl-red); }
+.pl-tl-marker[data-late] { border-color: var(--pl-red); }
+.pl-tl-marker[data-tl-marker="deadline"][data-late] { background: var(--pl-red); }
 .pl-tl-task[data-done] .pl-tl-marker { opacity: .5; }
 
 /* Today line: accent, never tint (design.md) */

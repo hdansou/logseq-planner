@@ -239,6 +239,26 @@ describe("task rows", () => {
     expect(row(l, "Mobile app").tasks[0].markers).toEqual([{ kind: "scheduled", date: d("2026-10-09", "09:00"), at: 26, late: false }]);
   });
 
+  it("lateness counts the Scheduled date when there is no Deadline; with both dates only the deadline marker is late", () => {
+    const p = tag("Project");
+    const s = dateIdent(p, "Start");
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dates: { [s]: d("2026-10-01") }, choices: {} };
+    const todo = statusValues.find((v) => v.title === "Todo")!;
+    const status = { ident: todo.ident!, title: todo.title };
+    const mk = (id: number, scheduled: string | null, deadline: string | null): PlannerTask => ({
+      id, uuid: `t${id}`, title: `T${id}`, status, nodeIds: [1], scheduled: scheduled ? d(scheduled) : null, deadline: deadline ? d(deadline) : null,
+    });
+    const l = layoutTimeline({
+      items: viewItems([node], [mk(1, "2026-10-01", null), mk(2, "2026-10-01", "2026-10-02"), mk(3, "2026-10-03", null), mk(4, "2026-10-01", "2026-10-09")], s, null, statusValues),
+      zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map(),
+    });
+    const lateOf = (title: string) => l.rows[0].tasks.find((t) => t.title === title)!.markers.map((m) => [m.kind, m.late]);
+    expect(lateOf("T1")).toEqual([["scheduled", true]]);
+    expect(lateOf("T2")).toEqual([["scheduled", false], ["deadline", true]]);
+    expect(lateOf("T3")).toEqual([["scheduled", false]]);
+    expect(lateOf("T4")).toEqual([["scheduled", false], ["deadline", false]]);
+  });
+
   it("drops a marker outside the range", async () => {
     // 4 – 24 Oct: Acme rollout (30 Sep – 8 Oct) is clipped in range; its task's deadline (2 Oct) lies before it
     const l = await layout("Project", "week", { anchor: "2026-10-11" });

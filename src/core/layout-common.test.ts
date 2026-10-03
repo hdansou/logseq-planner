@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, categoryOf, daysBetween, formatDay, formatMonth, formatRange, startOfWeek, weekdayName, weekStartFromHost,
+  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, isLate, startOfWeek, weekdayName, weekStartFromHost,
 } from "./layout-common";
+import type { LocalDate, PlannerTask } from "../types";
 
 describe("calendar-day arithmetic", () => {
   it("adds days across month and year ends and leap days", () => {
@@ -66,5 +67,33 @@ describe("category colour", () => {
     expect(c).toBeGreaterThanOrEqual(1);
     expect(c).toBeLessThanOrEqual(6);
     expect(categoryOf("6a000000-0000-4000-8000-000000000001")).toBe(c);
+  });
+});
+
+describe("due date and lateness", () => {
+  const day = (s: string): LocalDate => ({ day: s, time: null });
+  const task = (scheduled: string | null, deadline: string | null): PlannerTask => ({
+    id: 1, uuid: "t1", title: "T", status: null, nodeIds: [1], scheduled: scheduled ? day(scheduled) : null, deadline: deadline ? day(deadline) : null,
+  });
+
+  it("the due date is the Deadline, else the Scheduled date, else none", () => {
+    expect(dueDate(task("2026-10-01", "2026-10-05"))).toEqual(day("2026-10-05"));
+    expect(dueDate(task("2026-10-01", null))).toEqual(day("2026-10-01"));
+    expect(dueDate(task(null, "2026-10-05"))).toEqual(day("2026-10-05"));
+    expect(dueDate(task(null, null))).toBeNull();
+  });
+
+  it("an open task is late when its due day is before today; today, later, done and undated are not", () => {
+    expect(isLate(task(null, "2026-10-02"), false, "2026-10-03")).toBe(true);
+    expect(isLate(task("2026-10-02", null), false, "2026-10-03")).toBe(true);
+    expect(isLate(task(null, "2026-10-03"), false, "2026-10-03")).toBe(false);
+    expect(isLate(task("2026-10-03", null), false, "2026-10-03")).toBe(false);
+    expect(isLate(task("2026-10-02", null), true, "2026-10-03")).toBe(false);
+    expect(isLate(task(null, null), false, "2026-10-03")).toBe(false);
+  });
+
+  it("with both dates the Deadline decides: a past Scheduled date before a future Deadline is not late, and the reverse is", () => {
+    expect(isLate(task("2026-10-01", "2026-10-09"), false, "2026-10-03")).toBe(false);
+    expect(isLate(task("2026-10-09", "2026-10-01"), false, "2026-10-03")).toBe(true);
   });
 });

@@ -309,6 +309,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | not run |  |  |  |
 | J13 | Set a #Project node's Start, then remove the value in Logseq | The node shows with no Start (undated or by its End); the rest of the tag loads | not run |  |  |  |
 | J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | not run |  |  |  |
+| J15 | A task with only a past Scheduled date (open, no Deadline): look at the Timeline (expand its node), the Calendar and the Agenda by date | Timeline: the scheduled marker is red (`[data-tl-marker="scheduled"][data-late]`); Calendar: no chip (Scheduled is not shown); Agenda: it is under Overdue, "scheduled … N days late" | not run |  |  |  |
 
 ## Not covered / known gaps
 

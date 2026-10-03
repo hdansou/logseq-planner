@@ -77,7 +77,9 @@ previous and next buttons and **Today** move the period.
 - **Zoom**: Week (21 day columns), Month (56 day columns), Quarter (17 week columns).
 - Derived spans are dashed. One-date nodes are diamonds. A today line marks the current day.
   A bar cut off at the edge of the range is marked.
-- Nodes with tasks expand into task rows with Scheduled and Deadline markers.
+- Nodes with tasks expand into task rows with Scheduled and Deadline markers. A task is late
+  when it is open and its due date, the Deadline or else the Scheduled date, is before today;
+  the marker of that date turns red.
 - Only nodes that touch the range get a row. A line above the grid counts the others, for
   example "412 earlier · 1,105 later". Each side is a button that moves to the nearest such
   node.
@@ -86,12 +88,14 @@ previous and next buttons and **Today** move the period.
 
 - **Layout**: Month or Week. Month shows the whole weeks of the anchor's month.
 - Span nodes are bands that keep the same lane across weeks. One-date nodes and the
-  Deadline of linked tasks are chips. Scheduled dates are not shown.
+  Deadline of linked tasks are chips, red when the task is late. Scheduled dates are not shown.
 - Month shows three item rows per day, then **+N more**, which opens that week.
 - Week lists items by time and shows the time of DateTime values.
 - The first day of the week follows Logseq's start-of-week setting.
 
-**Agenda.** A list of what is overdue and what is coming.
+**Agenda.** A list of what is overdue and what is coming. A task is overdue when it is late
+(open, and its Deadline, or its Scheduled date when it has no Deadline, is before today); it
+sorts at that date and shows how many days late.
 
 - **Group by**: Date or Node.
 - By date: Overdue, Today, each of the next 14 days, then **Later**, **No date** and

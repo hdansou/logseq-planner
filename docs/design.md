@@ -9,7 +9,7 @@ Prototype with these treatments: https://claude.ai/artifact/KU9Z831Y9y974EUW1yVc
 
 - Neutral by default. **Tint** marks primary actions and the selected item. **Accent** marks
   only today. Links and tags are label-coloured, never accent-coloured.
-- **Status hues** carry state: blue doing, purple in review, green done, red late/overdue,
+- **Status hues** carry state: blue doing, purple in review, green done, red late/overdue (a task is late when its Deadline, else its Scheduled date, is before today),
   orange high priority. **Highlight set** carries categories (one colour per node), always
   with label-coloured text on it.
 - Components use tokens only, no colour literals. One elevation level. Almost no motion

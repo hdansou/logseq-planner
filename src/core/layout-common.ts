@@ -100,8 +100,14 @@ export function taskState(task: PlannerTask, statusValues: ClosedValue[]): { sta
   return { status: task.status ? task.status.ident.split(".").pop()! : null, done: value ? isDone(value) : false };
 }
 
-/** An open task whose deadline day is before today. */
-export const isLate = (task: PlannerTask, done: boolean, today: string): boolean => !done && !!task.deadline && task.deadline.day < today;
+/** A task's due date: its Deadline, or its Scheduled date when it has no Deadline (null when it has neither). */
+export const dueDate = (task: PlannerTask): LocalDate | null => task.deadline ?? task.scheduled;
+
+/** The one lateness rule for tasks in every view: an open task whose due date (`dueDate`) is on a day before today. */
+export const isLate = (task: PlannerTask, done: boolean, today: string): boolean => {
+  const due = dueDate(task);
+  return !done && !!due && due.day < today;
+};
 
 /** "Draft brief Website relaunch, Todo, due 5 Oct 17:00" (`title` is the display title). */
 export function taskLabel(task: PlannerTask, title: string): string {
