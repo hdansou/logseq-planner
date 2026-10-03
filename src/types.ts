@@ -69,3 +69,41 @@ export interface TagInfo {
   dateProps: DateProp[];
   choiceProps: ChoiceProp[];
 }
+
+/** A local calendar day, with the wall-clock time for DateTime values (`time` is null for Date values). */
+export interface LocalDate {
+  /** `YYYY-MM-DD` in the local zone. */
+  day: string;
+  /** `HH:MM` in the local zone; only DateTime values have one. */
+  time: string | null;
+}
+
+/** A node of a tag (or of a tag extending it) with its mapped property values. */
+export interface PlannerNode {
+  id: number;
+  uuid: string;
+  title: string;
+  /** Ids of the tags the node carries. */
+  tagIds: number[];
+  /** Date/DateTime values by property ident; a property the node has no value for is absent. */
+  dates: Record<string, LocalDate>;
+  /** Choice values by property ident; a property the node has no value for is absent. */
+  choices: Record<string, ClosedValue>;
+}
+
+/** The Status of a #Task block, as the query returns it. */
+export interface TaskStatus {
+  ident: string;
+  title: string;
+}
+
+/** A #Task block that references at least one loaded node. */
+export interface PlannerTask {
+  id: number;
+  uuid: string;
+  title: string;
+  /** Null when the block has no Status value. */
+  status: TaskStatus | null;
+  /** Ids of the loaded nodes it references (inline `[[uuid]]` refs and node-property links alike). */
+  nodeIds: number[];
+}

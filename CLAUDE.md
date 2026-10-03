@@ -18,6 +18,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/sdk.ts` | every SDK call and typing cast | DOM rendering |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
+| `src/core/queries.ts` | `loadNodes` / `loadTasks` (injected `Dq`): nodes of a tag ± child tags, #Task blocks whose refs hit them | use the SDK, filter/span logic (T05) |
+| `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset` | read process TZ outside `systemZone` |
 | `src/ui/*` | rendering, theme tokens, events | query the graph directly |
 | `src/ui/theme.ts` + `theme.css` | host mode → `html.dark`, host tokens → `--pl-*` (`PL_MAP`), Inkwell defaults + base component CSS | call `logseq.*` (gets `ThemeDeps`) |
 | `src/storage.ts` | cache-first saved views (graph-backed) | anything else |

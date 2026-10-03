@@ -19,3 +19,7 @@ All notable changes to this project are documented here. The format follows
 - Schema discovery (T03): `src/core/schema.ts` lists tags as a tree (built-in vs own, parents via
   `extends`) with date/DateTime and choice properties including inherited ones, and each choice's
   closed values with the checkbox flag and Canceled-by-ident; `datascriptQuery` added to `src/sdk.ts`.
+- Nodes and tasks (T04): `src/core/queries.ts` loads the nodes of a tag (extending tags on or off) and
+  the #Task blocks that reference them; `src/core/normalize.ts` maps Date values (journal page
+  `journal-day`) and DateTime values (epoch ms, injectable zone offset) to local `YYYY-MM-DD` / `HH:MM`
+  and choice values to the tag's closed values.
