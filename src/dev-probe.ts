@@ -8,9 +8,10 @@
 //   { plannerProbe: id, op: "call", ns: "Editor" | "DB" | "App" | …, fn, args }
 //   { plannerProbe: id, op: "listen" }   start (or restart) collecting DB.onChanged payloads
 //   { plannerProbe: id, op: "events" }   return and clear the collected payloads
+//   { plannerProbe: id, op: "timings" }  return window.__plannerTimings (src/dev-timings.ts)
 // Reply (iframe -> host): { plannerProbeReply: id, ok, detail }
 
-type Request = { plannerProbe: number; op: "call" | "listen" | "events"; ns?: string; fn?: string; args?: unknown[] };
+type Request = { plannerProbe: number; op: "call" | "listen" | "events" | "timings"; ns?: string; fn?: string; args?: unknown[] };
 
 // The one untyped SDK access in the repo: the probe calls SDK methods by name.
 const sdk = logseq as unknown as Record<string, Record<string, (...args: unknown[]) => unknown>>;

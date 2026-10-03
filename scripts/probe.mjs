@@ -1,5 +1,6 @@
 // npm run probe -- [--seed] [--writes] [--other-window]
 // npm run probe -- --seed-large [N] [--prop-prefix "Load "]     (load test seed only, N defaults to 2000)
+// npm run probe -- --timings                                    (print the dev load / refresh timings only)
 //
 // Live probe (T01). Drives the web app already open in a playwright-cli session (run from the
 // session's directory, or set PLANNER_PW_CWD to it) and the Planner dev build registered there.
@@ -13,6 +14,7 @@
 //   --seed-large   import the large deterministic seed (scripts/seed-large.edn.mjs): tag #Load item on the page
 //                  "Planner load test"; exits after the import, writes no fixtures
 //   --prop-prefix  prefix for the seed's property titles when Start / End / Lead / Team already exist on the graph
+//   --timings      print window.__plannerTimings from the plugin iframe (src/dev-timings.ts) and exit
 //
 // Only runs on the graphs `plugin-test` or the in-memory `Demo` (refuses anything else).
 import { spawnSync } from "node:child_process";
@@ -355,6 +357,7 @@ async function main() {
   const graph = graphGuard();
   installBridge();
   await waitForHook();
+  if (flags.has("--timings")) return void console.log(JSON.stringify(host(`window.__plannerProbe({ op: "timings" })`).detail, null, 2));
   if (flags.has("--seed-large")) return void seedLarge();
   if (flags.has("--seed")) seed();
   await sleep(500);

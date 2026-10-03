@@ -144,6 +144,11 @@ All notable changes to this project are documented here. The format follows
 - Large seed (T13): `scripts/seed-large.edn.mjs` builds a deterministic load-test seed (tag `#Load item`, N nodes,
   linked tasks, its own page "Planner load test"); `npm run probe -- --seed-large [N]` imports it in chunks (docs/probes.md).
 
+- Dev timings (T13): `src/dev-timings.ts` (dev builds only, `import.meta.env.DEV`; a test builds for production and checks
+  it is absent) records the first load (query time, render time) and every live refresh (debounced trigger to DOM updated)
+  through the optional `Timing` hook of `createWorkspace`, exposed as `window.__plannerTimings`;
+  `npm run probe -- --timings` prints it (docs/probes.md).
+
 ### Changed
 - The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in
   `src/ui/html.ts`; the category colour rules are generic `[data-cat]` rules in `theme.css` (`--pl-node-fill`,

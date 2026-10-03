@@ -191,8 +191,28 @@ PLANNER_PW_CWD=<playwright-cli session dir> npm run probe -- --seed-large 200   
   (`window.__plannerSeedLarge`), checks the length, then imports it in one `import_edn` call. Not tried live yet: the
   import may take long, and playwright-cli may time out on it; try N = 200 first.
 - No `--unseed-large`: the host API the probe uses can only move a page to Recycle (`delete_page`), and the tag, the
-  properties and the 600 journal pages would stay. Reset instead: use a fresh `plugin-test` graph (All graphs ->
+  properties and the 587 journal pages would stay. Reset instead: use a fresh `plugin-test` graph (All graphs ->
   Create a new graph, or a new browser session for the in-memory graph) and seed again.
+
+## Timings (T13, dev builds only)
+
+`src/dev-timings.ts` is loaded from `src/index.ts` behind `import.meta.env.DEV` and is not in `npm run build`
+(`src/dev-timings.test.ts` builds for production and asserts the global and the probe hook are absent). Read it with
+`PLANNER_PW_CWD=<dir> npm run probe -- --timings`, or from the host page through the probe bridge
+(`window.__plannerProbe({op: "timings"})`), or inside the plugin iframe as `window.__plannerTimings`:
+
+```
+{ load:    { kind, startedAt, queryMs, renderMs, totalMs, outcome } | null,   // latest first load
+  refresh: { ... } | null,                                                     // latest live refresh
+  history: Measurement[] }                                                     // last 50, oldest first
+```
+
+- `load`: `open()` called (first show) to the DOM showing the view. `queryMs` = tags, week start, saved views, nodes,
+  tasks, titles; `renderMs` = from the reads being done to the DOM written.
+- `refresh`: the debounced trigger (`Workspace.refresh()`) to the DOM updated. `outcome` is `redrawn`, `same` (reloaded,
+  nothing differed, no redraw: `renderMs` is the comparison), `deferred` (a popover, write or drag held it) or `error`.
+- "DOM updated" is the synchronous render; browser layout and paint after it are not included. A view switch or a tag
+  change after the first load is not a `load`: it is not recorded. Each number is a single run, so repeat and read `history`.
 
 ## Consequences for later tasks
 

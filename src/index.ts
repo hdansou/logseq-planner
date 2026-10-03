@@ -9,7 +9,13 @@ import { registerApp } from "./app";
 import { appDeps } from "./sdk";
 
 // Keep main() minimal: registerApp defers every host registration (gotcha §18).
-logseq.ready(() => registerApp(appDeps(), document.getElementById("app")!)).catch(console.error);
+logseq
+  .ready(async () => {
+    // Dev-only load / refresh timings (src/dev-timings.ts, `window.__plannerTimings`). Dropped from builds.
+    const timing = import.meta.env.DEV ? (await import("./dev-timings")).installTimings() : undefined;
+    registerApp(appDeps(), document.getElementById("app")!, timing);
+  })
+  .catch(console.error);
 
 // Dev-only: scripts/probe.mjs drives the SDK through this hook (docs/probes.md). Dropped from builds.
 if (import.meta.env.DEV) void import("./dev-probe").then((m) => m.installProbeHook());

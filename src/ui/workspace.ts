@@ -24,6 +24,20 @@ import { agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
+/** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
+export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
+
+/**
+ * Dev-only measurement hook (T13, `src/dev-timings.ts`); absent in production, so every call is `deps.timing?.…`.
+ * `begin("load")` = open() called; `begin("refresh")` = the debounced trigger asked for a reload. `queried()` = the
+ * graph reads are done; `rendered()` = the DOM shows the result (a refresh that changes nothing ends as "same").
+ */
+export interface Timing {
+  begin(kind: "load" | "refresh"): void;
+  queried(): void;
+  rendered(outcome: TimingOutcome): void;
+}
+
 export interface WorkspaceDeps {
   dq: Dq;
   views: ViewStore;
@@ -39,6 +53,8 @@ export interface WorkspaceDeps {
   weekStart(): Promise<number>;
   /** The SDK calls behind a Kanban move (`kanbanWriteDeps()` in src/sdk.ts). */
   kanban: KanbanWriteDeps;
+  /** Dev-only load / refresh timings; omitted in production. */
+  timing?: Timing;
 }
 
 export interface Workspace {
@@ -437,6 +453,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     } finally {
       s.loading = false;
     }
+    deps.timing?.queried();
   }
 
   /** Applies a config change that keeps the loaded nodes valid (dates, done values, filters, kind). */
@@ -489,7 +506,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     await loadData();
   }
-  const open = () => run(openBody);
+  const open = () => {
+    deps.timing?.begin("load");
+    return run(openBody).then(() => deps.timing?.rendered("redrawn"));
+  };
 
   /** What is on screen, as one comparable string: a reload that produces the same signature needs no redraw. */
   const signature = (data: { tags: TagInfo[]; nodes: PlannerNode[]; tasks: PlannerTask[]; titles: ReadonlyMap<string, string> }, weekStart: number | null) =>
@@ -497,10 +517,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** One live refresh, on the queue. Applies nothing when the user got busy while it loaded: it is asked again later. */
   async function reload() {
-    if (busy()) return void (wantRefresh = true);
+    if (busy()) {
+      wantRefresh = true;
+      return void deps.timing?.rendered("deferred");
+    }
     if (!s.config) {
       await openBody(); // nothing shown yet (no tags before): the first load
-      return void render();
+      render();
+      return void deps.timing?.rendered("redrawn");
     }
     const weekStart = await deps.weekStart();
     const tags = await loadTagInfos(deps.dq);
@@ -515,9 +539,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       config = t ? defaultViewConfig(t) : null;
     }
     const data = config ? await readData(config, tags) : { nodes: [], tasks: [], titles: new Map<string, string>() };
-    if (busy()) return void (wantRefresh = true); // a popover, a write or a drag started while loading: drop the result
+    deps.timing?.queried();
+    if (busy()) {
+      wantRefresh = true; // a popover, a write or a drag started while loading: drop the result
+      return void deps.timing?.rendered("deferred");
+    }
     const same = config === s.config && signature({ tags, ...data }, weekStart) === signature(s, s.weekStart);
-    if (same) return;
+    if (same) return void deps.timing?.rendered("same");
     if (config !== s.config) {
       s.config = config;
       s.viewId = null;
@@ -525,13 +553,16 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     Object.assign(s, { tags, weekStart, ...data });
     render(undefined, true);
+    deps.timing?.rendered("redrawn");
   }
 
   function refresh(): Promise<void> {
     wantRefresh = false;
+    deps.timing?.begin("refresh");
     queue = queue.then(reload).catch((e: unknown) => {
       s.error = e instanceof Error ? e.message : String(e);
       render(undefined, true);
+      deps.timing?.rendered("error");
     });
     return queue;
   }

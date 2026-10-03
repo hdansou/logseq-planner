@@ -2,7 +2,7 @@ import { createViewStore } from "./storage";
 import { createChanges } from "./ui/changes";
 import type { AppDeps } from "./types";
 import { watchTheme } from "./ui/theme";
-import { createWorkspace } from "./ui/workspace";
+import { createWorkspace, type Timing } from "./ui/workspace";
 
 const OPEN = "planner-open";
 const OPEN_HANDLER = "openPlanner";
@@ -27,16 +27,16 @@ export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boo
 
 /**
  * Renders the workspace into `root`, wires Escape (an open popover first, then Planner) and Close, and
- * defers the toolbar button and command palette entry that open it.
+ * defers the toolbar button and command palette entry that open it. `timing` is the dev-only recorder (src/dev-timings.ts).
  */
-export function registerApp(deps: AppDeps, root: HTMLElement): void {
+export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): void {
   const doc = root.ownerDocument;
   let changes: ReturnType<typeof createChanges> | null = null; // created with the deferred registrations
   const close = () => {
     deps.hideMainUI();
     changes?.setVisible(false);
   };
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban });
+  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban, timing });
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
   let loaded = false;
   const refresh = () => (loaded ? workspace.refresh() : ((loaded = true), workspace.open()));
