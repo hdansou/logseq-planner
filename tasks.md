@@ -78,7 +78,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       layout for all three zooms (week columns in Quarter, clipping, derived, points);
       happy-dom render. Est: ~60 min
 
-- [ ] **T09 Calendar** — `src/core/calendar-layout.ts`, `src/ui/calendar.ts`. Month and Week,
+- [x] **T09 Calendar** — `src/core/calendar-layout.ts`, `src/ui/calendar.ts`. Month and Week,
       week start, stable lanes, point chips, task deadline chips, time sort and labels in
       Week, "+N more" opens the week. Test first: lanes, week start, time sort; happy-dom
       render of both layouts. Est: ~60 min
@@ -274,3 +274,30 @@ Total: about 10 hours.
   Inkwell); Shift+Enter on a focused bar; the desktop app.
   Method: the seed can vanish on reload; re-seed needs the dev plugin (:8293) registered
   (probe hook), then unregister it and register the :8294 build.
+- 2026-10-03 T09 done (89dc9e1, 119c304, 0dc1500; fix 8d4835e). 263 unit tests. Shared
+  day arithmetic, labels and category colour moved to `src/core/layout-common.ts`; shared
+  HTML helpers to `src/ui/html.ts`. Live on `plugin-test` (each band and chip mapped to
+  the day cells it covers in the rendered page): Month "October 2026", 5 week rows from
+  27 Sep, outside days shaded, today on 3 Oct; Website relaunch on lane 0 across four
+  week rows with continuation marks, ending Fri 23; Acme rollout on lane 1 Wed 30 → Thu
+  8 across two rows; chips: late red "12:00 Acme contract" on 2 Oct, "17:00 Draft brief
+  Website relaunch" on 5 Oct, "Mobile app" on 8 Oct; no chip for a Scheduled-only task;
+  "No dates: Archive cleanup". Prev/Next/Today. Week of 27 Sep and of 4 Oct show the
+  same items with time and node lines. #Meeting: Kickoff 10:30 on 3 Oct, Late review
+  23:45 on 4 Oct. Click on a band or chip opens it; Shift+click opens in the sidebar.
+  Layout is saved with a view; opening a saved view keeps the period on screen.
+  "+N more": with three extra #Project nodes added for the check (removed afterwards)
+  the three lanes filled, counts were right per day (+3 on 2, 5 and 8 Oct), and "+3
+  more" opened Week 27 Sep – 3 Oct with all five bands and focus on Week.
+  Week start: host `start-of-week` set to 0 (Monday) through
+  `set_current_graph_configs`; after reopening Planner the Calendar ran Mon–Sun from 28
+  Sep and the Timeline Month read "14 Sep – 8 Nov 2026"; restored to 6.
+  Defect found live and fixed: bands covered the day numbers (and the Week's day
+  labels) because the grid's first row collapsed to 0px; the row is now a fixed 28px.
+  Screenshots checked in default light and Inkwell dark.
+  Decisions taken in T09 (change if wrong): 3 item rows per day in Month, shared by
+  bands and chips; done/canceled task chips are shown struck through, not hidden; the
+  Timeline and Calendar share one session anchor; "+N more" switches the view's layout
+  to Week.
+  Polish, not done: a band that continues on both sides shows its title mid-row rather
+  than at the left edge.
