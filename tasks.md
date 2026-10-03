@@ -60,7 +60,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       Test first: mapped, derived, one-date, no-date, canceled excluded, guess + override.
       Est: ~30 min
 
-- [ ] **T06 Saved views** — `src/core/view-config.ts`, `src/storage.ts`. Defaults per tag,
+- [x] **T06 Saved views** — `src/core/view-config.ts`, `src/storage.ts`. Defaults per tag,
       validation (fail fast on unknown idents), cache-first CRUD on the plugin page as hidden
       string properties (schema ensured before each write; strict page query). Test first
       with a fake SDK: defaults, validation, cache updated before write. Accept: live save /
@@ -206,3 +206,21 @@ Total: about 10 hours.
   is passed through; the done override applies to built-in values too. To change in T06:
   the override is a list of value titles, which breaks on rename; store closed-value
   uuids in the saved view instead.
+- 2026-10-03 T06 done (4a13ee3, fixes 0a37949, 492929f, 3c50069). 107 unit tests. The done
+  override and saved filters use closed-value uuids. Live on `plugin-test`, store driven
+  inside the plugin iframe with the real SDK: empty list; create (page "Planner views",
+  one block, JSON in the hidden string property `planner-view-config`); update; list from
+  a fresh store; second view and remove (block gone); unknown id throws with the cache
+  unchanged; full app reload then list returns the view with the same id and zoom.
+  Defects found live and fixed: (1) a views page in Recycle still matched the page query
+  and new views were written into it; the query now excludes `deleted-at`. (2) With a
+  same-titled page in Recycle, `createPage` returns the recycled page and creates nothing,
+  so create throws; the error now tells the user to restore or delete it in Recycle. Both
+  remedies checked through the Recycle UI: after Restore the old views list and saving
+  works; after Delete saving creates a fresh page.
+  Method notes: register with `LSPluginCore.register({key: "logseq-planner", …})` for a
+  stable id; without `key` the id is random and plugin properties (namespaced by id)
+  look lost after a reload. `delete_page` only moves a page to Recycle; permanent delete
+  is the Delete button in More → Recycle (native confirm dialog: `playwright-cli
+  dialog-accept`). Graph left clean: no views page, no `plugin.property` idents.
+  Open: concurrent writes are not serialised; v1 has no auto-restore of a recycled page.
