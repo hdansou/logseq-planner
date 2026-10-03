@@ -11,11 +11,11 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
 ## Resume here (written 2026-10-03, end of the second session)
 
-State: every v1 item below (T00–T14) and the performance item T13a are done. 488 unit
-tests pass at HEAD (`c4cab51` plus this note). 87 local commits, no remote, nothing pushed.
-All live validation was done in the Logseq WEB app (dev build of the main checkout at
-d2ab7726ab, 2026-09-02, in-memory graph `plugin-test`). Nothing has run on the desktop app
-or on a current Logseq build.
+State: every v1 item below (T00–T14) and the performance item T13a are done; so are N02 (as far
+as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commit
+after it. No remote, nothing pushed. All live validation was done in the Logseq WEB app (dev build
+of the main checkout at d2ab7726ab, 2026-09-02, in-memory graph). Nothing has run on the desktop
+app or on a current Logseq build. docs/manual-test.md: A–I 115 pass, 5 partial, 6 not run; J 15 pass.
 
 Read in this order: this section, "Next" below, then the Progress log entry of whatever
 you touch (it records what was verified live, the decisions taken and what was not
@@ -59,21 +59,25 @@ Live-check method (web app):
       untested there), macOS window-button padding, the `g Shift+P` chord, refresh under
       sync and from a second window, dragging a card to a column scrolled out of view,
       timings on a production build.
-- [ ] **N02 Checklist rows not run** — docs/manual-test.md: A9, C4.3, D11, D12, D14, E12,
-      G5, H8, H12, H13, I9, I10 and J3, J7, J10–J14; the 13 partial rows.
+- [x] **N02 Checklist rows not run** — done 2026-10-03 for every row the web app can cover (see
+      the Progress log). Left: A9, E12 and D11 (desktop app or a real mouse: fold into N01), D12
+      (Firefox), I9 (VoiceOver); partial E8, E11 (tag deletion, N04), F9, H6, H10.
 - [ ] **N03 Owner decisions** —
-      (a) LICENSE file: package.json says MIT, the repo has none.
-      (b) Agenda lateness: the Agenda calls a task with only a past Scheduled date overdue;
-          Timeline and Calendar mark lateness on the Deadline only. Pick one rule.
-      (c) The "Decisions taken (change if wrong)" lists in the Progress log for T05, T07,
+      (a) done: MIT LICENSE added (6a89ccc).
+      (b) done: one lateness rule (771140f). The owner chose "Scheduled or Deadline"; built as:
+          due date = Deadline, else Scheduled; an open task is late when its due day is past.
+          A past Scheduled date with a future Deadline is not late. Confirm or change.
+      (c) open: the "Decisions taken (change if wrong)" lists in the Progress log for T05, T07,
           T08, T09, T10, T11 and T13a (e.g. tick-to-narrow filters, saving always creates a
           new view, no delete confirmation, Month = 8-week window, caps of 50 cards and 100
           groups, Timeline rows only in range).
 - [ ] **N04 Known limitations to fix or accept** — deleting a tag triggers no refresh (next
       change or 30 s poll); reopening after a stale hide reloads twice; the Agenda's
-      Overdue bucket is not capped (923 entries at 2,000 nodes); Timeline refresh ran
-      254–302 ms on some runs right after opening (target 300 ms incl. the 50 ms
-      debounce); a task linked to two nodes is listed under the first one in the Agenda by
+      Overdue bucket is not capped (923 entries at 2,000 nodes); refresh at 2,000 nodes ran
+      165–254 ms with single runs at 320, and 187–432 ms after a Kanban drag (target 250 ms
+      plus the 50 ms debounce); done and canceled rows measure 3.33 / 2.98 contrast in
+      Logseq's default light / dark themes (host `--muted-foreground`; Inkwell 4.63 / 4.98);
+      the saved-views and Done-when popovers have no arrow-key navigation (Tab works); a task linked to two nodes is listed under the first one in the Agenda by
       node; saved-view writes are not serialised; no auto-restore of a views page in
       Recycle; a band continuing on both sides shows its title mid-row; no CSP.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
@@ -544,3 +548,33 @@ Total: about 10 hours.
   not added; nothing validated on the desktop app or a current Logseq build; queries
   that scan on a constant attribute value are untested on a persisted (non in-memory)
   graph.
+- 2026-10-03 third session: N03 (a), (b) and N02 (6a89ccc, 771140f, 1670261, 03ffed6, da5d181).
+  504 unit tests. Owner decisions: validate on the web app first; lateness counts the
+  Scheduled date; add the MIT LICENSE.
+  Lateness (771140f): `dueDate` = Deadline, else Scheduled; `isLate` uses it in every view.
+  Live (small seed plus four tasks on Website relaunch): Scheduled D-3 only → red ring in the
+  Timeline, Overdue "3 days late" in the Agenda, no Calendar chip; the same task Done → not
+  late, under Earlier; Scheduled D-2 with Deadline D+3 → not late; Deadline D-2 with
+  Scheduled D+1 → red diamond, Overdue "2 days late", late Calendar chip.
+  Checklist: C4.3, D14, G5, H8, H12, H13, I10, J3, J7, J10–J15 run and pass; F3, F4, H4, H9,
+  I3, I4, I7, I8 moved from partial to pass; F9, H6, H10 re-measured and still partial. The
+  notes in docs/manual-test.md hold the numbers and the method of each row.
+  Defects found live and fixed (re-checked on da5d181): the settings bar had `aria-label`
+  but no role (now `role="group"`, found by role); no reduced-motion rule (46 transitions
+  → 0 under `prefers-reduced-motion`); a derived span from one task read "9 Oct 09:00 –
+  9 Oct 09:00" (now "9 Oct 09:00 from its tasks" in Timeline and Calendar; a one-day Date
+  span reads "23 Sep" there too, as the Agenda already did).
+  Findings left open (in N04): done / canceled row contrast in Logseq's default themes;
+  refresh times over 250 ms on some runs; popovers without arrow keys.
+  Method notes: the in-memory `Demo` graph is accepted by the probe and needs no graph
+  creation. `logseq.api.add_tag_property` rejects a valid tag from the host page ("Not a
+  valid tag"); `frontend.handler.db_based.property.class_add_property_BANG_(tagId, kw)`
+  works in the dev build. sqlite.build takes a property's ident from its map key, so
+  `:Done?` gives `:user.property/Done?-…`. A bad `start-of-week` is sanitised by the host
+  and leaves an error toast that covers the top right of Planner: dismiss it before
+  clicking there. playwright `dragTo` drops at the middle of the target; on a 50-card
+  cell that is off screen and another card gets moved: pass `targetPosition`. Theme
+  plugins register with an inline manifest (`fetch` of the package.json fails on CORS).
+  Not verified: anything on the desktop app or a current Logseq build; D14 / J12 with an
+  edit from a second tab (the edit came from the host API in the same page); J13 through
+  the Logseq UI; scrolling smoothness.

@@ -12,8 +12,10 @@ marked **[new]** were not recorded in the log: write down what shows and judge i
 Result column: `pass`, `partial` (part of the row was checked; the note says which), `not run`.
 The Build column is the Planner commit the row was checked on. Rows checked during T07–T12 keep
 that task's build and were not all re-run on the current one; the #Project and #Meeting views were
-re-run after the T13a performance changes. Totals for sections A–I: 100 pass, 13 partial, 13 not run. Section J (the T14 fixes, run on 92ec1d7): 7 pass, 7 not run (J3, J7, J10–J14). Not run:
-A9, C4.3, D11, D12, D14, E12, G5, H8, H12, H13, H14, I9, I10. Everything was run in the web app
+re-run after the T13a performance changes. Second pass on 2026-10-03 (builds 771140f and da5d181; same web app, in-memory `Demo` graph, large-seed rows on the DEV
+build): the rows that were not run or partial were re-run where the web app allows. Totals for sections A–I: 115 pass,
+5 partial (E8, E11, F9, H6, H10), 6 not run (A9, D11, D12, E12, H14, I9). Section J: 15 pass. A9, D11 and E12 need the
+desktop app or a real mouse, D12 Firefox, I9 VoiceOver; H14 was not needed. Everything was run in the web app
 (an older Logseq checkout), not the desktop app.
 
 ## Environment
@@ -150,7 +152,7 @@ columns without lanes. After a check, set the view back.
 |---|---|---|---|---|---|---|
 | C4.1 | Timeline, Calendar and Agenda over #Page | "#Page has no date properties" with the hint to add a Date or DateTime property in Logseq | pass | 4d45a0b | 2026-10-03 |  |
 | C4.2 | Kanban over #Page | "#Page has no choice properties" (the no-dates state is not shown in Kanban) | pass | 4d45a0b | 2026-10-03 |  |
-| C4.3 | The empty-state text and layout in light and dark | Centred, readable, no console error | not run |  |  | light only seen; dark not checked for the empty states |
+| C4.3 | The empty-state text and layout in light and dark | Centred, readable, no console error | pass | 771140f | 2026-10-03 | Logseq default dark: the Timeline ("no date properties") and Kanban ("no choice properties") empty states are centred and readable (screenshots); no plugin console error |
 
 ### C5. A tag with no nodes
 
@@ -182,7 +184,7 @@ log the host calls if you can (wrap `logseq.api.upsert_block_property` in the ho
 | D11 | Drag to a column that is scrolled out of view | Not verified so far (does not register under playwright's dragTo). Try by hand with the mouse, then use the Move menu to reach every column | not run |  |  | did not register under playwright dragTo; by hand not tried |
 | D12 | Drag starting on the card's button in Firefox | Not verified so far; record whether it drags | not run |  |  | Firefox not used |
 | D13 | Sticky column headers and the Move menu near the window edges | Header stays while the board scrolls; the menu is not clipped by the edge | pass | 4d45a0b | 2026-10-03 | header position sticky top 0; Move menu inside the window (935–1135 × 235–495 of 1280×720). Scrolling look not judged |
-| D14 | A card is dragged while a change arrives from elsewhere | The redraw waits until the drag ends (deferral during a drag, not verified so far); no card is lost | not run |  |  | deferral during a drag is unit-tested only |
+| D14 | A card is dragged while a change arrives from elsewhere | The redraw waits until the drag ends (deferral during a drag, not verified so far); no card is lost | pass | 771140f | 2026-10-03 | card held mid-drag (mouse down and move) while another node's Status was set from the host: the board did not change during the drag, and redrew with the edit after Escape; no card lost; a later edit redrew too. The edit came from the host API in the same page, not from a second tab |
 | D15 | Check the "pending" look and that a pending card cannot be dragged twice | Pending card disabled until the write settles | pass | 4d45a0b | 2026-10-03 | slow write: card in the target, pending, draggable=false, aria-busy, ⋯ disabled, opacity 0.7, cursor progress; normal after it settled |
 
 ## E. Live refresh
@@ -214,13 +216,13 @@ row, an expanded Timeline row, the Kanban card hover and a late chip). The token
 |---|---|---|---|---|---|---|
 | F1 | Default theme, light | Text and surfaces follow the host; sans-serif (never serif); selected rows readable (tint-soft, not dark on blue); 2px tint-soft focus ring; no `hsl(#...)` in any token | pass | 4d45a0b | 2026-10-03 |  |
 | F2 | Default theme, dark | Same, with `html.dark`; plugin surface within a shade of the host body. Not verified for the Timeline so far (the recorded profile's dark theme was Inkwell): look at every view | pass | 4d45a0b | 2026-10-03 | Timeline in Logseq default dark: host rgb(0,43,54), plugin rgb(0,45,56); screenshot checked |
-| F3 | Inkwell, light | All 38 tokens resolve (`--ink-*` status colours, system font); looks right in all four views | partial | 8d4835e | 2026-10-03 | workspace and Timeline screenshots; Calendar, Agenda, Kanban not seen in Inkwell light |
-| F4 | Inkwell, dark | Same in dark | partial | 4d44aac | 2026-10-03 | workspace, Timeline, Calendar, Kanban screenshots; Agenda not seen in Inkwell dark |
+| F3 | Inkwell, light | All 38 tokens resolve (`--ink-*` status colours, system font); looks right in all four views | pass | 771140f | 2026-10-03 | Inkwell Slate Light: Timeline, Calendar, Agenda and Kanban screenshots look right |
+| F4 | Inkwell, dark | Same in dark | pass | 771140f | 2026-10-03 | Inkwell Slate Dark: all four views seen, Agenda included |
 | F5 | One other theme (name it): light or dark as it ships | Background, text and font come through; nothing unreadable | pass | 4d45a0b | 2026-10-03 | scratch theme "Probe Green Light": background rgb(235,250,235), text rgb(11,61,11), font Georgia; Kanban screenshot |
 | F6 | Toggle light / dark with Planner open | `html.dark` flips and tokens change with no reload | pass | 2c90798 | 2026-10-03 |  |
 | F7 | Switch theme 9 times in a row, rapidly, with Planner open | Each switch ends on the host's values (the 250 ms / 1 s re-resolve beats the stylesheet load race) | pass | 2c90798 | 2026-10-03 | 9 switches, not rapid |
 | F8 | Switch back to the default theme (picker sends `{url: null, mode}`) | Tokens reset to the default theme | pass | 4d45a0b | 2026-10-03 |  |
-| F9 | Contrast spot checks per theme | Late (red) chips and the done / canceled greyed rows stay readable | partial | 4d44aac | 2026-10-03 | seen in default light and Inkwell dark only; no contrast measurement |
+| F9 | Contrast spot checks per theme | Late (red) chips and the done / canceled greyed rows stay readable | partial | 771140f | 2026-10-03 | measured (WCAG ratio, light / dark). Inkwell: late chip 5.03 / 5.12, late date text 6.06 / 6.77, done and canceled rows 4.63 / 4.98. Logseq default: late chip 5.03 / 5.12, late date text 5.46 / 4.77, done and canceled rows 3.33 / 2.98 (under 4.5: they use the host's `--muted-foreground`) |
 
 ## G. Week start
 
@@ -233,7 +235,7 @@ Logseq setting `preferredStartOfWeek` (0-6 = Monday-Sunday; the default is 6 = S
 | G2 | Set 0 (Monday), close and reopen | Calendar runs Monday to Sunday (first row from 28 Sep); the Timeline Month label reads "14 Sep – 8 Nov 2026" on the recorded run | pass | 8d4835e | 2026-10-03 |  |
 | G3 | Set 6 again | Back to the Sunday layout; restore the setting at the end | pass | 4d45a0b | 2026-10-03 | restored to 6 at the end |
 | G4 | Set another weekday (e.g. 2) | Calendar and Timeline Quarter week columns start on that day | pass | 4d45a0b | 2026-10-03 | 2 → Wed…Tue, rows from 30 Sep; Quarter columns 2, 9, 16, 23 Sep |
-| G5 | Change the setting while Planner is open and hidden, then show it | The next refresh picks it up (week start is re-read on every open and every refresh) | not run |  |  |  |
+| G5 | Change the setting while Planner is open and hidden, then show it | The next refresh picks it up (week start is re-read on every open and every refresh) | pass | 771140f | 2026-10-03 | Calendar Sun-first; Close; `start-of-week` set to 0; reopened: Mon-first |
 
 ## H. Large graph (#Load item, N = 2000)
 
@@ -262,16 +264,16 @@ performance.now() - t0
 | H1 | Seed N = 2000; check the graph | Page "Planner load test" with 2000 `#Load item` nodes and about 2000 `#Task` blocks; the tag tree shows "Load item" with Start, End, Status, Lead, Team; import finished with no error | pass | 4d45a0b | 2026-10-03 | 2000 items, 2033 tasks; import 105–107 s |
 | H2 | Reload, open Planner (opens on #Load item, Timeline, Month); read `load` | `load.totalMs` under 1000 (the first view); note `queryMs` and `renderMs` apart | pass | 4d45a0b | 2026-10-03 | DEV build: 326–350 ms (queries ~305–330, render ~21) |
 | H3 | Timeline: switch to Calendar, Agenda and Kanban with the snippet | Each under 1000 ms from click to painted; note each | pass | 8af0486 | 2026-10-03 | DEV build, to paint: Timeline 22, Calendar 13, Agenda 24, Kanban 30 ms |
-| H4 | Back to the Timeline; Week, Quarter zoom, Next / Prev / Today | Each redraw feels immediate; note any over 300 ms | partial | b00b1b7 | 2026-10-03 | zoom switches 90–100 ms before T13a; not re-timed; Next/Prev not timed |
+| H4 | Back to the Timeline; Week, Quarter zoom, Next / Prev / Today | Each redraw feels immediate; note any over 300 ms | pass | 771140f | 2026-10-03 | DEV build, click to DOM / to paint in ms: Week 30 / 35, Quarter 43 / 48 (511 rows), Month 23 / 28, Next 38 / 44, Prev 28 / 32, Today 28 / 33 |
 | H5 | Set a node's Status from the host on a visible node (Kanban, Status columns); read `refresh` | `refresh.outcome` = `redrawn`, `totalMs` under 250 (so under 300 ms with the 50 ms debounce); the card is in its new column | pass | 4d45a0b | 2026-10-03 | DEV build: Kanban 181–186 ms, redrawn |
-| H6 | Edit an unrelated block; read `refresh` | `outcome` = `same`, `totalMs` under 250 | partial | 8af0486 | 2026-10-03 | outcome "same" seen at 230–242 ms before the last three perf commits; not re-timed |
+| H6 | Edit an unrelated block; read `refresh` | `outcome` = `same`, `totalMs` under 250 | partial | 771140f | 2026-10-03 | re-timed, 11 runs on the Timeline: outcome `same` every time; 165–254 ms plus one first run at 320 (3 of 11 at or over 250). After a Kanban drag the quiet reload ran 187–432 ms |
 | H7 | Repeat H5 on Timeline, Calendar and Agenda (change a node's End date) | Same targets for each view | pass | 4d45a0b | 2026-10-03 | DEV build, Status edit (not End date): Timeline 179–184 (two runs 260), Calendar 165–169, Agenda 169–179 |
-| H8 | Kanban drag on #Load item (Status, then with Lead swimlanes) | The move shows at once (optimistic) and the quiet reload after it does not stall; note the time to settle | not run |  |  |  |
-| H9 | Filters: tick Lead = Alice, Team = Ops; clear | The list narrows and widens at once; counts correct (check one against a query) | partial | b00b1b7 | 2026-10-03 | one filter click 19 ms to paint, 271 rows; count not checked against a query; Team not tried |
-| H10 | Scroll the Timeline and the Kanban columns | No visible jank. The Timeline has rows only for nodes in range and one line "N earlier · M later" above the grid; each side moves the range to the nearest such node. Kanban cells show 50 cards, then "Show 50 more of N" (counts in the heads are the totals) **[T13a]** | partial | 4d45a0b | 2026-10-03 | row counts and the summary line confirmed (313 rows, "728 earlier · 722 later"); scrolling smoothness not judged (headless) |
+| H8 | Kanban drag on #Load item (Status, then with Lead swimlanes) | The move shows at once (optimistic) and the quiet reload after it does not stall; note the time to settle | pass | 771140f | 2026-10-03 | flat (Backlog to Doing) and with Lead swimlanes (Backlog to Todo in the Alice lane): first DOM change 21 ms / 69 ms after the drop, card in its new cell and not pending, column totals updated, graph written; the reload after it: `same`, 251–432 ms. The drop has to land in the visible part of the cell (see D11): playwright's default drop point, the middle of a 50-card cell, is off screen |
+| H9 | Filters: tick Lead = Alice, Team = Ops; clear | The list narrows and widens at once; counts correct (check one against a query) | pass | 771140f | 2026-10-03 | Lead = Alice 18 ms, then Team = Ops 12 ms to paint; clearing 23–30 ms. Kanban totals under both filters sum to 73 = the datascript count of #Load item nodes with Lead Alice and Team Ops |
+| H10 | Scroll the Timeline and the Kanban columns | No visible jank. The Timeline has rows only for nodes in range and one line "N earlier · M later" above the grid; each side moves the range to the nearest such node. Kanban cells show 50 cards, then "Show 50 more of N" (counts in the heads are the totals) **[T13a]** | partial | 771140f | 2026-10-03 | row counts and the summary line confirmed again (313 rows, "728 earlier · 722 later"); Kanban: 50 cards per cell, then "Show 50 more of N", totals in the heads; scrolling smoothness not judged (headless) |
 | H11 | Agenda "Later" and "No date" folds with hundreds of entries | Entries render only when a fold is opened (the count is in the heading), without freezing; by node the first 100 groups, then "Show 100 more of N" **[T13a]** | pass | 4d45a0b | 2026-10-03 | Later 774 and No date 776 render 0 until opened; by node 100 groups then "Show 100 more of 1,437" |
-| H12 | Open and close Planner 5 times | Reopen is instant when nothing changed (no reload); `history` shows no growth of `totalMs` | not run |  |  |  |
-| H13 | Memory: note the page's JS heap before and after opening Planner and switching all views | Record the numbers (no target) | not run |  |  |  |
+| H12 | Open and close Planner 5 times | Reopen is instant when nothing changed (no reload); `history` shows no growth of `totalMs` | pass | 771140f | 2026-10-03 | DEV build, #Load item Kanban, 5 close / reopen cycles: the view is visible 55–62 ms after the click; no new load or refresh measurement in `history` (no reload) |
+| H13 | Memory: note the page's JS heap before and after opening Planner and switching all views | Record the numbers (no target) | pass | 771140f | 2026-10-03 | `performance.memory.usedJSHeapSize` of the page (DEV builds of Logseq and Planner, one process for both): 347 MB before opening, 361 MB after opening #Load item and switching all views and zooms, 353 MB after 5 open / close cycles |
 | H14 | Seed `--seed-large 200` first on a fresh graph if the 2000 import fails or times out | Record which N imports; report the failure text | not run |  |  | not needed: N = 2000 imported |
 
 ## I. Accessibility basics
@@ -280,14 +282,14 @@ performance.now() - t0
 |---|---|---|---|---|---|---|
 | I1 | Tab through the workspace from the top | Reaches Close, view switch, saved views, tag tree, settings bar controls, filters, the view toolbar, then the view's items, in reading order; nothing focusable is skipped; nothing hidden receives focus | pass | 4d45a0b | 2026-10-03 | order: view switch, saved views, Close, settings bar, tag tree, built-in group, filters |
 | I2 | Every focused control | A visible 2px focus ring in the tint colour in all five themes | pass | 4d45a0b | 2026-10-03 | 2px ring on all 34 tab stops, default light only |
-| I3 | Operate each control with Enter / Space (view switch, menus, zoom, prev / next / Today, Show done, Group by, filters) | Works without a mouse | partial | 4d45a0b | 2026-10-03 | Space on the view switch, Enter on the tag menu; the other controls not tried by keyboard |
-| I4 | Menus and listboxes (tag, Start, End, Done values, saved views, Kanban Columns / Swimlanes) | Arrow keys move, Enter picks, focus returns to the trigger; the first option is focused on open | partial | 4d45a0b | 2026-10-03 | tag menu: arrows, Enter, focus back on the trigger; other menus not tried |
+| I3 | Operate each control with Enter / Space (view switch, menus, zoom, prev / next / Today, Show done, Group by, filters) | Works without a mouse | pass | 771140f | 2026-10-03 | Enter and Space on the view switch, zoom, Prev / Next / Today, the task toggle, Show done and Group by; Space on a filter checkbox |
+| I4 | Menus and listboxes (tag, Start, End, Done values, saved views, Kanban Columns / Swimlanes) | Arrow keys move, Enter picks, focus returns to the trigger; the first option is focused on open | pass | 771140f | 2026-10-03 | Start, End, Columns, Swimlanes: the first option is focused on open, arrows move, Enter picks, focus returns to the trigger. Saved views and Done when are popovers, not listboxes: focus starts in the Name field (first checkbox), Tab reaches each saved view, Enter opens it, Escape returns focus to the trigger; arrow keys do nothing there |
 | I5 | Escape order: open a menu, press Escape; press Escape again | First Escape closes only the popover (Planner stays), the second hides Planner | pass | 9af8e98 | 2026-10-03 |  |
 | I6 | Escape with a Kanban Move menu open | Closes the menu, focus back on the card's ⋯ | pass | 4d44aac | 2026-10-03 |  |
-| I7 | Timeline bars, diamonds, Calendar bands and chips, Agenda entries, Kanban card open buttons | Focusable buttons with an accessible name (title and date); Enter opens the node; Shift+Enter opens the sidebar (not verified on a focused Timeline bar so far) | partial | 4d44aac | 2026-10-03 | labels read on Timeline bars and Kanban cards; Enter on them not tried |
-| I8 | Landmarks | Tags are in a `nav` named "Tags", settings in "View settings", the board in a labelled region ("... board by Status"), cells in labelled lists | partial | 4d45a0b | 2026-10-03 | found nav "Tags", main, group "View"; "View settings" and the board region not confirmed |
+| I7 | Timeline bars, diamonds, Calendar bands and chips, Agenda entries, Kanban card open buttons | Focusable buttons with an accessible name (title and date); Enter opens the node; Shift+Enter opens the sidebar (not verified on a focused Timeline bar so far) | pass | 771140f | 2026-10-03 | Timeline bar, Calendar band and chip, Agenda entry, Kanban card: Enter opens the node (Planner hides), Shift+Enter adds it to the right sidebar (Planner stays) |
+| I8 | Landmarks | Tags are in a `nav` named "Tags", settings in "View settings", the board in a labelled region ("... board by Status"), cells in labelled lists | pass | da5d181 | 2026-10-03 | nav "Tags", main, group "View", group "View settings", region "#Project board by Status", one labelled list per cell. The settings bar had a label but no role on 771140f; fixed in 1670261 and found by role on da5d181 |
 | I9 | Screen reader pass (VoiceOver) on one view | Titles, dates and counts are announced; the Move menu announces the property | not run |  |  |  |
-| I10 | Reduced motion and 200% browser zoom | Nothing overlaps; the grid scrolls inside the view | not run |  |  |  |
+| I10 | Reduced motion and 200% browser zoom | Nothing overlaps; the grid scrolls inside the view | pass | da5d181 | 2026-10-03 | 640×360 viewport (about 200% zoom): no page overflow in any view, the Timeline, Calendar and Kanban scroll inside the view, the settings bar wraps (screenshots on 771140f). Reduced motion: 46 elements with a transition normally, 0 under `prefers-reduced-motion: reduce` (rule added in 03ffed6) |
 
 ## J. Review fixes (T14)
 
@@ -297,19 +299,19 @@ Rows added with the T14 review fixes; none run live yet.
 |---|---|---|---|---|---|---|
 | J1 | Timeline in Week zoom: click the range label, the toolbar padding; Kanban: click the hint and the "Sort" label | The zoom, sort and other view settings do not change | pass | 92ec1d7 | 2026-10-03 | range label and Kanban hint clicked; zoom stayed week, sort stayed title |
 | J2 | Create tags titled "2026 goals", "true" and ":kw", tag a node with each, open each in Planner | Each tag shows its node | pass | 92ec1d7 | 2026-10-03 | each tag showed its own node on the Kanban |
-| J3 | Two tags with the same title, one node each; open each | Each shows only its own node | not run |  |  |  |
+| J3 | Two tags with the same title, one node each; open each | Each shows only its own node | pass | 771140f | 2026-10-03 | two tags titled "Pair", each with a Date property and one node: each shows only its own node |
 | J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | pass | 92ec1d7 | 2026-10-03 | page with a #Project block moved to Recycle: the card left the board on the next refresh; the single deleted block case not run |
 | J5 | Save a view with the suggested name; save another named "#Project [[x]] {{y}}" | Suggested name is "Project kanban" (no #); the second is saved as "Project x y"; neither block on "Planner views" has a tag; no view block shows up as a card | pass | 92ec1d7 | 2026-10-03 | suggested name "Project kanban" saved untagged; "#Project [[x]] {{y}} ((z)) plan" saved as "Project x y (z) plan", untagged; board still 4 cards |
 | J6 | On "Planner views", edit one view block's hidden `planner-view-config` to `{"v":1,"config":{}}` (e.g. via the CLI), reopen Planner, open Saved views | The other views list and open; the broken one is greyed with "Cannot be opened: …" and can be deleted | pass | 92ec1d7 | 2026-10-03 | config corrupted from the host: listed greyed with "Cannot be opened: Invalid view config: tag must be a string", deletable; the other views still listed |
-| J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | not run |  |  |  |
+| J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | pass | 771140f | 2026-10-03 | on a probe tag, not #Project: the multi-value choice "Labels" is absent from the filters, Columns, Swimlanes and Done when; the two single-value choices are listed |
 | J8 | With Planner open in tab A, save a view in tab B (same graph); in A close and reopen Planner; then delete it in B and reopen in A | The view appears in A after the reopen, and is gone after the second | pass | 92ec1d7 | 2026-10-03 | a view block added from the host appeared after hide + show and opened; done from the host, not a second tab |
 | J9 | Kanban with swimlanes: stub the host so the lane write does nothing (as in the T11 silent-failure check), drag a card to another column and lane | Error ends "Status was put back to …, so the card has not moved."; the graph holds the old Status and Owner | pass | 92ec1d7 | 2026-10-03 | calls: status=Doing, owner=Alice (dropped), status=Todo; error "Owner of "Mobile app" was not saved as Alice (read back differs). Status was put back to Todo, so the card has not moved."; graph unchanged |
-| J10 | Give #Project a choice property named "Done?" (or "Who's"), use it as the Kanban column property and move a card | The move is written and read back with no "Not a full property ident" error | not run |  |  |  |
-| J11 | Open a tag with no properties in Timeline and in Kanban; in Logseq add a Start date property and a Status choice to it | Without reopening, the Timeline maps Start (and End by the default rule) and the Kanban shows Status columns | not run |  |  |  |
-| J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | not run |  |  |  |
-| J13 | Set a #Project node's Start, then remove the value in Logseq | The node shows with no Start (undated or by its End); the rest of the tag loads | not run |  |  |  |
-| J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | not run |  |  |  |
-| J15 | A task with only a past Scheduled date (open, no Deadline): look at the Timeline (expand its node), the Calendar and the Agenda by date | Timeline: the scheduled marker is red (`[data-tl-marker="scheduled"][data-late]`); Calendar: no chip (Scheduled is not shown); Agenda: it is under Overdue, "scheduled … N days late" | not run |  |  |  |
+| J10 | Give #Project a choice property named "Done?" (or "Who's"), use it as the Kanban column property and move a card | The move is written and read back with no "Not a full property ident" error | pass | 771140f | 2026-10-03 | idents `:user.property/Done?-…` and `:user.property/Who's-…`: a drag (Done? No to Yes) and the Move menu (Who's Mine to Theirs) were written and read back from the graph; no error |
+| J11 | Open a tag with no properties in Timeline and in Kanban; in Logseq add a Start date property and a Status choice to it | Without reopening, the Timeline maps Start (and End by the default rule) and the Kanban shows Status columns | pass | 771140f | 2026-10-03 | the Kanban, shown during the change, went from the no-choice empty state to Status columns; the Timeline mapped Start (End None: the tag has no second date property) on switching view, Planner not closed. Properties added with the host handler `class-add-property!`; the host API `add_tag_property` rejected the tag ("Not a valid tag") by uuid and by title |
+| J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | pass | 771140f | 2026-10-03 | same run as D14: ended with Escape; the board redrew with the edit made during the drag, and a later edit redrew too. Edit made from the host API in the same page |
+| J13 | Set a #Project node's Start, then remove the value in Logseq | The node shows with no Start (undated or by its End); the rest of the tag loads | pass | 771140f | 2026-10-03 | Start removed with `logseq.api.remove_block_property` (not the UI): the attribute is gone, the node falls back to its task's dates, the rest of the tag loads, no error |
+| J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | pass | 771140f | 2026-10-03 | the host sanitises a bad `start-of-week` config (it stays 6), so `logseq.api.get_user_configs` was wrapped to return "banana": the workspace shows only "Logseq preferredStartOfWeek is "banana", expected 0–6" with Dismiss and Retry; after unwrapping, Retry loads the workspace |
+| J15 | A task with only a past Scheduled date (open, no Deadline): look at the Timeline (expand its node), the Calendar and the Agenda by date | Timeline: the scheduled marker is red (`[data-tl-marker="scheduled"][data-late]`); Calendar: no chip (Scheduled is not shown); Agenda: it is under Overdue, "scheduled … N days late" | pass | 771140f | 2026-10-03 | four tasks linked to Website relaunch. Scheduled D-3 only: red scheduled ring (red border, no fill), Overdue "scheduled 30 Sep 09:00, 3 days late", no Calendar chip. Same but Done: not late, under Earlier with Show done. Scheduled D-2 + Deadline D+3: not late. Deadline D-2 + Scheduled D+1: red deadline diamond, Overdue "2 days late", late Calendar chip |
 
 ## Not covered / known gaps
 
@@ -321,9 +323,11 @@ Copied from the progress log (tasks.md). Re-check each when the environment allo
 - Dragging to a Kanban column that is scrolled out of view (did not register under playwright's `dragTo`; the Move menu
   reaches every column); dragging from the card's button in Firefox; the sticky header and Move-menu clipping near the
   window edges.
-- Deferral of a live refresh during a drag in progress.
-- Logseq's default dark theme for the Timeline (the recorded profile's dark theme was Inkwell); Shift+Enter on a focused
-  Timeline bar.
+- Logseq's default dark theme for the Timeline (the recorded profile's dark theme was Inkwell).
+- Contrast (F9): in Logseq's default themes the greyed done and canceled rows measure 3.33 (light) and 2.98 (dark),
+  under 4.5; they take the host's `--muted-foreground`. Inkwell measures 4.63 / 4.98.
+- Refresh time at 2,000 nodes (H6): 165–254 ms on the Timeline with single runs at 320; 187–432 ms after a Kanban drag
+  (target 250).
 - Open (T12): reopening after a stale hide runs two reloads instead of one (the second changes nothing).
 - Open (T09, polish): a band that continues on both sides shows its title mid-row, not at the left edge.
 - Open (T06): concurrent writes to saved views are not serialised; v1 has no auto-restore of a recycled views page.
