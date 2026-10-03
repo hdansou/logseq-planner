@@ -87,7 +87,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       14 days, later, no date, earlier), group by node or date, Show done. Test first:
       bucketing, horizon, show-done; happy-dom render. Est: ~40 min
 
-- [ ] **T11 Kanban** — `src/core/kanban.ts`, `src/ui/kanban.ts`. Columns + "No", swimlanes +
+- [x] **T11 Kanban** — `src/core/kanban.ts`, `src/ui/kanban.ts`. Columns + "No", swimlanes +
       "No", sort by due/priority/title, drag → write descriptors (column, lane, removal) →
       injected write; optimistic with rollback. Test first: columns, lanes, sort, cross-lane
       move writes two props, drop on "No" removes, failed write rolls back. Accept: live move
@@ -321,3 +321,33 @@ Total: about 10 hours.
   included) are omitted; canceled counts as done.
   Process note from the agent: the UI tests were written first but only run after the
   UI existed, so they were not seen failing.
+- 2026-10-03 T11 done (0d21432, fa75a65; fixes ab9ed41, 4d44aac). 370 unit tests. Live
+  on `plugin-test`, every move checked by reading the property back from the graph and
+  by logging the host API calls: #Project by Status (Backlog/Todo/Doing/In Review each 1,
+  Done/Canceled/No Status 0); Owner swimlanes (Alice 2, Bob 1, No Owner 1); drag
+  Doing → Done → Doing = one awaited `upsert_block_property(uuid,
+  "logseq.property/status", <entity id>)` each, then read-back and reload, no overlap;
+  cross-lane drag = two upserts (status, then `user.property/owner-<suffix>`); drop on No
+  Owner = `remove_block_property`, attribute absent; ⋯ Move menu by keyboard and mouse,
+  focus back on the card's ⋯; a move survives an app reload. Silent failure (host upsert
+  stubbed to do nothing): card back in its column, error "Status of … was not saved as
+  Todo (read back differs)…", graph unchanged. Sorts: due, title, and priority on #Task
+  (Urgent first). Board config saved with a view. #Page shows the no-choice state.
+  Click / Shift+click open. Inkwell dark screenshot checked.
+  Defects found live and fixed: (1) removing a built-in Status does not retract it, the
+  host sets `:logseq.property/empty-placeholder`; the read-back reported a failure. The
+  placeholder is now "no value" in normalisation, filters and the removal read-back.
+  (2) Titles that link a node outside the loaded tag showed "(link)" (#Task board);
+  missing uuids are now looked up once per load (query run live first).
+  Environment notes (web app, not attributed to Planner): the first drag of the session
+  raised "SQLITE_ERROR cannot rollback" then "SQLITE_CORRUPT database disk image is
+  malformed" from the host and plain host writes failed until the graph was reset; on a
+  fresh graph 9 moves with logged calls were clean. Later in a long page session
+  `open_in_right_sidebar` returned but showed nothing and the console had "Unexpected
+  webworker error"; fine again after a page reload.
+  Not verified: dragging to a column scrolled out of view (did not register under
+  playwright's dragTo; the Move menu reaches every column); drag starting on the card's
+  button in Firefox; the sticky header and Move-menu clipping near the edges.
+  Decisions taken in T11 (change if wrong): the last closed value of Priority ranks
+  highest; columns and lanes show every closed value regardless of filters; "No <prop>"
+  is always shown; a card is done when any of its choice values is done.
