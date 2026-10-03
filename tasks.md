@@ -128,7 +128,8 @@ Total: about 10 hours.
 - 2026-10-03 T00 re-validated live on the test graph `plugin-test` (web app, separate
   browser session): command palette shows "Planner: open" and Enter opens the Planner with
   the iframe focused; Escape hides it without a click into the iframe; toolbar button
-  (real click) opens it; Close hides it; 0 console errors. Rule: every acceptance item is
+  (real click) opens it; Close hides it. Console: no error from the :8294 build; the one
+  error in the session, `[Ready Error] [deferred timeout]`, came from the reloaded :8293 iframe. Rule: every acceptance item is
   exercised live on a test graph before a task is marked done; unit tests alone do not count.
   Run against a build of 59b7df9 served with `vite preview` on :8294, because the dev
   server on :8293 reloads the iframe whenever a source file changes and a reloaded iframe
