@@ -345,6 +345,35 @@ describe("what defers a redraw", () => {
     expect(nodeQueries()).toBeGreaterThan(q); // the write's own reload, plus the queued refresh
   });
 
+  it("a drag that ends outside the workspace (dragend or drop on the document) still clears the drag (T14)", async () => {
+    for (const end of ["dragend", "drop"]) {
+      await setup();
+      await kanban();
+      const card = $(`[data-kb-card="${SITE}"]`)!;
+      card.dispatchEvent(new Event("dragstart", { bubbles: true, cancelable: true }));
+      setStatus("Done");
+      await ws.refresh(); // deferred by the drag
+      expect(columnOf(SITE), end).toBe(status("Doing").uuid);
+      document.body.dispatchEvent(new Event(end, { bubbles: true })); // e.g. the card's element was detached, or dropped outside
+      await ws.idle();
+      expect(columnOf(SITE), end).toBe(status("Done").uuid);
+      expect($("[data-kb-dragging]"), end).toBeNull();
+    }
+  });
+
+  it("no queued action replaces the DOM under an active drag: it is drawn when the drag ends (T14)", async () => {
+    await kanban();
+    const card = $(`[data-kb-card="${SITE}"]`)!;
+    card.dispatchEvent(new Event("dragstart", { bubbles: true, cancelable: true }));
+    await click("[data-kb-sort=title]");
+    expect(ws.config()).toMatchObject({ sort: "title" });
+    expect($(`[data-kb-card="${SITE}"]`)).toBe(card); // the dragged element is still in the page
+    card.dispatchEvent(new Event("dragend", { bubbles: true }));
+    await ws.idle();
+    expect($(`[data-kb-card="${SITE}"]`)).not.toBe(card);
+    expect($("[data-kb-sort=title]")!.getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("a drag in progress: nothing is redrawn under the cursor; the refresh runs when the drag ends", async () => {
     await kanban();
     const card = $(`[data-kb-card="${SITE}"]`)!;

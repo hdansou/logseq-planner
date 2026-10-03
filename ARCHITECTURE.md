@@ -154,7 +154,8 @@ Steps, with the module that does each:
   is shown. Equal means no redraw. Different means a redraw that keeps scroll, expanded
   rows, `details` state and focus.
 - When a menu is open, a Kanban write is pending or a card is being dragged, the result is
-  dropped and asked again once the workspace is free.
+  dropped and asked again once the workspace is free. No render replaces the DOM during a drag;
+  one asked for meanwhile runs when the drag ends (`dragend` or `drop` anywhere in the document).
 - When the view's tag or a property it uses is gone, the workspace shows the default view and
   an error message. A Start, End or Kanban column left unmapped because the tag had no such
   property takes the default once the tag has one (`withDefaults`).

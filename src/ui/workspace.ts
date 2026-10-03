@@ -411,6 +411,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let wantRefresh = false;
   /** The Kanban card being dragged (HTML5 drag events are delegated on the root below). */
   let dragging: string | null = null;
+  /** A render was asked for during a drag: it runs when the drag ends. */
+  let drawOwed = false;
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
 
@@ -421,6 +423,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    * when that fails too, a bare shell with the error, Dismiss and Close is drawn, so the user can always leave.
    */
   const render = (focus?: string, keep = false) => {
+    if (dragging !== null) {
+      drawOwed = true; // never replace the DOM under an active drag (T14): drawn when it ends
+      return;
+    }
     try {
       draw(focus, keep);
     } catch (e) {
@@ -861,12 +867,23 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     dragging = null;
     void move(uuid, cellEl.dataset.kbCol!, cellEl.dataset.kbLane ?? null);
   });
-  root.addEventListener("dragend", () => {
+  /**
+   * A drag ends wherever it ends (T14): `dragend` or a `drop` anywhere in the document clears it, so it cannot stay
+   * stuck (a stuck drag defers every redraw). Bubble phase, so a drop on a cell (above) has started its move first.
+   */
+  const endDrag = () => {
+    if (dragging === null && !drawOwed) return;
     dragging = null;
     clearMarks("data-kb-dragging");
     clearMarks("data-kb-over");
+    if (drawOwed) {
+      drawOwed = false;
+      render();
+    }
     refreshWhenFree();
-  });
+  };
+  root.ownerDocument.addEventListener("dragend", endDrag);
+  root.ownerDocument.addEventListener("drop", endDrag);
 
   const save = () => {
     const name = root.querySelector<HTMLInputElement>("[data-field=view-name]")!.value;
