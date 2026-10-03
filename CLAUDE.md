@@ -40,6 +40,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/storage.ts` | `createViewStore(StorageDeps)`: cache-first saved views on the "Planner views" page, config in hidden string property `planner-view-config`; every write read back | call `logseq.*` (deps from `storageDeps()` in sdk.ts) |
 | `src/dev-probe.ts` | dev-only SDK hook for `scripts/probe.mjs` (behind `import.meta.env.DEV`) | ship in builds |
 | `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |
+| `scripts/seed-large.edn.mjs` | `buildLargeSeed({n, today, seed, propPrefix})` → `{nodes, tasks, edn}`: pure deterministic load-test seed (#Load item, page "Planner load test"), tested in `src/seed-large.test.ts`; `probe.mjs --seed-large [N]` imports it in chunks | use Math.random, run on graphs other than plugin-test / Demo |
 | `docs/` | design notes, probe results, manual test | — |
 
 ## Workflow

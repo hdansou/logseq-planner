@@ -164,6 +164,36 @@ failure look the same, so **always read back**.
   node also lists the blocks that reference it (the three tasks linking Website relaunch), and a
   Status write lists property-history entities with no title.
 
+## Large seed (T13)
+
+`scripts/seed-large.edn.mjs` builds the load-test graph content; `scripts/probe.mjs --seed-large [N]` imports it
+(same graph guard as `--seed`: `plugin-test` or `Demo`; it refuses when the page "Planner load test" exists, a page in
+Recycle included). It writes no fixtures and exits after the import.
+
+```sh
+PLANNER_PW_CWD=<playwright-cli session dir> npm run probe -- --seed-large        # N = 2000
+PLANNER_PW_CWD=<playwright-cli session dir> npm run probe -- --seed-large 200    # a trial run
+```
+
+- New tag `#Load item` (not `#Project` / `#Meeting`, so their counts stay). Properties: Start and End (Date), the
+  built-in Status, Lead (closed: Alice, Bob, Carol, Dave, Erin, Frank), Team (closed: Design, Platform, Growth, Ops).
+  If the graph already has the small seed, the titles Start / End are taken twice; add `--prop-prefix "Load "` if the
+  import is rejected (the default Start / End names make the date defaults pick them up).
+- Nodes: about 70% have Start and End (start uniform within +-274 days of today, span 1-60 days), 7.5% Start only,
+  7.5% End only, 15% undated; Status weighted over all six values; about one in ten has no Lead / Team. About a third
+  of the nodes get 1-5 `#Task` blocks (inline `[[uuid]]` ref in the title, all six statuses, 55% with a Deadline between
+  60 days ago and 60 days ahead, so some are overdue and open).
+- Deterministic: the same N, the same day and the same `seed` give the same EDN (mulberry32; default seed 13). Fixed
+  uuids `6a100000-...` (nodes), `6a200000-...` (tasks), `6a300000-...` (closed values). The journal pages the Date values
+  need are part of the EDN.
+- Size at N = 2000: 2027 tasks, about 4,000 blocks, about 1.25 MB of EDN. One command-line argument cannot carry that
+  (about 1 MB limit on macOS), so the script sends the EDN to the host page in 100 kB chunks
+  (`window.__plannerSeedLarge`), checks the length, then imports it in one `import_edn` call. Not tried live yet: the
+  import may take long, and playwright-cli may time out on it; try N = 200 first.
+- No `--unseed-large`: the host API the probe uses can only move a page to Recycle (`delete_page`), and the tag, the
+  properties and the 600 journal pages would stay. Reset instead: use a fresh `plugin-test` graph (All graphs ->
+  Create a new graph, or a new browser session for the in-memory graph) and seed again.
+
 ## Consequences for later tasks
 
 - **T03 schema**: list tags with a datascript query, not `getTag(title)`; walk

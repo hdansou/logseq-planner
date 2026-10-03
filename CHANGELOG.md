@@ -141,6 +141,9 @@ All notable changes to this project are documented here. The format follows
 - Tag tree (T07): `[hidden]` always hides (base rule), so the collapsed built-in group is really collapsed; the
   "Built-in tags" heading gets the group spacing.
 
+- Large seed (T13): `scripts/seed-large.edn.mjs` builds a deterministic load-test seed (tag `#Load item`, N nodes,
+  linked tasks, its own page "Planner load test"); `npm run probe -- --seed-large [N]` imports it in chunks (docs/probes.md).
+
 ### Changed
 - The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in
   `src/ui/html.ts`; the category colour rules are generic `[data-cat]` rules in `theme.css` (`--pl-node-fill`,

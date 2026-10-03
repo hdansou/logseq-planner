@@ -1,4 +1,5 @@
 // npm run probe -- [--seed] [--writes] [--other-window]
+// npm run probe -- --seed-large [N] [--prop-prefix "Load "]     (load test seed only, N defaults to 2000)
 //
 // Live probe (T01). Drives the web app already open in a playwright-cli session (run from the
 // session's directory, or set PLANNER_PW_CWD to it) and the Planner dev build registered there.
@@ -9,19 +10,26 @@
 //   --writes        also run the closed-value write + Undo probe (changes the seed's data)
 //   --other-window  also open a second tab on the same graph and edit there while listening
 //
+//   --seed-large   import the large deterministic seed (scripts/seed-large.edn.mjs): tag #Load item on the page
+//                  "Planner load test"; exits after the import, writes no fixtures
+//   --prop-prefix  prefix for the seed's property titles when Start / End / Lead / Team already exist on the graph
+//
 // Only runs on the graphs `plugin-test` or the in-memory `Demo` (refuses anything else).
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { seedEdn, SEED_PAGE, U } from "./seed.edn.mjs";
+import { buildLargeSeed, DEFAULT_N, LARGE_PAGE } from "./seed-large.edn.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const FIXTURES = join(ROOT, "src/core/__fixtures__");
 const PW_CWD = process.env.PLANNER_PW_CWD ?? process.cwd();
 const PLUGIN_URL = "http://localhost:8293";
 const ALLOWED_GRAPHS = new Set(["logseq_db_plugin-test", "logseq_db_Demo"]);
-const flags = new Set(process.argv.slice(2));
+const argv = process.argv.slice(2);
+const flags = new Set(argv);
+const argAfter = (flag) => { const v = argv[argv.indexOf(flag) + 1]; return v && !v.startsWith("--") ? v : undefined; };
 
 // ---------- playwright-cli plumbing ----------
 
@@ -157,6 +165,25 @@ function seed() {
   if (exists) throw new Error(`${SEED_PAGE} already exists on this graph; seed only once per graph`);
   host(`logseq.api.import_edn(logseq.db.write_transit_str(cljs.reader.read_string(${js(seedEdn(new Date()))})))`);
   console.log("seeded", SEED_PAGE);
+}
+
+/** Characters per eval: one command-line argument must stay far below the OS limit (about 1 MB on macOS). */
+const CHUNK = 100_000;
+
+function seedLarge() {
+  const n = argAfter("--seed-large") === undefined ? DEFAULT_N : Number(argAfter("--seed-large"));
+  if (!Number.isInteger(n) || n < 1) throw new Error(`--seed-large needs a positive integer, got ${argAfter("--seed-large")}`);
+  if (host(`logseq.api.get_page(${js(LARGE_PAGE)})`)) throw new Error(`${LARGE_PAGE} already exists on this graph (a page in Recycle counts); use a fresh graph`);
+  const { edn, tasks } = buildLargeSeed({ n, propPrefix: argAfter("--prop-prefix") ?? "" });
+  console.log(`seed-large: ${n} nodes, ${tasks.length} tasks, ${(edn.length / 1e6).toFixed(2)} MB of EDN`);
+  host(`(window.__plannerSeedLarge = "", true)`);
+  for (let i = 0; i < edn.length; i += CHUNK) host(`(window.__plannerSeedLarge += ${js(edn.slice(i, i + CHUNK))}, true)`);
+  const length = host(`window.__plannerSeedLarge.length`);
+  if (length !== edn.length) throw new Error(`chunked transfer lost data: sent ${edn.length} characters, host has ${length}`);
+  const t0 = Date.now();
+  host(`logseq.api.import_edn(logseq.db.write_transit_str(cljs.reader.read_string(window.__plannerSeedLarge)))`);
+  host(`(delete window.__plannerSeedLarge, true)`);
+  console.log(`seeded ${LARGE_PAGE} in ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }
 
 function readProbes(graph) {
@@ -328,6 +355,7 @@ async function main() {
   const graph = graphGuard();
   installBridge();
   await waitForHook();
+  if (flags.has("--seed-large")) return void seedLarge();
   if (flags.has("--seed")) seed();
   await sleep(500);
   readProbes(graph);
