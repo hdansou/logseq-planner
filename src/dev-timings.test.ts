@@ -81,6 +81,6 @@ describe("production bundle", () => {
     const text = outputs.map((o) => o.code ?? String(o.source ?? "")).join("\n");
     expect(text.length).toBeGreaterThan(10_000); // the build really produced the plugin
     expect(text.includes("__plannerTimings"), "recorder global in the bundle").toBe(false);
-    expect(text.includes("__plannerProbe"), "probe hook in the bundle").toBe(false);
+    expect(text.includes("plannerProbe"), "probe hook (src/dev-probe.ts message key) in the bundle").toBe(false);
   }, 60_000);
 });

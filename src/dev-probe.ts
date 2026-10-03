@@ -10,6 +10,7 @@
 //   { plannerProbe: id, op: "events" }   return and clear the collected payloads
 //   { plannerProbe: id, op: "timings" }  return window.__plannerTimings (src/dev-timings.ts)
 // Reply (iframe -> host): { plannerProbeReply: id, ok, detail }
+// Only messages from the host page (`e.source === window.parent`) are answered.
 
 type Request = { plannerProbe: number; op: "call" | "listen" | "events" | "timings"; ns?: string; fn?: string; args?: unknown[] };
 
@@ -25,7 +26,7 @@ export function installProbeHook(): void {
 
   window.addEventListener("message", async (e: MessageEvent) => {
     const m = e.data as Request;
-    if (!m || typeof m.plannerProbe !== "number") return;
+    if (e.source !== window.parent || !m || typeof m.plannerProbe !== "number") return;
     const reply = (ok: boolean, detail: unknown) =>
       window.parent.postMessage({ plannerProbeReply: m.plannerProbe, ok, detail: plain(detail) }, "*");
     try {
@@ -36,6 +37,7 @@ export function installProbeHook(): void {
         off = logseq.DB.onChanged((payload) => void events.push({ receivedAt: Date.now(), payload: plain(payload) }));
         reply(true, "listening");
       } else if (m.op === "events") reply(true, events.splice(0));
+      else if (m.op === "timings") reply(true, (window as unknown as { __plannerTimings?: unknown }).__plannerTimings ?? null);
       else reply(false, `unknown op ${String(m.op)}`);
     } catch (err) {
       // The host rejects with plain objects as well as Errors; keep whatever it sent.
