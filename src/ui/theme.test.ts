@@ -66,6 +66,11 @@ describe("stylesheet defaults", () => {
     for (const n of ["--pl-surface", "--pl-float", "--pl-hover", "--pl-tint", "--pl-today", "--pl-green"]) expect(block("html.dark"), n).toContain(`${n}:`);
   });
   it("never uses prefers-color-scheme", () => expect(css).not.toContain("prefers-color-scheme"));
+  // happy-dom applies no stylesheet, so a DOM test sees `hidden === true` while the list is still drawn (seen live,
+  // T07 D6: a component `display` rule beat the UA [hidden] rule). Only this stylesheet check guards it.
+  it("makes [hidden] win over any component display rule", () => {
+    expect(css).toMatch(/\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
+  });
   it("derives tint-soft from the tint in both modes (T07 D2)", () => {
     expect(block(":root")).toMatch(/--pl-tint-soft: color-mix\(in srgb, var\(--pl-tint\) \d+%, transparent\)/);
     expect(block("html.dark")).toMatch(/--pl-tint-soft: color-mix\(in srgb, var\(--pl-tint\) \d+%, transparent\)/);

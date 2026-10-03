@@ -78,4 +78,5 @@ key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
 
 - `hsl(#hex)` (blanks the UI); hover equal to the popover colour in dark mode; faint muted
   highlights on popovers; borders on floating surfaces; a second shadow level;
-  `!important` outside the skill's container-positioning gotcha; label-3 for real text.
+  `!important` outside the skill's container-positioning gotcha and the base
+  `[hidden] { display: none !important }` rule; label-3 for real text.

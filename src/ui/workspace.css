@@ -58,6 +58,7 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
 .pl-sidebar { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
 .pl-sidebar .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
+.pl-tree + .pl-group-header { margin-top: 16px; }
 .pl-disclosure { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; }
 .pl-disclosure:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
 .pl-disclosure::before { content: "▸"; font-size: 10px; }
