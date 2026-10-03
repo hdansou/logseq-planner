@@ -84,6 +84,8 @@ type Popover = "tag" | "start" | "end" | "done" | "views" | "kb-column" | "kb-la
 
 interface State {
   loading: boolean;
+  /** Reading the week start or the tags on open failed: the error bar says why; the main area offers Retry (T14). */
+  loadFailed: boolean;
   tags: TagInfo[];
   config: ViewConfig | null;
   nodes: PlannerNode[];
@@ -339,6 +341,7 @@ function kanbanLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerN
 function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
   const view = (html: string) => ({ view: html, toolbar: "" });
   if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
+  if (s.loadFailed) return view(`<div class="pl-empty" data-region="load-failed"><button type="button" class="pl-btn" data-action="retry">Retry</button></div>`);
   if (!s.tags.length) return view(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
   if (!tag || !s.config) return view("");
   const name = `#${esc(tag.title)}`;
@@ -399,7 +402,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
+  const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map() };
   const now = (): Now => {
@@ -533,6 +536,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     try {
       s.weekStart = await deps.weekStart();
       s.tags = await loadTagInfos(deps.dq);
+      s.loadFailed = false;
+    } catch (e) {
+      s.loadFailed = true; // not "no tags": the error bar says what failed, the main area offers Retry
+      throw e;
     } finally {
       s.loading = false;
     }
@@ -705,6 +712,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return deps.onClose();
       case "toggle-built-in":
         return void run(() => void (s.builtInOpen = !s.builtInOpen));
+      case "retry":
+        return void run(async () => {
+          s.error = null;
+          await openBody();
+        });
       case "dismiss-error":
         return void run(() => void (s.error = null));
       case "clear-filters":

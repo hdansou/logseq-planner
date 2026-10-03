@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadTagInfos, type Dq } from "../core/schema";
+import { loadTagInfos, TAGS_QUERY, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
@@ -522,6 +522,35 @@ describe("week start (Logseq preferredStartOfWeek, read on every open)", () => {
   it("shows the error when the host value is invalid", async () => {
     await setup({ weekStart: async () => { throw new Error("Logseq preferredStartOfWeek is \"x\", expected 0–6"); } });
     expect(text("[data-region=error]")).toContain("preferredStartOfWeek");
+  });
+});
+
+describe("a load failure on open (T14)", () => {
+  it("week start or tags failing: only the error and a Retry button, never the no-tags state; Retry loads", async () => {
+    for (const failing of ["weekStart", "tags"] as const) {
+      let fail = true;
+      const base = fixtureDq();
+      const dq: Dq = async (q, ...i) => {
+        if (failing === "tags" && fail && q === TAGS_QUERY) throw new Error("tags query failed");
+        return base(q, ...i);
+      };
+      const weekStart = async () => {
+        if (failing === "weekStart" && fail) throw new Error("week start failed");
+        return 0;
+      };
+      document.body.innerHTML = "";
+      root = document.createElement("div");
+      document.body.append(root);
+      const { ws } = await setup({ dq, weekStart });
+      expect(text("[data-region=error]"), failing).toContain("failed");
+      expect($("[data-empty=no-tags]"), failing).toBeNull();
+      expect($("[data-action=retry]"), failing).not.toBeNull();
+      fail = false;
+      await click(ws, "[data-action=retry]");
+      expect($("[data-action=retry]"), failing).toBeNull();
+      expect($("[data-tag-group=own]"), failing).not.toBeNull();
+      expect($("[data-tl-row], [data-tl-undated]"), failing).not.toBeNull();
+    }
   });
 });
 

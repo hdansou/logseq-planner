@@ -127,6 +127,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Workspace (T14): when reading the week start or the tags fails on open, the main area no longer claims "No tags in
+  this graph" under the error; it shows only a Retry button (`data-action="retry"`, in `data-region="load-failed"`),
+  which clears the error and loads again.
 - Normalisation (T14): a Date property value without a journal day (the empty placeholder Logseq leaves when a value is
   removed) is no value for that node instead of an error that failed the load of the whole tag.
 - Kanban (T14): a drag can no longer get stuck (a stuck drag deferred every live redraw). `dragend` and `drop`
