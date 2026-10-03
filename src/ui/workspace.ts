@@ -4,7 +4,7 @@
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
-import { loadNodesAndTasks, loadTitles } from "../core/queries";
+import { buildData, loadTitles, readRaw, type RawData } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
@@ -425,7 +425,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     refreshWhenFree(); // a redraw that was waiting for a popover, a write or a drag
   };
 
-  const tagOf = (config: ViewConfig) => validateViewConfig(config, s.tags);
+  const tagOf = (config: ViewConfig, tags: TagInfo[] = s.tags) => validateViewConfig(config, tags);
 
   /** Queues `fn`; an error lands in the visible message, never swallowed. */
   const run = (fn: () => Promise<void> | void, focus?: () => string | undefined) => {
@@ -437,8 +437,12 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
   async function readData(config: ViewConfig, tags: TagInfo[]) {
-    const tag = validateViewConfig(config, tags);
-    const { nodes, tasks } = await loadNodesAndTasks(deps.dq, tags, tag, { childTags: config.childTags, zone: deps.zone });
+    return fromRaw(config, tags, await readRaw(deps.dq, tags, validateViewConfig(config, tags)));
+  }
+
+  /** Nodes, tasks and titles from rows already read (`tags` maps them; the titles lookup runs here). */
+  async function fromRaw(config: ViewConfig, tags: TagInfo[], raw: RawData) {
+    const { nodes, tasks } = buildData(raw, tags, validateViewConfig(config, tags), { childTags: config.childTags, zone: deps.zone });
     // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
     const known = titlesByUuid(nodes);
     const missing = refUuids([...nodes, ...tasks].map((x) => x.title)).filter((u) => !known.has(u));
@@ -544,8 +548,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       render();
       return void deps.timing?.rendered("redrawn");
     }
-    const weekStart = await deps.weekStart();
-    const tags = await loadTagInfos(deps.dq);
+    // One batch (T13a): the view's rows are read with the tags on screen while the week start and the tags are re-read,
+    // instead of after them (the host's worker runs queries one at a time, so waiting added the tag queries' time).
+    const shownTag = tagOf(s.config);
+    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownTag)]);
     let config: ViewConfig | null = s.config;
     let error: string | null = null;
     try {
@@ -556,7 +562,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const t = initialTag(tags);
       config = t ? defaultViewConfig(t) : null;
     }
-    const data = config ? await readData(config, tags) : { nodes: [], tasks: [], titles: new Map<string, string>() };
+    // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
+    // only when its rows are stale (`readRaw`: the pulled idents or the tag title changed). Another view: read afresh.
+    const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
+      : config === s.config ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), shownRaw))
+      : await readData(config, tags);
     deps.timing?.queried();
     if (busy()) {
       wantRefresh = true; // a popover, a write or a drag started while loading: drop the result

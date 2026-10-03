@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
 // Workspace.refresh (T12): the quiet reload that live updates trigger.
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadTagInfos, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodesQuery } from "../core/queries";
+import { buildTagInfos, loadTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
+import { nodesQuery, TASKS_QUERY } from "../core/queries";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
@@ -107,6 +107,93 @@ describe("redraw", () => {
     await ws.refresh();
     expect($("[data-region=error]")!.textContent).toContain("db gone");
     expect($("[data-region=view]")!.innerHTML).toBe(html);
+  });
+});
+
+describe("schema on refresh: data is read with the tags on screen while the tags are re-read (T13a)", () => {
+  type Rows = [unknown, Record<string, unknown>][];
+  /** Wraps the fake so the tag queries' answers (fixture rows) pass through `tagsFn` / `propsFn` while `change` is on. */
+  const changing = (tagsFn: (rows: Rows) => Rows, propsFn: (rows: Rows) => Rows) => {
+    const state = { on: false };
+    return {
+      state,
+      wrap: (base: Dq): Dq => async (q, ...i) => {
+        const rows = await base(q, ...i);
+        if (q === TAGS_QUERY) return state.on ? tagsFn(rows as Rows) : rows;
+        if (q === TAG_PROPERTIES_QUERY) return state.on ? propsFn(rows as Rows) : rows;
+        return rows;
+      },
+    };
+  };
+  const same = (rows: Rows) => rows;
+  const tasksQueries = () => dqCalls.filter((q) => q === TASKS_QUERY).length;
+
+  it("unchanged schema: one node and one task query per refresh, both asked before the tag queries answer", async () => {
+    let release!: () => void;
+    let hold = false;
+    const gate = new Promise<void>((r) => (release = r));
+    await setup((base) => async (q, ...i) => (q === TAGS_QUERY && hold ? (await gate, base(q, ...i)) : base(q, ...i)));
+    await kanban();
+    dqCalls.length = 0;
+    hold = true;
+    setStatus("Done");
+    const refreshing = ws.refresh();
+    for (let k = 0; k < 10; k++) await Promise.resolve();
+    expect(nodeQueries()).toBe(1);
+    expect(tasksQueries()).toBe(1);
+    release();
+    await refreshing;
+    expect(nodeQueries()).toBe(1);
+    expect(tasksQueries()).toBe(1);
+    expect(columnOf(SITE)).toBe(status("Done").uuid);
+  });
+
+  it("a new closed value is applied to the rows already read: no second node query", async () => {
+    const doing = () => status("Doing").uuid;
+    const noDoing = (rows: Rows) => rows.map(([t, p]) => [t, { ...p, "_closed-value-property": ((p["_closed-value-property"] ?? []) as { uuid: string }[]).filter((v) => v.uuid !== doing()) }] as [unknown, Record<string, unknown>]);
+    const c = changing(same, noDoing);
+    c.state.on = true; // the graph starts without Doing
+    await setup(c.wrap);
+    await kanban();
+    expect(columnOf(SITE)).toBe("none");
+    dqCalls.length = 0;
+    c.state.on = false; // Doing is (re)created and Website relaunch points at it
+    await ws.refresh();
+    expect(nodeQueries()).toBe(1);
+    expect(columnOf(SITE)).toBe(doing());
+  });
+
+  it("a new date property on the tag's tree: a second pass of the node query with the new ident (tasks not re-read)", async () => {
+    const client = (p: Record<string, unknown>) => String(p.ident).startsWith(":user.property/client-");
+    const clientAsDateTime = (rows: Rows) => rows.map(([t, p]) => [t, client(p) ? { ...p, ":logseq.property/type": "datetime" } : p] as [unknown, Record<string, unknown>]);
+    const c = changing(same, clientAsDateTime);
+    await setup(c.wrap);
+    await kanban();
+    const before = nodesQuery(tags);
+    const after = nodesQuery(buildTagInfos(
+      (await fixtureDq()(TAGS_QUERY)) as unknown[], clientAsDateTime((await fixtureDq()(TAG_PROPERTIES_QUERY, [])) as Rows)));
+    expect(after).not.toBe(before);
+    dqCalls.length = 0;
+    c.state.on = true;
+    await ws.refresh();
+    expect(dqCalls.filter((q) => q === before || q === after)).toEqual([before, after]);
+    expect(after).toMatch(/:user\.property\/client-/);
+    expect(tasksQueries()).toBe(1);
+  });
+
+  it("a new tag elsewhere: the tag tree shows it, with no second node query", async () => {
+    const comment = () => tag("Comment").id;
+    const c = changing((rows) => rows.filter(([t]) => (t as { id: number }).id !== comment()), same);
+    c.state.on = true; // no Comment tag yet
+    await setup(c.wrap);
+    await kanban();
+    expect($(`[data-tag-id="${comment()}"]`)).toBeNull();
+    dqCalls.length = 0;
+    c.state.on = false;
+    await ws.refresh();
+    expect($(`[data-tag-id="${comment()}"]`)).not.toBeNull();
+    expect(nodeQueries()).toBe(1);
+    expect(tasksQueries()).toBe(1);
   });
 });
 
