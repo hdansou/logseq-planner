@@ -42,11 +42,12 @@ inside the same commit unless the cycle is large.
       (DateTime near midnight), tasks linked by inline ref and by node property.
       Est: ~45 min
 
-- [ ] **4. Spans, rollups, filters** — `src/logic/nodes.ts` (+ test)
-      Start/end resolution, derived spans from tasks, point nodes, done/total, filter by
-      choice values.
-      Done when: tests cover mapped dates, derive, one-date, no-date, canceled excluded.
-      Est: ~20 min
+- [ ] **4. Spans, rollups, done, filters** — `src/logic/nodes.ts` (+ test)
+      Start/end resolution, derived spans from tasks, point nodes, done/total, done values
+      (built-in flags; name guess for user props; view override), filter by choice values.
+      Done when: tests cover mapped dates, derive, one-date, no-date, canceled excluded,
+      done-value guess and override.
+      Est: ~30 min
 
 - [ ] **5. Saved views** — `src/store/views.ts`, `src/model/view-config.ts` (+ tests)
       Defaults per tag (Start/End or Scheduled/Deadline, Status for Kanban), validation
@@ -64,30 +65,35 @@ inside the same commit unless the cycle is large.
       Est: ~60 min
 
 - [ ] **7. Timeline view** — `src/views/timeline.ts` (+ test)
-      Layout (range, columns, rows) as pure functions; rows per node with progress, derived
-      bars dashed, points as diamonds, expandable task rows, today line, undated footnote.
-      Done when: layout tests pass (clipping at range edges, derived, points); renders in
-      happy-dom.
-      Est: ~45 min
+      Zoom Week / Month / Quarter; layout (range, columns, header labels, rows) as pure
+      functions; rows per node sorted by start with progress, derived bars dashed, points as
+      diamonds, expandable task rows, today line, edge-clipping marks, undated footnote.
+      Done when: layout tests pass for all three zooms (week columns in Quarter, clipping,
+      derived, points); renders in happy-dom.
+      Est: ~60 min
 
 - [ ] **8. Calendar view** — `src/views/calendar.ts` (+ test)
-      Month grid honouring start of week, span bands with stable lanes, point chips, task
-      deadline chips, "+N more", month navigation.
-      Done when: lane assignment and week-start tests pass; renders in happy-dom.
-      Est: ~40 min
+      Month and Week layouts honouring start of week; span bands with stable lanes, point
+      chips, linked-task deadline chips in node color; Week sorts by time and shows the
+      time label; "+N more" in Month; previous / next / today.
+      Done when: lane assignment, week-start and time-sort tests pass; both layouts render
+      in happy-dom.
+      Est: ~60 min
 
 - [ ] **9. Agenda view** — `src/views/agenda.ts` (+ test)
-      Group by node (progress, open tasks sorted, overdue first) or by date (overdue, per
-      day, no date); non-task tags list upcoming / earlier.
-      Done when: grouping tests pass; renders in happy-dom.
-      Est: ~30 min
+      Overdue, next 14 days, collapsed Later and No date; group by node (progress, open
+      tasks, overdue first) or by date; Show done toggle; non-task tags as Upcoming / Earlier.
+      Done when: grouping, horizon and show-done tests pass; renders in happy-dom.
+      Est: ~40 min
 
 - [ ] **10. Kanban view** — `src/views/kanban.ts` (+ test)
-      Columns from closed values (+ "No <prop>"), cards per tag type, drag to move →
-      write descriptor → host write; optimistic update rolled back on write failure.
-      Done when: column and move tests pass; live: a card move writes the property and
-      survives reload.
-      Est: ~45 min
+      Columns from closed values (+ "No <prop>"), optional swimlanes by a second choice
+      property (+ "No <prop>" lane), cards sorted by due/end, priority or title; drag →
+      write descriptor for column and lane → host write; optimistic update rolled back on
+      write failure.
+      Done when: column, lane, sort and move tests pass (incl. cross-lane writes two
+      properties, drop on "No" removes); live: a move writes and survives reload.
+      Est: ~60 min
 
 - [ ] **11. Live updates and click behaviour** — `src/host/changes.ts`, wiring in `workspace.ts`
       Debounced reload on `DB.onChanged`, keep scroll + expanded rows; click opens node and
@@ -106,7 +112,7 @@ inside the same commit unless the cycle is large.
       Done when: review findings fixed or logged; status set to `done`.
       Est: ~30 min
 
-Total: about 8–9 hours of focused work.
+Total: about 10 hours of focused work.
 
 ## Progress log
 
