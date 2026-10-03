@@ -386,3 +386,34 @@ Total: about 10 hours.
   nodes hundreds of out-of-range rows (hint only) come before the bars in range.
   Next: T13a performance (narrower pulls, tasks limited to the loaded nodes, less DOM
   for the big views), then re-measure and run the checklist.
+- 2026-10-03 T13a performance done (8dbdd86, 16b1bcb, 13bdf1d, 8af0486, 97a677c,
+  5c5fdc6, 4d45a0b). 431 unit tests. Narrow node and task pulls (journal day pulled
+  with the node, tasks bound to the tag's nodes), refresh reads rows alongside the tag
+  queries, debounce 50 ms, Timeline renders only rows in range with an
+  "N earlier · M later" line whose parts jump to the nearest node, folded Agenda
+  buckets render when opened, Agenda by node shows 100 groups + "Show more", Kanban
+  cells show 50 cards + "Show more".
+  Re-measured live on the same 2,000-node #Load item tag (web app, DEV build, headless
+  Chrome): first load 326–350 ms (was 757). `refresh.totalMs` over 5 edits per view:
+  Timeline 179–184 with two runs at 260, Calendar 165–169, Agenda 169–179, Kanban
+  181–186 (was 605–856). With the 50 ms debounce that is about 215–235 ms from the end
+  of the write to the redraw, under the 300 ms target, with occasional runs near 310.
+  Render 10–24 ms per view; view switch to paint 13–30 ms; DOM 0.6k–3.9k elements.
+  New pull shape confirmed live: a Date property comes back as
+  `{"journal-day": 20260102, "id": 2107}`.
+  Live on the large tag: Timeline 313 rows, "728 earlier · 722 later"; Later jumps to
+  25 Oct – 19 Dec, Earlier to 23 Aug – 17 Oct; Agenda by date renders Overdue 923 and
+  the day buckets, Later (774) and No date (776) only when opened; by node 100 groups,
+  "Show 100 more of 1,437" → 200; Kanban totals in the headers (Backlog 249, Todo 507,
+  Doing 389, In Review 194, Done 554, Canceled 107), 300 cards rendered, "Show 50 more
+  of N" adds 50.
+  Regression on the small seed after these changes (same DOM readers as T08–T11):
+  #Project Timeline, Calendar, Agenda by date and Kanban, and #Meeting Timeline, show
+  the same items, positions and counts as recorded for T08–T11.
+  Not measured: a production build, the desktop app, a graph where few tasks link the
+  tag. The Agenda's Overdue bucket is not capped (923 entries rendered here).
+- 2026-10-03 T13 status: tooling, large-seed timings and a regression pass are done as
+  recorded above. docs/manual-test.md exists but its Result columns are NOT filled row
+  by row yet; the rows marked [new] (#Task in Timeline/Calendar/Agenda, an empty tag
+  with and without properties, default dark theme, one non-Inkwell theme) have not been
+  run. T13 stays open until that pass is done.
