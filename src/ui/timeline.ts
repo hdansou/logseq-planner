@@ -3,8 +3,7 @@
 // One CSS grid of day tracks (timeline.css): the label column, then `--pl-tl-days` tracks of `--pl-tl-day`; every
 // position is a day index from the layout (`grid-column: index + 2`).
 import { formatDay } from "../core/layout-common";
-import { type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
-import type { LocalDate } from "../types";
+import { type OutsideCount, type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import { esc, flag, segmented, viewNav } from "./html";
 
 export type TimelineAction =
@@ -12,13 +11,14 @@ export type TimelineAction =
   | { type: "nav"; dir: -1 | 1 }
   | { type: "today" }
   | { type: "toggle"; nodeId: number }
+  /** Earlier / later summary: move the range to this day (the nearest node outside it). */
+  | { type: "jump"; day: string }
   | { type: "open"; uuid: string };
 
 const ZOOMS: [Zoom, string][] = [["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
 
 /** Day index → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
-const dates = (a: LocalDate, b: LocalDate) => (a.day === b.day ? formatDay(a.day) : `${formatDay(a.day)} – ${formatDay(b.day)}`);
 
 export function renderTimelineToolbar(layout: TimelineLayout): string {
   return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
@@ -41,9 +41,20 @@ function renderSpan(r: TimelineRow): string {
       + (b.clipEnd ? `<span class="pl-tl-clip" data-tl-clip="end" aria-hidden="true">›</span>` : "")
       + `</button>`;
   }
-  // Wholly outside the range: a hint at the edge it lies beyond.
-  const before = r.outside === "before";
-  return `<span class="pl-tl-outside" data-tl-outside="${r.outside}">${before ? "‹ " : ""}${dates(r.start, r.end)}${before ? "" : " ›"}</span>`;
+  throw new Error(`timeline row ${r.title} has neither a bar nor a point`);
+}
+
+/**
+ * "412 earlier · 1,105 later": the dated nodes wholly outside the range (T13a: they get no row). Each side is a button
+ * that moves the range to the nearest of them (`data-tl-jump` + `data-tl-day`); nothing when every dated node is in range.
+ */
+function renderOutside(earlier: OutsideCount, later: OutsideCount): string {
+  const side = (key: "earlier" | "later", o: OutsideCount) =>
+    o.count && o.nearest
+      ? `<button type="button" class="pl-link" data-tl-jump="${key}" data-tl-day="${o.nearest}" aria-label="${o.count.toLocaleString("en-US")} ${key} node${o.count === 1 ? "" : "s"}: go to the nearest, ${esc(formatDay(o.nearest))}">${o.count.toLocaleString("en-US")} ${key}</button>`
+      : "";
+  const parts = [side("earlier", earlier), side("later", later)].filter(Boolean);
+  return parts.length ? `<p class="pl-tl-summary" data-tl-outside-summary>${parts.join(`<span aria-hidden="true"> · </span>`)}</p>` : "";
 }
 
 function renderTask(t: TimelineTaskRow, nodeId: number): string {
@@ -81,7 +92,8 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
   const undated = layout.undated.length
     ? `<p class="pl-tl-undated" data-tl-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-tl-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
     : "";
-  return `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-days: ${range.days}">`
+  return renderOutside(layout.earlier, layout.later)
+    + `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-days: ${range.days}">`
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`
     + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
     + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${rows.map((r) => renderRow(r, expanded.has(r.node.id))).join("")}</ul>`
@@ -90,11 +102,12 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
 
 /** The action a click on `target` asks for, or null when it is not a Timeline control. */
 export function timelineAction(target: Element): TimelineAction | null {
-  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-nav], [data-tl-toggle], [data-tl-open]");
+  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-nav], [data-tl-toggle], [data-tl-jump], [data-tl-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.tlZoom) return { type: "zoom", zoom: d.tlZoom as Zoom };
   if (d.tlNav) return d.tlNav === "today" ? { type: "today" } : { type: "nav", dir: d.tlNav === "prev" ? -1 : 1 };
   if (d.tlToggle) return { type: "toggle", nodeId: Number(d.tlToggle) };
+  if (d.tlJump) return { type: "jump", day: d.tlDay! };
   return { type: "open", uuid: d.tlOpen! };
 }

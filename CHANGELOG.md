@@ -160,6 +160,10 @@ All notable changes to this project are documented here. The format follows
   nested tags and ref titles. Both are asked at once (`loadNodesAndTasks`; `loadTasks` is gone). Same nodes, tasks and
   views as before; on the 2,000-node seed the node pull went from 276 ms to about 80 ms and the task pull from 314 ms to
   about 100 ms when run live by hand.
+- Timeline (T13a): only nodes that touch the range get a row. The per-node edge hints for nodes wholly outside the
+  range are replaced by one line above the grid, "412 earlier · 1,105 later"; each side is a button
+  (`data-tl-jump="earlier|later"`, `data-tl-day`) that moves the range to the nearest of those nodes (latest end before
+  the range, earliest start after it). The layout counts them (`earlier` / `later`) instead of building their rows.
 - Refresh (T13a): the signature of the data on screen is kept until other data is shown, so a live refresh serialises
   only the newly read data (about a megabyte of JSON at 2,000 nodes and tasks) instead of both; `viewItems` files the
   tasks by node id once instead of scanning every task for every node (2,000 × 2,000).

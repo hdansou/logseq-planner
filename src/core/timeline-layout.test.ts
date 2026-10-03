@@ -125,7 +125,7 @@ describe("rows", () => {
 
   it("places mapped spans as bars by day index (month)", async () => {
     const l = await layout("Project", "month");
-    expect(row(l, "Website relaunch")).toMatchObject({ kind: "mapped", bar: { from: 10, to: 41, clipStart: false, clipEnd: false }, point: null, outside: null });
+    expect(row(l, "Website relaunch")).toMatchObject({ kind: "mapped", bar: { from: 10, to: 41, clipStart: false, clipEnd: false }, point: null });
     expect(row(l, "Acme rollout").bar).toEqual({ from: 17, to: 26, clipStart: false, clipEnd: false });
   });
 
@@ -146,9 +146,32 @@ describe("rows", () => {
     expect(synthetic("2026-09-01", "2026-09-25", "week").rows[0].bar).toEqual({ from: 0, to: 6, clipStart: true, clipEnd: false });
   });
 
-  it("a span or point wholly outside the range has no bar and says on which side it is", () => {
-    expect(synthetic("2026-08-01", "2026-08-20", "week").rows[0]).toMatchObject({ bar: null, point: null, outside: "before" });
-    expect(synthetic("2026-12-01", null, "week").rows[0]).toMatchObject({ bar: null, point: null, outside: "after" });
+  it("a span or point wholly outside the range has no row; it is counted earlier or later (T13a)", () => {
+    const before = synthetic("2026-08-01", "2026-08-20", "week");
+    expect(before.rows).toEqual([]);
+    expect(before.earlier).toEqual({ count: 1, nearest: "2026-08-20" });
+    expect(before.later).toEqual({ count: 0, nearest: null });
+    const after = synthetic("2026-12-01", null, "week");
+    expect(after.rows).toEqual([]);
+    expect(after.later).toEqual({ count: 1, nearest: "2026-12-01" });
+    expect(after.earlier).toEqual({ count: 0, nearest: null });
+  });
+
+  it("nearest = the latest end before the range and the earliest start after it; an anchor there brings that node in", () => {
+    const p = tag("Project");
+    const s = dateIdent(p, "Start");
+    const e = dateIdent(p, "End");
+    const node = (id: number, start: string, end: string): PlannerNode =>
+      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
+    const nodes = [node(1, "2026-07-01", "2026-07-10"), node(2, "2026-08-01", "2026-09-05"), node(3, "2026-09-25", "2026-09-30"),
+      node(4, "2026-11-02", "2026-11-20"), node(5, "2026-10-20", "2026-12-01"), node(6, "2027-01-05", "2027-01-06")];
+    const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom: "week", anchor, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
+    const l = at(TODAY); // 20 Sep – 10 Oct
+    expect(l.rows.map((r) => r.title)).toEqual(["N3"]);
+    expect(l.earlier).toEqual({ count: 2, nearest: "2026-09-05" });
+    expect(l.later).toEqual({ count: 3, nearest: "2026-10-20" });
+    expect(at(l.earlier.nearest!).rows.map((r) => r.title)).toContain("N2");
+    expect(at(l.later.nearest!).rows.map((r) => r.title)).toContain("N5");
   });
 
   it("one-date nodes are points (diamonds) at their day", async () => {
@@ -217,7 +240,9 @@ describe("task rows", () => {
   });
 
   it("drops a marker outside the range", async () => {
-    const l = await layout("Project", "week", { anchor: "2026-11-28" });
+    // 4 – 24 Oct: Acme rollout (30 Sep – 8 Oct) is clipped in range; its task's deadline (2 Oct) lies before it
+    const l = await layout("Project", "week", { anchor: "2026-10-11" });
+    expect(row(l, "Acme rollout").bar).toMatchObject({ clipStart: true });
     expect(row(l, "Acme rollout").tasks[0].markers).toEqual([]);
   });
 

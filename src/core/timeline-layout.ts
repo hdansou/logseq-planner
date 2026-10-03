@@ -89,20 +89,29 @@ export interface TimelineRow {
   bar: Placement | null;
   /** Day index of a point inside the range. */
   point: number | null;
-  /** Set when the span or point lies wholly outside the range. */
-  outside: "before" | "after" | null;
   progress: Rollup;
   tasks: TimelineTaskRow[];
   /** "Website relaunch, 23 Sep – 23 Oct, 1 of 2 done". */
   label: string;
 }
 
+/** Dated nodes wholly on one side of the range: how many, and the day to move the range to for the nearest one. */
+export interface OutsideCount {
+  count: number;
+  /** Earlier: the latest end among them; later: the earliest start. Null when there are none. */
+  nearest: string | null;
+}
+
 export interface TimelineLayout {
   zoom: Zoom;
   range: TimelineRange;
   columns: TimelineColumn[];
-  /** Sorted by start, then end, then title. */
+  /** Nodes that touch the range only (T13a: a node wholly outside gets no row), sorted by start, then end, then title. */
   rows: TimelineRow[];
+  /** Dated nodes that end before the range. */
+  earlier: OutsideCount;
+  /** Dated nodes that start after the range. */
+  later: OutsideCount;
   /** Nodes without any date, by title. */
   undated: { node: PlannerNode; title: string }[];
   /** Day index of today; null when today is out of range. */
@@ -194,18 +203,30 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
   const range = timelineRange(input.zoom, input.anchor, input.weekStart);
   const rows: TimelineRow[] = [];
   const undated: TimelineLayout["undated"] = [];
+  const earlier: OutsideCount = { count: 0, nearest: null };
+  const later: OutsideCount = { count: 0, nearest: null };
   for (const { node, span, tasks, progress } of input.items) {
-    const title = displayTitle(node.title, input.titles);
     if (span.kind === "undated") {
-      undated.push({ node, title });
+      undated.push({ node, title: displayTitle(node.title, input.titles) });
       continue;
     }
     const start = span.start!;
     const end = span.end!;
     const { bar, outside } = place(range, start.day, end.day);
+    if (outside === "before") {
+      earlier.count++;
+      if (earlier.nearest === null || end.day > earlier.nearest) earlier.nearest = end.day;
+      continue;
+    }
+    if (outside === "after") {
+      later.count++;
+      if (later.nearest === null || start.day < later.nearest) later.nearest = start.day;
+      continue;
+    }
+    const title = displayTitle(node.title, input.titles);
     const isPoint = span.kind === "point";
     rows.push({
-      node, title, kind: span.kind, start, end, outside, progress,
+      node, title, kind: span.kind, start, end, progress,
       cat: categoryOf(node.uuid),
       bar: isPoint ? null : bar,
       point: isPoint && bar ? bar.from : null,
@@ -217,7 +238,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
   undated.sort((a, b) => a.title.localeCompare(b.title));
   const t = indexOn(range, input.today);
   return {
-    zoom: input.zoom, range, rows, undated,
+    zoom: input.zoom, range, rows, undated, earlier, later,
     columns: columnsOf(input.zoom, range, input.today, input.weekStart),
     todayAt: t >= 0 && t < range.days ? t : null,
   };

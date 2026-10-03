@@ -667,6 +667,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => void (s.anchor = null));
       case "toggle":
         return void run(() => void (s.expanded.has(a.nodeId) ? s.expanded.delete(a.nodeId) : s.expanded.add(a.nodeId)));
+      case "jump":
+        return void run(() => void (s.anchor = a.day));
     }
   }
 

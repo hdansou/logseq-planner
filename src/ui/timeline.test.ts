@@ -6,6 +6,11 @@ import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
+import { renderTimeline } from "./timeline";
+import { layoutTimeline } from "../core/timeline-layout";
+
+/** A layout with no items (range of today, Month), to render summaries alone. */
+const emptyLayout = () => layoutTimeline({ items: [], zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues: [], titles: new Map() });
 
 const TODAY = "2026-10-03";
 const SITE = "6a000000-0000-4000-8000-000000000001";
@@ -128,11 +133,35 @@ describe("rows", () => {
     expect(bar.getAttribute("aria-label")).toContain("continues after this range");
   });
 
-  it("shows a node wholly outside the range as an edge hint, not a bar", async () => {
+  it("renders no row for a node wholly outside the range; one summary line counts them (T13a)", async () => {
+    expect($("[data-tl-outside-summary]")).toBeNull(); // every dated #Project node is in range
     for (let i = 0; i < 4; i++) await click("[data-tl-nav=next]");
-    const outside = rowOf("Acme rollout").querySelector<HTMLElement>("[data-tl-outside]")!;
-    expect(outside.dataset.tlOutside).toBe("before");
-    expect(outside.textContent).toContain("30 Sep");
+    expect(rowTitles()).toEqual([]);
+    expect($$("[data-tl-outside]")).toHaveLength(0);
+    expect(text("[data-tl-outside-summary]")).toBe("3 earlier");
+    expect($("[data-tl-jump=later]")).toBeNull();
+    const earlier = $("[data-tl-jump=earlier]")!;
+    expect(earlier.tagName).toBe("BUTTON");
+    expect(earlier.dataset.tlDay).toBe("2026-10-23");
+    expect(earlier.getAttribute("aria-label")).toBe("3 earlier nodes: go to the nearest, 23 Oct");
+  });
+
+  it("the earlier / later buttons move the range to the nearest node outside it", async () => {
+    for (let i = 0; i < 4; i++) await click("[data-tl-nav=next]");
+    await click("[data-tl-jump=earlier]");
+    expect(rowTitles()).toContain("Website relaunch");
+    expect(text("[data-tl-range]")).toBe("4 Oct – 28 Nov 2026");
+    for (let i = 0; i < 8; i++) await click("[data-tl-nav=prev]");
+    expect(text("[data-tl-outside-summary]")).toBe("3 later");
+    await click("[data-tl-jump=later]");
+    expect(rowTitles()).toContain("Website relaunch");
+  });
+
+  it("formats large counts and separates both sides", () => {
+    const html = renderTimeline({ ...emptyLayout(), earlier: { count: 412, nearest: "2026-01-02" }, later: { count: 1105, nearest: "2026-12-01" } }, "#Load item", new Set());
+    const box = document.createElement("div");
+    box.innerHTML = html;
+    expect(box.querySelector("[data-tl-outside-summary]")!.textContent!.replace(/\s+/g, " ").trim()).toBe("412 earlier · 1,105 later");
   });
 
   it("draws the today line in range, in the accent colour", () => {

@@ -53,6 +53,10 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - One row per node sorted by start; progress strip on each bar; derived spans dashed;
   one-date nodes as diamonds; nodes with tasks expand to task sub-rows; today line; bars
   clipped at the range edge are marked; undated nodes in a footnote. Prev / next / today.
+- Only nodes that touch the range get a row. The dated nodes wholly outside it are counted on
+  one line above the grid ("412 earlier · 1,105 later"); each side is a button that moves the
+  range to the nearest of those nodes (approved 2026-10-03, T13a: at 2,000 nodes the out-of-range
+  rows made most of the Timeline's DOM).
 
 ### Calendar
 - **Month** and **Week** layouts, all-day only (no hour grid, no day view).
