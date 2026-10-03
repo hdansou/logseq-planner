@@ -1,8 +1,8 @@
 // Pure node logic: spans, rollups, done values, choice filters. No DOM, no SDK, no queries.
 import type { ChoiceFilters, ClosedValue, LocalDate, NodeSpan, PlannerNode, PlannerTask, Rollup } from "../types";
 
-/** Day first, then wall-clock time (a Date value has none and sorts first on its day). */
-const compare = (a: LocalDate, b: LocalDate) => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "");
+/** Day first, then wall-clock time (a Date value has none and sorts first on its day). Re-exported by layout-common. */
+export const compareDates = (a: LocalDate, b: LocalDate): number => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "");
 
 /** Tasks that reference `node`. */
 export const tasksOf = (node: PlannerNode, tasks: PlannerTask[]): PlannerTask[] => tasks.filter((t) => t.nodeIds.includes(node.id));
@@ -22,7 +22,7 @@ export function resolveSpan(node: PlannerNode, tasks: PlannerTask[], startIdent:
   if (only) return { kind: "point", start: only, end: only };
   const dates = tasksOf(node, tasks).flatMap((t) => [t.scheduled, t.deadline].filter((x): x is LocalDate => x !== null));
   if (dates.length === 0) return { kind: "undated", start: null, end: null };
-  dates.sort(compare);
+  dates.sort(compareDates);
   return span("derived", dates[0], dates[dates.length - 1]);
 }
 
@@ -43,6 +43,10 @@ export function isDone(value: ClosedValue, doneUuids?: string[]): boolean {
   if (isBuiltIn(value)) return value.checkbox === true || value.canceled;
   return GUESS_DONE.has(lower(value));
 }
+
+/** A node is done when any of its choice values is done under the view's done values (Agenda, Kanban). */
+export const isNodeDone = (node: PlannerNode, doneValues: Record<string, string[]>): boolean =>
+  Object.entries(node.choices).some(([ident, v]) => isDone(v, doneValues[ident]));
 
 /** Canceled values leave the rollup's total. Built-in: the flag; user values: Canceled / Cancelled. */
 export const isCanceled = (value: ClosedValue): boolean => (isBuiltIn(value) ? value.canceled : GUESS_CANCELED.has(lower(value)));

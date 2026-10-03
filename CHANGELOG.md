@@ -130,6 +130,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Refresh (T14): the refresh signature uses the workspace's injected `today` and compares with the day the screen was
+  drawn on, so a new day redraws the today line and the Agenda buckets (it used the machine clock and compared with
+  today on both sides).
+- Unload (T14): the theme and theme-mode listeners and the `ui:visible:changed` listener are unhooked on unload
+  (`watchTheme` resolves with its unsubscribe; `onVisibleChanged` returns one), besides the change feed and timers.
 - Workspace (T14): when reading the week start or the tags fails on open, the main area no longer claims "No tags in
   this graph" under the error; it shows only a Retry button (`data-action="retry"`, in `data-region="load-failed"`),
   which clears the error and loads again.
@@ -219,6 +224,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   "Built-in tags" heading gets the group spacing.
 
 ### Changed
+- Cleanups (T14): one `compareDates` (`src/core/nodes.ts`, re-exported by layout-common), one day-count label
+  (`dayCount`, was a `plural` in the Agenda and the Kanban) and one "node is done" rule (`isNodeDone`, Agenda and
+  Kanban). `loadNodes`, `loadNodesAndTasks` and the store's `cached()` are marked test-only, `update()` as unused by the
+  workspace; the stale "UNVERIFIED LIVE" notes in `src/sdk.ts` now say what T06, T07 and T11 verified.
 - Queries (T13a): the node query pulls only `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` and the Date/DateTime
   and choice property idents of the graph's tags (`nodePropIdents` / `nodesQuery`, built from the tag list) instead of
   `pull [*]`; the task query is bound to tasks that reference a node of the tag (same tag + `class-extends` join) and

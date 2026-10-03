@@ -88,8 +88,8 @@ function fakeTheme(mode: string | undefined, vals: Record<string, string> = {}) 
     later: vi.fn((fn: () => void, ms: number) => void timers.push({ fn, ms })),
     getUserConfigs: vi.fn(async () => ({ preferredThemeMode: mode })),
     resolveThemeCssPropsVals: vi.fn(async () => vals),
-    onThemeModeChanged: vi.fn((cb) => void (onMode = cb)),
-    onThemeChanged: vi.fn((cb) => void (onTheme = cb)),
+    onThemeModeChanged: vi.fn((cb) => ((onMode = cb), () => {})),
+    onThemeChanged: vi.fn((cb) => ((onTheme = cb), () => {})),
   } satisfies ThemeDeps;
   return { deps, timers, fireMode: (mode: string) => onMode({ mode }), fireTheme: () => onTheme() };
 }

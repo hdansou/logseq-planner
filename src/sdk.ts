@@ -52,8 +52,8 @@ export const appDeps = (): AppDeps => ({
     later: (fn, ms) => void setTimeout(fn, ms),
     getUserConfigs: () => logseq.App.getUserConfigs(),
     resolveThemeCssPropsVals: (names) => logseq.UI.resolveThemeCssPropsVals(names),
-    onThemeModeChanged: (cb) => void logseq.App.onThemeModeChanged(cb),
-    onThemeChanged: (cb) => void logseq.App.onThemeChanged(cb),
+    onThemeModeChanged: (cb) => logseq.App.onThemeModeChanged(cb),
+    onThemeChanged: (cb) => logseq.App.onThemeChanged(cb),
   },
   defer: (fn) => void setTimeout(fn, 0),
 });
@@ -68,7 +68,12 @@ export const changesSdk = (): ChangesSdk => ({
     const id = setTimeout(fn, ms);
     return () => clearTimeout(id);
   },
-  onVisibleChanged: (cb) => void logseq.on("ui:visible:changed", (e: { visible: boolean }) => cb(e.visible)),
+  // `logseq` is an EventEmitter (eventemitter3): `off` with the same handler unsubscribes.
+  onVisibleChanged: (cb) => {
+    const handler = (e: { visible: boolean }) => cb(e.visible);
+    logseq.on("ui:visible:changed", handler);
+    return () => void logseq.off("ui:visible:changed", handler);
+  },
   onUnload: (cb) => logseq.beforeunload(async () => cb()),
 });
 
@@ -101,8 +106,9 @@ const toViewBlock = async (b: { uuid: string; content?: string; title?: string }
 };
 
 /**
- * The real SDK behind `createViewStore`. UNVERIFIED LIVE: the shapes below follow Query Builder's proven
- * state property code and the SDK typings; the write calls resolve null on failure, which the store catches by reading back.
+ * The real SDK behind `createViewStore`. Verified live in T06 (create, update, list from a fresh store, remove, reload
+ * round trip on `plugin-test`) and T07 (recycled page). `blockTags` (T14) is not verified live yet. The write calls
+ * resolve null on failure, which the store catches by reading back.
  */
 export const storageDeps = (): StorageDeps => ({
   // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
@@ -150,7 +156,8 @@ export function choiceReadQuery(ident: string): string {
 /**
  * The real SDK behind a Kanban move. Arguments go through unchanged: `writeMove` (src/core/kanban.ts) passes the key
  * and value in the forms T01 saw work live (full ident without the colon, closed value entity id). Both write calls
- * resolve null whether they worked or not; `readChoice` is the check. UNVERIFIED LIVE as a whole until T11's live pass.
+ * resolve null whether they worked or not; `readChoice` is the check. Verified live in T11 (every move read back from
+ * the graph, host calls logged).
  */
 export const kanbanWriteDeps = (): KanbanWriteDeps => ({
   upsertBlockProperty: (uuid, key, valueId) => logseq.Editor.upsertBlockProperty(uuid, key, valueId),

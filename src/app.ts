@@ -61,9 +61,13 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
 
   deps.defer(() => {
     changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
-    deps.changes.onVisibleChanged((visible) => changes?.setVisible(visible));
-    deps.changes.onUnload(() => changes?.stop());
-    void watchTheme(deps.theme, doc);
+    const offVisible = deps.changes.onVisibleChanged((visible) => changes?.setVisible(visible));
+    const offTheme = watchTheme(deps.theme, doc);
+    deps.changes.onUnload(() => {
+      changes?.stop();
+      offVisible();
+      void offTheme.then((off) => off());
+    });
     deps.provideModel({ [OPEN_HANDLER]: open });
     deps.registerUIItem("toolbar", {
       key: OPEN,

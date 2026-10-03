@@ -405,9 +405,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map() };
+  /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
+  const todayNow = () => (deps.today ?? localToday)();
   const now = (): Now => {
     if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
-    return { today: (deps.today ?? localToday)(), weekStart: s.weekStart };
+    return { today: todayNow(), weekStart: s.weekStart };
   };
   let queue: Promise<void> = Promise.resolve();
   /** A live refresh is waiting for a popover to close, a Kanban write to finish or a drag to end. */
@@ -416,6 +418,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let dragging: string | null = null;
   /** A render was asked for during a drag: it runs when the drag ends. */
   let drawOwed = false;
+  /** The day the workspace was last drawn on (the Timeline's today line, the Agenda's buckets depend on it). */
+  let drawnToday = "";
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
 
@@ -449,6 +453,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
     const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
     const folds = keep ? [...root.querySelectorAll<HTMLDetailsElement>("details")].map((d) => [selectorOf(d), d.open] as const) : [];
+    drawnToday = todayNow();
     root.innerHTML = renderWorkspace(s, now);
     for (const [sel, open] of folds) {
       const d = root.querySelector<HTMLDetailsElement>(sel);
@@ -579,9 +584,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    */
   let shownSig: { key: unknown[]; sig: string } | null = null;
   const sigKey = (data: Shown, weekStart: number | null, today: string) => [data.tags, data.nodes, data.tasks, data.titles, weekStart, today];
-  const shownSignature = (today: string) => {
-    const key = sigKey(s, s.weekStart, today);
-    if (!shownSig || key.some((k, i) => k !== shownSig!.key[i])) shownSig = { key, sig: signature(s, s.weekStart, today) };
+  /** The signature of what is on screen: the data in `s` with the day it was drawn on (`drawnToday`), not today now. */
+  const shownSignature = () => {
+    const key = sigKey(s, s.weekStart, drawnToday);
+    if (!shownSig || key.some((k, i) => k !== shownSig!.key[i])) shownSig = { key, sig: signature(s, s.weekStart, drawnToday) };
     return shownSig.sig;
   };
 
@@ -624,10 +630,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       wantRefresh = true; // a popover, a write or a drag started while loading: drop the result
       return void deps.timing?.rendered("deferred");
     }
-    const today = localToday();
+    const today = todayNow();
     const next = { tags, ...data };
     const sig = signature(next, weekStart, today);
-    const same = config === s.config && sig === shownSignature(today);
+    const same = config === s.config && sig === shownSignature();
     if (same) return void deps.timing?.rendered("same");
     if (replaced) {
       s.viewId = null;

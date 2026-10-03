@@ -18,6 +18,8 @@ function fakeDeps() {
   const feed = fakeChangeFeed();
   const visibility: Array<(visible: boolean) => void> = [];
   const unload: Array<() => void> = [];
+  /** The off hooks the theme and visibility subscriptions return, by name. */
+  const offs = { mode: vi.fn(), theme: vi.fn(), visible: vi.fn() };
   const deps = {
     registerUIItem: vi.fn(),
     registerCommandPalette: vi.fn(),
@@ -30,8 +32,8 @@ function fakeDeps() {
       later: vi.fn(),
       getUserConfigs: vi.fn(async () => ({ preferredThemeMode: "light" })),
       resolveThemeCssPropsVals: vi.fn(async () => ({})),
-      onThemeModeChanged: vi.fn(),
-      onThemeChanged: vi.fn(),
+      onThemeModeChanged: vi.fn(() => offs.mode),
+      onThemeChanged: vi.fn(() => offs.theme),
     },
     defer: vi.fn((fn: () => void) => void deferred.push(fn)),
     later: vi.fn(),
@@ -53,13 +55,13 @@ function fakeDeps() {
     changes: {
       subscribe: feed.subscribe,
       later: clock.later,
-      onVisibleChanged: (cb: (visible: boolean) => void) => void visibility.push(cb),
+      onVisibleChanged: (cb: (visible: boolean) => void) => (visibility.push(cb), offs.visible),
       onUnload: (cb: () => void) => void unload.push(cb),
     },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
-  return { deps, flush, clock, feed, visibility, unload };
+  return { deps, flush, clock, feed, visibility, unload, offs };
 }
 
 /** The model handler the toolbar button's `data-on-click` names. */
@@ -272,6 +274,16 @@ describe("live updates (T12)", () => {
     blocks.splice(0, 1); // deleted on another device
     await hideAndShow();
     await vi.waitFor(async () => expect(await listed()).toEqual(["v2"]));
+  });
+
+  it("unload also unhooks the theme and visibility listeners (T14)", async () => {
+    const f = await opened();
+    await new Promise((r) => setTimeout(r, 0)); // watchTheme registers, then reads the configs
+    f.unload.forEach((cb) => cb());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(f.offs.mode).toHaveBeenCalledTimes(1);
+    expect(f.offs.theme).toHaveBeenCalledTimes(1);
+    expect(f.offs.visible).toHaveBeenCalledTimes(1);
   });
 
   it("unload unsubscribes and cancels the timers", async () => {

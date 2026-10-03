@@ -15,9 +15,9 @@
 import type { ChoiceProp, ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, compareDates, daysBetween, formatDate, formatDay, taskLabel, taskState, weekdayName, type ViewItem,
+  addDays, categoryOf, compareDates, dayCount, daysBetween, formatDate, formatDay, taskLabel, taskState, weekdayName, type ViewItem,
 } from "./layout-common";
-import { isDone } from "./nodes";
+import { isDone, isNodeDone } from "./nodes";
 
 /** REQUIREMENTS: Agenda ranges other than 14 days are a non-goal. */
 export const HORIZON_DAYS = 14;
@@ -98,8 +98,6 @@ export interface AgendaInput {
 
 // ---------------------------------------------------------------- filing
 
-const plural = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
-
 /** Which bucket a span `start`…`end` is filed under, and the date it sorts by. */
 function file(start: LocalDate | null, end: LocalDate | null, done: boolean, canBeLate: boolean, today: string): { bucket: BucketKey; at: LocalDate | null } {
   if (!start || !end) return { bucket: "none", at: null };
@@ -111,7 +109,7 @@ function file(start: LocalDate | null, end: LocalDate | null, done: boolean, can
 /** "2 Oct 12:00" / "23 Sep – 23 Oct" for a node, "due …" / "scheduled …" for a task; ", N days late" when overdue. */
 function whenText(parts: string[], end: LocalDate | null, late: boolean, today: string): string {
   const base = parts.join(", ") || "no date";
-  return late && end ? `${base}, ${plural(daysBetween(end.day, today))} late` : base;
+  return late && end ? `${base}, ${dayCount(daysBetween(end.day, today))} late` : base;
 }
 
 const bucketLabel = (key: BucketKey, today: string): string => {
@@ -145,7 +143,7 @@ interface Built {
 export function layoutAgenda(input: AgendaInput): AgendaLayout {
   const { today } = input;
   const hasDoneNotion = input.choiceProps.some((p) => p.values.some((v) => isDone(v, input.doneValues[p.ident])));
-  const nodeDone = (n: PlannerNode) => Object.entries(n.choices).some(([ident, v]) => isDone(v, input.doneValues[ident]));
+  const nodeDone = (n: PlannerNode) => isNodeDone(n, input.doneValues);
   const seenTasks = new Set<number>();
 
   const built: Built[] = input.items.map((item) => {
@@ -186,7 +184,7 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     );
     return {
       kind: "task", uuid: task.uuid, title, node: nodeTitle, cat, status, bucket, at, done, late, when,
-      label: [taskLabel(task, title), late && `${plural(daysBetween(end!.day, today))} late`, nodeTitle].filter(Boolean).join(", "),
+      label: [taskLabel(task, title), late && `${dayCount(daysBetween(end!.day, today))} late`, nodeTitle].filter(Boolean).join(", "),
     };
   }
 

@@ -40,8 +40,8 @@ export interface ChangesSdk {
   subscribe(cb: () => void): () => void;
   /** setTimeout that returns its cancel function. */
   later(fn: () => void, ms: number): () => void;
-  /** The host's `ui:visible:changed` event: Planner shown or hidden by any means. */
-  onVisibleChanged(cb: (visible: boolean) => void): void;
+  /** The host's `ui:visible:changed` event: Planner shown or hidden by any means. Returns the unsubscribe. */
+  onVisibleChanged(cb: (visible: boolean) => void): () => void;
   /** Runs `cb` when the plugin unloads. */
   onUnload(cb: () => void): void;
 }
@@ -52,8 +52,10 @@ export interface ThemeDeps {
   later(fn: () => void, ms: number): void;
   getUserConfigs(): Promise<{ preferredThemeMode?: string } | undefined>;
   resolveThemeCssPropsVals(names: string[]): Promise<Record<string, string | undefined> | null | undefined>;
-  onThemeModeChanged(cb: (e: { mode: string }) => void): void;
-  onThemeChanged(cb: () => void): void;
+  /** Returns the unsubscribe (`IUserOffHook`). */
+  onThemeModeChanged(cb: (e: { mode: string }) => void): () => void;
+  /** Returns the unsubscribe (`IUserOffHook`). */
+  onThemeChanged(cb: () => void): () => void;
 }
 
 /** A closed value of a choice property (`:block/_closed-value-property` entity). */

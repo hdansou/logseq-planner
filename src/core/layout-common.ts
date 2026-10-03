@@ -3,7 +3,7 @@
 // Pure: no DOM, no SDK, no clock. Days are `YYYY-MM-DD` calendar days; all arithmetic runs on UTC midnights, which have
 // no DST, so a day is always one day.
 import type { ClosedValue, LocalDate, NodeSpan, PlannerNode, PlannerTask, Rollup } from "../types";
-import { isDone, resolveSpan, rollup } from "./nodes";
+import { compareDates, isDone, resolveSpan, rollup } from "./nodes";
 
 // ---------------------------------------------------------------- calendar days
 
@@ -24,8 +24,10 @@ export const firstOfMonth = (day: string, months = 0): string => {
   const [y, m] = day.split("-").map(Number);
   return iso(Date.UTC(y, m - 1 + months, 1));
 };
-/** Day first, then wall-clock time (a Date value has none and sorts first on its day). */
-export const compareDates = (a: LocalDate, b: LocalDate): number => a.day.localeCompare(b.day) || (a.time ?? "").localeCompare(b.time ?? "");
+export { compareDates };
+
+/** "1 day" / "N days". */
+export const dayCount = (n: number): string => `${n} day${n === 1 ? "" : "s"}`;
 
 // ---------------------------------------------------------------- formatting
 

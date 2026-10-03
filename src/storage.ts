@@ -127,7 +127,7 @@ export function createViewStore(deps: StorageDeps) {
     list: async (): Promise<ListedView[]> => [...(await load())],
     /** Drops the cache: the next `list` reads the graph again (views written or deleted on another device, T14). */
     invalidate: (): void => void (cache = null),
-    /** The cache as it is now (empty before the first `list`/write). */
+    /** The cache as it is now (empty before the first `list`/write). Test-only: no production caller. */
     cached: (): ListedView[] => [...(cache ?? [])],
 
     /**
@@ -161,7 +161,10 @@ export function createViewStore(deps: StorageDeps) {
       }
     },
 
-    /** Replaces the config of a saved view (the name stays). */
+    /**
+     * Replaces the config of a saved view (the name stays). Not used by the workspace yet (saving always creates a new
+     * view, T07); kept for the side panel and covered by tests.
+     */
     async update(id: string, config: ViewConfig): Promise<SavedView> {
       const views = await load();
       const i = find(views, id);

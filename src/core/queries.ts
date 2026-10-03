@@ -72,7 +72,10 @@ export interface LoadNodesOptions {
   zone?: ZoneOffset;
 }
 
-/** Nodes of `tag` (plus extending tags when `childTags`) with their dates and choice values mapped. */
+/**
+ * Nodes of `tag` (plus extending tags when `childTags`) with their dates and choice values mapped. Test-only: the
+ * workspace reads through `readRaw` + `buildData`.
+ */
 export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<PlannerNode[]> {
   const raw = await dq(nodesQuery(tags), tag.id, CLASS_EXTENDS_RULES);
   return buildNodes(raw, tags, tag, opts.childTags, opts.zone ?? systemZone);
@@ -114,6 +117,7 @@ export function buildData(raw: RawData, tags: TagInfo[], tag: TagInfo, opts: Loa
 /**
  * The nodes of `tag` and the #Task blocks whose `:block/refs` hit them (inline refs and node-property links);
  * `buildTasks` keeps the tasks that hit a loaded node (with child tags off the query also returns tasks of child-tag nodes).
+ * Test-only: the workspace reads through `readRaw` + `buildData`.
  */
 export async function loadNodesAndTasks(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<{ nodes: PlannerNode[]; tasks: PlannerTask[] }> {
   return buildData(await readRaw(dq, tags, tag), tags, tag, opts);

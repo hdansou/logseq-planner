@@ -16,8 +16,8 @@
 //   either no attribute (user property) or the empty placeholder entity (built-in Status, seen live in T11).
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, LocalDate, PlannerNode, Rollup } from "../types";
 import { displayTitle } from "./display-title";
-import { categoryOf, compareDates, daysBetween, formatDate, type ViewItem } from "./layout-common";
-import { isDone } from "./nodes";
+import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
+import { isDone, isNodeDone } from "./nodes";
 import { isEmptyPlaceholder } from "./normalize";
 
 /** Key of the "No <prop>" column and lane (closed values are keyed by uuid, which is never this). */
@@ -108,8 +108,6 @@ const PRIORITY_IDENT = ":logseq.property/priority";
 export const priorityProp = (tag: { choiceProps: ChoiceProp[] }): ChoiceProp | null =>
   tag.choiceProps.find((p) => p.ident === PRIORITY_IDENT) ?? tag.choiceProps.find((p) => p.title.trim().toLowerCase() === "priority") ?? null;
 
-const plural = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
-
 function slots(prop: ChoiceProp, doneValues: Record<string, string[]>): KanbanSlot[] {
   const ref = { ident: prop.ident, title: prop.title };
   return [
@@ -137,11 +135,11 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
   const toCard = (item: ViewItem): KanbanCard => {
     const { node, span, progress } = item;
     const title = displayTitle(node.title, input.titles);
-    const done = Object.entries(node.choices).some(([ident, v]) => isDone(v, input.doneValues[ident]));
+    const done = isNodeDone(node, input.doneValues);
     const due = span.end;
     const late = !done && !!due && due.day < today;
     const point = !!span.start && !!due && span.start.day === due.day && span.start.time === due.time;
-    const when = !due ? "no date" : `${point ? "" : "ends "}${formatDate(due)}${late ? `, ${plural(daysBetween(due.day, today))} late` : ""}`;
+    const when = !due ? "no date" : `${point ? "" : "ends "}${formatDate(due)}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
     const own = new Set([columnProp.ident, laneProp?.ident, priority?.ident]);
     const meta = input.choiceProps.filter((p) => !own.has(p.ident)).map((p) => node.choices[p.ident]?.title).filter((t): t is string => !!t);
     const pv = priority ? node.choices[priority.ident] : undefined;

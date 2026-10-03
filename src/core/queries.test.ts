@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
-import { buildTagInfos } from "./schema";
-import { buildTagInfos as _b, loadTagInfos } from "./schema";
+import { buildTagInfos, loadTagInfos } from "./schema";
 import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, notRecycled, readRaw, TASKS_QUERY, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
 import { fixtureDq, type Recycled } from "../ui/test-fakes";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
@@ -294,7 +293,7 @@ describe("tag by entity id, not title (T14, F2)", () => {
   it("staleness is keyed on the tag id: a renamed tag re-asks neither query", async () => {
     const { dq, calls } = fakeDq();
     const prev = await readRaw(dq, tags, tag("Project"));
-    const renamed = _b(
+    const renamed = buildTagInfos(
       (tagsFixture.query.detail as unknown as [Record<string, unknown>][]).map(([t]) => [t.title === "Project" ? { ...t, title: "Projects" } : t]),
       propsFixture.query.detail as unknown[],
     );

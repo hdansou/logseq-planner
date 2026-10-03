@@ -65,8 +65,8 @@ export function plVars(vals: Record<string, string | undefined>): Record<string,
  */
 export const RERESOLVE_DELAYS_MS = [250, 1000];
 
-/** Applies the host's mode and tokens now, and again on every mode or theme change. */
-export async function watchTheme(deps: ThemeDeps, doc: Document): Promise<void> {
+/** Applies the host's mode and tokens now, and again on every mode or theme change. Resolves with the unsubscribe. */
+export async function watchTheme(deps: ThemeDeps, doc: Document): Promise<() => void> {
   const root = doc.documentElement;
   let latest = 0;
   const applyTokens = async () => {
@@ -82,11 +82,15 @@ export async function watchTheme(deps: ThemeDeps, doc: Document): Promise<void> 
     void applyTokens();
     for (const ms of RERESOLVE_DELAYS_MS) deps.later(() => void applyTokens(), ms);
   };
-  deps.onThemeModeChanged(({ mode }) => {
-    applyMode(mode);
-    applyTokensAgain();
-  });
-  deps.onThemeChanged(applyTokensAgain);
+  const offs = [
+    deps.onThemeModeChanged(({ mode }) => {
+      applyMode(mode);
+      applyTokensAgain();
+    }),
+    deps.onThemeChanged(applyTokensAgain),
+  ];
+  const off = () => offs.forEach((f) => f());
   applyMode((await deps.getUserConfigs())?.preferredThemeMode);
   await applyTokens();
+  return off;
 }

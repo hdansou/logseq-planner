@@ -231,6 +231,24 @@ describe("schema on refresh: data is read with the tags on screen while the tags
   });
 });
 
+describe("today (T14)", () => {
+  it("the refresh compares with the injected today: a new day redraws the today marker with no data change", async () => {
+    let today = "2026-10-03";
+    root.innerHTML = "";
+    const w = createWorkspace(root, {
+      dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300,
+      today: () => today, weekStart: async () => 0, kanban: graph.writes,
+    });
+    await w.open();
+    const marker = () => root.querySelector("[data-tl-col][data-today]")?.getAttribute("data-tl-col");
+    const before = marker();
+    today = "2026-10-04";
+    await w.refresh();
+    expect(marker()).not.toBe(before);
+    expect(root.querySelector("[data-tl-col][data-today]")).not.toBeNull();
+  });
+});
+
 describe("what a redraw keeps", () => {
   it("anchor, expanded Timeline rows, scroll of the view and the sidebar, and keyboard focus", async () => {
     await click(`[data-tag-id="${tag("Project").id}"]`);
