@@ -196,6 +196,9 @@ export interface KanbanWriteDeps {
   upsertBlockProperty(uuid: string, key: string, valueId: number): Promise<unknown>;
   /** `logseq.Editor.removeBlockProperty(uuid, key)`: `key` = full ident without the leading colon. */
   removeBlockProperty(uuid: string, key: string): Promise<unknown>;
-  /** Entity id of the closed value the node holds now for property `ident` (with its leading colon), null when it has none. */
-  readChoice(uuid: string, ident: string): Promise<number | null>;
+  /**
+   * The entity the node's property `ident` (with its leading colon) points at now (`ident` is null for user values), or
+   * null when the attribute is absent. After removing a built-in property it can be the empty placeholder (seen live).
+   */
+  readChoice(uuid: string, ident: string): Promise<{ id: number; ident: string | null } | null>;
 }

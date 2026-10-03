@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import writesFixture from "./__fixtures__/writes.json";
+import nodesFixture from "./__fixtures__/nodes.json";
+import { EMPTY_PLACEHOLDER } from "./normalize";
 import { loadTagInfos } from "./schema";
-import { loadNodes, loadTasks } from "./queries";
+import { loadNodes, loadTasks, NODES_QUERY } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
@@ -252,15 +254,23 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
     ({ kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop }, value: value(p(), prop, title) });
   const remove = (prop: string): PropertyWrite => ({ kind: "remove", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), prop).ident, title: prop } });
 
-  /** A fake of the three SDK calls: `stored` is what the graph holds; `silent` = the call resolves and changes nothing. */
-  function deps(stored: Record<string, number | null>, silent = false) {
+  type Stored = { id: number; ident: string | null } | null;
+  /**
+   * A fake of the three SDK calls: `stored` is what the graph holds; `silent` = the call resolves and changes nothing;
+   * `removed` = what a removal leaves (null = the attribute is gone, as for a user property in T01).
+   */
+  function deps(stored: Record<string, Stored>, silent = false, removed: Stored = null) {
     const d: KanbanWriteDeps = {
-      upsertBlockProperty: vi.fn(async (_u: string, key: string, id: number) => { if (!silent) stored[`:${key}`] = id; return null; }),
-      removeBlockProperty: vi.fn(async (_u: string, key: string) => { if (!silent) stored[`:${key}`] = null; return null; }),
+      upsertBlockProperty: vi.fn(async (_u: string, key: string, id: number) => { if (!silent) stored[`:${key}`] = { id, ident: null }; return null; }),
+      removeBlockProperty: vi.fn(async (_u: string, key: string) => { if (!silent) stored[`:${key}`] = removed; return null; }),
       readChoice: vi.fn(async (_u: string, ident: string) => stored[ident] ?? null),
     };
     return d;
   }
+  // Observed live on 2026-10-03 (T11 live check, not in the T01 fixtures): removeBlockProperty on built-in Status leaves
+  // the attribute pointing at the entity with ident :logseq.property/empty-placeholder. Hand-built from that observed
+  // shape (the one allowed exception to fixture-only data); the id is arbitrary on purpose: only the ident identifies it.
+  const PLACEHOLDER = { id: 4242, ident: EMPTY_PLACEHOLDER };
 
   it("the key is the full ident in the form the probe's working call used (no leading colon)", () => {
     const working = writesFixture.steps.find((s) => s.label === "status by closed-value db id")!.call;
@@ -280,7 +290,7 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
   });
 
   it("remove: removeBlockProperty(uuid, full ident), then a read-back of absence", async () => {
-    const d = deps({ [choiceProp(p(), "Owner").ident]: value(p(), "Owner", "Alice").id });
+    const d = deps({ [choiceProp(p(), "Owner").ident]: { id: value(p(), "Owner", "Alice").id, ident: null } });
     await writeMove(d, [remove("Owner")]);
     expect(d.removeBlockProperty).toHaveBeenCalledWith(SITE, writeKey(choiceProp(p(), "Owner").ident));
     expect(d.readChoice).toHaveBeenCalledWith(SITE, choiceProp(p(), "Owner").ident);
@@ -288,12 +298,38 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
 
   it("throws a clear error when the read-back differs (the API resolves null on failure too)", async () => {
     await expect(writeMove(deps({}, true), [set("Status", "Done")])).rejects.toThrow('Status of "Website relaunch" was not saved as Done');
-    await expect(writeMove(deps({ [choiceProp(p(), "Owner").ident]: 214 }, true), [remove("Owner")])).rejects.toThrow('Owner of "Website relaunch" was not removed');
+    const alice = { id: value(p(), "Owner", "Alice").id, ident: null };
+    await expect(writeMove(deps({ [choiceProp(p(), "Owner").ident]: alice }, true), [remove("Owner")])).rejects.toThrow('Owner of "Website relaunch" was not removed');
   });
 
   it("stops at the first failed write", async () => {
     const d = deps({}, true);
     await expect(writeMove(d, [set("Status", "Done"), set("Owner", "Bob")])).rejects.toThrow();
     expect(d.upsertBlockProperty).toHaveBeenCalledTimes(1);
+  });
+
+  it("removal: an absent attribute and the empty placeholder both count as removed (built-in Status, seen live)", async () => {
+    const status = choiceProp(p(), "Status").ident;
+    const doing = { id: value(p(), "Status", "Doing").id, ident: value(p(), "Status", "Doing").ident };
+    await expect(writeMove(deps({ [status]: doing }), [remove("Status")])).resolves.toBeUndefined();
+    await expect(writeMove(deps({ [status]: doing }, false, PLACEHOLDER), [remove("Status")])).resolves.toBeUndefined();
+    await expect(writeMove(deps({ [status]: doing }, true), [remove("Status")])).rejects.toThrow('Status of "Website relaunch" was not removed');
+  });
+
+  it("set: a read-back of the empty placeholder is a failure (a uuid or ident string as value blanks it, T01)", async () => {
+    const d = deps({});
+    d.readChoice = vi.fn(async () => PLACEHOLDER);
+    await expect(writeMove(d, [set("Status", "Done")])).rejects.toThrow('Status of "Website relaunch" was not saved as Done');
+  });
+
+  it("a node whose value is the empty placeholder sits in No <prop> (normalised to no value)", async () => {
+    const t = tag("Project");
+    const status = choiceProp(t, "Status").ident;
+    const rows = (nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][]).map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
+    const nodes = await loadNodes(async (q, ...i) => (q === NODES_QUERY ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
+    expect(nodes.find((n) => n.uuid === ARCHIVE)!.choices[status]).toBeUndefined();
+    const l = await project({ items: viewItems(nodes, [], null, null, statusValues) });
+    expect(cardsIn(l, NO_VALUE)).toEqual(["Archive cleanup"]);
+    expect(l.columns[l.columns.length - 1].count).toBe(1);
   });
 });

@@ -105,6 +105,13 @@ All notable changes to this project are documented here. The format follows
   does not hold puts the card back and its error shows in the error bar. A tag without a choice property shows "#Tag has
   no choice properties" instead of a board. `menu` and `options` moved to `src/ui/html.ts`. Not yet verified live.
 ### Fixed
+- Kanban (T11): moving a card to "No Status" was reported as a failure although it worked. Removing a built-in property
+  leaves the attribute pointing at the `:logseq.property/empty-placeholder` entity (seen live) instead of retracting it;
+  the read-back now pulls `:db/ident` and accepts an absent attribute or the placeholder (recognised by ident) as removed,
+  while a set that reads back the placeholder still fails. Normalisation has one explicit rule for choice values (only a
+  closed value of the property counts; the placeholder, with or without its ident, is no value) and a task whose Status
+  is the placeholder has no status, so the Kanban "No" column and lane, the filters' "No value" counts, Agenda meta and
+  done logic all see no value.
 - Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
   first grid track is a fixed `--pl-cal-head-h` (28px) instead of `auto`, which nothing sized and collapsed to 0.
 - Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the

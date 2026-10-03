@@ -12,11 +12,13 @@
 //   column is done when its value is. An open card past its end is late.
 // - Writes follow what T01 observed live (docs/probes.md, writes.json) and nothing else: `upsertBlockProperty(uuid,
 //   <full ident without the leading colon>, <closed value entity id>)`, `removeBlockProperty(uuid, <same key>)`. Both
-//   resolve null on success and on failure, so every write is read back and a mismatch throws.
+//   resolve null on success and on failure, so every write is read back and a mismatch throws. A removal reads back as
+//   either no attribute (user property) or the empty placeholder entity (built-in Status, seen live in T11).
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, LocalDate, PlannerNode, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import { categoryOf, compareDates, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isDone } from "./nodes";
+import { isEmptyPlaceholder } from "./normalize";
 
 /** Key of the "No <prop>" column and lane (closed values are keyed by uuid, which is never this). */
 export const NO_VALUE = "none";
@@ -209,7 +211,9 @@ export async function writeMove(deps: KanbanWriteDeps, writes: PropertyWrite[]):
     const key = writeKey(w.prop.ident);
     if (w.kind === "set") await deps.upsertBlockProperty(w.uuid, key, w.value.id);
     else await deps.removeBlockProperty(w.uuid, key);
-    const stored = await deps.readChoice(w.uuid, w.prop.ident);
+    const read = await deps.readChoice(w.uuid, w.prop.ident);
+    // No value = the attribute is gone (user properties) or points at the empty placeholder (built-in Status, seen live).
+    const stored = read === null || isEmptyPlaceholder(read) ? null : read.id;
     if (w.kind === "set" && stored !== w.value.id) {
       throw new Error(`${w.prop.title} of "${w.node}" was not saved as ${w.value.title} (read back differs). The board shows what the graph holds.`);
     }

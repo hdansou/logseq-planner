@@ -19,7 +19,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice props incl. inherited, closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
 | `src/core/queries.ts` | `loadNodes` / `loadTasks` (injected `Dq`): nodes of a tag ± child tags, #Task blocks whose refs hit them | use the SDK, filter/span logic (`nodes.ts`) |
-| `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset` | read process TZ outside `systemZone` |
+| `src/core/normalize.ts` | pure raw → `PlannerNode` / `PlannerTask`; Date/DateTime → local day (+ `HH:MM`) with injected `ZoneOffset`; `choiceValueOf` (only a closed value counts) and `isEmptyPlaceholder` (`:logseq.property/empty-placeholder` = no value, by ident) | read process TZ outside `systemZone` |
 | `src/core/nodes.ts` | pure `resolveSpan` (mapped / point / derived / undated), `rollup`, `isDone` / `isCanceled`, `filterNodes`, `tasksOf` | query, touch DOM or SDK |
 | `src/core/display-title.ts` | `displayTitle(title, titlesByUuid(nodes))`: inline `[[uuid]]` refs → the node's title, `(link)` when not loaded; every view renders titles through it | show a raw uuid |
 | `src/core/layout-common.ts` | shared by the view layouts: calendar-day arithmetic on UTC midnights (DST-safe), day/month/range formatting, `weekStartFromHost` (Logseq 0–6 Mon–Sun → 0 = Sunday), `categoryOf`, `viewItems` (span + tasks + rollup), task state / late / labels, node labels | read the clock or the host |

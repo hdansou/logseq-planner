@@ -116,10 +116,11 @@ export function fakeGraph() {
     readChoice: async (uuid, ident) => {
       calls.push(["readChoice", uuid, ident]);
       const e = edits.get(uuid);
-      if (e && ident in e) return e[ident];
+      if (e && ident in e) return e[ident] === null ? null : { id: e[ident]!, ident: null };
       const row = fixtureRows().find((n) => n.uuid === uuid);
       if (!row) throw new Error(`no node ${uuid}`);
-      return (row[ident] as { id: number } | undefined)?.id ?? null;
+      const v = row[ident] as { id: number } | undefined;
+      return v ? { id: v.id, ident: null } : null;
     },
   };
   return { dq: fixtureDq({ edits }), writes, calls, edits, state };

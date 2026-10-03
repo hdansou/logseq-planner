@@ -48,6 +48,27 @@ interface RawJournalDay {
   "journal-day": number;
 }
 
+/**
+ * The entity Logseq points a property at when it has no value: removing built-in Status leaves the attribute on this
+ * entity (seen live 2026-10-03, T11) and a uuid or ident string written as a value blanks to it (T01). It is never a
+ * value; `choiceValueOf` and `buildTasks` treat it as none.
+ */
+export const EMPTY_PLACEHOLDER = ":logseq.property/empty-placeholder";
+
+/** True for a ref to the empty placeholder (recognised by ident, never by entity id). */
+export const isEmptyPlaceholder = (v: unknown): boolean =>
+  typeof v === "object" && v !== null && (v as { ident?: unknown }).ident === EMPTY_PLACEHOLDER;
+
+/**
+ * The one rule for a node's choice value: a ref to one of the property's closed values is that value; anything else is
+ * no value. That covers the empty placeholder whether it comes with its ident or, as `pull [*]` returns refs live, as a
+ * bare `{id}` that matches no closed value.
+ */
+function choiceValueOf(prop: TagInfo["choiceProps"][number], v: unknown): ClosedValue | null {
+  if (!isRef(v) || isEmptyPlaceholder(v)) return null;
+  return prop.values.find((c) => c.id === v.id) ?? null;
+}
+
 const rawNodes = (raw: unknown[]) => (raw as [RawNode][]).map(([n]) => n);
 const isRef = (v: unknown): v is { id: number } => typeof v === "object" && v !== null && typeof (v as { id?: unknown }).id === "number";
 
@@ -110,8 +131,7 @@ export function buildNodes(
     }
     const choices: Record<string, ClosedValue> = {};
     for (const p of choiceProps) {
-      const v = node[p.ident];
-      const value = isRef(v) ? p.values.find((c) => c.id === v.id) : undefined;
+      const value = choiceValueOf(p, node[p.ident]);
       if (value) choices[p.ident] = value;
     }
     return {
@@ -139,7 +159,7 @@ export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffse
       id: t.id,
       uuid: t.uuid,
       title: t.title,
-      status: s ? { ident: s.ident, title: s.title } : null,
+      status: s && !isEmptyPlaceholder(s) ? { ident: s.ident, title: s.title } : null,
       nodeIds: hits,
       deadline: dateTimeOrNull(t[":logseq.property/deadline"], zone),
       scheduled: dateTimeOrNull(t[":logseq.property/scheduled"], zone),

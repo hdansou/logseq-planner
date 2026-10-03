@@ -119,7 +119,7 @@ const IDENT_RE = /^:[A-Za-z0-9._-]+\/[A-Za-z0-9._-]+$/;
  */
 export function choiceReadQuery(ident: string): string {
   if (!IDENT_RE.test(ident)) throw new Error(`Not a full property ident: ${ident}`);
-  return `[:find (pull ?b [:block/uuid {${ident} [:db/id]}]) :in $ ?u :where [?b :block/uuid ?u]]`;
+  return `[:find (pull ?b [:block/uuid {${ident} [:db/id :db/ident]}]) :in $ ?u :where [?b :block/uuid ?u]]`;
 }
 
 /**
@@ -132,9 +132,10 @@ export const kanbanWriteDeps = (): KanbanWriteDeps => ({
   removeBlockProperty: (uuid, key) => logseq.Editor.removeBlockProperty(uuid, key),
   readChoice: async (uuid, ident) => {
     if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);
-    const rows = (await datascriptQuery(choiceReadQuery(ident), `#uuid "${uuid}"`)) as [Record<string, { id?: number } | undefined>][];
+    const rows = (await datascriptQuery(choiceReadQuery(ident), `#uuid "${uuid}"`)) as [Record<string, { id: number; ident?: string } | undefined>][];
     if (!rows.length) throw new Error(`Block ${uuid} not found when reading ${ident} back`);
-    // Pull-map keys keep the full ident (with its colon); :db/id comes back as `id` (docs/probes.md).
-    return rows[0][0]?.[ident]?.id ?? null;
+    // Pull-map keys keep the full ident (with its colon); :db/id and :db/ident come back as `id` and `ident` (docs/probes.md).
+    const v = rows[0][0]?.[ident];
+    return v ? { id: v.id, ident: v.ident ?? null } : null;
   },
 });

@@ -58,11 +58,14 @@ describe("Kanban writes (T11; T01 observed shapes, docs/probes.md)", () => {
 
   it("reads the property back with the probe's read-back form: a pull by uuid with a #uuid input", async () => {
     const sent: unknown[][] = [];
-    const rows: unknown[] = [[{ uuid: UUID, [OWNER]: { id: 215 } }]];
+    let rows: unknown[] = [[{ uuid: UUID, [OWNER]: { id: 215 } }]];
     vi.stubGlobal("logseq", { DB: { datascriptQuery: async (...args: unknown[]) => (sent.push(args), rows) } });
-    expect(await kanbanWriteDeps().readChoice(UUID, OWNER)).toBe(215);
+    expect(await kanbanWriteDeps().readChoice(UUID, OWNER)).toEqual({ id: 215, ident: null }); // user values have no ident
     expect(sent[0]).toEqual([choiceReadQuery(OWNER), `#uuid "${UUID}"`]);
-    expect(choiceReadQuery(OWNER)).toBe(`[:find (pull ?b [:block/uuid {${OWNER} [:db/id]}]) :in $ ?u :where [?b :block/uuid ?u]]`);
+    expect(choiceReadQuery(OWNER)).toBe(`[:find (pull ?b [:block/uuid {${OWNER} [:db/id :db/ident]}]) :in $ ?u :where [?b :block/uuid ?u]]`);
+    // the shape seen live (2026-10-03) after removing built-in Status: the attribute points at the empty placeholder
+    rows = [[{ uuid: UUID, ":logseq.property/status": { id: 10, ident: ":logseq.property/empty-placeholder" } }]];
+    expect(await kanbanWriteDeps().readChoice(UUID, ":logseq.property/status")).toEqual({ id: 10, ident: ":logseq.property/empty-placeholder" });
   });
 
   it("an absent value reads as null; a missing block or a malformed ident fails", async () => {
