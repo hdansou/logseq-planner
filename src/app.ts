@@ -49,7 +49,9 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   };
   const open = () => {
     deps.showMainUI();
+    const shownBefore = loaded;
     changes?.setVisible(true);
+    if (shownBefore) void workspace.showViews(); // the first show lists them as part of the load
     for (const ms of FOCUS_RETRIES_MS) deps.later(focusIn, ms);
   };
 

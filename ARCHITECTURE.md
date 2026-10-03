@@ -86,7 +86,7 @@ Each module has a co-located `*.test.ts`, except `src/index.ts`, `src/types.ts`,
  weekStart()  +  loadTagInfos(dq)            schema: tags, date props, choice props
   |                                          (walks :logseq.property.class/extends)
   v
- views.list()                                saved views (cache-first)
+ views.list()                                saved views (cache dropped on every show)
   |
   v
  config = current or defaultViewConfig(initialTag)     validateViewConfig(config, tags)
@@ -183,7 +183,10 @@ whether the write worked or not (observed live, docs/probes.md).
    the removal fails too, the error says so.
 
 The cache is updated before the write. The store looks the page up
-again before every write and drops its cache when the page is gone.
+again before every write and drops its cache when the page is gone. Every time Planner is
+shown, the workspace drops the cache (`invalidate`) and lists the views again
+(`Workspace.showViews`, called by `app.ts` from the second show on), so views written or
+deleted on another device appear.
 
 **Kanban move** (`src/core/kanban.ts` `writeMove`, deps from `kanbanWriteDeps()`):
 

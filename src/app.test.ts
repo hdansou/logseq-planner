@@ -6,7 +6,10 @@ import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY } from "./core/schema";
 import { DEBOUNCE_MS } from "./ui/changes";
-import { fakeChangeFeed, fakeClock } from "./ui/test-fakes";
+import { fakeChangeFeed, fakeClock, fakeStorage } from "./ui/test-fakes";
+import { buildTagInfos } from "./core/schema";
+import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
+import type { ViewBlock } from "./types";
 
 /** Fake SDK: records every call; `defer` queues work so the test decides when it runs. */
 function fakeDeps() {
@@ -238,6 +241,37 @@ describe("live updates (T12)", () => {
     expect(tagQueries(f.deps)).toBe(1);
     f.visibility.forEach((cb) => cb(true));
     await vi.waitFor(() => expect(tagQueries(f.deps)).toBe(2));
+  });
+
+  it("saved views are listed afresh on every show: one added or deleted on another device shows after hide + show (T14)", async () => {
+    const project = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]).find((t) => t.title === "Project")!;
+    const config = serializeViewConfig(defaultViewConfig(project));
+    const blocks: ViewBlock[] = [{ uuid: "v1", name: "Roadmap", config }];
+    const f = fakeDeps();
+    const deps = { ...f.deps, storage: fakeStorage({ blocks }) };
+    registerApp(deps, root);
+    f.flush();
+    modelHandler(f.deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
+    const listed = async () => {
+      (root.querySelector("[data-control=saved-views]") as HTMLElement).click();
+      await new Promise((r) => setTimeout(r, 0));
+      const ids = [...root.querySelectorAll<HTMLElement>("[data-view-open]")].map((b) => b.dataset.viewOpen);
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); // close the menu
+      return ids;
+    };
+    const hideAndShow = async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      modelHandler(f.deps)();
+      await new Promise((r) => setTimeout(r, 0));
+    };
+    expect(await listed()).toEqual(["v1"]);
+    blocks.push({ uuid: "v2", name: "Meetings", config }); // written by another device
+    await hideAndShow();
+    await vi.waitFor(async () => expect(await listed()).toEqual(["v1", "v2"]));
+    blocks.splice(0, 1); // deleted on another device
+    await hideAndShow();
+    await vi.waitFor(async () => expect(await listed()).toEqual(["v2"]));
   });
 
   it("unload unsubscribes and cancels the timers", async () => {

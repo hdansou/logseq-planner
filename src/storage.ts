@@ -125,6 +125,8 @@ export function createViewStore(deps: StorageDeps) {
   return {
     /** All saved views, in page order, unreadable ones as `InvalidView`. Reads the graph once, then serves the cache. */
     list: async (): Promise<ListedView[]> => [...(await load())],
+    /** Drops the cache: the next `list` reads the graph again (views written or deleted on another device, T14). */
+    invalidate: (): void => void (cache = null),
     /** The cache as it is now (empty before the first `list`/write). */
     cached: (): ListedView[] => [...(cache ?? [])],
 

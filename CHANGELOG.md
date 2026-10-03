@@ -127,6 +127,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Saved views (T14): the list was read once per plugin lifetime, so views added or deleted on another device never
+  showed. The store has `invalidate()`; the workspace drops the cache and lists the views again on every show
+  (`Workspace.showViews`, from `app.ts`; the first show lists them as part of the load).
 - Schema (T14): a choice property that allows several values (cardinality many) is no longer offered for filters,
   Kanban columns and lanes or done values; only cardinality-one choices are (`collectProps`).
 - Workspace (T14): a throw while drawing (or anywhere in a queued action) can no longer leave the action queue rejected,

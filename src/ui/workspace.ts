@@ -67,6 +67,11 @@ export interface Workspace {
    * Never rejects: a failure shows in the error bar.
    */
   refresh(): Promise<void>;
+  /**
+   * Planner was shown again: re-lists the saved views from the graph (the store's cache is dropped first), so views
+   * added or deleted on another device show (T14). Queued; an error shows in the error bar.
+   */
+  showViews(): Promise<void>;
   /** Closes an open popover and returns true; false when there is nothing to close (the app then closes Planner). */
   escape(): boolean;
   /** Resolves when every queued action has finished (tests, focus after open). */
@@ -526,7 +531,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       s.loading = false;
     }
     try {
-      s.views = await deps.views.list();
+      await listViews();
     } catch (e) {
       s.error = (e as Error).message;
     }
@@ -872,6 +877,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    * views from the store (their page went to Recycle, T07 D5), and the list must not keep showing them.
    * The write's error is the one shown.
    */
+  /** The saved views as the graph has them now (the store's cache dropped first); a view that is gone is no longer current. */
+  async function listViews() {
+    deps.views.invalidate();
+    s.views = await deps.views.list();
+    if (!s.views.some((v) => v.id === s.viewId)) s.viewId = null;
+  }
+
   async function viewsWrite(write: () => Promise<void>) {
     try {
       await write();
@@ -947,6 +959,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return true;
     },
     refresh,
+    showViews: () => run(listViews),
     idle: () => queue,
     config: () => s.config,
   };

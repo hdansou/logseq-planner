@@ -103,6 +103,20 @@ describe("list", () => {
   });
 });
 
+describe("invalidate (T14)", () => {
+  it("drops the cache: the next list reads the graph again and sees views written elsewhere", async () => {
+    const { g, deps, log } = fakeGraph();
+    g.page = "page-1";
+    const store = createViewStore(deps);
+    expect(await store.list()).toEqual([]);
+    g.blocks.push({ uuid: "o", name: "Other device", config: serializeViewConfig(timeline) });
+    expect(await store.list()).toEqual([]); // cached
+    store.invalidate();
+    expect((await store.list()).map((v) => v.name)).toEqual(["Other device"]);
+    expect(log.filter((l) => l.startsWith("listBlocks"))).toHaveLength(2);
+  });
+});
+
 describe("recycled page", () => {
   it("only a recycled page exists: findPage sees none, so list is empty and create calls createPage", async () => {
     const { g, deps, log } = fakeGraph();
