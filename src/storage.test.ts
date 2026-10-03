@@ -4,7 +4,7 @@ import propsFixture from "./core/__fixtures__/class-properties.json";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
-import { configSchemaFor, createViewStore, PAGE_TITLE, sanitizeViewName } from "./storage";
+import { configSchemaFor, createViewStore, PAGE_TITLE, sanitizeViewName, type SavedView } from "./storage";
 import type { StorageDeps, ViewBlock } from "./types";
 import { hostTags, hostTitle } from "./ui/test-fakes";
 
@@ -83,11 +83,23 @@ describe("list", () => {
     expect(log.filter((l) => l.startsWith("listBlocks"))).toHaveLength(1);
   });
 
-  it("throws, naming the view, on a stored config it cannot parse", async () => {
+  it("one unreadable view does not hide the others: it is listed as invalid with its error (T14)", async () => {
     const { g, deps } = fakeGraph();
     g.page = "page-1";
-    g.blocks = [{ uuid: "x", name: "Broken", config: "{nope" }];
-    await expect(createViewStore(deps).list()).rejects.toThrow(/Broken/);
+    const good = serializeViewConfig(timeline);
+    g.blocks = [
+      { uuid: "a", name: "Roadmap", config: good },
+      { uuid: "x", name: "Broken", config: "{nope" },
+      { uuid: "y", name: "Bad shape", config: JSON.stringify({ v: 1, config: { ...timeline, filters: { [":user.property/x"]: "" } } }) },
+    ];
+    const store = createViewStore(deps);
+    const list = await store.list();
+    expect(list.map((v) => [v.id, v.name, "config" in v])).toEqual([["a", "Roadmap", true], ["x", "Broken", false], ["y", "Bad shape", false]]);
+    expect(list[1]).toEqual({ id: "x", name: "Broken", invalid: "Invalid view config: not valid JSON" });
+    expect(list[2]).toMatchObject({ invalid: expect.stringMatching(/filters\[:user.property\/x\] must be a list/) });
+    await store.remove("x"); // an invalid view can be deleted
+    expect((await store.list()).map((v) => v.id)).toEqual(["a", "y"]);
+    expect(g.blocks.map((b) => b.uuid)).toEqual(["a", "y"]);
   });
 });
 
@@ -273,7 +285,7 @@ describe("update", () => {
     const v = await store.create("Roadmap", timeline);
     const next = { ...timeline, zoom: "quarter" as const };
     let cachedAtWrite: unknown;
-    g.onWrite = () => void (cachedAtWrite = store.cached()[0].config);
+    g.onWrite = () => void (cachedAtWrite = (store.cached()[0] as SavedView).config);
     await store.update(v.id, next);
     expect(cachedAtWrite).toEqual(next);
     expect(JSON.parse(g.blocks[0].config!).config.zoom).toBe("quarter");
@@ -288,7 +300,7 @@ describe("update", () => {
     const store2 = createViewStore(dropping);
     await store2.list();
     await expect(store2.update(v.id, { ...timeline, zoom: "week" })).rejects.toThrow(/read back|stored/i);
-    expect(store2.cached()[0].config).toEqual(timeline);
+    expect((store2.cached()[0] as SavedView).config).toEqual(timeline);
     expect(g.blocks[0].config).toBe(serializeViewConfig(timeline));
   });
 

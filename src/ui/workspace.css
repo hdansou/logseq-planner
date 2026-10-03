@@ -99,3 +99,6 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-empty { display: grid; justify-items: center; gap: 6px; padding: 56px 16px; text-align: center; color: var(--pl-label-2); }
 .pl-empty b { color: var(--pl-label); font-size: 16px; font-weight: 600; }
 .pl-empty .pl-btn { margin-top: 6px; }
+/* An unreadable saved view (T14): greyed, with its reason; only the delete button acts on it. */
+.pl-view-invalid { display: grid; gap: 2px; color: var(--pl-label-2); cursor: default; }
+.pl-view-invalid small { font-size: 11px; }

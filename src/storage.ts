@@ -16,6 +16,17 @@ export interface SavedView {
   config: ViewConfig;
 }
 
+/** A saved-view block whose config cannot be read: listed with the reason so it can be deleted, never opened. */
+export interface InvalidView {
+  id: string;
+  name: string;
+  /** Why the config cannot be used (`parseViewConfig`'s message). */
+  invalid: string;
+}
+
+/** What `list` returns: the readable views and, in page order among them, the unreadable ones. */
+export type ListedView = SavedView | InvalidView;
+
 /**
  * Schema to apply before every config write: create the property hidden when missing, only hide it when it
  * exists (never change an existing type), nothing when already hidden (gotcha §30; same rule as Query Builder).
@@ -40,19 +51,20 @@ const mismatch = (what: string, id: string) => new Error(`Saved view ${what} was
 export type ViewStore = ReturnType<typeof createViewStore>;
 
 export function createViewStore(deps: StorageDeps) {
-  let cache: SavedView[] | null = null;
+  let cache: ListedView[] | null = null;
   let pageUuid: string | null = null;
   let pending = 0;
 
-  const toView = (b: ViewBlock): SavedView => {
+  /** One block → a view, or an invalid entry carrying the parse error: one bad block must not hide the others (T14). */
+  const toView = (b: ViewBlock): ListedView => {
     try {
       return { id: b.uuid, name: b.name, config: parseViewConfig(b.config!) };
     } catch (e) {
-      throw new Error(`Saved view "${b.name}": ${(e as Error).message}`);
+      return { id: b.uuid, name: b.name, invalid: (e as Error).message };
     }
   };
 
-  async function load(): Promise<SavedView[]> {
+  async function load(): Promise<ListedView[]> {
     if (cache) return cache;
     pageUuid = await deps.findPage(PAGE_TITLE);
     const blocks = pageUuid ? await deps.listBlocks(pageUuid) : [];
@@ -104,17 +116,17 @@ export function createViewStore(deps: StorageDeps) {
     }
   }
 
-  const find = (views: SavedView[], id: string) => {
+  const find = (views: ListedView[], id: string) => {
     const i = views.findIndex((v) => v.id === id);
     if (i < 0) throw new Error(`Unknown saved view ${id}`);
     return i;
   };
 
   return {
-    /** All saved views, in page order. Reads the graph once, then serves the cache. */
-    list: async (): Promise<SavedView[]> => [...(await load())],
+    /** All saved views, in page order, unreadable ones as `InvalidView`. Reads the graph once, then serves the cache. */
+    list: async (): Promise<ListedView[]> => [...(await load())],
     /** The cache as it is now (empty before the first `list`/write). */
-    cached: (): SavedView[] => [...(cache ?? [])],
+    cached: (): ListedView[] => [...(cache ?? [])],
 
     /**
      * Saves a new view under `sanitizeViewName(name)`. After the block is appended, any failure (the config write, its
@@ -152,11 +164,12 @@ export function createViewStore(deps: StorageDeps) {
       const views = await load();
       const i = find(views, id);
       const before = views[i];
-      views[i] = { ...before, config }; // cache first
+      const next: SavedView = { id, name: before.name, config };
+      views[i] = next; // cache first
       try {
         await livePage(false);
         await writeConfig(id, serializeViewConfig(config));
-        return views[i];
+        return next;
       } catch (e) {
         views[i] = before;
         throw e;

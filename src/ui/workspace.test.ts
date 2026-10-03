@@ -388,6 +388,22 @@ describe("saved views", () => {
     expect(text("[data-control=saved-views]")).toContain("None");
   });
 
+  it("an unreadable saved view is listed greyed with its reason, can be deleted, and cannot be opened (T14)", async () => {
+    const good = serializeViewConfig(defaultViewConfig(tags.find((t) => t.title === "Project")!));
+    const { ws } = await setup({ storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Roadmap", config: good }, { uuid: "v2", name: "Broken", config: "{nope" }] }) });
+    expect($("[data-region=error]")).toBeNull();
+    await click(ws, "[data-control=saved-views]");
+    expect($("[data-view-open=v1]")).not.toBeNull();
+    expect($("[data-view-open=v2]")).toBeNull();
+    const broken = $("[data-view-invalid=v2]")!;
+    expect(broken.getAttribute("aria-disabled")).toBe("true");
+    expect(broken.textContent).toContain("Broken");
+    expect(broken.closest("li")!.textContent).toContain("not valid JSON");
+    await click(ws, "[data-view-delete=v2]");
+    expect($("[data-view-invalid=v2]")).toBeNull();
+    expect($("[data-view-open=v1]")).not.toBeNull();
+  });
+
   it("shows a validation error for a saved view that names an unknown property", async () => {
     const bad = { ...defaultViewConfig(tags.find((t) => t.title === "Project")!), start: ":user.property/gone" };
     const { ws } = await setup({ storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Broken", config: serializeViewConfig(bad) }] }) });

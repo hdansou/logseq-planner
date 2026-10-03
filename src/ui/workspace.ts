@@ -16,7 +16,7 @@ import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeli
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { cardCell, findCell, layoutKanban, moveDescriptor, movedNode, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
-import { sanitizeViewName, type SavedView, type ViewStore } from "../storage";
+import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
@@ -85,7 +85,8 @@ interface State {
   tasks: PlannerTask[];
   /** Titles of every node and linked block the loaded titles reference, by lower-case uuid (loaded nodes + one lookup per load). */
   titles: ReadonlyMap<string, string>;
-  views: SavedView[];
+  /** Saved views as the store lists them, unreadable ones included (shown greyed, deletable, never opened). */
+  views: ListedView[];
   /** The saved view the current config came from or was saved as. */
   viewId: string | null;
   popover: Popover | null;
@@ -187,7 +188,9 @@ function renderTopBar(s: State): string {
   const viewsPopover = () => {
     const rows = s.views.length
       ? `<ul class="pl-view-list" aria-label="Saved views">${s.views
-          .map((v) => `<li><button type="button" class="pl-row" data-view-open="${esc(v.id)}"${v.id === s.viewId ? ' aria-current="true"' : ""}>${esc(v.name)}</button>`
+          .map((v) => `<li>${"invalid" in v
+              ? `<span class="pl-row pl-view-invalid" data-view-invalid="${esc(v.id)}" aria-disabled="true">${esc(v.name)}<small class="pl-hint">Cannot be opened: ${esc(v.invalid)}</small></span>`
+              : `<button type="button" class="pl-row" data-view-open="${esc(v.id)}"${v.id === s.viewId ? ' aria-current="true"' : ""}>${esc(v.name)}</button>`}`
             + `<button type="button" class="pl-icon-btn" data-view-delete="${esc(v.id)}" aria-label="Delete saved view ${esc(v.name)}">×</button></li>`)
           .join("")}</ul>`
       : `<p class="pl-hint">No saved views yet.</p>`;
@@ -642,7 +645,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (d.viewKind) return void run(() => setConfig(switchKind(s.config!, tagOf(s.config!), d.viewKind as ViewKind)));
     if (d.viewOpen) {
       return void run(async () => {
-        const v = s.views.find((x) => x.id === d.viewOpen)!;
+        const v = s.views.find((x): x is SavedView => x.id === d.viewOpen && "config" in x)!;
         tagOf(v.config); // throws before anything changes
         s.popover = null;
         s.config = v.config;

@@ -127,6 +127,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Saved views (T14): one unreadable saved view no longer disables the feature. `list()` returns the readable views and,
+  for each block whose config cannot be parsed, an `InvalidView` with the reason; the Saved views menu shows it greyed
+  (`data-view-invalid`) with "Cannot be opened: <reason>" and its delete button, and offers no open.
 - Saved views (T14): a stored config is checked for its shape before it is used (`checkViewConfigShape`, called by
   `parseViewConfig` and `validateViewConfig`): `filters` and `doneValues` must be plain objects of value-uuid lists
   (`null` allowed in filters only), `childTags` and `showDone` booleans, `tag` a string, `start`, `end`, `columnProp` and
