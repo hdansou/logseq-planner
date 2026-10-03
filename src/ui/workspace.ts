@@ -2,7 +2,8 @@
 // Start, End, done values), tag tree and choice filters, a per-view toolbar slot and the main area.
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
-// The Timeline (T08), the Calendar (T09) and the Agenda (T10) render into the view area and the toolbar slot; Kanban shows a placeholder.
+// The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
+// Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
 import { loadNodes, loadTasks } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
@@ -14,11 +15,13 @@ import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
+import { cardCell, findCell, layoutKanban, moveDescriptor, movedNode, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import type { SavedView, ViewStore } from "../storage";
-import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
-import { esc } from "./html";
+import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
+import { esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
+import { kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
 import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 export interface WorkspaceDeps {
@@ -34,6 +37,8 @@ export interface WorkspaceDeps {
   today?: () => string;
   /** The host's first day of the week, 0 = Sunday … 6 = Saturday; read on every `open()`. */
   weekStart(): Promise<number>;
+  /** The SDK calls behind a Kanban move (`kanbanWriteDeps()` in src/sdk.ts). */
+  kanban: KanbanWriteDeps;
 }
 
 export interface Workspace {
@@ -47,7 +52,7 @@ export interface Workspace {
   config(): ViewConfig | null;
 }
 
-type Popover = "tag" | "start" | "end" | "done" | "views";
+type Popover = "tag" | "start" | "end" | "done" | "views" | "kb-column" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -68,6 +73,10 @@ interface State {
   expanded: Set<number>;
   /** The host's week start, read on every open; null before the first. */
   weekStart: number | null;
+  /** Kanban moves being written, by node uuid: the card shows where the writes put it (optimistic). Session state. */
+  pending: Map<string, PropertyWrite[]>;
+  /** The card whose Move menu is (or was last) open. */
+  moveCard: string | null;
 }
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -77,9 +86,6 @@ interface Now {
 }
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
-const KIND_TASK: Record<ViewKind, string> = { timeline: "T08", calendar: "T09", agenda: "T10", kanban: "T11" };
-
-const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 const byTitle = (a: TagInfo, b: TagInfo) => a.title.localeCompare(b.title);
 
 // ---------------------------------------------------------------- pure helpers
@@ -99,6 +105,10 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
   const ordered = [...tags].sort((a, b) => Number(a.builtIn) - Number(b.builtIn) || byTitle(a, b));
   return rootsOf(tags).find(hasDates) ?? ordered.find(hasDates) ?? ordered[0] ?? null;
 }
+
+/** The loaded nodes with the pending Kanban moves applied: where their cards show while the writes run. */
+const shownNodes = (s: State): PlannerNode[] =>
+  s.pending.size ? s.nodes.map((n) => (s.pending.has(n.uuid) ? movedNode(n, s.pending.get(n.uuid)!) : n)) : s.nodes;
 
 /** The nodes that pass the view's filters and the tasks linked to them: what a view is handed (T07 D4). */
 export function visibleData(config: ViewConfig, tag: TagInfo, nodes: PlannerNode[], tasks: PlannerTask[]) {
@@ -133,22 +143,9 @@ export function localToday(): string {
 
 // ---------------------------------------------------------------- render (pure: state → HTML)
 
-/** A menu trigger plus, when open, its popover; both inside one positioned anchor. */
-function menu(kind: Popover, s: State, label: string, buttonText: string, popover: () => string, control: string = kind): string {
-  const open = s.popover === kind;
-  const id = `pl-${kind}`;
-  return `<span class="pl-anchor"><span class="pl-field-label" id="${id}-label">${esc(label)}</span>`
-    + `<button type="button" class="pl-menu-btn" id="${id}-btn" data-control="${control}" aria-haspopup="true" aria-expanded="${open}" aria-labelledby="${id}-label ${id}-btn">${buttonText}<span class="pl-caret" aria-hidden="true">▾</span></button>`
-    + (open ? `<div class="pl-popover" data-popover="${kind}">${popover()}</div>` : "")
-    + `</span>`;
-}
-
-/** A single-choice listbox of buttons; `value` "" stands for none. */
-function options(label: string, items: { value: string; text: string }[], current: string): string {
-  return `<div role="listbox" aria-label="${esc(label)}">${items
-    .map((o) => `<button type="button" role="option" class="pl-row" data-option="${esc(o.value)}" aria-selected="${o.value === current}">${esc(o.text)}</button>`)
-    .join("")}</div>`;
-}
+/** A menu trigger plus, when open, its popover (html.ts `menu`), open when it is the state's popover. */
+const menu = (kind: Popover, s: State, label: string, buttonText: string, popover: () => string, control: string = kind) =>
+  menuHtml(kind, s.popover === kind, label, buttonText, popover, control);
 
 function renderTopBar(s: State): string {
   const kind = s.config?.kind;
@@ -284,18 +281,34 @@ function agendaLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerN
   });
 }
 
-/** The main area (loading, an empty state, the Timeline, the Calendar, the Agenda or the placeholder for Kanban, not built yet) and its toolbar. */
+/** The Kanban layout for the visible nodes (the view has a column property). */
+function kanbanLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): KanbanLayout {
+  const c = s.config!;
+  if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
+  const prop = (ident: string) => tag.choiceProps.find((p) => p.ident === ident)!;
+  const statusValues = taskStatusValues(s.tags);
+  return layoutKanban({
+    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    columnProp: prop(c.columnProp), laneProp: c.laneProp === null ? null : prop(c.laneProp), sort: c.sort, today: now.today,
+    choiceProps: tag.choiceProps, doneValues: c.doneValues, titles: titlesByUuid(s.nodes), pending: new Set(s.pending.keys()),
+  });
+}
+
+/** The main area (loading, an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar. */
 function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
   const view = (html: string) => ({ view: html, toolbar: "" });
   if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
   if (!s.tags.length) return view(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
   if (!tag || !s.config) return view("");
   const name = `#${esc(tag.title)}`;
+  if (s.config.kind === "kanban" && s.config.columnProp === null) {
+    return view(empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
+  }
   if (s.config.kind !== "kanban" && !tag.dateProps.length) {
     return view(empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
   }
   if (!s.nodes.length) return view(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`));
-  const shown = visibleData(s.config, tag, s.nodes, s.tasks);
+  const shown = visibleData(s.config, tag, shownNodes(s), s.tasks);
   if (!shown.nodes.length) {
     return view(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the left column.",
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
@@ -312,9 +325,13 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
     const layout = agendaLayout(s, now(), tag, shown);
     return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
   }
-  const kind = KIND_LABEL[s.config.kind];
-  return view(`<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
-    + `<span>${plural(shown.nodes.length, "node")} · ${plural(shown.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`);
+  const c = s.config;
+  const layout = kanbanLayout(s, now(), tag, shown);
+  const prop = (ident: string | null) => tag.choiceProps.find((p) => p.ident === ident) ?? null;
+  return {
+    view: renderKanban(layout, `#${tag.title}`, s.popover === "kb-move" ? s.moveCard : null),
+    toolbar: renderKanbanToolbar({ choiceProps: tag.choiceProps, columnProp: prop(c.columnProp)!, laneProp: prop(c.laneProp), sort: c.sort, hasPriority: priorityProp(tag) !== null, popover: s.popover }),
+  };
 }
 
 function renderWorkspace(s: State, now: () => Now): string {
@@ -341,7 +358,7 @@ function selectorOf(el: Element): string {
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false,
-    anchor: null, expanded: new Set(), weekStart: null };
+    anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null };
   const now = (): Now => {
     if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
     return { today: (deps.today ?? localToday)(), weekStart: s.weekStart };
@@ -366,15 +383,20 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return queue;
   };
 
-  async function loadData() {
+  /** Re-reads the current view's nodes and tasks from the graph, without the loading state (a Kanban move reloads this way). */
+  async function fetchData() {
     const config = s.config!;
     const tag = tagOf(config);
-    if (tag.builtIn) s.builtInOpen = true; // every tag change passes here
+    s.nodes = await loadNodes(deps.dq, s.tags, tag, { childTags: config.childTags, zone: deps.zone });
+    s.tasks = await loadTasks(deps.dq, s.nodes, deps.zone);
+  }
+
+  async function loadData() {
+    if (tagOf(s.config!).builtIn) s.builtInOpen = true; // every tag change passes here
     s.loading = true;
     render();
     try {
-      s.nodes = await loadNodes(deps.dq, s.tags, tag, { childTags: config.childTags, zone: deps.zone });
-      s.tasks = await loadTasks(deps.dq, s.nodes, deps.zone);
+      await fetchData();
     } finally {
       s.loading = false;
     }
@@ -394,7 +416,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     await loadData();
   };
 
-  const trigger = (p: Popover) => `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
+  const trigger = (p: Popover) =>
+    p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
   const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" ? "input" : "[aria-selected=true]"}`;
 
   async function open() {
@@ -444,9 +467,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (cal) return void calendar(cal, (e as MouseEvent).shiftKey);
     const ag = agendaAction(t);
     if (ag) return void agenda(ag, (e as MouseEvent).shiftKey);
+    const kb = kanbanAction(t);
+    if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         return void run(() => {}, () => (s.popover ? firstInPopover(s.popover) : trigger(p)));
@@ -460,6 +485,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (p === "tag") return void run(() => selectTag(s.tags.find((x) => x.ident === value)!), () => trigger("tag"));
       if (p === "start") return void run(() => setConfig({ ...s.config!, start: value }), () => trigger("start"));
       if (p === "end") return void run(() => setConfig({ ...s.config!, end: value || null }), () => trigger("end"));
+      const c = s.config!;
+      if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
+      if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
     }
     const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-action]");
     if (!el) return;
@@ -548,6 +576,106 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => setConfig({ ...c, showDone: !c.showDone }));
     }
   }
+
+  /** Kanban controls: column, lane and sort are view config (saved with a view); moves are written to the graph. */
+  function kanban(a: NonNullable<ReturnType<typeof kanbanAction>>, shift: boolean) {
+    const c = s.config!;
+    if (c.kind !== "kanban") throw new Error(`Kanban control in a ${c.kind} view`);
+    switch (a.type) {
+      case "open":
+        return deps.openNode(a.uuid, { sidebar: shift });
+      case "sort":
+        return void run(() => setConfig({ ...c, sort: a.sort }));
+      case "moveMenu": {
+        const open = s.popover === "kb-move" && s.moveCard === a.uuid;
+        s.popover = open ? null : "kb-move";
+        s.moveCard = a.uuid;
+        return void run(() => {}, () => (open ? trigger("kb-move") : `[data-popover="kb-move"] [aria-selected=true]`));
+      }
+      case "moveTo": {
+        const { cell } = cardCell(board(), a.uuid);
+        s.popover = null;
+        return void move(a.uuid, a.column ?? cell.column.key, a.column === null ? a.lane : cell.lane?.key ?? null, `[data-kb-move="${a.uuid}"]`);
+      }
+    }
+  }
+
+  /** The Kanban layout on screen now. */
+  const board = (): KanbanLayout => {
+    const tag = tagOf(s.config!);
+    return kanbanLayout(s, now(), tag, visibleData(s.config!, tag, shownNodes(s), s.tasks));
+  };
+
+  /**
+   * Moves a card to the cell at `column` / `lane` (drag and drop and the Move menu both end here). Optimistic: the card
+   * shows in the target at once, flagged pending (not draggable); then the writes run, each read back. Success or not,
+   * the board is reloaded from the graph, so a failed write puts the card back where the graph has it and the error
+   * shows in the error bar.
+   */
+  function move(uuid: string, column: string, lane: string | null, focus?: string) {
+    const layout = board();
+    const { card, cell } = cardCell(layout, uuid);
+    if (card.pending) return;
+    const writes = moveDescriptor(card, cell, findCell(layout, column, lane));
+    if (!writes.length) return void render(focus);
+    s.pending.set(uuid, writes);
+    render(focus);
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        await writeMove(deps.kanban, writes);
+      } catch (e) {
+        failure = e;
+      }
+      s.pending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    }, () => focus);
+  }
+
+  /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered here; the DOM is not re-rendered until the drop. */
+  let dragging: string | null = null;
+  const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  root.addEventListener("dragstart", (e) => {
+    const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card]");
+    if (!cardEl) return;
+    if (cardEl.hasAttribute("data-kb-pending")) return void e.preventDefault();
+    dragging = cardEl.dataset.kbCard!;
+    cardEl.setAttribute("data-kb-dragging", "");
+    const dt = (e as DragEvent).dataTransfer;
+    if (dt) {
+      dt.setData("text/plain", dragging); // Firefox starts a drag only with data set
+      dt.effectAllowed = "move";
+    }
+  });
+  root.addEventListener("dragover", (e) => {
+    const cellEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-cell]");
+    if (!cellEl || !dragging) return;
+    e.preventDefault(); // accept the drop
+    const dt = (e as DragEvent).dataTransfer;
+    if (dt) dt.dropEffect = "move";
+    if (!cellEl.hasAttribute("data-kb-over")) {
+      clearMarks("data-kb-over");
+      cellEl.setAttribute("data-kb-over", "");
+    }
+  });
+  root.addEventListener("dragleave", (e) => {
+    const cellEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-cell]");
+    if (cellEl && !cellEl.contains((e as DragEvent).relatedTarget as Node | null)) cellEl.removeAttribute("data-kb-over");
+  });
+  root.addEventListener("drop", (e) => {
+    const cellEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-cell]");
+    if (!cellEl || !dragging) return;
+    e.preventDefault();
+    const uuid = dragging;
+    dragging = null;
+    void move(uuid, cellEl.dataset.kbCol!, cellEl.dataset.kbLane ?? null);
+  });
+  root.addEventListener("dragend", () => {
+    dragging = null;
+    clearMarks("data-kb-dragging");
+    clearMarks("data-kb-over");
+  });
 
   const save = () => {
     const name = root.querySelector<HTMLInputElement>("[data-field=view-name]")!.value;

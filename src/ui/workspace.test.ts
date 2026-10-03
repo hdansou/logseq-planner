@@ -4,8 +4,8 @@ import { loadTagInfos, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
-import { createWorkspace, initialTag, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq } from "./test-fakes";
+import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
+import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import { loadNodes, loadTasks } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
 
@@ -28,7 +28,7 @@ const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?
 async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number> } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", weekStart: opts.weekStart ?? (async () => 0) });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0) });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -87,13 +87,25 @@ describe("empty states", () => {
     expect(ws.config()!.filters).toEqual({});
   });
 
-  it("shows a placeholder with the node count for a view kind not built yet", async () => {
+  it("renders the Kanban for the kanban kind (T11); no view kind shows a placeholder any more", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
     await click(ws, "[data-view-kind=kanban]");
     expect($("[data-empty]")).toBeNull();
-    expect(text("[data-region=view-placeholder]")).toContain("4 nodes");
-    expect(text("[data-region=view-placeholder]")).toContain("Kanban");
+    expect($("[data-region=view] [data-kanban]")).not.toBeNull();
+    expect($$("[data-kb-card]")).toHaveLength(4);
+    expect($(".pl-placeholder")).toBeNull();
+  });
+
+  it("Kanban: a tag without choice properties says so instead of a board (no-dates state does not apply)", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Page"); // no date and no choice properties
+    await click(ws, "[data-view-kind=kanban]");
+    expect($("[data-empty=no-dates]")).toBeNull();
+    expect($("[data-empty=no-choice]")).not.toBeNull();
+    expect(text("[data-empty=no-choice]")).toContain("#Page has no choice properties");
+    expect($("[data-kanban]")).toBeNull();
+    expect(ws.config()).toMatchObject({ kind: "kanban", columnProp: null });
   });
 
   it("renders the Agenda for the agenda kind (T10)", async () => {
@@ -101,14 +113,14 @@ describe("empty states", () => {
     await pickTag(ws, "Project");
     await click(ws, "[data-view-kind=agenda]");
     expect($("[data-region=view] [data-agenda]")).not.toBeNull();
-    expect($("[data-region=view-placeholder]")).toBeNull();
+    expect($(".pl-placeholder")).toBeNull();
   });
 
   it("renders the Timeline for the timeline kind (T08)", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
     expect($("[data-region=view] [data-timeline]")).not.toBeNull();
-    expect($("[data-region=view-placeholder]")).toBeNull();
+    expect($(".pl-placeholder")).toBeNull();
   });
 });
 
@@ -215,8 +227,13 @@ describe("tasks of the visible nodes (T07 D4)", () => {
     const all = await loadTasks(fixtureDq(), nodes, zone);
     const expected = all.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
     expect(expected).toBeLessThan((await loadTasks(fixtureDq(), await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone }), zone)).length);
-    await click(ws, "[data-view-kind=kanban]"); // the placeholder states the counts
-    expect(text("[data-region=view-placeholder]")).toContain(`${nodes.length} nodes · ${expected} linked task`);
+    const config = { ...defaultViewConfig(tag("Project")), filters: { [owner.ident]: [alice.uuid] } };
+    const all2 = await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone });
+    const shown = visibleData(config, tag("Project"), all2, await loadTasks(fixtureDq(), all2, zone));
+    expect(shown.nodes.map((n) => n.id)).toEqual(nodes.map((n) => n.id));
+    expect(shown.tasks).toHaveLength(expected);
+    await click(ws, "[data-view-kind=kanban]"); // the board shows only the filtered nodes
+    expect($$("[data-kb-card]").map((c) => c.dataset.kbCard).sort()).toEqual(nodes.map((n) => n.uuid).sort());
   });
 });
 
@@ -281,7 +298,7 @@ describe("view switch", () => {
     expect(ws.config()).toMatchObject({ kind: "kanban", tag: tag("Project").ident, start: dateIdent(tag("Project"), "Start"), columnProp: choice(tag("Project"), "Status").ident });
     expect($("[data-view-kind=kanban]")!.getAttribute("aria-pressed")).toBe("true");
     expect($("[data-view-kind=timeline]")!.getAttribute("aria-pressed")).toBe("false");
-    expect(text("[data-region=view-placeholder]")).toContain("Kanban");
+    expect($("[data-region=view] [data-kanban]")).not.toBeNull();
     expect($("[data-region=view-toolbar]")!.dataset.viewKind).toBe("kanban");
   });
 });

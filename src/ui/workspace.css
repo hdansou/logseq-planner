@@ -95,7 +95,7 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-link:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
 .pl-nav-range { min-width: 190px; text-align: center; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
-/* Empty states and the view placeholder */
-.pl-empty, .pl-placeholder { display: grid; justify-items: center; gap: 6px; padding: 56px 16px; text-align: center; color: var(--pl-label-2); }
-.pl-empty b, .pl-placeholder b { color: var(--pl-label); font-size: 16px; font-weight: 600; }
+/* Empty states */
+.pl-empty { display: grid; justify-items: center; gap: 6px; padding: 56px 16px; text-align: center; color: var(--pl-label-2); }
+.pl-empty b { color: var(--pl-label); font-size: 16px; font-weight: 600; }
 .pl-empty .pl-btn { margin-top: 6px; }

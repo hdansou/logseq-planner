@@ -1,0 +1,63 @@
+/* Kanban (T11; docs/design.md "Panels and cards"). Tokens only: every colour is a --pl-* variable from theme.css; the
+   node's category colour arrives as --pl-node-hue from [data-cat] (theme.css).
+   One grid: a header row of columns, then per lane a lane heading across the board and one cell per column. Columns
+   keep a 220px minimum and the board is as wide as its columns, so a wide board scrolls sideways inside .pl-view
+   (overflow: auto), never the page. */
+.pl-kb { display: grid; grid-template-columns: repeat(var(--pl-kb-cols), minmax(220px, 1fr)); width: max-content; min-width: 100%;
+  gap: 8px 10px; align-items: start; }
+
+/* Column headers stick to the top of the scrolling view  */
+.pl-kb-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 8px;
+  background: var(--pl-surface); font-size: 13px; font-weight: 600; color: var(--pl-label); }
+.pl-kb-head-title { min-width: 0; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-kb-head[data-none], .pl-kb-head[data-done] .pl-kb-head-title { color: var(--pl-label-2); }
+.pl-kb-count { margin-left: auto; padding: 0 7px; border-radius: 980px; background: var(--pl-fill-strong); color: var(--pl-label-2);
+  font-size: 12px; font-weight: 500; line-height: 18px; font-variant-numeric: tabular-nums; }
+
+/* Status icons on built-in Status columns (design.md status icons) */
+.pl-kb-icon { flex: none; box-sizing: border-box; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--pl-label-2); }
+.pl-kb-head[data-status="backlog"] .pl-kb-icon { border-style: dashed; }
+.pl-kb-head[data-status="doing"] .pl-kb-icon { border-color: var(--pl-blue); background: conic-gradient(var(--pl-blue) 0 50%, transparent 0); }
+.pl-kb-head[data-status="in-review"] .pl-kb-icon { border-color: var(--pl-purple); background: conic-gradient(var(--pl-purple) 0 75%, transparent 0); }
+.pl-kb-head[data-status="done"] .pl-kb-icon { border-color: var(--pl-green); background: var(--pl-green); }
+.pl-kb-head[data-status="canceled"] .pl-kb-icon { border-color: var(--pl-label-3); }
+
+/* Lane headings span the board */
+.pl-kb-lane { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 10px 4px 0;
+  border-top: 1px solid var(--pl-line-soft); font-size: 12.5px; font-weight: 600; color: var(--pl-label-2); }
+.pl-kb-lane-title { line-height: 18px; }
+.pl-kb-lane .pl-kb-count { margin-left: 0; }
+
+/* Cells: fill, radius 12; "No <prop>" cells are outlined instead; the drop target is tinted */
+.pl-kb-cell { display: grid; gap: 6px; align-content: start; min-height: 56px; padding: 6px; background: var(--pl-fill); border-radius: 12px;
+  transition: background-color .12s; }
+.pl-kb-cell[data-none] { background: transparent; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
+.pl-kb-cell[data-kb-over] { background: var(--pl-tint-soft); }
+.pl-kb-drop { padding: 10px 4px; text-align: center; font-size: 12px; line-height: 16px; color: var(--pl-label-2); }
+
+/* Cards: surface, radius 10, hairline ring, no shadow. The open button fills the card; the Move button sits top right. */
+.pl-kb-card { position: relative; background: var(--pl-surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--pl-line); cursor: grab; }
+.pl-kb-card[data-kb-dragging] { opacity: .45; }
+.pl-kb-card[data-kb-pending] { cursor: progress; opacity: .7; }
+.pl-kb-open { all: unset; box-sizing: border-box; display: grid; gap: 5px; width: 100%; padding: 8px 34px 8px 10px; border-radius: 10px;
+  font-size: 13px; color: var(--pl-label); cursor: inherit; transition: background-color .12s; }
+.pl-kb-open:hover { background: var(--pl-fill); }
+.pl-kb-open:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+.pl-kb-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.pl-kb-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--pl-node-hue); }
+.pl-kb-title { min-width: 0; font-size: 14px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-kb-card[data-done] .pl-kb-title { color: var(--pl-label-2); text-decoration: line-through; }
+.pl-kb-meter { display: block; height: 4px; border-radius: 2px; background: var(--pl-fill-strong); overflow: hidden; }
+.pl-kb-meter i { display: block; height: 100%; background: var(--pl-node-hue); }
+.pl-kb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: 18px; font-size: 12px; line-height: 18px; color: var(--pl-label-2); }
+.pl-kb-when { font-variant-numeric: tabular-nums; }
+.pl-kb-card[data-late] .pl-kb-when { color: var(--pl-red-text); font-weight: 600; }
+.pl-kb-priority[data-priority="urgent"] { color: var(--pl-red-text); font-weight: 600; }
+.pl-kb-priority[data-priority="high"] { color: var(--pl-orange-text); font-weight: 600; }
+
+.pl-kb-move-anchor { position: absolute; top: 5px; right: 5px; }
+.pl-kb-move { background: transparent; color: var(--pl-label-2); }
+.pl-kb-move:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 0; }
+.pl-kb-move:disabled { cursor: progress; }
+.pl-kb-move-menu { left: auto; right: 0; min-width: 200px; cursor: default; }
+.pl-kb-move-head { margin: 0; padding: 4px 10px 2px; font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }

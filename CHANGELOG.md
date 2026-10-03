@@ -93,6 +93,17 @@ All notable changes to this project are documented here. The format follows
   T01 observed working (`upsertBlockProperty(uuid, <full ident without colon>, <closed value entity id>)`,
   `removeBlockProperty(uuid, <same key>)`), reads the value back and throws a clear error when the graph does not hold
   it. The SDK side is `kanbanWriteDeps()` in `src/sdk.ts`. Not yet verified live.
+- Kanban view (T11): `src/ui/kanban.ts` + `kanban.css` replace the last placeholder. Toolbar with the Columns and
+  Swimlanes property menus (None, or a second choice property) and the Sort switch (Due, Priority when the tag has a
+  Priority choice, Title); all three are saved with a view. The board: column headers with status icons and counts (done
+  columns greyed), a lane heading with its count per swimlane, cells on the fill ("No <prop>" outlined), cards with the
+  node's colour, title, task progress, Priority, other choice values and end date (late in red). A wide board scrolls
+  sideways inside the view. Click on a card opens the node and hides Planner; Shift+click opens it in the right sidebar.
+  Moving a card: HTML5 drag and drop between cells, or the card's ⋯ Move menu (keyboard), both through
+  `moveDescriptor` and `writeMove`. The move shows at once with the card flagged pending (not draggable, menu disabled);
+  then the writes run and are read back, and the board is reloaded from the graph either way, so a write the graph
+  does not hold puts the card back and its error shows in the error bar. A tag without a choice property shows "#Tag has
+  no choice properties" instead of a board. `menu` and `options` moved to `src/ui/html.ts`. Not yet verified live.
 ### Fixed
 - Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
   first grid track is a fixed `--pl-cal-head-h` (28px) instead of `auto`, which nothing sized and collapsed to 0.

@@ -4,6 +4,7 @@ import "./ui/workspace.css";
 import "./ui/timeline.css";
 import "./ui/calendar.css";
 import "./ui/agenda.css";
+import "./ui/kanban.css";
 import { registerApp } from "./app";
 import { appDeps } from "./sdk";
 

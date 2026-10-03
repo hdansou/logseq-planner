@@ -4,7 +4,7 @@ import { loadTagInfos } from "../core/schema";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq } from "./test-fakes";
+import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
 
 const TODAY = "2026-10-03";
@@ -40,7 +40,7 @@ beforeEach(async () => {
   document.body.append(root);
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
-  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, weekStart: async () => 0 });
+  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, kanban: noWrites, weekStart: async () => 0 });
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);
 });
@@ -92,13 +92,14 @@ describe("toolbar", () => {
     expect(document.activeElement).toBe($("[data-tl-nav=next]"));
   });
 
-  it("is only shown for the Timeline; kinds not built yet keep their placeholder", async () => {
+  it("is only shown for the Timeline", async () => {
     await click("[data-view-kind=calendar]");
     expect($("[data-tl-zoom]")).toBeNull();
     expect($("[data-timeline]")).toBeNull();
     await click("[data-view-kind=kanban]");
     expect($("[data-tl-zoom]")).toBeNull();
-    expect(text("[data-region=view-placeholder]")).toContain("Kanban");
+    expect($("[data-timeline]")).toBeNull();
+    expect($("[data-kanban]")).not.toBeNull();
   });
 });
 
