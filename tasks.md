@@ -15,7 +15,7 @@ State: every v1 item below (T00–T14) and the performance item T13a are done; s
 as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commits after it. No remote, nothing pushed.
 The full checklist was run in the Logseq WEB app (dev build of the main checkout at
 d2ab7726ab, 2026-09-02, in-memory graph); a focused pass was run on the desktop app 2.0.1 nightly
-(8ffbb22, 2026-10-01) with the CLI-seeded graph `planner-desktop` (kept for re-runs). docs/manual-test.md: A–I 115 pass, 5 partial, 6 not run; J 15 pass.
+(8ffbb22, 2026-10-01) with the CLI-seeded graph `planner-desktop` (kept for re-runs). docs/manual-test.md: A–I 117 pass, 6 partial, 3 not run; J 15 pass.
 
 Read in this order: this section, "Next" below, then the Progress log entry of whatever
 you touch (it records what was verified live, the decisions taken and what was not
