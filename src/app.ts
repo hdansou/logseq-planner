@@ -31,7 +31,7 @@ export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boo
 export function registerApp(deps: AppDeps, root: HTMLElement): void {
   const doc = root.ownerDocument;
   const close = () => deps.hideMainUI();
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener(deps) });
+  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener(deps), weekStart: deps.weekStart });
   doc.documentElement.classList.toggle("pl-mac-desktop", deps.macWindowButtons);
 
   const focusIn = () => {

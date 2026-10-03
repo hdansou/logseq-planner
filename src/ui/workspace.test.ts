@@ -25,10 +25,10 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const shownNodes = () => $$("[data-tl-row]").length + $$("[data-tl-undated] [data-tl-open]").length;
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
 
-async function setup(opts: { dq?: Dq; storage?: StorageDeps } = {}) {
+async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number> } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03" });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", weekStart: opts.weekStart ?? (async () => 0) });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -377,5 +377,28 @@ describe("closing", () => {
     await click(ws, "[data-control=tag]");
     await click(ws, "[data-region=main]");
     expect($("[data-popover]")).toBeNull();
+  });
+});
+
+describe("week start (Logseq preferredStartOfWeek, read on every open)", () => {
+  it("Monday start moves the Timeline range to Monday weeks", async () => {
+    await setup({ weekStart: async () => 1 });
+    expect(text("[data-tl-range]")).toBe("14 Sep – 8 Nov 2026");
+  });
+
+  it("re-reads the host setting on every open", async () => {
+    let start = 0;
+    const weekStart = vi.fn(async () => start);
+    const { ws } = await setup({ weekStart });
+    expect(text("[data-tl-range]")).toBe("13 Sep – 7 Nov 2026");
+    start = 1;
+    await ws.open();
+    expect(weekStart).toHaveBeenCalledTimes(2);
+    expect(text("[data-tl-range]")).toBe("14 Sep – 8 Nov 2026");
+  });
+
+  it("shows the error when the host value is invalid", async () => {
+    await setup({ weekStart: async () => { throw new Error("Logseq preferredStartOfWeek is \"x\", expected 0–6"); } });
+    expect(text("[data-region=error]")).toContain("preferredStartOfWeek");
   });
 });

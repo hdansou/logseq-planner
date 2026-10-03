@@ -27,6 +27,7 @@ function fakeDeps() {
     defer: vi.fn((fn: () => void) => void deferred.push(fn)),
     later: vi.fn(),
     macWindowButtons: false,
+    weekStart: vi.fn(async () => 1),
     // Tags from the T01 fixtures; no nodes anywhere.
     dq: vi.fn(async (query: string) => (query === TAGS_QUERY ? tagsFixture.query.detail : query === TAG_PROPERTIES_QUERY ? propsFixture.query.detail : [])),
     storage: {
@@ -91,6 +92,7 @@ describe("registerApp", () => {
     modelHandler(deps)();
     await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
     expect(deps.dq).toHaveBeenCalledWith(TAGS_QUERY);
+    expect(deps.weekStart).toHaveBeenCalledTimes(1); // the host's week start, read on every open
     expect(deps.later.mock.calls.map(([, ms]) => ms)).toEqual([50, 300, 800]);
   });
 

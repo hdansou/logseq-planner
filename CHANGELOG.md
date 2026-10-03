@@ -60,6 +60,9 @@ All notable changes to this project are documented here. The format follows
   Deadlines (not Scheduled; late when open past the deadline; a task linked to two nodes once) are chips on their day,
   untimed first then by time. Month shows 3 item rows per day and counts the rest as "+N more"; Week shows everything.
   Prev / next move by a month (to the 1st) or a week. Undated nodes are listed apart.
+- Week start (T09): Logseq's `preferredStartOfWeek` (0–6 = Monday–Sunday, default 6 = Sunday; a number live, a numeric
+  string accepted) is read through `hostWeekStart()` in `src/sdk.ts` on every open and drives the Timeline and the
+  Calendar. A missing or invalid value fails with a visible error instead of falling back to Sunday.
 
 ### Fixed
 - Workspace (T08): the left column runs to the bottom of the window. The shell is a flex column whose body takes the

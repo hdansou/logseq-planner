@@ -27,8 +27,8 @@ export interface WorkspaceDeps {
   openNode(uuid: string, opts: { sidebar: boolean }): void;
   /** Today as a local `YYYY-MM-DD`; defaults to the machine's clock. */
   today?: () => string;
-  /** First day of the week, 0 = Sunday … 6 = Saturday; defaults to Sunday (Logseq's default). */
-  weekStart?: number;
+  /** The host's first day of the week, 0 = Sunday … 6 = Saturday; read on every `open()`. */
+  weekStart(): Promise<number>;
 }
 
 export interface Workspace {
@@ -61,9 +61,11 @@ interface State {
   anchor: string | null;
   /** Node ids whose task rows are expanded (Timeline). Session state. */
   expanded: Set<number>;
+  /** The host's week start, read on every open; null before the first. */
+  weekStart: number | null;
 }
 
-/** What the clock and calendar settings say right now: injected so renders stay pure. */
+/** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
 interface Now {
   today: string;
   weekStart: number;
@@ -255,7 +257,7 @@ function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
 }
 
 /** The main area (loading, an empty state, the Timeline or the placeholder for a kind not built yet) and its toolbar. */
-function renderView(s: State, tag: TagInfo | undefined, now: Now): { view: string; toolbar: string } {
+function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
   const view = (html: string) => ({ view: html, toolbar: "" });
   if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
   if (!s.tags.length) return view(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
@@ -271,7 +273,7 @@ function renderView(s: State, tag: TagInfo | undefined, now: Now): { view: strin
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
   }
   if (s.config.kind === "timeline") {
-    const layout = timelineLayout(s, now, shown);
+    const layout = timelineLayout(s, now(), shown);
     return { view: renderTimeline(layout, `#${tag.title}`, s.expanded), toolbar: renderTimelineToolbar(layout) };
   }
   const kind = KIND_LABEL[s.config.kind];
@@ -279,7 +281,7 @@ function renderView(s: State, tag: TagInfo | undefined, now: Now): { view: strin
     + `<span>${plural(shown.nodes.length, "node")} · ${plural(shown.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`);
 }
 
-function renderWorkspace(s: State, now: Now): string {
+function renderWorkspace(s: State, now: () => Now): string {
   const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
   const error = s.error
     ? `<div class="pl-error" role="alert" data-region="error"><span>${esc(s.error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`
@@ -303,14 +305,17 @@ function selectorOf(el: Element): string {
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false,
-    anchor: null, expanded: new Set() };
-  const now = (): Now => ({ today: (deps.today ?? localToday)(), weekStart: deps.weekStart ?? 0 });
+    anchor: null, expanded: new Set(), weekStart: null };
+  const now = (): Now => {
+    if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
+    return { today: (deps.today ?? localToday)(), weekStart: s.weekStart };
+  };
   let queue: Promise<void> = Promise.resolve();
 
   const render = (focus?: string) => {
     const doc = root.ownerDocument;
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
-    root.innerHTML = renderWorkspace(s, now());
+    root.innerHTML = renderWorkspace(s, now);
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
   };
@@ -362,6 +367,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       s.popover = null;
       render();
       try {
+        s.weekStart = await deps.weekStart();
         s.tags = await loadTagInfos(deps.dq);
       } finally {
         s.loading = false;

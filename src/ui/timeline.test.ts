@@ -40,7 +40,7 @@ beforeEach(async () => {
   document.body.append(root);
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
-  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY });
+  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, weekStart: async () => 0 });
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);
 });

@@ -1,6 +1,7 @@
 // No SDK import: the `logseq` global comes from index.ts; importing the SDK here breaks unit tests (gotcha §11).
 // Every SDK call and typing cast lives here.
 import type { Dq } from "./core/schema";
+import { weekStartFromHost } from "./core/layout-common";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -41,6 +42,7 @@ export const appDeps = (): AppDeps => ({
   openPage: (uuid) => void logseq.App.pushState("page", { name: uuid }),
   openInSidebar: (uuid) => logseq.Editor.openInRightSidebar(uuid),
   later: (fn, ms) => void setTimeout(fn, ms),
+  weekStart: () => hostWeekStart(),
   macWindowButtons: /Mac/.test(navigator.platform) && /Electron/.test(navigator.userAgent),
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
@@ -53,6 +55,14 @@ export const appDeps = (): AppDeps => ({
   },
   defer: (fn) => void setTimeout(fn, 0),
 });
+
+/**
+ * The host's first day of the week as 0 = Sunday … 6 = Saturday. `preferredStartOfWeek` is typed as a string in the SDK
+ * but arrives as a number (0–6 = Monday–Sunday, default 6; seen live 2026-10-03); `weekStartFromHost` takes either and
+ * throws on anything else.
+ */
+export const hostWeekStart = async (): Promise<number> =>
+  weekStartFromHost(((await logseq.App.getUserConfigs()) as { preferredStartOfWeek?: unknown }).preferredStartOfWeek);
 
 /** `logseq.DB.datascriptQuery` as the injectable `Dq` the core takes (string inputs are EDN-read; see CLAUDE.md). */
 export const datascriptQuery: Dq = (query, ...inputs) => logseq.DB.datascriptQuery(query, ...inputs);

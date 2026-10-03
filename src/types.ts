@@ -20,6 +20,8 @@ export interface AppDeps {
   defer(fn: () => void): void;
   /** Runs `fn` after `ms` milliseconds (setTimeout in production). */
   later(fn: () => void, ms: number): void;
+  /** The host's first day of the week (Logseq `preferredStartOfWeek`), 0 = Sunday … 6 = Saturday; throws on an invalid value. */
+  weekStart(): Promise<number>;
   /** True on the macOS desktop app, where the full-screen frame covers the window buttons. */
   macWindowButtons: boolean;
   /** `logseq.DB.datascriptQuery` for the loaders (the `Dq` of src/core/schema.ts). */

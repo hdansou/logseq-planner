@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pageQuery, storageDeps } from "./sdk";
+import { hostWeekStart, pageQuery, storageDeps } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -16,5 +16,28 @@ describe("strict views page query", () => {
     vi.stubGlobal("logseq", { DB: { datascriptQuery: async (q: string) => (sent.push(q), []) } });
     expect(await storageDeps().findPage("Planner views")).toBeNull();
     expect(sent[0]).toBe(pageQuery("Planner views"));
+  });
+});
+
+describe("host week start", () => {
+  const configs = (preferredStartOfWeek: unknown) => vi.stubGlobal("logseq", { App: { getUserConfigs: async () => ({ preferredStartOfWeek }) } });
+
+  it("reads preferredStartOfWeek (a number live, default 6 = Sunday) and converts it to 0 = Sunday", async () => {
+    configs(6);
+    expect(await hostWeekStart()).toBe(0);
+    configs(0);
+    expect(await hostWeekStart()).toBe(1);
+  });
+
+  it("accepts a numeric string", async () => {
+    configs("0");
+    expect(await hostWeekStart()).toBe(1);
+  });
+
+  it("fails fast on a missing or invalid value", async () => {
+    configs(undefined);
+    await expect(hostWeekStart()).rejects.toThrow(/preferredStartOfWeek/);
+    configs("monday");
+    await expect(hostWeekStart()).rejects.toThrow(/preferredStartOfWeek/);
   });
 });
