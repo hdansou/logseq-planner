@@ -47,8 +47,12 @@ All notable changes to this project are documented here. The format follows
 - Workspace (T07): opens on the first own root tag with dates (not a child tag that sorts first); the linked-task
   count covers the filtered nodes only; built-in tags start collapsed behind a disclosure button and open when a
   built-in tag is selected.
-- Saved views (T07): when appending a view fails, the page is looked up again, so a page moved to Recycle
-  mid-session gives the Recycle guidance instead of "appendBlock returned no block".
+- Saved views (T07): every write (create, update, remove) looks the live "Planner views" page up first and never
+  trusts a remembered page uuid, because the host appends into a recycled page without error. A page moved to Recycle
+  mid-session gives the Recycle guidance, nothing is written into the bin, the store's cache is dropped (a fresh
+  `list` returns []) and the workspace re-reads the list after a failed write.
+- Tag tree (T07): `[hidden]` always hides (base rule), so the collapsed built-in group is really collapsed; the
+  "Built-in tags" heading gets the group spacing.
 
 ### Changed
 - The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.

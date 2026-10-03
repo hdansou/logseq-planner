@@ -12,6 +12,7 @@ import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo, ViewBlock } from "../types";
 import { createWorkspace, initialTag, type Workspace } from "./workspace";
 import { loadNodes, loadTasks } from "../core/queries";
+import workspaceCss from "./workspace.css?inline";
 
 /** Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting only. */
 const fixtureDq = (opts: { noTags?: boolean } = {}): Dq => async (query, ...inputs) => {
@@ -259,6 +260,10 @@ describe("tag tree", () => {
     expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
   });
 
+  it("spaces a group heading that follows a tag list (stylesheet; happy-dom does not lay out)", () => {
+    expect(workspaceCss).toMatch(/\.pl-tree \+ \.pl-group-header\s*\{[^}]*margin-top:\s*16px/);
+  });
+
   it("expands the built-in group when the selected tag is built-in", async () => {
     const { ws } = await setup();
     await click(ws, "[data-control=tag]");
@@ -338,6 +343,22 @@ describe("saved views", () => {
     expect($("[data-region=error]")!.getAttribute("role")).toBe("alert");
     await click(ws, "[data-action=dismiss-error]");
     expect($("[data-region=error]")).toBeNull();
+  });
+
+  it("after a failed write, the list shows what the store holds now (views on a recycled page disappear)", async () => {
+    const storage = fakeStorage();
+    const { ws } = await setup({ storage });
+    await pickTag(ws, "Project");
+    await save(ws, "Roadmap");
+    await click(ws, "[data-control=saved-views]");
+    expect(text("[data-popover=views]")).toContain("Roadmap");
+    await click(ws, "[data-control=saved-views]"); // close it again
+    storage.findPage = async () => null; // the page went to Recycle
+    storage.createPage = async () => {}; // the host returns the recycled page and creates nothing
+    await save(ws, "Second");
+    expect(text("[data-region=error]")).toContain("If it is in Recycle");
+    expect(text("[data-popover=views]")).toContain("No saved views yet"); // still open after the failed save
+    expect(text("[data-control=saved-views]")).toContain("None");
   });
 
   it("shows a validation error for a saved view that names an unknown property", async () => {

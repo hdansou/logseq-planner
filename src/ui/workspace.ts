@@ -378,11 +378,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       }, () => trigger("views"));
     }
     if (d.viewDelete) {
-      return void run(async () => {
-        await deps.views.remove(d.viewDelete!);
-        s.views = await deps.views.list();
-        if (s.viewId === d.viewDelete) s.viewId = null;
-      }, () => "[data-field=view-name]");
+      return void run(() => viewsWrite(() => deps.views.remove(d.viewDelete!)), () => "[data-field=view-name]");
     }
     switch (d.action) {
       case "close":
@@ -402,13 +398,25 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const save = () => {
     const name = root.querySelector<HTMLInputElement>("[data-field=view-name]")!.value;
-    return run(async () => {
-      const created = await deps.views.create(name, s.config!);
-      s.views = await deps.views.list();
-      s.viewId = created.id;
+    return run(() => viewsWrite(async () => {
+      s.viewId = (await deps.views.create(name, s.config!)).id;
       s.popover = null;
-    }, () => trigger("views"));
+    }), () => trigger("views"));
   };
+
+  /**
+   * A saved-views write, then the list re-read from the store whether it worked or not: a failed write can drop
+   * views from the store (their page went to Recycle, T07 D5), and the list must not keep showing them.
+   * The write's error is the one shown.
+   */
+  async function viewsWrite(write: () => Promise<void>) {
+    try {
+      await write();
+    } finally {
+      s.views = await deps.views.list().catch(() => s.views);
+      if (!s.views.some((v) => v.id === s.viewId)) s.viewId = null;
+    }
+  }
 
   root.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement;

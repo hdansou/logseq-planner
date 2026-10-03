@@ -53,13 +53,26 @@ export function createViewStore(deps: StorageDeps) {
 
   const recycled = () => new Error(`Page "${PAGE_TITLE}" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.`);
 
-  async function ensurePage(): Promise<string> {
-    if (pageUuid) return pageUuid;
-    await deps.createPage(PAGE_TITLE);
-    pageUuid = await deps.findPage(PAGE_TITLE);
-    // Observed host behaviour: with a same-titled page in Recycle, createPage returns that recycled page and creates nothing.
-    if (!pageUuid) throw recycled();
-    return pageUuid;
+  /**
+   * The live views page, looked up right before every write and never taken from memory: the host appends into a
+   * page that went to Recycle by its uuid without complaint (seen live, T07 D5). When the page is gone or replaced,
+   * the cache is dropped (the next `list` re-reads the graph, which ignores a recycled page). With `create`, a
+   * missing page is created; the host's createPage returns a same-titled recycled page and creates nothing, so a
+   * page still missing afterwards means Recycle.
+   */
+  async function livePage(create: boolean): Promise<string> {
+    let page = await deps.findPage(PAGE_TITLE);
+    if (!page && create) {
+      await deps.createPage(PAGE_TITLE);
+      page = await deps.findPage(PAGE_TITLE);
+    }
+    if (page !== pageUuid && pageUuid !== null) cache = null;
+    pageUuid = page;
+    if (!page) {
+      cache = null;
+      throw recycled();
+    }
+    return page;
   }
 
   /** Writes `text` into the config property and checks the stored text is identical. */
@@ -90,13 +103,9 @@ export function createViewStore(deps: StorageDeps) {
       const entry: SavedView = { id: `pending-${++pending}`, name: title, config };
       views.push(entry); // cache first
       try {
-        const page = await ensurePage();
+        const page = await livePage(true);
         const id = await deps.appendBlock(page, title);
-        if (!id) {
-          // The remembered page may have gone to Recycle since (seen live, T07 D5): look it up again, never trust it.
-          pageUuid = await deps.findPage(PAGE_TITLE);
-          throw pageUuid ? new Error("appendBlock returned no block") : recycled();
-        }
+        if (!id) throw new Error("appendBlock returned no block");
         const stored = await writeConfig(id, serializeViewConfig(config));
         if (stored.name.trim() !== title) throw mismatch("name", id);
         entry.id = id;
@@ -114,6 +123,7 @@ export function createViewStore(deps: StorageDeps) {
       const before = views[i];
       views[i] = { ...before, config }; // cache first
       try {
+        await livePage(false);
         await writeConfig(id, serializeViewConfig(config));
         return views[i];
       } catch (e) {
@@ -127,6 +137,7 @@ export function createViewStore(deps: StorageDeps) {
       const i = find(views, id);
       const [before] = views.splice(i, 1); // cache first
       try {
+        await livePage(false);
         await deps.removeBlock(id);
         if (await deps.readBlock(id)) throw new Error(`Saved view block ${id} still exists after removal (read back)`);
       } catch (e) {

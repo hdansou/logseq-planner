@@ -109,6 +109,7 @@ describe("create", () => {
     expect(view).toEqual({ id: "b-1", name: "Roadmap", config: timeline });
     expect(log).toEqual([
       `findPage ${PAGE_TITLE}`, // load
+      `findPage ${PAGE_TITLE}`, // live page, looked up right before the append
       `createPage ${PAGE_TITLE}`,
       `findPage ${PAGE_TITLE}`, // read-back of the page
       "appendBlock page-1 Roadmap",
@@ -160,16 +161,30 @@ describe("create", () => {
     expect(store.cached()).toEqual([]);
   });
 
-  it("re-resolves the page when appending fails: a page recycled mid-session gets the Recycle guidance (T07 D5)", async () => {
-    const { g, deps } = fakeGraph();
-    const append = deps.appendBlock;
-    // Appending to a page that is no longer live (moved to Recycle) returns no block, as observed live.
-    deps.appendBlock = async (p, name) => (p === g.page ? append(p, name) : null);
+  it("looks the live page up before every append: a page recycled mid-session is never written to (T07 D5)", async () => {
+    // The host's createPage returns a same-titled recycled page and creates nothing; appending by uuid into it works.
+    const { g, deps, log } = fakeGraph({ silent: ["createPage"] });
+    g.page = "page-1";
     const store = createViewStore(deps);
-    const first = await store.create("Roadmap", timeline);
-    g.page = null; // moved to Recycle: findPage no longer sees it
+    await store.create("Roadmap", timeline);
+    g.page = null; // moved to Recycle: findPage no longer sees it, appendBlock("page-1") would still succeed
     await expect(store.create("Meetings", calendar)).rejects.toThrow('Page "Planner views" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
-    expect(store.cached()).toEqual([first]);
+    expect(log.filter((l) => l.startsWith("appendBlock"))).toHaveLength(1);
+    expect(store.cached()).toEqual([]); // the views on the recycled page are gone from the cache too
+    expect(await store.list()).toEqual([]);
+  });
+
+  it.each(["update", "remove"] as const)("%s refuses a view whose page went to Recycle (T07 D5)", async (op) => {
+    const { g, deps, log } = fakeGraph();
+    const store = createViewStore(deps);
+    const v = await store.create("Roadmap", timeline);
+    g.page = null; // recycled; the block itself would still accept writes by uuid
+    const call = op === "update" ? store.update(v.id, calendar) : store.remove(v.id);
+    await expect(call).rejects.toThrow(/could not be created\. If it is in Recycle/);
+    expect(log.filter((l) => l.startsWith("setConfig"))).toHaveLength(1); // only the create's write
+    expect(log.filter((l) => l.startsWith("removeBlock"))).toHaveLength(0);
+    expect(store.cached()).toEqual([]);
+    expect(await store.list()).toEqual([]);
   });
 
   it("still says the block was not created when the page is live", async () => {
