@@ -6,6 +6,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Version 0.1.0 is in progress: the workspace and the four views are built and were checked in the Logseq web app
+(see the limits in README.md). It has not been released.
+
 ### Added
 - Requirements, task plan, design notes (Inkwell-based) and agent instructions for v1.
 - Scaffold (T00): toolbar button and "Planner: open" command open an empty Planner;
@@ -110,6 +113,18 @@ All notable changes to this project are documented here. The format follows
   values appear) and the view's data; redraws only when a signature of tags/nodes/tasks/titles/today differs; keeps
   anchor, expanded rows, scroll of the view and sidebar, unfolded `details`, focus; waits while a popover is open or
   a card is dragged, and after a pending Kanban write.
+- Large seed (T13): `scripts/seed-large.edn.mjs` builds a deterministic load-test seed (tag `#Load item`, N nodes,
+  linked tasks, its own page "Planner load test"); `npm run probe -- --seed-large [N]` imports it in chunks (docs/probes.md).
+- Dev timings (T13): `src/dev-timings.ts` (dev builds only, `import.meta.env.DEV`; a test builds for production and checks
+  it is absent) records the first load (query time, render time) and every live refresh (debounced trigger to DOM updated)
+  through the optional `Timing` hook of `createWorkspace`, exposed as `window.__plannerTimings`;
+  `npm run probe -- --timings` prints it (docs/probes.md).
+- Manual checklist (T13): `docs/manual-test.md`, the live end-to-end pass as tables (open / shell / views by tag / Kanban
+  moves / live refresh / themes / week start / large graph / accessibility) with the seed's real values, the timing
+  targets and the known gaps.
+- Documentation (T14): README (requirements, install as an unpacked plugin, use, data and privacy, limits and known
+  issues with the measured performance, development) and ARCHITECTURE.md (layers, module table, data flow, refresh and
+  write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
 - Linked titles (T11): an inline `[[uuid]]` ref to a node that is not among the loaded ones (a #Task linking a #Project
@@ -140,17 +155,6 @@ All notable changes to this project are documented here. The format follows
   `list` returns []) and the workspace re-reads the list after a failed write.
 - Tag tree (T07): `[hidden]` always hides (base rule), so the collapsed built-in group is really collapsed; the
   "Built-in tags" heading gets the group spacing.
-
-- Large seed (T13): `scripts/seed-large.edn.mjs` builds a deterministic load-test seed (tag `#Load item`, N nodes,
-  linked tasks, its own page "Planner load test"); `npm run probe -- --seed-large [N]` imports it in chunks (docs/probes.md).
-
-- Dev timings (T13): `src/dev-timings.ts` (dev builds only, `import.meta.env.DEV`; a test builds for production and checks
-  it is absent) records the first load (query time, render time) and every live refresh (debounced trigger to DOM updated)
-  through the optional `Timing` hook of `createWorkspace`, exposed as `window.__plannerTimings`;
-  `npm run probe -- --timings` prints it (docs/probes.md).
-- Manual checklist (T13): `docs/manual-test.md`, the live end-to-end pass as tables (open / shell / views by tag / Kanban
-  moves / live refresh / themes / week start / large graph / accessibility) with the seed's real values, the timing
-  targets and the known gaps.
 
 ### Changed
 - Queries (T13a): the node query pulls only `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` and the Date/DateTime

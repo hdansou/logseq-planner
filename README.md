@@ -1,38 +1,280 @@
 # Planner
 
-Timeline, Calendar, Agenda and Kanban views over any tag in a Logseq DB graph, in a
-full-screen workspace.
+Planner shows the nodes of any tag in a Logseq DB graph as a Timeline, a Calendar, an
+Agenda or a Kanban board, in a full-screen workspace. It works with built-in tags such as
+#Task and with tags you create.
 
-> **DB graphs only.** Planner reads tags as classes and their Date, DateTime and choice
-> properties.
+Status: version 0.1.0, in development. It has not been released. It was tested in the
+Logseq web app only (see [Limits and known issues](#limits-and-known-issues)).
 
-Status: in development. The workspace shell works (tag, dates, done values, filters, saved
-views); the four views arrive in later tasks (see [tasks.md](tasks.md)).
+## Requirements
 
-## Usage
+- A Logseq DB graph. File graphs are not supported.
+- For Timeline, Calendar and Agenda: a tag with at least one Date or DateTime property
+  (its own or inherited from a parent tag). Planner never creates properties on your tags.
+- For Kanban: a tag with at least one choice property (a property with a closed list of
+  values, such as Status).
 
-- Click the calendar button in the toolbar, run **Planner: open** from the command
-  palette, or press **g** then **Shift+P** while not editing a block.
-- Pick a tag in the left column or the **Tag** menu; Start, End and done values follow the
-  tag's own properties and can be changed in the settings bar. Tick choice values in the
-  left column to filter (nothing ticked = everything shown).
-- **Saved views** (top bar) saves the current view to the page "Planner views" in the graph,
-  opens a saved one or deletes it.
-- Press **Escape** (closes an open menu first) or click **Close** to hide Planner.
+## Install
+
+Planner is not in the Logseq marketplace yet. Load it as an unpacked plugin from a build.
+
+1. Install Node.js 22 or later.
+2. In the repository folder, run `npm ci`, then `npm run build`. The build goes to `dist/`.
+3. In Logseq, open Settings > Advanced and turn on Developer mode.
+4. Open Plugins, choose Load unpacked plugin, and select the repository folder (the folder
+   that holds `package.json`).
+
+For development against the dev server instead, see [Development](#development).
+
+## Use
+
+### Open and close
+
+Open Planner in one of three ways:
+
+- Click the calendar button in the toolbar.
+- Run **Planner: open** from the command palette.
+- Press `g`, then `Shift+P`, while you are not editing a block.
+
+Close it with the **Close** button or Escape. If a menu is open, Escape closes the menu
+first.
+
+### Choose a tag
+
+Pick a tag in the left column or in the **Tag** menu. Your own tags are listed first. Built-in
+tags are under **Built-in tags**, collapsed until you select one. When the tag has child tags
+(tags that extend it), an **Include** checkbox adds their nodes. Planner opens on the first
+of your own root tags that has date properties.
+
+### Settings bar and filters
+
+| Control | What it does |
+|---|---|
+| **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
+| **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
+| Filters (left column) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
+
+How a node gets its dates:
+
+- Start and End both set: a span.
+- One date: a point.
+- No Start or End, but linked tasks with Scheduled or Deadline dates: a span derived from
+  those tasks, drawn dashed.
+- No date at all: listed apart from the grid.
+
+A #Task block belongs to a node when it references the node, either as an inline link or in
+a node property. A node's progress is done tasks divided by all its tasks minus canceled
+ones.
+
+### Views
+
+Switch views with the buttons in the top bar. The view toolbar sits above the view. The
+previous and next buttons and **Today** move the period.
+
+**Timeline.** One row per node, sorted by start, with a progress strip on each bar.
+
+- **Zoom**: Week (21 day columns), Month (56 day columns), Quarter (17 week columns).
+- Derived spans are dashed. One-date nodes are diamonds. A today line marks the current day.
+  A bar cut off at the edge of the range is marked.
+- Nodes with tasks expand into task rows with Scheduled and Deadline markers.
+- Only nodes that touch the range get a row. A line above the grid counts the others, for
+  example "412 earlier · 1,105 later". Each side is a button that moves to the nearest such
+  node.
+
+**Calendar.** All-day items only.
+
+- **Layout**: Month or Week. Month shows the whole weeks of the anchor's month.
+- Span nodes are bands that keep the same lane across weeks. One-date nodes and the
+  Deadline of linked tasks are chips. Scheduled dates are not shown.
+- Month shows three item rows per day, then **+N more**, which opens that week.
+- Week lists items by time and shows the time of DateTime values.
+- The first day of the week follows Logseq's start-of-week setting.
+
+**Agenda.** A list of what is overdue and what is coming.
+
+- **Group by**: Date or Node.
+- By date: Overdue, Today, each of the next 14 days, then **Later**, **No date** and
+  **Earlier**. The last three are folded and render when opened. Empty buckets are omitted.
+- By node: one panel per node with its progress and tasks, overdue first. The first 100
+  groups render; **Show 100 more of N** adds the next 100.
+- **Show done** includes done and canceled entries (within 14 days, or under No date).
+
+**Kanban.** A board of cards.
+
+- **Columns**: a choice property (Status by default). Each closed value is a column, plus
+  "No <property>".
+- **Swimlanes**: None, or a second choice property. It adds a lane per value, plus
+  "No <property>".
+- **Sort**: Due, Priority (offered only when the tag has a Priority property) or Title.
+  There is no manual order.
+- Each cell shows its first 50 cards, then **Show 50 more of N**. The counts in the headers
+  are the real totals.
+
+Click a card, bar, chip or entry to open the node in the main area. Planner hides. Shift+click
+opens the node in the right sidebar and Planner stays open.
+
+### Move a card
+
+Drag a card to another cell, or use the card's **⋯** menu (Move) with the keyboard. Use the
+menu to reach a column that is scrolled out of view.
+
+A move writes to the node:
+
+- To another column: sets the column property to that value.
+- To another lane: sets the swimlane property to that value.
+- To "No <property>": removes the value.
+
+The card shows the new place at once and cannot be dragged while the write runs. Planner then
+reads the value back from the graph. If the graph does not hold it, the card returns to its
+column and an error shows in the error bar. Undo in Logseq reverted a move in the live test.
+
+### Saved views
+
+**Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
+under the name in the Name field. A saved view stores the tag, child tags, Start and End,
+done values, filters and the view settings: Timeline zoom, Calendar layout, Agenda Group by
+and Show done, Kanban columns, swimlanes and sort. It does not store the period you are
+looking at. Saving always creates a new view. Deleting asks for no confirmation.
+
+### Live refresh
+
+The open view redraws after graph changes. It keeps your scroll position, expanded rows,
+unfolded Agenda buckets and focus. It waits while a menu is open or a card is being dragged.
+Planner also checks the graph every 30 seconds while it is visible. While hidden, it only
+notes that data may be stale and reloads once when you open it again.
+
+### Theme
+
+Planner follows the active Logseq theme and light or dark mode. Where Logseq exposes no
+value (status colors, today color), it uses the Inkwell defaults in
+[docs/design.md](docs/design.md).
+
+## Screenshots
+
+To be added. No images exist in the repository yet.
+
+## Data and privacy
+
+Planner reads, through Logseq's database queries:
+
+- the graph's tags and their properties and closed values;
+- the nodes of the tag you choose, with their title, tags and the properties Planner maps;
+- the #Task blocks that reference those nodes;
+- the titles of blocks that those titles link to;
+- Logseq's start-of-week setting and theme values.
+
+Planner writes two things, and nothing else:
+
+1. **Saved views.** One block per view on the page "Planner views", with the view's JSON in
+   the hidden string property `planner-view-config`. Planner creates the page and the
+   property when you first save.
+2. **Kanban moves.** The column or swimlane property of the card you moved.
+
+Planner makes no network calls.
+
+## Limits and known issues
+
+These come from the progress log in [tasks.md](tasks.md) and the results in
+[docs/manual-test.md](docs/manual-test.md).
+
+**Scope**
+
+- Version 1 is read-only except for Kanban moves. You cannot change dates by dragging or
+  resizing.
+- One tag per view. No day view or hour grid in the Calendar, no year zoom or dependency
+  arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
+- Side-panel and in-page block surfaces do not exist yet.
+
+**Where it was tested**
+
+- All live checks ran in the Logseq web app dev build of 2026-09-02 (checkout `d2ab7726ab`),
+  on an in-memory test graph, in headless Chrome. Nothing was checked in the desktop app.
+  The macOS window-button padding and the `g` then `Shift+P` chord are unverified there.
+- Sync is untested. Changes that arrive by sync or from a second desktop window are caught
+  by the 30-second check, not by an event. `DB.onChanged` was seen firing for local edits,
+  another browser tab, the plugin's own writes and undo.
+- Dragging to a Kanban column that is scrolled out of view did not register in the test
+  tool, and dragging from the card's button in Firefox was not checked. Use the Move menu.
+  Deferral of a refresh during a drag in progress was not checked live.
+- Logseq's default dark theme was checked on the Timeline only. Shift+Enter on a focused
+  Timeline bar was not checked.
+- In docs/manual-test.md, 13 of 126 rows are marked partial and 13 were not run.
+
+**Behavior**
+
+- Deleting a tag does not trigger a refresh. The tag stays listed until the next graph change
+  or the 30-second check. Planner then falls back to the default view and shows a message.
+  A created tag appears at once.
+- If the page "Planner views" is in Recycle, saving fails with a message. Restore the page or
+  delete it in Recycle (More menu), then save again. Planner does not restore it for you.
+  Concurrent writes to saved views are not serialized.
+- Reopening Planner after it was hidden with stale data runs two reloads; the second changes
+  nothing.
+- In Calendar Month, a band that continues on both sides shows its title in the middle of
+  the row, not at the left edge.
+- The Agenda's Overdue bucket is not capped. In the large test, 923 overdue entries all
+  rendered.
+- A Date property value with no journal day fails with an error instead of a guess.
+
+**Large tags**
+
+Measured on one tag with 2,000 nodes and about 2,000 linked tasks, in the web app, dev
+build, headless Chrome (T13a, after commit 4d45a0b):
+
+| Measure | Result |
+|---|---|
+| First load | 326 to 350 ms (target: under 1 s) |
+| Live refresh (`refresh.totalMs`, five edits per view) | Timeline 179 to 184 ms, Calendar 165 to 169 ms, Agenda 169 to 179 ms, Kanban 181 to 186 ms (two Timeline runs at 260 ms) |
+| End of a write to the redraw | about 215 to 235 ms with the 50 ms debounce, with occasional runs near 310 ms (target: under 300 ms) |
+
+A production build, the desktop app and a graph where few tasks link the tag were not
+measured.
 
 ## Development
 
 ```bash
-npm install
-npm run dev        # Vite dev server at http://localhost:8293 (preview: 8294)
+npm ci
+npm run dev        # Vite dev server on http://localhost:8293 (--strictPort); removes dist/ first
+npm run preview    # serves the build on http://localhost:8294 (--strictPort)
 npm run typecheck  # tsc --noEmit
-npm test           # Vitest
-npm run build      # Production build into dist/
+npm test           # Vitest, src/**/*.test.ts
+npm run build      # production build into dist/
+npm run probe      # live probe and seeds; see docs/probes.md
 ```
 
-In Logseq: Settings > Advanced > Developer mode, then Plugins > ⋯ > Load plugin from web
-url > `http://localhost:8293/`.
+Load the dev server in Logseq with Settings > Advanced > Developer mode, then Plugins >
+Load plugin from web url > `http://localhost:8293/`.
+
+`npm run probe` drives a Logseq web app that is already open and refuses any graph other than
+`plugin-test` or `Demo`. Options:
+
+- `--seed`: import the small seed (`scripts/seed.edn.mjs`).
+- `--seed-large [N]`: import the load-test seed of N nodes, 2,000 by default
+  (`scripts/seed-large.edn.mjs`).
+- `--writes`, `--other-window`: record write and multi-window behavior.
+- `--timings`: print the dev-only load and refresh timings.
+
+Tests sit next to the code as `src/**/*.test.ts`. The pure core runs in Node. DOM tests start
+with `// @vitest-environment happy-dom`. SDK calls are injected, so tests pass fakes, and
+core tests use the probe fixtures in `src/core/__fixtures__/`.
+
+Conventions (from [CLAUDE.md](CLAUDE.md)):
+
+- One item of [tasks.md](tasks.md) per change. Write its acceptance test first.
+- Commit subjects are `feat|fix|docs(...): summary (Tnn)`. Docs go in the same commit as the
+  code.
+- `npm run typecheck`, `npm test` and `npm run build` pass before every commit.
+- Live checks use the `plugin-test` graph only.
+
+Further reading:
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): the code map, data flow and design decisions.
+- [REQUIREMENTS.md](REQUIREMENTS.md): scope and acceptance criteria.
+- [docs/design.md](docs/design.md): visual design and theme tokens.
+- [docs/probes.md](docs/probes.md): what the live probe observed about the Logseq API.
+- [docs/manual-test.md](docs/manual-test.md): the end-to-end checklist and its results.
 
 ## License
 
-MIT
+MIT, as declared in `package.json`. The repository has no LICENSE file yet.
