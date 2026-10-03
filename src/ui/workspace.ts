@@ -44,6 +44,8 @@ interface State {
   viewId: string | null;
   popover: Popover | null;
   error: string | null;
+  /** The built-in tags group of the tag tree is open (collapsed by default; opened when a built-in tag is selected). */
+  builtInOpen: boolean;
 }
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
@@ -55,10 +57,27 @@ const byTitle = (a: TagInfo, b: TagInfo) => a.title.localeCompare(b.title);
 
 // ---------------------------------------------------------------- pure helpers
 
-/** The tag a fresh workspace shows: the first own tag (tree order) with a date property, else the first tag. */
+/** Tags with no parent in `tags`, own first, by title: the top level of the tag tree. */
+const rootsOf = (tags: TagInfo[]) => {
+  const ids = new Set(tags.map((t) => t.id));
+  return tags.filter((t) => !t.parentIds.some((id) => ids.has(id))).sort((a, b) => Number(a.builtIn) - Number(b.builtIn) || byTitle(a, b));
+};
+
+/**
+ * The tag a fresh workspace shows: the first own root tag with a date property in tree order, else the first own
+ * tag with one, else the first tag (T07 D3: a child tag sorting first alphabetically must not win).
+ */
 export function initialTag(tags: TagInfo[]): TagInfo | null {
+  const hasDates = (t: TagInfo) => !t.builtIn && t.dateProps.length > 0;
   const ordered = [...tags].sort((a, b) => Number(a.builtIn) - Number(b.builtIn) || byTitle(a, b));
-  return ordered.find((t) => !t.builtIn && t.dateProps.length > 0) ?? ordered[0] ?? null;
+  return rootsOf(tags).find(hasDates) ?? ordered.find(hasDates) ?? ordered[0] ?? null;
+}
+
+/** The nodes that pass the view's filters and the tasks linked to them: what a view is handed (T07 D4). */
+export function visibleData(config: ViewConfig, tag: TagInfo, nodes: PlannerNode[], tasks: PlannerTask[]) {
+  const shown = filterNodes(nodes, toChoiceFilters(config, tag));
+  const ids = new Set(shown.map((n) => n.id));
+  return { nodes: shown, tasks: tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))) };
 }
 
 /** Keeps the shared fields (tag, dates, filters, done values) and takes the new kind's defaults for the rest. */
@@ -164,10 +183,16 @@ function renderTagTree(s: State, selected: string | undefined): string {
       + (kids.length ? `<ul>${kids.map(item).join("")}</ul>` : "") + `</li>`;
   };
   // A root has no parent in the list; a tag with several parents is listed under its first one.
-  const roots = s.tags.filter((t) => !t.parentIds.some((id) => byId.has(id))).sort(byTitle);
-  const group = (key: string, title: string, list: TagInfo[]) =>
-    list.length ? `<h2 class="pl-group-header">${title}</h2><ul class="pl-tree" data-tag-group="${key}">${list.map(item).join("")}</ul>` : "";
-  return `<nav aria-label="Tags">${group("own", "Your tags", roots.filter((t) => !t.builtIn))}${group("built-in", "Built-in tags", roots.filter((t) => t.builtIn))}</nav>`;
+  const roots = rootsOf(s.tags);
+  const list = (key: string, items: TagInfo[], hidden = false) =>
+    `<ul class="pl-tree" id="pl-tags-${key}" data-tag-group="${key}"${hidden ? " hidden" : ""}>${items.map(item).join("")}</ul>`;
+  const own = roots.filter((t) => !t.builtIn);
+  const builtIn = roots.filter((t) => t.builtIn);
+  // Built-in tags start collapsed so "Your tags" and the filters fit without scrolling (T07 D6).
+  return `<nav aria-label="Tags">`
+    + (own.length ? `<h2 class="pl-group-header">Your tags</h2>${list("own", own)}` : "")
+    + (builtIn.length ? `<h2 class="pl-group-header"><button type="button" class="pl-disclosure" data-action="toggle-built-in" aria-expanded="${s.builtInOpen}" aria-controls="pl-tags-built-in">Built-in tags</button></h2>${list("built-in", builtIn, !s.builtInOpen)}` : "")
+    + `</nav>`;
 }
 
 function renderFilters(s: State, tag: TagInfo): string {
@@ -196,14 +221,14 @@ function renderView(s: State, tag: TagInfo | undefined): string {
     return empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag.");
   }
   if (!s.nodes.length) return empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`);
-  const shown = filterNodes(s.nodes, toChoiceFilters(s.config, tag));
-  if (!shown.length) {
+  const shown = visibleData(s.config, tag, s.nodes, s.tasks);
+  if (!shown.nodes.length) {
     return empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the left column.",
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`);
   }
   const kind = KIND_LABEL[s.config.kind];
   return `<div class="pl-placeholder" data-region="view-placeholder"><b>${kind}</b>`
-    + `<span>${plural(shown.length, "node")} · ${plural(s.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`;
+    + `<span>${plural(shown.nodes.length, "node")} · ${plural(shown.tasks.length, "linked task")}. The ${kind} view arrives in ${KIND_TASK[s.config.kind]}.</span></div>`;
 }
 
 function renderWorkspace(s: State): string {
@@ -228,7 +253,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null };
+  const s: State = { loading: false, tags: [], config: null, nodes: [], tasks: [], views: [], viewId: null, popover: null, error: null, builtInOpen: false };
   let queue: Promise<void> = Promise.resolve();
 
   const render = (focus?: string) => {
@@ -252,6 +277,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   async function loadData() {
     const config = s.config!;
     const tag = tagOf(config);
+    if (tag.builtIn) s.builtInOpen = true; // every tag change passes here
     s.loading = true;
     render();
     try {
@@ -363,6 +389,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         s.popover = null;
         render();
         return deps.onClose();
+      case "toggle-built-in":
+        return void run(() => void (s.builtInOpen = !s.builtInOpen));
       case "dismiss-error":
         return void run(() => void (s.error = null));
       case "clear-filters":

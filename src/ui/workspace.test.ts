@@ -10,7 +10,8 @@ import { JOURNAL_DAYS_QUERY, NODES_QUERY, TASKS_QUERY } from "../core/queries";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo, ViewBlock } from "../types";
-import { createWorkspace, type Workspace } from "./workspace";
+import { createWorkspace, initialTag, type Workspace } from "./workspace";
+import { loadNodes, loadTasks } from "../core/queries";
 
 /** Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting only. */
 const fixtureDq = (opts: { noTags?: boolean } = {}): Dq => async (query, ...inputs) => {
@@ -78,7 +79,11 @@ async function click(ws: Workspace, sel: string) {
   el.click();
   await ws.idle();
 }
-const pickTag = (ws: Workspace, title: string) => click(ws, `[data-tag-id="${tag(title).id}"]`);
+/** Clicks the tag in the tree, opening the collapsed built-in group first when the tag is in it. */
+async function pickTag(ws: Workspace, title: string) {
+  if (tag(title).builtIn && $("[data-action=toggle-built-in]")!.getAttribute("aria-expanded") === "false") await click(ws, "[data-action=toggle-built-in]");
+  await click(ws, `[data-tag-id="${tag(title).id}"]`);
+}
 
 beforeEach(async () => {
   tags = await loadTagInfos(fixtureDq());
@@ -208,7 +213,60 @@ describe("settings bar", () => {
   });
 });
 
+describe("initial tag (T07 D3)", () => {
+  it("opens on the first own root tag with dates in tree order: Meeting, not the child Client project", async () => {
+    const { ws } = await setup();
+    expect(ws.config()!.tag).toBe(tag("Meeting").ident);
+  });
+
+  it("falls back to the first own tag with dates, then the first tag", () => {
+    const root = { ...tag("Project"), title: "Alpha", dateProps: [] };
+    const child = { ...tag("Client project"), title: "Beta", parentIds: [root.id] };
+    expect(initialTag([root, child, tag("Task")])!.title).toBe("Beta");
+    expect(initialTag([{ ...root, dateProps: [] }, tag("Page")])!.title).toBe("Alpha");
+  });
+});
+
+describe("tasks of the visible nodes (T07 D4)", () => {
+  it("counts only tasks linked to nodes that pass the filters", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    const owner = choice(tag("Project"), "Owner");
+    const alice = owner.values.find((v) => v.title === "Alice")!;
+    await click(ws, `input[data-filter-prop="${owner.ident}"][data-filter-value="${alice.uuid}"]`);
+    const zone = () => -300;
+    const nodes = (await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone })).filter((n) => n.choices[owner.ident]?.id === alice.id);
+    const ids = new Set(nodes.map((n) => n.id));
+    const all = await loadTasks(fixtureDq(), nodes, zone);
+    const expected = all.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
+    expect(expected).toBeLessThan((await loadTasks(fixtureDq(), await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone }), zone)).length);
+    expect(text("[data-region=view-placeholder]")).toContain(`${nodes.length} nodes · ${expected} linked task`);
+  });
+});
+
 describe("tag tree", () => {
+  it("collapses the built-in group by default and toggles it (T07 D6)", async () => {
+    const { ws } = await setup();
+    const toggle = $("[data-action=toggle-built-in]")!;
+    expect(toggle.tagName).toBe("BUTTON");
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
+    expect(toggle.getAttribute("aria-controls")).toBe($("[data-tag-group=built-in]")!.id);
+    await click(ws, "[data-action=toggle-built-in]");
+    expect($("[data-action=toggle-built-in]")!.getAttribute("aria-expanded")).toBe("true");
+    expect($("[data-tag-group=built-in]")!.hidden).toBe(false);
+    await click(ws, "[data-action=toggle-built-in]");
+    expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
+  });
+
+  it("expands the built-in group when the selected tag is built-in", async () => {
+    const { ws } = await setup();
+    await click(ws, "[data-control=tag]");
+    await click(ws, `[data-popover=tag] [data-option="${tag("Task").ident}"]`);
+    expect($("[data-action=toggle-built-in]")!.getAttribute("aria-expanded")).toBe("true");
+    expect($("[data-tag-group=built-in]")!.hidden).toBe(false);
+  });
+
   it("lists own tags first, then built-in ones, children nested under their parent", async () => {
     await setup();
     const groups = $$("[data-tag-group]").map((g) => g.dataset.tagGroup);
@@ -300,6 +358,16 @@ describe("closing", () => {
     expect($("[data-popover=tag]")).not.toBeNull();
     expect(ws.escape()).toBe(true);
     expect($("[data-popover=tag]")).toBeNull();
+    expect(ws.escape()).toBe(false);
+  });
+
+  it("Escape with focus in the view-name input closes the saved-views popover and returns focus to its trigger", async () => {
+    const { ws } = await setup();
+    await click(ws, "[data-control=saved-views]");
+    $<HTMLInputElement>("[data-field=view-name]")!.focus();
+    expect(ws.escape()).toBe(true);
+    expect($("[data-popover=views]")).toBeNull();
+    expect(document.activeElement).toBe($("[data-control=saved-views]"));
     expect(ws.escape()).toBe(false);
   });
 
