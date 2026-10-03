@@ -50,7 +50,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       values with built-in done flags. Test first over T01 fixtures: child tag inherits
       parent props; tag without dates has `dateProps: []`. Est: ~30 min
 
-- [ ] **T04 Load nodes and tasks** — `src/core/queries.ts`, `src/core/normalize.ts`. Nodes of
+- [x] **T04 Load nodes and tasks** — `src/core/queries.ts`, `src/core/normalize.ts`. Nodes of
       a tag (+ extending tags) with mapped props; Date and DateTime → local ISO day (+ HH:MM);
       #Task blocks whose refs hit those nodes. Test first: child-tag on/off, both date types,
       DateTime near midnight, task linked by inline ref and by node property. Est: ~45 min
@@ -181,3 +181,13 @@ Total: about 10 hours.
   First live run returned 17 tags and no user tags: the page reload before it had dropped
   the seed. Re-seeded, then it passed. The seed does not reliably survive a reload
   (docs/probes.md corrected); verify the seed before every live check.
+- 2026-10-03 T04 done (fcb82bc). 18 new unit tests (52 total). Live on `plugin-test` (seed
+  verified first; modules imported inside the plugin iframe, real `datascriptQuery`,
+  browser zone UTC-5): Project with child tags = 4 nodes with the seeded Start/End days,
+  Status and Owner; without child tags = 3 (no Acme rollout); Meeting = Kickoff
+  2026-10-03 10:30, Late review 2026-10-04 23:45, Untimed meeting with no date; tasks = 5
+  with the right node and status (inline ref and node-property link both found, Loose
+  task absent); `loadTasks(dq, [])` returns [] and sends no query. The journal-day query
+  with a vector input works live.
+  Open for the views (T08–T11): a task title linked by inline ref still contains the raw
+  `[[uuid]]` (e.g. `Draft brief [[6a00…0001]]`); it must be shown with the node's name.
