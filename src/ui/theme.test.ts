@@ -44,6 +44,16 @@ describe("plVars", () => {
     expect(differ["--pl-hover"]).toBe("#404244");
   });
 
+  it("keeps a generic fallback after a host font family the frame may not have (T07 D1)", () => {
+    expect(plVars({ "--ls-font-family": "Inter" })["--pl-font"]).toBe('Inter, system-ui, -apple-system, "Segoe UI", sans-serif');
+    expect(plVars({ "--ls-font-family": "'IBM Plex Sans', serif" })["--pl-font"]).toBe("'IBM Plex Sans', serif");
+  });
+
+  it("never takes tint-soft from the host: --accent can equal --primary (T07 D2)", () => {
+    expect(PL_MAP.map(([n]) => n)).not.toContain("--pl-tint-soft");
+    expect(plVars({ "--accent": "200 97% 37%", "--primary": "200 97% 37%" })["--pl-tint-soft"]).toBeUndefined();
+  });
+
   it("requests every source token it reads", () => {
     for (const [, sources] of PL_MAP) for (const s of sources) expect(THEME_TOKENS).toContain(s);
   });
@@ -56,6 +66,13 @@ describe("stylesheet defaults", () => {
     for (const n of ["--pl-surface", "--pl-float", "--pl-hover", "--pl-tint", "--pl-today", "--pl-green"]) expect(block("html.dark"), n).toContain(`${n}:`);
   });
   it("never uses prefers-color-scheme", () => expect(css).not.toContain("prefers-color-scheme"));
+  it("derives tint-soft from the tint in both modes (T07 D2)", () => {
+    expect(block(":root")).toMatch(/--pl-tint-soft: color-mix\(in srgb, var\(--pl-tint\) \d+%, transparent\)/);
+    expect(block("html.dark")).toMatch(/--pl-tint-soft: color-mix\(in srgb, var\(--pl-tint\) \d+%, transparent\)/);
+  });
+  it("the focus ring does not rely on tint-soft alone (T07 D2)", () => {
+    expect(block(":focus-visible")).toContain("var(--pl-ring)");
+  });
 });
 
 function fakeTheme(mode: string | undefined, vals: Record<string, string> = {}) {

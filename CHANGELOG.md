@@ -40,6 +40,16 @@ All notable changes to this project are documented here. The format follows
   kind. Store and validation errors are shown in a dismissible message. Escape closes an open menu first, then
   Planner. Default shortcut `g shift+p` (non-editing), checked free against the host keymap.
 
+### Fixed
+- Theme (T07): a host font family is followed by a generic fallback stack, so a family the frame cannot load no
+  longer renders in serif; `--pl-tint-soft` is derived from `--pl-tint` instead of the host's `--accent` (the default
+  theme sets it to the strong primary, which made selected rows unreadable); focus is a 2px `--pl-ring` outline.
+- Workspace (T07): opens on the first own root tag with dates (not a child tag that sorts first); the linked-task
+  count covers the filtered nodes only; built-in tags start collapsed behind a disclosure button and open when a
+  built-in tag is selected.
+- Saved views (T07): when appending a view fails, the page is looked up again, so a page moved to Recycle
+  mid-session gives the Recycle guidance instead of "appendBlock returned no block".
+
 ### Changed
 - The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.
 - Done-value override is now a list of closed-value uuids, not titles (a rename no longer breaks it).

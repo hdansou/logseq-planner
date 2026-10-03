@@ -33,7 +33,7 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
   transition: background-color .12s; }
 .pl-popover button.pl-row:hover { background: var(--pl-hover); }
 .pl-popover button.pl-row[aria-selected="true"], .pl-popover button.pl-row[aria-current="true"] { font-weight: 600; }
-.pl-popover button.pl-row:focus-visible { box-shadow: 0 0 0 3px var(--pl-tint-soft); }
+.pl-popover button.pl-row:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-popover fieldset { border: 0; margin: 0; padding: 0 0 4px; display: grid; gap: 1px; }
 .pl-popover legend { padding: 4px 10px 2px; font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
 .pl-popover label.pl-row { display: flex; align-items: center; gap: 8px; }
@@ -58,6 +58,10 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-body { display: grid; grid-template-columns: 220px 1fr; min-height: 0; }
 .pl-sidebar { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
 .pl-sidebar .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
+.pl-disclosure { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; }
+.pl-disclosure:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
+.pl-disclosure::before { content: "▸"; font-size: 10px; }
+.pl-disclosure[aria-expanded="true"]::before { content: "▾"; }
 .pl-tree, .pl-tree ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .pl-tree ul { padding-left: 14px; }
 .pl-sidebar button.pl-row { all: unset; box-sizing: border-box; display: flex; gap: 4px; width: 100%; border-radius: 8px; padding: 5px 10px;
@@ -65,7 +69,7 @@ html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-sidebar button.pl-row:hover { background: var(--pl-fill); }
 .pl-sidebar button.pl-row[aria-pressed="true"] { background: var(--pl-tint-soft); font-weight: 600; }
 .pl-sidebar button.pl-row[aria-pressed="true"] .pl-hash { color: var(--pl-tint); }
-.pl-sidebar button.pl-row:focus-visible { box-shadow: 0 0 0 3px var(--pl-tint-soft); }
+.pl-sidebar button.pl-row:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-hash { color: var(--pl-label-2); }
 .pl-filter { border: 0; margin: 0; padding: 0; display: grid; gap: 1px; }
 .pl-filter legend { padding: 0 10px 4px; }

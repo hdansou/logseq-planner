@@ -36,13 +36,13 @@ Read with `logseq.UI.resolveThemeCssPropsVals`, re-resolved on `onThemeModeChang
 | `--pl-hover` | `--lx-gray-05` (must differ from `--pl-float`) | #dcdee1 / #404244 |
 | `--pl-tint` | `--primary`, `--ls-active-primary-color` | #223b3b / #b3c6c6 |
 | `--pl-on-tint` | `--primary-foreground` | #ffffff / #000000 |
-| `--pl-tint-soft` | `--accent` (shui), `--ls-selection-background-color` | #dfe8e8 / #213232 |
+| `--pl-tint-soft` | never the host (themes may set `--accent` = `--primary`); `color-mix(in srgb, var(--pl-tint) 13% / 12%, transparent)` | ≈ #dfe8e8 / ≈ #213232 |
 | `--pl-ring` | `--ring`, `--ls-focus-ring-color` | tint |
 | `--pl-today` | none in Logseq → Inkwell default; `--ink-accent` if present | #9c2529 / #e8878a |
 | `--pl-cat-{1..7}-soft` | `--ls-highlight-color-{blue,green,yellow,purple,pink,gray,red}` | Inkwell `--ink-hl-*` |
 | status (`--pl-green` …, `-text`, `-soft`) | none in Logseq → Inkwell defaults; `--ink-*` if present | see slate.css |
 | `--pl-shadow-float` | none → Inkwell default | `0 0 0 .5px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.18)` |
-| `--pl-font` | `--ls-font-family` | system stack |
+| `--pl-font` | `--ls-font-family` + `, system-ui, -apple-system, "Segoe UI", sans-serif` unless it already ends in a generic family (host webfonts do not load in the frame) | system stack |
 
 Dark mode: mirror the host's mode onto the iframe `<html class="dark">` (skill gotcha) and
 key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
@@ -54,7 +54,8 @@ key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
 - **Segmented control** (view switch, zoom, month/week): pill track on `fill`, selected
   segment `tint-soft` with label text at 600.
 - **Selects / inputs:** radius 10, 1px `line`, surface background; focus = border `tint` +
-  `0 0 0 3px tint-soft`. The same ring is the global focus style.
+  `0 0 0 3px tint-soft`. Every other control shows a 2px `ring` outline on `:focus-visible`
+  (tint-soft alone is too faint on borderless controls).
 - **Popovers and menus** (done values, saved views): `float`, radius 14, `shadow-float`,
   no border; rows radius 9, hover `hover` with label text.
 - **Left sidebar** (tag tree, filters): `sidebar` background, 1px `line-soft` right edge;

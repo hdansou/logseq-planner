@@ -3,12 +3,23 @@ import type { ThemeDeps } from "../types";
 
 /** shui tokens are bare `H S% L%` channels and must be wrapped in hsl(); everything else is a ready colour. */
 const SHUI = new Set(["--background", "--foreground", "--popover", "--muted-foreground", "--border", "--input",
-  "--primary", "--primary-foreground", "--accent", "--ring"]);
+  "--primary", "--primary-foreground", "--ring"]);
+
+/**
+ * Appended after a host font family: the host's webfonts do not load inside the frame, so a bare family such as
+ * "Inter" would fall back to the browser's serif (seen live, T07 D1).
+ */
+export const FONT_FALLBACK = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+const GENERIC_FONT = /(^|,)\s*(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+)\s*$/;
 
 const HIGHLIGHTS = ["blue", "green", "yellow", "purple", "pink", "gray", "red"];
 const STATUS = ["green", "orange", "red", "blue", "purple"].flatMap((c) => [c, `${c}-text`, `${c}-soft`]);
 
-/** `--pl-*` token → host tokens, first that resolves wins (docs/design.md). No source → stylesheet default only. */
+/**
+ * `--pl-*` token → host tokens, first that resolves wins (docs/design.md). No source → stylesheet default only.
+ * `--pl-tint-soft` is never read from the host: themes may set `--accent` to the strong primary (the default theme
+ * does), which made selected rows dark text on strong blue (T07 D2). theme.css derives it from `--pl-tint`.
+ */
 export const PL_MAP: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["--pl-surface", ["--background", "--ls-primary-background-color"]],
   ["--pl-sidebar", ["--ls-secondary-background-color"]],
@@ -22,7 +33,6 @@ export const PL_MAP: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["--pl-hover", ["--lx-gray-05"]],
   ["--pl-tint", ["--primary", "--ls-active-primary-color"]],
   ["--pl-on-tint", ["--primary-foreground"]],
-  ["--pl-tint-soft", ["--accent", "--ls-selection-background-color"]],
   ["--pl-ring", ["--ring", "--ls-focus-ring-color"]],
   ["--pl-today", ["--ink-accent"]],
   ...HIGHLIGHTS.map((c, i) => [`--pl-cat-${i + 1}-soft`, [`--ls-highlight-color-${c}`]] as const),
@@ -43,6 +53,7 @@ export function plVars(vals: Record<string, string | undefined>): Record<string,
     const v = vals[src]!.trim();
     out[name] = SHUI.has(src) && !/^(#|rgb|hsl)/.test(v) ? `hsl(${v})` : v;
   }
+  if (out["--pl-font"] !== undefined && !GENERIC_FONT.test(out["--pl-font"])) out["--pl-font"] = `${out["--pl-font"]}, ${FONT_FALLBACK}`;
   // A hover equal to the popover colour makes menu rows vanish (dark themes): fall back to the default.
   if (out["--pl-hover"] !== undefined && out["--pl-hover"] === out["--pl-float"]) delete out["--pl-hover"];
   return out;
