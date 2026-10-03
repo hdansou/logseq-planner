@@ -60,7 +60,8 @@ How a node gets its dates:
 - Start and End both set: a span.
 - One date: a point.
 - No Start or End, but linked tasks with Scheduled or Deadline dates: a span derived from
-  those tasks, drawn dashed.
+  those tasks, drawn dashed. When all of its tasks fall on one date and time, the span reads as that one
+  date ("9 Oct 09:00 from its tasks"), not as a range.
 - No date at all: listed apart from the grid.
 
 A #Task block belongs to a node when it references the node, either as an inline link or in

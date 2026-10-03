@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, isLate, startOfWeek, weekdayName, weekStartFromHost,
+  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, formatSpan, isLate, nodeLabel, startOfWeek, weekdayName, weekStartFromHost,
 } from "./layout-common";
 import type { LocalDate, PlannerTask } from "../types";
 
@@ -95,5 +95,25 @@ describe("due date and lateness", () => {
   it("with both dates the Deadline decides: a past Scheduled date before a future Deadline is not late, and the reverse is", () => {
     expect(isLate(task("2026-10-01", "2026-10-09"), false, "2026-10-03")).toBe(false);
     expect(isLate(task("2026-10-09", "2026-10-01"), false, "2026-10-03")).toBe(true);
+  });
+});
+
+describe("formatSpan and nodeLabel", () => {
+  const d = (day: string, time: string | null = null): LocalDate => ({ day, time });
+  it("reads a span whose ends are the same date and time as one date", () => {
+    expect(formatSpan(d("2026-10-09", "09:00"), d("2026-10-09", "09:00"))).toBe("9 Oct 09:00");
+    expect(formatSpan(d("2026-10-09"), d("2026-10-09"))).toBe("9 Oct");
+  });
+  it("keeps a range for different times on one day, or different days", () => {
+    expect(formatSpan(d("2026-10-09", "09:00"), d("2026-10-09", "17:00"))).toBe("9 Oct 09:00 – 9 Oct 17:00");
+    expect(formatSpan(d("2026-10-09"), d("2026-10-10"))).toBe("9 Oct – 10 Oct");
+  });
+  it("labels a derived one-point span as one date from its tasks", () => {
+    const span = { kind: "derived" as const, start: d("2026-10-09", "09:00"), end: d("2026-10-09", "09:00") };
+    expect(nodeLabel("Mobile app", span, { done: 0, total: 1 })).toBe("Mobile app, 9 Oct 09:00 from its tasks, 0 of 1 done");
+  });
+  it("still labels a derived range as a range", () => {
+    const span = { kind: "derived" as const, start: d("2026-10-09", "09:00"), end: d("2026-10-12") };
+    expect(nodeLabel("Mobile app", span, { done: 1, total: 2 })).toBe("Mobile app, 9 Oct 09:00 – 12 Oct from its tasks, 1 of 2 done");
   });
 });

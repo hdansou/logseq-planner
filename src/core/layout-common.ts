@@ -46,6 +46,9 @@ export const formatRange = (start: string, end: string): string =>
   `${formatDay(start, start.slice(0, 4) !== end.slice(0, 4))} – ${formatDay(end, true)}`;
 /** "3 Oct 10:30" or "3 Oct". */
 export const formatDate = (d: LocalDate): string => formatDay(d.day) + (d.time ? ` ${d.time}` : "");
+/** "23 Sep – 23 Oct"; one date ("9 Oct 09:00") when both ends are the same day and time. */
+export const formatSpan = (start: LocalDate, end: LocalDate): string =>
+  start.day === end.day && start.time === end.time ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}`;
 
 // ---------------------------------------------------------------- host week start
 
@@ -119,6 +122,6 @@ export function taskLabel(task: PlannerTask, title: string): string {
 export function nodeLabel(title: string, span: NodeSpan, progress: Rollup): string {
   const start = span.start!;
   const end = span.end!;
-  const dates = span.kind === "point" ? formatDate(start) : `${formatDate(start)} – ${formatDate(end)}${span.kind === "derived" ? " from its tasks" : ""}`;
+  const dates = span.kind === "point" ? formatDate(start) : `${formatSpan(start, end)}${span.kind === "derived" ? " from its tasks" : ""}`;
   return [title, dates, progress.total ? `${progress.done} of ${progress.total} done` : ""].filter(Boolean).join(", ");
 }

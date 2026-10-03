@@ -18,7 +18,7 @@
 import type { ChoiceProp, ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, compareDates, dayCount, daysBetween, dueDate, formatDate, formatDay, isLate, taskLabel, taskState, weekdayName, type ViewItem,
+  addDays, categoryOf, compareDates, dayCount, daysBetween, dueDate, formatDate, formatDay, formatSpan, isLate, taskLabel, taskState, weekdayName, type ViewItem,
 } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 
@@ -157,7 +157,7 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     const { bucket, at } = file(span.start, span.end, done, hasDoneNotion, today);
     const late = bucket === "overdue";
     const when = whenText(
-      span.start && span.end ? [span.start.day === span.end.day && span.start.time === span.end.time ? formatDate(span.start) : `${formatDate(span.start)} – ${formatDate(span.end)}`] : [],
+      span.start && span.end ? [formatSpan(span.start, span.end)] : [],
       span.end, late, today,
     );
     const nodeEntry: AgendaEntry = {

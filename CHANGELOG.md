@@ -135,6 +135,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- A one-point span reads as one date (N02): when a span's start and end are the same day and time (a node derived
+  from one task), its label reads "Mobile app, 9 Oct 09:00 from its tasks, 0 of 1 done", not "9 Oct 09:00 – 9 Oct
+  09:00". One shared `formatSpan` in `layout-common.ts` serves the Timeline and Calendar labels (`nodeLabel`) and
+  the Agenda line; different times on one day, or different days, stay a range.
 - No transitions under reduced motion (N02): one rule in `theme.css` under `prefers-reduced-motion: reduce`
   turns transitions and animations off for every element of the plugin frame.
 - The settings bar is a labelled group (N02): `role="group"` on the "View settings" region, so assistive tech
