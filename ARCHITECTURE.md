@@ -156,7 +156,8 @@ Steps, with the module that does each:
 - When a menu is open, a Kanban write is pending or a card is being dragged, the result is
   dropped and asked again once the workspace is free.
 - When the view's tag or a property it uses is gone, the workspace shows the default view and
-  an error message.
+  an error message. A Start, End or Kanban column left unmapped because the tag had no such
+  property takes the default once the tag has one (`withDefaults`).
 - The workspace queue runs actions in order. Errors from a refresh show in the error bar and
   never reject. A throw while drawing is shown the same way (`render` never throws; when the
   workspace cannot be drawn at all, a bare shell keeps the error, Dismiss and Close), so the

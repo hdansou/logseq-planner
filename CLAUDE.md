@@ -81,8 +81,9 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 Co-located `src/**/*.test.ts`; DOM tests start with `// @vitest-environment happy-dom`.
 Core tests run against probe fixtures in `src/core/__fixtures__/`. SDK calls are injected,
 so tests pass fakes. Every loader test uses `fixtureDq` (`src/ui/test-fakes.ts`): it answers the
-exact query strings and cuts the `pull [*]` fixture rows down to what the narrow pulls return
-(never hand-written rows).
+exact query strings (a node query built by `nodesQuery` for any tag list), cuts the `pull [*]`
+fixture rows down to what the pull names (never hand-written rows), EDN-reads top-level
+string inputs like the host (`hostReadInput`) and models the Recycle clauses.
 
 ## Where to look
 

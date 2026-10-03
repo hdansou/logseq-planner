@@ -9,7 +9,7 @@ import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos } from "../core/schema";
-import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, type ViewConfig, type ViewKind } from "../core/view-config";
+import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, type ViewConfig, type ViewKind } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
@@ -589,18 +589,22 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownTag)]);
     let config: ViewConfig | null = s.config;
     let error: string | null = null;
+    /** The view was replaced by the default one (its tag or a property it uses is gone). */
+    let replaced = false;
     try {
-      validateViewConfig(config, tags);
+      // A field left unmapped (no date or choice property when it was set up) takes the default once the tag has one (T14).
+      config = withDefaults(config, validateViewConfig(config, tags));
     } catch (e) {
       // The tag or a property the view uses is gone from the graph: show the default view, like open() does.
       error = `${(e as Error).message}. Showing the default view instead.`;
       const t = initialTag(tags);
       config = t ? defaultViewConfig(t) : null;
+      replaced = true;
     }
     // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
     // only when its rows are stale (`readRaw`: the pulled idents or the tag id changed). Another view: read afresh.
     const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
-      : config === s.config ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), shownRaw))
+      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), shownRaw))
       : await readData(config, tags);
     deps.timing?.queried();
     if (busy()) {
@@ -612,11 +616,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const sig = signature(next, weekStart, today);
     const same = config === s.config && sig === shownSignature(today);
     if (same) return void deps.timing?.rendered("same");
-    if (config !== s.config) {
-      s.config = config;
+    if (replaced) {
       s.viewId = null;
       s.error = error;
     }
+    s.config = config;
     Object.assign(s, { weekStart, ...next });
     shownSig = { key: sigKey(s, weekStart, today), sig };
     render(undefined, true);

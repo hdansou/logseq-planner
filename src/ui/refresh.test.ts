@@ -181,6 +181,40 @@ describe("schema on refresh: data is read with the tags on screen while the tags
     expect(tasksQueries()).toBe(1);
   });
 
+  describe("a null field takes the default once the tag gains a suitable property (T14)", () => {
+    // Fixture property rows of these types left out (for every tag: built-in Status is shared with Task) until
+    // `state.on` is false again.
+    const without = (types: string[]) => (rows: Rows) => rows.filter(([, p]) => !types.includes(String(p[":logseq.property/type"])));
+
+    it("Start and End: null while the tag has no dates, the default Start/End after it gains them", async () => {
+      const c = changing(same, without(["date", "datetime"]));
+      c.state.on = true;
+      await setup(c.wrap);
+      await click(`[data-tag-id="${tag("Project").id}"]`);
+      expect(ws.config()).toMatchObject({ tag: tag("Project").ident, start: null, end: null });
+      expect($("[data-empty=no-dates]")).not.toBeNull();
+      c.state.on = false;
+      await ws.refresh();
+      const date = (title: string) => tag("Project").dateProps.find((p) => p.title === title)!.ident;
+      expect(ws.config()).toMatchObject({ start: date("Start"), end: date("End") });
+      expect($("[data-empty=no-dates]")).toBeNull();
+      expect($("[data-tl-row]")).not.toBeNull();
+    });
+
+    it("Kanban column: null while the tag has no choice property, Status after it gains one", async () => {
+      const c = changing(same, without(["default"]));
+      c.state.on = true;
+      await setup(c.wrap);
+      await kanban();
+      expect(ws.config()).toMatchObject({ kind: "kanban", columnProp: null });
+      expect($("[data-empty=no-choice]")).not.toBeNull();
+      c.state.on = false;
+      await ws.refresh();
+      expect(ws.config()).toMatchObject({ kind: "kanban", columnProp: STATUS, laneProp: null });
+      expect(columnOf(SITE)).toBe(status("Doing").uuid);
+    });
+  });
+
   it("a new tag elsewhere: the tag tree shows it, with no second node query", async () => {
     const comment = () => tag("Comment").id;
     const c = changing((rows) => rows.filter(([t]) => (t as { id: number }).id !== comment()), same);

@@ -66,6 +66,24 @@ export function defaultViewConfig(tag: TagInfo, kind: ViewKind = "timeline"): Vi
   }
 }
 
+/**
+ * `config` with its unmapped fields filled from `tag` now (T14): a null Start takes the default Start, and then a null
+ * End the default End (the Start/End rule of `defaultDates`); a null Kanban column takes the default column property.
+ * A field the user set stays. Returns `config` itself when nothing changes. Assumes `config` is valid for `tag`.
+ */
+export function withDefaults(config: ViewConfig, tag: TagInfo): ViewConfig {
+  let next = config;
+  if (config.start === null) {
+    const d = defaultDates(tag);
+    if (d.start !== null) next = { ...next, start: d.start, end: config.end ?? d.end };
+  }
+  if (next.kind === "kanban" && next.columnProp === null) {
+    const column = (defaultViewConfig(tag, "kanban") as Extract<ViewConfig, { kind: "kanban" }>).columnProp;
+    if (column !== null) next = { ...next, columnProp: column };
+  }
+  return next;
+}
+
 const oneOf = (what: string, allowed: readonly string[], value: unknown) => {
   if (!allowed.includes(value as string)) throw new Error(`Invalid view config: ${what} "${String(value)}" is not one of ${allowed.join(", ")}`);
 };

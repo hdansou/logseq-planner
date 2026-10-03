@@ -4,8 +4,8 @@ import propsFixture from "../core/__fixtures__/class-properties.json";
 import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
-import { buildTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodePropIdents, nodesQuery, notRecycled, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
+import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
+import { nodesQuery, notRecycled, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -26,26 +26,43 @@ function edited(row: Record<string, unknown>, edits?: Edits): Record<string, unk
 type Row = Record<string, unknown>;
 const taskRows = () => (tasksFixture.taskRefs.detail as unknown as [Row][]).map(([t]) => t);
 
-/** The fixture tags as the loaders see them: `nodesQuery` is built from them. */
-const fixtureTags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
 
 /** Pull-map key of an attribute (`:db/id` → `id`, `:block/title` → `title`, a property keeps its ident). */
 const pullKey = (attr: string) => (attr.startsWith(":block/") ? attr.slice(7) : attr === ":db/id" ? "id" : attr);
 
-/** Date idents (journal page refs) of the fixture tags: `nodesQuery` pulls them with the page's `journal-day`. */
-const dateIdents = new Set(fixtureTags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
 /** Journal page id → journal day, from the fixture's journal-day rows (dates.json). */
 const journalDays = new Map((datesFixture.date.detail as { raw: number; "journal-day": number }[]).map((r) => [r.raw, r["journal-day"]]));
 
+/** What a node query pulls: its attributes, and the Date idents pulled with their page's journal day. */
+interface NodePull {
+  attrs: string[];
+  dates: Set<string>;
+}
+
 /**
- * A `pull [*]` fixture row cut down to the attributes `nodesQuery` pulls (absent attributes stay absent, like a real
- * pull); a Date value `{id}` gets its page's `journal-day` from dates.json, as the nested pull returns it.
+ * The pull of a node query built by `nodesQuery` for ANY tag list (the tags a refresh read may differ from the
+ * fixture's: a property added or removed), or null when `query` is not one: same text as `nodesQuery` apart from the
+ * pulled attributes. A Date ident appears as `{<ident> [:db/id :block/journal-day]}`.
  */
-function narrowNode(row: Row): Row {
-  const keys = [":db/id", ":block/uuid", ":block/title", ":block/tags", ...nodePropIdents(fixtureTags)].map(pullKey);
-  return Object.fromEntries(keys.filter((k) => k in row).map((k) => {
+function nodePullOf(query: string): NodePull | null {
+  const head = "[:find (pull ?b [";
+  const template = nodesQuery([]);
+  if (!query.startsWith(head) || query.slice(query.indexOf("])\n")) !== template.slice(template.indexOf("])\n"))) return null;
+  const pull = query.slice(head.length, query.indexOf("])\n"));
+  const dates = new Set([...pull.matchAll(/\{(\S+) \[:db\/id :block\/journal-day\]\}/g)].map((m) => m[1]));
+  const attrs = pull.replace(/\{(\S+) \[:db\/id :block\/journal-day\]\}/g, "$1").split(/\s+/).filter(Boolean);
+  return { attrs, dates };
+}
+
+/**
+ * A `pull [*]` fixture row cut down to the attributes the node query pulls (absent attributes stay absent, like a real
+ * pull); a pulled Date value `{id}` gets its page's `journal-day` from dates.json, as the nested pull returns it.
+ */
+function narrowNode(row: Row, pull: NodePull): Row {
+  return Object.fromEntries(pull.attrs.filter((a) => pullKey(a) in row).map((a) => {
+    const k = pullKey(a);
     const v = row[k] as { id: number };
-    return [k, dateIdents.has(k) && journalDays.has(v.id) ? { id: v.id, "journal-day": journalDays.get(v.id) } : row[k]];
+    return [k, pull.dates.has(a) && journalDays.has(v.id) ? { id: v.id, "journal-day": journalDays.get(v.id) } : row[k]];
   }));
 }
 
@@ -122,9 +139,10 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   const inputs = rawInputs.map(hostReadInput);
   if (query === TAGS_QUERY) return opts.noTags ? [] : tagRows();
   if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
-  if (query === nodesQuery(fixtureTags)) {
+  const pull = nodePullOf(query);
+  if (pull) {
     const live = liveFilter(query, "?b");
-    return nodeRows(inputs[0]).filter(([n]) => live(n)).map(([n]) => [narrowNode(n)]);
+    return nodeRows(inputs[0]).filter(([n]) => live(n)).map(([n]) => [narrowNode(n, pull)]);
   }
   if (query === TASKS_QUERY) {
     // Bound by the tag: the fixture tasks that reference one of its nodes (child tags included, as the query's rule does).

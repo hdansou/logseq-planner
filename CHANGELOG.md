@@ -127,6 +127,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Refresh (T14): a view set up while its tag had no date or choice property kept Start, End or the Kanban column at
+  "none" after the tag gained one. On reload, `withDefaults` (`src/core/view-config.ts`) fills a null Start with the
+  default Start (and then a null End with the default End) and a null Kanban column with the default column property;
+  fields the user set stay. The test fake now answers a node query built for any tag list.
 - Idents (T14): one ident check, `isPropertyIdent` (`src/core/schema.ts`), accepts every ident Logseq generates (both
   parts from `[0-9a-zA-Z*+!_'?<>=.-]`, as logseq `normalize-ident-name-part`), so the Kanban read-back no longer
   rejects properties named "Done?", "A+B" or "Who's". The node pull uses the same check: an ident that does not match
