@@ -125,6 +125,12 @@ describe("empty states", () => {
 });
 
 describe("settings bar", () => {
+  it("is a labelled group, so the label is announced", async () => {
+    await setup();
+    expect($("[data-region=settings]")!.getAttribute("role")).toBe("group");
+    expect($("[data-region=settings]")!.getAttribute("aria-label")).toBe("View settings");
+  });
+
   it("shows the Project schema: Start/End, child tags, Status done values", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");

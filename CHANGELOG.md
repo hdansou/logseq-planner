@@ -135,6 +135,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- The settings bar is a labelled group (N02): `role="group"` on the "View settings" region, so assistive tech
+  announces its label.
 - Refresh (T14): the refresh signature uses the workspace's injected `today` and compares with the day the screen was
   drawn on, so a new day redraws the today line and the Agenda buckets (it used the machine clock and compared with
   today on both sides).

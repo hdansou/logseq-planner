@@ -246,7 +246,7 @@ function renderSettings(s: State, tag: TagInfo): string {
     }).join("") + `<p class="pl-hint">${primary.values.some((v) => v.ident !== null) && !c.doneValues[primary.ident] ? "Built-in values use their Done and Canceled flags." : "Saved with the view."}</p>`;
     html += menu("done", s, "Done when", `${esc(primary.title)} is ${esc(titles.join(", ") || "nothing")}`, popover, "done-values");
   }
-  return `<div class="pl-settings" data-region="settings" aria-label="View settings">${html}</div>`;
+  return `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${html}</div>`;
 }
 
 function renderTagTree(s: State, selected: string | undefined): string {
@@ -387,7 +387,7 @@ function renderWorkspace(s: State, now: () => Now): string {
   const kind = s.config?.kind ?? "";
   const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
-    + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" aria-label="View settings"></div>`)
+    + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings"></div>`)
     + `<div class="pl-body"><aside class="pl-sidebar" data-region="sidebar">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside>`
     + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main></div></div>`;
