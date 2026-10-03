@@ -62,11 +62,11 @@ export function createChanges(deps: ChangesDeps): Changes {
     stale = false;
     void deps.refresh().finally(() => {
       running = false;
-      if (again && visible && !stopped) {
-        again = false;
-        refresh();
-      }
+      const owed = again;
       again = false;
+      if (!owed || stopped) return;
+      if (visible) refresh();
+      else stale = true; // hidden meanwhile: the owed refresh runs on the next show (T14)
     });
   }
 

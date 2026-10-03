@@ -92,6 +92,20 @@ describe("visibility", () => {
     expect(refreshFn).toHaveBeenCalledTimes(1);
   });
 
+  it("a refresh that ends while hidden with another one owed marks the data stale: the next show refreshes (T14)", async () => {
+    let finish!: () => void;
+    const { clock, feed, refreshFn, changes } = setup(() => new Promise<void>((r) => (finish = r)));
+    changes.setVisible(true); // the first load starts and is held
+    feed.fire();
+    clock.advance(DEBOUNCE_MS); // a change during it: one more is owed
+    changes.setVisible(false);
+    finish();
+    await settle();
+    expect(refreshFn).toHaveBeenCalledTimes(1);
+    changes.setVisible(true);
+    expect(refreshFn).toHaveBeenCalledTimes(2);
+  });
+
   it("showing again with nothing changed does not refresh", async () => {
     const { refreshFn, changes } = setup();
     changes.setVisible(true);

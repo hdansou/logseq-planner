@@ -127,6 +127,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Live updates (T14): a refresh that ended while Planner was hidden, with a change owed from during it, dropped that
+  change; the data is now marked stale and the next show refreshes.
 - Refresh (T14): a view set up while its tag had no date or choice property kept Start, End or the Kanban column at
   "none" after the tag gained one. On reload, `withDefaults` (`src/core/view-config.ts`) fills a null Start with the
   default Start (and then a null End with the default End) and a null Kanban column with the default column property;
