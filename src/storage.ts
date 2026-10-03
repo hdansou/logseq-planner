@@ -52,8 +52,8 @@ export function createViewStore(deps: StorageDeps) {
     if (pageUuid) return pageUuid;
     await deps.createPage(PAGE_TITLE);
     pageUuid = await deps.findPage(PAGE_TITLE);
-    // Observed host behaviour: with a same-titled page in the recycle bin, createPage returns that recycled page and creates nothing.
-    if (!pageUuid) throw new Error(`Page "${PAGE_TITLE}" could not be created. If it is in the recycle bin, restore it or delete it permanently, then save again.`);
+    // Observed host behaviour: with a same-titled page in Recycle, createPage returns that recycled page and creates nothing.
+    if (!pageUuid) throw new Error(`Page "${PAGE_TITLE}" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.`);
     return pageUuid;
   }
 
