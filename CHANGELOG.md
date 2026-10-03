@@ -122,6 +122,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
 - Manual checklist (T13): `docs/manual-test.md`, the live end-to-end pass as tables (open / shell / views by tag / Kanban
   moves / live refresh / themes / week start / large graph / accessibility) with the seed's real values, the timing
   targets and the known gaps.
+- Tests (T14): `src/ui/hostile.test.ts` renders a node, a task, a tag, a property, a closed value and a saved-view name
+  titled `<img src=x onerror=alert(1)>" onmouseover="x</button>` in all four views and the menus, and checks that no
+  element or attribute is created from them and that attributes carrying them stay intact.
 - Documentation (T14): README (requirements, install as an unpacked plugin, use, data and privacy, limits and known
   issues with the measured performance, development) and ARCHITECTURE.md (layers, module table, data flow, refresh and
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
