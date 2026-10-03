@@ -298,6 +298,7 @@ Rows added with the T14 review fixes; none run live yet.
 | J1 | Timeline in Week zoom: click the range label, the toolbar padding; Kanban: click the hint and the "Sort" label | The zoom, sort and other view settings do not change | not run |  |  |  |
 | J2 | Create tags titled "2026 goals", "true" and ":kw", tag a node with each, open each in Planner | Each tag shows its node | not run |  |  |  |
 | J3 | Two tags with the same title, one node each; open each | Each shows only its own node | not run |  |  |  |
+| J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 | J5 | Save a view with the suggested name; save another named "#Project [[x]] {{y}}" | Suggested name is "Project kanban" (no #); the second is saved as "Project x y"; neither block on "Planner views" has a tag; no view block shows up as a card | not run |  |  |  |
 | J6 | On "Planner views", edit one view block's hidden `planner-view-config` to `{"v":1,"config":{}}` (e.g. via the CLI), reopen Planner, open Saved views | The other views list and open; the broken one is greyed with "Cannot be opened: …" and can be deleted | not run |  |  |  |
 | J7 | Give #Project a choice property that allows multiple values | It is not listed in the filters, Kanban Columns / Swimlanes or Done when | not run |  |  |  |
@@ -308,7 +309,6 @@ Rows added with the T14 review fixes; none run live yet.
 | J12 | Start dragging a Kanban card, edit a node's Status from another tab while holding it, then drop it outside the Planner frame (or press Escape) | The card does not jump during the drag; after it ends the board redraws with the edit and later edits still redraw | not run |  |  |  |
 | J13 | Set a #Project node's Start, then remove the value in Logseq | The node shows with no Start (undated or by its End); the rest of the tag loads | not run |  |  |  |
 | J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | not run |  |  |  |
-| J4 | Move a page holding a #Project node to Recycle; separately, delete one #Project block | Neither node shows in any view; tasks that link only them are gone too | not run |  |  |  |
 
 ## Not covered / known gaps
 

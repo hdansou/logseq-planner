@@ -203,7 +203,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   Deferral of a refresh during a drag in progress was not checked live.
 - Logseq's default dark theme was checked on the Timeline only. Shift+Enter on a focused
   Timeline bar was not checked.
-- In docs/manual-test.md, 13 of 126 rows are marked partial and 13 were not run.
+- In docs/manual-test.md, 13 of 126 rows are marked partial and 13 were not run. The 14
+  rows for the T14 review fixes (J1 to J14) have not been run live yet.
 
 **Behavior**
 
