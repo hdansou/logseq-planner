@@ -160,6 +160,9 @@ All notable changes to this project are documented here. The format follows
   nested tags and ref titles. Both are asked at once (`loadNodesAndTasks`; `loadTasks` is gone). Same nodes, tasks and
   views as before; on the 2,000-node seed the node pull went from 276 ms to about 80 ms and the task pull from 314 ms to
   about 100 ms when run live by hand.
+- Queries (T13a): a Date value's journal day is pulled with the node (`{<date ident> [:db/id :block/journal-day]}` in
+  `nodePull`), so the separate journal-day query (`JOURNAL_DAYS_QUERY`, which queued behind the task query in the
+  host's worker) is gone. A Date value without a journal day still fails fast, as before.
 - Timeline (T13a): only nodes that touch the range get a row. The per-node edge hints for nodes wholly outside the
   range are replaced by one line above the grid, "412 earlier · 1,105 later"; each side is a button
   (`data-tl-jump="earlier|later"`, `data-tl-day`) that moves the range to the nearest of those nodes (latest end before

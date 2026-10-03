@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import writesFixture from "./__fixtures__/writes.json";
-import nodesFixture from "./__fixtures__/nodes.json";
 import { EMPTY_PLACEHOLDER } from "./normalize";
 import { loadTagInfos } from "./schema";
-import { loadNodes, loadNodesAndTasks, nodesQuery } from "./queries";
+import { CLASS_EXTENDS_RULES, loadNodes, loadNodesAndTasks, nodesQuery } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
@@ -324,7 +323,8 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
   it("a node whose value is the empty placeholder sits in No <prop> (normalised to no value)", async () => {
     const t = tag("Project");
     const status = choiceProp(t, "Status").ident;
-    const rows = (nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][]).map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
+    const pulled = (await dq(nodesQuery(tags), "Project", CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+    const rows = pulled.map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
     const nodes = await loadNodes(async (q, ...i) => (q === nodesQuery(tags) ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
     expect(nodes.find((n) => n.uuid === ARCHIVE)!.choices[status]).toBeUndefined();
     const l = await project({ items: viewItems(nodes, [], null, null, statusValues) });

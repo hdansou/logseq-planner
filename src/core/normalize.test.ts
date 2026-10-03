@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { buildNodes, buildTasks, EMPTY_PLACEHOLDER, isEmptyPlaceholder, journalDayToIso, localDateTime, systemZone } from "./normalize";
 import { buildTagInfos } from "./schema";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
-import nodesFixture from "./__fixtures__/nodes.json";
-import datesFixture from "./__fixtures__/dates.json";
 import tasksFixture from "./__fixtures__/tasks.json";
+import { CLASS_EXTENDS_RULES, nodesQuery } from "./queries";
+import { fixtureDq } from "../ui/test-fakes";
 
 describe("journalDayToIso", () => {
   it("formats a journal-day number", () => {
@@ -40,13 +40,17 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
   // T01 probe saw the same entity when a uuid or ident string was written. These rows are the fixture rows with that
   // observed shape put in by hand: the one allowed exception to fixture-only data. The id is arbitrary on purpose.
   const PLACEHOLDER = { id: 4242, ident: EMPTY_PLACEHOLDER };
+  let pulled: [Record<string, unknown>][] = [];
+  // The #Project rows as the node pull returns them (fixture rows through the fixture fake).
+  beforeAll(async () => {
+    pulled = (await fixtureDq()(nodesQuery(tags), "Project", CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+  });
   const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
   const project = tags.find((t) => t.title === "Project")!;
   const status = project.choiceProps.find((p) => p.title === "Status")!.ident;
   const ARCHIVE = "6a000000-0000-4000-8000-000000000004";
-  const rowsWith = (v: unknown) =>
-    (nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][]).map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: v } : n]);
-  const archive = (v: unknown) => buildNodes(rowsWith(v), datesFixture.date.detail as unknown[], tags, project, true, () => -300).find((n) => n.uuid === ARCHIVE)!;
+  const rowsWith = (v: unknown) => pulled.map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: v } : n]);
+  const archive = (v: unknown) => buildNodes(rowsWith(v), tags, project, true, () => -300).find((n) => n.uuid === ARCHIVE)!;
 
   it("a choice value that is the placeholder entity (by ident) is no value", () => {
     expect(isEmptyPlaceholder(PLACEHOLDER)).toBe(true);
@@ -62,7 +66,7 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
 
   it("a task whose Status is the placeholder has no status", () => {
     const rows = (tasksFixture.taskRefs.detail as unknown as [Record<string, unknown>][]).map(([t]) => [{ ...t, ":logseq.property/status": PLACEHOLDER }]);
-    const nodes = buildNodes(nodesFixture.projectWithExtends.detail as unknown[], datesFixture.date.detail as unknown[], tags, project, true, () => -300);
+    const nodes = buildNodes(pulled, tags, project, true, () => -300);
     const tasks = buildTasks(rows, nodes, () => -300);
     expect(tasks.length).toBeGreaterThan(0);
     for (const t of tasks) expect(t.status).toBeNull();

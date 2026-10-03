@@ -42,11 +42,6 @@ interface RawTask {
   ":logseq.property/deadline"?: number;
   ":logseq.property/scheduled"?: number;
 }
-/** One row of the journal-day query (`:keys raw journal-day`). */
-interface RawJournalDay {
-  raw: number;
-  "journal-day": number;
-}
 
 /**
  * The entity Logseq points a property at when it has no value: removing built-in Status leaves the attribute on this
@@ -92,38 +87,26 @@ function propsOf(node: RawNode, tagsById: Map<number, TagInfo>) {
 
 const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
 
-/** Journal page ids referenced by Date values of the selected nodes: input of the journal-day query. */
-export function journalPageIds(raw: unknown[], tags: TagInfo[], tag: TagInfo, childTags: boolean): number[] {
-  const tagsById = tagMap(tags);
-  const ids = new Set<number>();
-  for (const node of selectNodes(raw, tag, childTags)) {
-    for (const p of propsOf(node, tagsById).dateProps) {
-      const v = node[p.ident];
-      if (p.type === "date" && isRef(v)) ids.add(v.id);
-    }
-  }
-  return [...ids];
-}
-
-/** Raw `nodesQuery` rows + journal-day rows → nodes with mapped dates and choices. */
+/**
+ * Raw `nodesQuery` rows → nodes with mapped dates and choices. A Date value is the journal page ref pulled with its
+ * `journal-day` (`{id, "journal-day"}`); one without it fails fast (a Date property points at a journal page, T01).
+ */
 export function buildNodes(
   raw: unknown[],
-  rawJournalDays: unknown[],
   tags: TagInfo[],
   tag: TagInfo,
   childTags: boolean,
   zone: ZoneOffset,
 ): PlannerNode[] {
   const tagsById = tagMap(tags);
-  const journalDays = new Map((rawJournalDays as RawJournalDay[]).map((r) => [r.raw, r["journal-day"]]));
   return selectNodes(raw, tag, childTags).map((node) => {
     const { dateProps, choiceProps } = propsOf(node, tagsById);
     const dates: Record<string, LocalDate> = {};
     for (const p of dateProps) {
       const v = node[p.ident];
       if (p.type === "date" && isRef(v)) {
-        const day = journalDays.get(v.id);
-        if (day === undefined) throw new Error(`no journal day for page ${v.id} (${node.title}, ${p.title})`);
+        const day = (v as { "journal-day"?: unknown })["journal-day"];
+        if (typeof day !== "number") throw new Error(`no journal day for page ${v.id} (${node.title}, ${p.title})`);
         dates[p.ident] = { day: journalDayToIso(day), time: null };
       } else if (p.type === "datetime" && typeof v === "number") {
         dates[p.ident] = localDateTime(v, zone);

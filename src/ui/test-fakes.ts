@@ -5,7 +5,7 @@ import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { buildTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { JOURNAL_DAYS_QUERY, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
+import { nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -32,10 +32,21 @@ const fixtureTags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFi
 /** Pull-map key of an attribute (`:db/id` → `id`, `:block/title` → `title`, a property keeps its ident). */
 const pullKey = (attr: string) => (attr.startsWith(":block/") ? attr.slice(7) : attr === ":db/id" ? "id" : attr);
 
-/** A `pull [*]` fixture row cut down to the attributes `nodesQuery` pulls (absent attributes stay absent, like a real pull). */
+/** Date idents (journal page refs) of the fixture tags: `nodesQuery` pulls them with the page's `journal-day`. */
+const dateIdents = new Set(fixtureTags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
+/** Journal page id → journal day, from the fixture's journal-day rows (dates.json). */
+const journalDays = new Map((datesFixture.date.detail as { raw: number; "journal-day": number }[]).map((r) => [r.raw, r["journal-day"]]));
+
+/**
+ * A `pull [*]` fixture row cut down to the attributes `nodesQuery` pulls (absent attributes stay absent, like a real
+ * pull); a Date value `{id}` gets its page's `journal-day` from dates.json, as the nested pull returns it.
+ */
 function narrowNode(row: Row): Row {
   const keys = [":db/id", ":block/uuid", ":block/title", ":block/tags", ...nodePropIdents(fixtureTags)].map(pullKey);
-  return Object.fromEntries(keys.filter((k) => k in row).map((k) => [k, row[k]]));
+  return Object.fromEntries(keys.filter((k) => k in row).map((k) => {
+    const v = row[k] as { id: number };
+    return [k, dateIdents.has(k) && journalDays.has(v.id) ? { id: v.id, "journal-day": journalDays.get(v.id) } : row[k]];
+  }));
 }
 
 /** A fixture task row (T01 pull) cut down to the `TASKS_QUERY` pull: Status `{ident, title}`, Deadline, Scheduled, refs as `{id}`. */
@@ -83,7 +94,6 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   if (query === TAGS_QUERY) return opts.noTags ? [] : (tagsFixture.query.detail as unknown[]);
   if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
   if (query === nodesQuery(fixtureTags)) return nodeRows(inputs[0]).map(([n]) => [narrowNode(n)]);
-  if (query === JOURNAL_DAYS_QUERY) return datesFixture.date.detail as unknown[];
   if (query === TASKS_QUERY) {
     // Bound by the tag: the fixture tasks that reference one of its nodes (child tags included, as the query's rule does).
     const ids = new Set(nodeRows(inputs[0]).map(([n]) => n.id));

@@ -1,7 +1,7 @@
 // Graph queries for nodes and tasks. The datascript call is injected (see `Dq`); no SDK use here.
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { Dq } from "./schema";
-import { buildNodes, buildTasks, journalPageIds, systemZone, type ZoneOffset } from "./normalize";
+import { buildNodes, buildTasks, systemZone, type ZoneOffset } from "./normalize";
 
 /** Rules go last in `:in` as a string with a leading space (scripts/probe.mjs `RULES`). */
 export const CLASS_EXTENDS_RULES = ` [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]
@@ -19,17 +19,21 @@ export function nodePropIdents(tags: TagInfo[]): string[] {
   return [...new Set(tags.flatMap((t) => [...t.dateProps, ...t.choiceProps].map((p) => p.ident)))].sort();
 }
 
+/**
+ * The node pull: `NODE_ATTRS` and every tag's date/choice ident; a Date ident (a journal page ref) as
+ * `{<ident> [:db/id :block/journal-day]}` so the day comes with the node (T13a: no separate journal-day query, which
+ * queued behind the task query live). DateTime and choice idents stay plain (epoch ms, `{id}`).
+ */
+export function nodePull(tags: TagInfo[]): string {
+  const dates = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
+  return [NODE_ATTRS, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ");
+}
+
 // Same join as probe query `nodesOfTagWithExtends` (fixture nodes.json), with the narrow pull.
-export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${[NODE_ATTRS, ...nodePropIdents(tags)].join(" ")}])
+export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${nodePull(tags)}])
           :in $ ?tag-title %
           :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]
                  [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]`;
-
-// The probe's `dateValues` rows (`:keys raw journal-day`), looked up by journal page id.
-export const JOURNAL_DAYS_QUERY = `[:find ?raw ?journal-day
-          :keys raw journal-day
-          :in $ [?raw ...]
-          :where [?raw :block/journal-day ?journal-day]]`;
 
 /**
  * #Task blocks that reference a node of the tag (same tag join as `nodesQuery`), pulling what `buildTasks` reads: Status
@@ -55,9 +59,7 @@ export interface LoadNodesOptions {
 /** Nodes of `tag` (plus extending tags when `childTags`) with their dates and choice values mapped. */
 export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<PlannerNode[]> {
   const raw = await dq(nodesQuery(tags), tag.title, CLASS_EXTENDS_RULES);
-  const pageIds = journalPageIds(raw, tags, tag, opts.childTags);
-  const days = pageIds.length > 0 ? await dq(JOURNAL_DAYS_QUERY, pageIds) : [];
-  return buildNodes(raw, days, tags, tag, opts.childTags, opts.zone ?? systemZone);
+  return buildNodes(raw, tags, tag, opts.childTags, opts.zone ?? systemZone);
 }
 
 /**

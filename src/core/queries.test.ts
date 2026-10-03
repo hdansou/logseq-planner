@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY, JOURNAL_DAYS_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
 import { fixtureDq } from "../ui/test-fakes";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { ZoneOffset } from "./normalize";
@@ -55,7 +55,9 @@ describe("loadNodes", () => {
     const idents = nodePropIdents(tags);
     expect(calls[0].query).toBe(nodesQuery(tags));
     expect(calls[0].query).not.toContain("[*]");
-    expect(calls[0].query).toContain(`(pull ?b [:db/id :block/uuid :block/title :block/tags ${idents.join(" ")}])`);
+    const dateIdents = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
+    const attrs = idents.map((i) => (dateIdents.has(i) ? `{${i} [:db/id :block/journal-day]}` : i));
+    expect(calls[0].query).toContain(`(pull ?b [:db/id :block/uuid :block/title :block/tags ${attrs.join(" ")}])`);
     // Project's own Start/End/Status/Owner, Meeting's Date/Type and Task's Deadline/Scheduled/Status/Priority, each once
     const project = tag("Project");
     for (const p of [...project.dateProps, ...project.choiceProps, ...tag("Meeting").dateProps, ...tag("Task").dateProps]) expect(idents).toContain(p.ident);
@@ -133,16 +135,24 @@ describe("loadNodes", () => {
     expect(byTitle(nodes, "Archive cleanup").choices[owner.ident]).toBeUndefined();
   });
 
-  it("skips the date query when no node has a Date value", async () => {
-    const { dq, calls } = fakeDq();
-    await loadNodes(dq, tags, tag("Meeting"), { childTags: true, zone: west5 });
-    expect(calls.some((c) => c.query === JOURNAL_DAYS_QUERY)).toBe(false);
+  it("pulls a Date value's journal day with it: one query, no journal-day lookup (T13a)", async () => {
+    const start = tag("Project").dateProps.find((p) => p.title === "Start")!.ident;
+    const meetingDate = tag("Meeting").dateProps.find((p) => p.title === "Date")!.ident; // DateTime: stays a plain attribute
+    expect(nodesQuery(tags)).toContain(`{${start} [:db/id :block/journal-day]}`);
+    expect(nodesQuery(tags)).not.toContain(`{${meetingDate} `);
+    for (const title of ["Project", "Meeting"]) {
+      const { dq, calls } = fakeDq();
+      await loadNodes(dq, tags, tag(title), { childTags: true, zone: west5 });
+      expect(calls.map((c) => c.query)).toEqual([nodesQuery(tags)]);
+    }
   });
 
-  it("fails fast when a Date value's journal page is unknown", async () => {
+  it("fails fast when a pulled Date value has no journal day", async () => {
     const base = fixtureDq();
-    const dq = async (query: string, ...inputs: unknown[]) => (query === JOURNAL_DAYS_QUERY ? [] : base(query, ...inputs));
-    await expect(loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 })).rejects.toThrow(/journal/);
+    const strip = (rows: unknown[]) => (rows as [Record<string, unknown>][]).map(([n]) =>
+      [Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v && typeof v === "object" && "journal-day" in v ? { id: (v as unknown as { id: number }).id } : v]))]);
+    const dq = async (query: string, ...inputs: unknown[]) => (query === nodesQuery(tags) ? strip(await base(query, ...inputs)) : base(query, ...inputs));
+    await expect(loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 })).rejects.toThrow(/journal day/);
   });
 });
 
