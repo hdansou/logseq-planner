@@ -160,6 +160,25 @@ describe("create", () => {
     expect(store.cached()).toEqual([]);
   });
 
+  it("re-resolves the page when appending fails: a page recycled mid-session gets the Recycle guidance (T07 D5)", async () => {
+    const { g, deps } = fakeGraph();
+    const append = deps.appendBlock;
+    // Appending to a page that is no longer live (moved to Recycle) returns no block, as observed live.
+    deps.appendBlock = async (p, name) => (p === g.page ? append(p, name) : null);
+    const store = createViewStore(deps);
+    const first = await store.create("Roadmap", timeline);
+    g.page = null; // moved to Recycle: findPage no longer sees it
+    await expect(store.create("Meetings", calendar)).rejects.toThrow('Page "Planner views" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
+    expect(store.cached()).toEqual([first]);
+  });
+
+  it("still says the block was not created when the page is live", async () => {
+    const { g, deps } = fakeGraph();
+    g.page = "page-1";
+    deps.appendBlock = async () => null;
+    await expect(createViewStore(deps).create("Roadmap", timeline)).rejects.toThrow("appendBlock returned no block");
+  });
+
   it("rejects an empty name before touching the graph", async () => {
     const { deps, log } = fakeGraph();
     await expect(createViewStore(deps).create("  ", timeline)).rejects.toThrow(/name/i);

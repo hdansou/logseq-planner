@@ -51,12 +51,14 @@ export function createViewStore(deps: StorageDeps) {
     return cache;
   }
 
+  const recycled = () => new Error(`Page "${PAGE_TITLE}" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.`);
+
   async function ensurePage(): Promise<string> {
     if (pageUuid) return pageUuid;
     await deps.createPage(PAGE_TITLE);
     pageUuid = await deps.findPage(PAGE_TITLE);
     // Observed host behaviour: with a same-titled page in Recycle, createPage returns that recycled page and creates nothing.
-    if (!pageUuid) throw new Error(`Page "${PAGE_TITLE}" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.`);
+    if (!pageUuid) throw recycled();
     return pageUuid;
   }
 
@@ -90,7 +92,11 @@ export function createViewStore(deps: StorageDeps) {
       try {
         const page = await ensurePage();
         const id = await deps.appendBlock(page, title);
-        if (!id) throw new Error("appendBlock returned no block");
+        if (!id) {
+          // The remembered page may have gone to Recycle since (seen live, T07 D5): look it up again, never trust it.
+          pageUuid = await deps.findPage(PAGE_TITLE);
+          throw pageUuid ? new Error("appendBlock returned no block") : recycled();
+        }
         const stored = await writeConfig(id, serializeViewConfig(config));
         if (stored.name.trim() !== title) throw mismatch("name", id);
         entry.id = id;
