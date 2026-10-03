@@ -9,11 +9,11 @@ first (TDD); UI items are accepted on what renders; docs land in the same commit
 code; `npm run typecheck`, `npm test` and `npm run build` pass at every commit. Commit
 subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
-## Resume here (written 2026-10-03, end of the second session)
+## Resume here (updated 2026-10-03, end of the third session)
 
 State: every v1 item below (T00–T14) and the performance item T13a are done; so are N02 (as far
-as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commit
-and the docs commits after it. No remote, nothing pushed. The full checklist was run in the Logseq WEB app (dev build of the main checkout at
+as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commits after it. No remote, nothing pushed.
+The full checklist was run in the Logseq WEB app (dev build of the main checkout at
 d2ab7726ab, 2026-09-02, in-memory graph); a focused pass was run on the desktop app 2.0.1 nightly
 (8ffbb22, 2026-10-01) with the CLI-seeded graph `planner-desktop` (kept for re-runs). docs/manual-test.md: A–I 115 pass, 5 partial, 6 not run; J 15 pass.
 
@@ -29,9 +29,9 @@ How the work was run (rules set by the owner):
   per item; plain technical writing.
 - Nothing is marked done on unit tests alone: every acceptance item is exercised live on
   a test graph, and the result is written in the Progress log.
-- Testing stays on playwright + the web app until the owner says to switch to the desktop
-  app with a CLI-seeded graph. Loading Planner into the desktop app installs it in the
-  owner's real Logseq profile: ask first.
+- The owner approved desktop testing on 2026-10-03: Planner is an unpacked plugin in their
+  profile, the graph `planner-desktop` is the desktop test graph. The web app remains the
+  quick loop for full checklist runs.
 
 Live-check method (web app):
 1. `pnpm watch` in the main `logseq` checkout (web app on :3001; `yarn watch` no longer works).
