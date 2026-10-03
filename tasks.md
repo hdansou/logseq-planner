@@ -98,7 +98,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       the right sidebar. Test first: debounce and state preservation with fakes. Accept:
       editing a task elsewhere redraws the view. Est: ~30 min
 
-- [ ] **T13 Live end-to-end pass** — `docs/manual-test.md`. Four views × #Task, #Project,
+- [x] **T13 Live end-to-end pass** — `docs/manual-test.md`. Four views × #Task, #Project,
       #Meeting, a tag without dates, an empty tag; light and dark; Inkwell and one other
       theme; first-view and redraw timings on a ~2,000-node seed. Accept: checklist passes,
       timings recorded. Est: ~40 min
@@ -417,3 +417,19 @@ Total: about 10 hours.
   by row yet; the rows marked [new] (#Task in Timeline/Calendar/Agenda, an empty tag
   with and without properties, default dark theme, one non-Inkwell theme) have not been
   run. T13 stays open until that pass is done.
+- 2026-10-03 T13 done for the web app. docs/manual-test.md is filled row by row: 100
+  pass, 13 partial, 13 not run (each row carries the build it was checked on). Rows run
+  for the first time on the current build (code 4d45a0b): #Task in Timeline, Calendar
+  and Agenda (deadline/scheduled tasks as points, undated tasks in the footnote, done
+  tasks hidden in the Agenda); #Meeting Kanban by Type; #Page and a property-less tag
+  ("no date properties", "no choice properties"); an empty tag with properties ("No
+  #Empty probe nodes yet" in all four kinds) that leaves the empty state when a node is
+  tagged; the shortcut does nothing while editing a block; 720 px wide; a rejecting
+  write (error shown, graph unchanged); a slow write (card pending, not draggable, ⋯
+  disabled); Logseq's default dark theme on the Timeline; a second theme; week start on
+  Wednesday; tab order with a 2px ring on every stop; tag menu by keyboard.
+  Finding: deleting a tag (or the tag of the open view) does not trigger a refresh; the
+  tag stays listed until the next graph change or the 30 s poll, then Planner falls back
+  to the default view with a message. A created tag appears at once.
+  Not run (need the desktop app, another browser, a person, or sync): A9, C4.3, D11,
+  D12, D14, E12, G5, H8, H12, H13, H14, I9, I10. Partial rows are listed in the doc.
