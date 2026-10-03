@@ -369,3 +369,20 @@ Total: about 10 hours.
   changes nothing). Reopening when not stale no longer re-reads saved views.
   Not verified live: deferral during a drag in progress; sync; a second desktop window;
   reload time at ~2,000 nodes (T13).
+- 2026-10-03 T13 in progress. Tooling done (b9d2335, de23c5d, b00b1b7; 414 unit tests):
+  `npm run probe -- --seed-large [N]`, dev-only `window.__plannerTimings`,
+  docs/manual-test.md. Large seed imported live: 2,000 #Load item nodes + 2,027 tasks
+  (1.25 MB EDN) in 105 s; graph then holds 2,000 items and 2,033 tasks.
+  Timings on #Load item, web app, DEV build served by the dev server, headless Chrome:
+  first load 757 ms (queries 672, render 85) — meets < 1 s. Live refresh after one
+  Status edit, excluding the 100 ms debounce: Timeline 661 ms, Calendar 605 ms, Agenda
+  774 ms, Kanban 856 ms — MISSES the < 300 ms redraw target. Per query in one refresh:
+  tags 5 ms, tag properties 13 ms, nodes `pull [*]` 276 ms (2,000 rows, 1.1 MB), journal
+  days 15 ms, tasks 314 ms (2,033 rows, 2.7 MB: every #Task in the graph with nested
+  refs). Render: Timeline ~95 ms (1,763 rows, 10.6k elements), Calendar ~35 ms, Agenda
+  ~190 ms (19k elements), Kanban ~310 ms (23.7k elements). View switch to paint:
+  Timeline 99 ms, Calendar 37 ms, Agenda 165 ms, Kanban 322 ms. A filter click: 19 ms.
+  Finding for the product: the Timeline lists every dated node of the tag, so with 2,000
+  nodes hundreds of out-of-range rows (hint only) come before the bars in range.
+  Next: T13a performance (narrower pulls, tasks limited to the loaded nodes, less DOM
+  for the big views), then re-measure and run the checklist.
