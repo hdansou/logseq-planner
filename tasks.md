@@ -66,7 +66,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       with a fake SDK: defaults, validation, cache updated before write. Accept: live save /
       reload round trip noted in the progress log. Est: ~40 min
 
-- [ ] **T07 Workspace shell** — `src/ui/workspace.ts`. Full-screen recipe; top bar (view
+- [x] **T07 Workspace shell** — `src/ui/workspace.ts`. Full-screen recipe; top bar (view
       switch, saved views, close), settings bar (tag, child tags, start, end, done values),
       tag tree, filters, per-view toolbar slot, empty states (no tags, tag without dates,
       no nodes, no matches). Test first (happy-dom): each empty state and the settings bar
@@ -224,3 +224,28 @@ Total: about 10 hours.
   is the Delete button in More → Recycle (native confirm dialog: `playwright-cli
   dialog-accept`). Graph left clean: no views page, no `plugin.property` idents.
   Open: concurrent writes are not serialised; v1 has no auto-restore of a recycled page.
+- 2026-10-03 T07 done (9af8e98; fixes 3afa677, b063b35, cbb9339, 09a2898, 9d89c05). 147
+  unit tests. Live on `plugin-test` (build served on :8294, driven with playwright frame
+  locators; selectors listed in the agent report are `data-*` hooks in workspace.ts):
+  toolbar button, command palette and `g` then `Shift+P` open Planner full-screen with
+  focus inside; Escape closes a popover first, then Planner; Close hides it. Opens on
+  #Meeting. Tag tree and tag menu update the bar (Project, Meeting, Task, Page → no-dates
+  state). Child tags 4 ↔ 3 nodes. Filters with counts; no-matches + Clear filters;
+  Owner=Alice → 2 nodes, 4 tasks. Done values label updates. View switch keeps settings.
+  Saved views: save, switch away, reopen (tag, kind, filters, done values restored),
+  delete; stored JSON read back from the graph. Built-in tags collapsed by default
+  (filters visible at 720px), auto-expand on a built-in tag, toggle works. 2px focus
+  ring. Looks right in default light, Inkwell light and Inkwell dark (screenshots).
+  Defects found live and fixed: serif text (host font name without fallback); selected
+  rows dark-on-blue in the default theme (`--accent` = `--primary`; tint-soft is now
+  derived from the tint); default tag was a child tag; task count ignored filters;
+  `[hidden]` overridden by component CSS; views written into a recycled page when it was
+  recycled mid-session (append by a remembered uuid succeeds on a recycled page: the
+  store now looks up the live page before every write and drops its cache when the page
+  is gone).
+  Decisions taken in T07 (change if wrong): filters are tick-to-narrow (nothing ticked =
+  no filter); saving always creates a new view (no update-in-place); deleting a saved
+  view has no confirmation; "no dates" state is skipped in Kanban.
+  Open: the left column stops below the last filter instead of running to the bottom of
+  the window (fix with the first view, T08); the macOS desktop window-button padding and
+  the `g Shift+P` chord are unverified on the desktop app.
