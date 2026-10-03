@@ -9,6 +9,80 @@ first (TDD); UI items are accepted on what renders; docs land in the same commit
 code; `npm run typecheck`, `npm test` and `npm run build` pass at every commit. Commit
 subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
+## Resume here (written 2026-10-03, end of the second session)
+
+State: every v1 item below (T00–T14) and the performance item T13a are done. 488 unit
+tests pass at HEAD (`c4cab51` plus this note). 87 local commits, no remote, nothing pushed.
+All live validation was done in the Logseq WEB app (dev build of the main checkout at
+d2ab7726ab, 2026-09-02, in-memory graph `plugin-test`). Nothing has run on the desktop app
+or on a current Logseq build.
+
+Read in this order: this section, "Next" below, then the Progress log entry of whatever
+you touch (it records what was verified live, the decisions taken and what was not
+verified). docs/manual-test.md is the row-by-row checklist with results.
+
+How the work was run (rules set by the owner):
+- One task per sub-agent, on a lower model than the coordinator (Sonnet by default, Opus
+  for design-heavy or review work). The coordinator reviews, validates and keeps this file
+  current. Sub-agents never edit tasks.md and never claim live behaviour.
+- TDD (tests written first and seen failing), DRY, KISS; docs in the same commit; commit
+  per item; plain technical writing.
+- Nothing is marked done on unit tests alone: every acceptance item is exercised live on
+  a test graph, and the result is written in the Progress log.
+- Testing stays on playwright + the web app until the owner says to switch to the desktop
+  app with a CLI-seeded graph. Loading Planner into the desktop app installs it in the
+  owner's real Logseq profile: ask first.
+
+Live-check method (web app):
+1. `pnpm watch` in the main `logseq` checkout (web app on :3001; `yarn watch` no longer works).
+2. `npm run dev` here (dev server :8293: probe hook and `window.__plannerTimings`).
+   For acceptance, build HEAD into a scratch copy and serve it with `vite preview` on :8294:
+   the dev server reloads the iframe on every source edit and breaks the plugin's connection.
+3. playwright-cli session → create or open the DB graph `plugin-test` → register with
+   `LSPluginCore.register({key: "logseq-planner", url: "http://localhost:<port>", webPkg: {…}})`
+   (`key` gives a stable id; without it plugin properties look lost after a reload).
+4. Seed: `PLANNER_PW_CWD=<playwright session dir> npm run probe -- --seed` (needs the :8293
+   build registered); `--seed-large` adds the 2,000-node `#Load item` tag (~105 s). The
+   in-memory graph can lose its data on a page reload: check the seed after every reload,
+   and `git checkout -- src/core/__fixtures__` after seeding (the probe rewrites fixtures).
+5. Drive the UI through the `data-*` hooks with playwright frame locators; read the graph
+   with `logseq.api.datascript_query` in the host page; wrap host `logseq.api.*` functions
+   to log what the plugin calls. Clean up afterwards: views page (Recycle → Delete),
+   `plugin.property.*` idents, test tags.
+
+## Next
+
+- [ ] **N01 Desktop validation** — needs the owner's go-ahead (installs in their profile).
+      Seed a test graph with the `logseq` CLI, load the built plugin as an unpacked plugin,
+      run docs/manual-test.md there. Covers what the web app could not: a current Logseq
+      build, a persisted graph (queries that scan on a constant attribute value are
+      untested there), macOS window-button padding, the `g Shift+P` chord, refresh under
+      sync and from a second window, dragging a card to a column scrolled out of view,
+      timings on a production build.
+- [ ] **N02 Checklist rows not run** — docs/manual-test.md: A9, C4.3, D11, D12, D14, E12,
+      G5, H8, H12, H13, I9, I10 and J3, J7, J10–J14; the 13 partial rows.
+- [ ] **N03 Owner decisions** —
+      (a) LICENSE file: package.json says MIT, the repo has none.
+      (b) Agenda lateness: the Agenda calls a task with only a past Scheduled date overdue;
+          Timeline and Calendar mark lateness on the Deadline only. Pick one rule.
+      (c) The "Decisions taken (change if wrong)" lists in the Progress log for T05, T07,
+          T08, T09, T10, T11 and T13a (e.g. tick-to-narrow filters, saving always creates a
+          new view, no delete confirmation, Month = 8-week window, caps of 50 cards and 100
+          groups, Timeline rows only in range).
+- [ ] **N04 Known limitations to fix or accept** — deleting a tag triggers no refresh (next
+      change or 30 s poll); reopening after a stale hide reloads twice; the Agenda's
+      Overdue bucket is not capped (923 entries at 2,000 nodes); Timeline refresh ran
+      254–302 ms on some runs right after opening (target 300 ms incl. the 50 ms
+      debounce); a task linked to two nodes is listed under the first one in the Agenda by
+      node; saved-view writes are not serialised; no auto-restore of a views page in
+      Recycle; a band continuing on both sides shows its title mid-row; no CSP.
+- [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
+      (logseq-plugin-release skill). After N01 and N03(a).
+- [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
+      (REQUIREMENTS.md).
+- [ ] **N07 Query Builder follow-up (other repo)** — its theme code has the same
+      theme-switch race fixed here in 2c90798; not checked there.
+
 ## v1
 
 - [x] **T00 Scaffold** — standard file set: `package.json` (dev/build/test/typecheck,
