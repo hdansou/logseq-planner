@@ -127,6 +127,13 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Queries (T14): the node and task queries take the tag's entity id (a number) instead of its title. The host EDN-reads a
+  top-level string input, so a tag titled "2026 goals", "true" or ":kw" loaded no nodes (seen live), and two tags with
+  the same title merged. The title join is gone; `readRaw` keys staleness on the tag id, so renaming the view's tag
+  re-asks neither query.
+- Queries (T14): nodes and tasks in Recycle are no longer loaded: a block with `:logseq.property/deleted-at`, or whose
+  page has it (a block on a recycled page has none of its own, seen live), is left out of the node query, and of the
+  task query both as the task and as the node it links (`notRecycled` in `src/core/queries.ts`).
 - Workspace (T14): a click anywhere in the view toolbar (the range label, the hint, a field label, its padding) no
   longer counts as a view switch that reset the view's settings to the kind's defaults. The toolbar container's kind
   hook is now `data-toolbar-kind`; `data-view-kind` is only on the top bar's view-switch buttons.

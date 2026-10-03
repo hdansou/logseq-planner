@@ -120,7 +120,8 @@ Steps, with the module that does each:
 3. **Config.** The workspace keeps one `ViewConfig`. If none exists, the default for the first
    own root tag with date properties is used.
 4. **Nodes and tasks.** `readRaw` asks for the tag's nodes, with the child tags if enabled,
-   and for the #Task blocks that reference those nodes. Both pulls name their attributes: id,
+   and for the #Task blocks that reference those nodes. Both queries take the tag's entity id
+   (a number) as input, never its title, and leave out blocks in Recycle or on a recycled page. Both pulls name their attributes: id,
    uuid, title, tags and the Date, DateTime and choice idents of the graph's tags. A Date
    value is pulled with its journal day (`{ident [:db/id :block/journal-day]}`).
 5. **Normalise.** `buildData` maps raw rows. A Date becomes a local `YYYY-MM-DD`. A DateTime
@@ -147,7 +148,8 @@ Steps, with the module that does each:
 - One refresh runs at a time. An event that arrives during a refresh earns exactly one more.
 - `Workspace.refresh()` queues a `reload`. It reads week start, tags and the view's rows in
   one batch, then maps the rows with the new tags. It asks a query again only when
-  `readRaw` finds the rows stale (a pulled property ident changed, or the tag was renamed).
+  `readRaw` finds the rows stale (a pulled property ident changed, or the view's tag id changed;
+  a renamed tag is the same tag).
 - It compares a JSON signature of tags, nodes, tasks, titles, week start and today with what
   is shown. Equal means no redraw. Different means a redraw that keeps scroll, expanded
   rows, `details` state and focus.
@@ -246,6 +248,8 @@ recorded in tasks.md.
 | Write the full-screen container style directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
 | Defer registrations with `setTimeout(…, 0)` and keep `main()` minimal. | Registrations must not delay the ready handshake (host gotcha §18, cited in CLAUDE.md and `src/index.ts`). |
 | Fail fast: a missing or invalid week start, an unknown ident in a saved view and a Date value without a journal day throw. | Project rule: no fallback that hides invalid state. |
+| The node and task queries take the tag's entity id, not its title. | The host EDN-reads a top-level string input: tags titled "2026 goals", "true" or ":kw" were not found, and same-titled tags merged (T14). A number input is passed through. |
+| The node and task queries leave out blocks with `deleted-at` and blocks whose page has it. | A block on a page in Recycle has no `deleted-at` of its own and kept showing (T14). |
 | Saved filters and done values store closed-value uuids. | Titles break on rename, and entity ids differ per device (T05, T06). |
 | Planner never creates or edits properties on a user's tags. | Users' schemas are theirs (REQUIREMENTS.md). |
 

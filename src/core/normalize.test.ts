@@ -43,7 +43,7 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
   let pulled: [Record<string, unknown>][] = [];
   // The #Project rows as the node pull returns them (fixture rows through the fixture fake).
   beforeAll(async () => {
-    pulled = (await fixtureDq()(nodesQuery(tags), "Project", CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+    pulled = (await fixtureDq()(nodesQuery(tags), tags.find((t) => t.title === "Project")!.id, CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
   });
   const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
   const project = tags.find((t) => t.title === "Project")!;

@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
-import { fixtureDq } from "../ui/test-fakes";
+import { buildTagInfos as _b, loadTagInfos } from "./schema";
+import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, notRecycled, readRaw, TASKS_QUERY, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { fixtureDq, type Recycled } from "../ui/test-fakes";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { ZoneOffset } from "./normalize";
 
@@ -43,10 +44,11 @@ const dateIdent = (t: TagInfo, title: string) => {
 };
 
 describe("loadNodes", () => {
-  it("sends the tag title and the extends rules last", async () => {
+  it("sends the tag's entity id (a number, not its title) and the extends rules last (T14)", async () => {
     const { dq, calls } = fakeDq();
     await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
-    expect(calls[0].inputs).toEqual(["Project", CLASS_EXTENDS_RULES]);
+    expect(calls[0].inputs).toEqual([tag("Project").id, CLASS_EXTENDS_RULES]);
+    expect(CLASS_EXTENDS_RULES.startsWith(" ")).toBe(true);
   });
 
   it("pulls only id, uuid, title, tags and the date and choice properties of every tag (T13a: no pull [*])", async () => {
@@ -67,7 +69,8 @@ describe("loadNodes", () => {
   });
 
   it("keeps the extends rule join of the node query", () => {
-    expect(nodesQuery(tags)).toContain(":in $ ?tag-title %");
+    expect(nodesQuery(tags)).toContain(":in $ ?tag %");
+    expect(nodesQuery(tags)).not.toContain(":block/title ?tag-title");
     expect(nodesQuery(tags)).toContain("(or [(= ?t ?tag)] (class-extends ?tag ?t))");
   });
 
@@ -194,11 +197,12 @@ describe("loadNodesAndTasks", () => {
     for (const t of tasks) for (const id of t.nodeIds) expect(ids.has(id)).toBe(true);
   });
 
-  it("the task query is bound to the tag's nodes (tag title + extends rules) and pulls no nested tags or ref titles (T13a)", async () => {
+  it("the task query is bound to the tag's nodes (tag id + extends rules) and pulls no nested tags or ref titles (T13a)", async () => {
     const { dq, calls } = fakeDq();
     await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
     const call = calls.find((c) => c.query === TASKS_QUERY)!;
-    expect(call.inputs).toEqual(["Project", CLASS_EXTENDS_RULES]);
+    expect(call.inputs).toEqual([tag("Project").id, CLASS_EXTENDS_RULES]);
+    expect(TASKS_QUERY).toContain(":in $ ?tag %");
     expect(TASKS_QUERY).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
     expect(TASKS_QUERY).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
     expect(TASKS_QUERY).toContain("{:block/refs [:db/id]}");
@@ -240,5 +244,76 @@ describe("loadTitles (titles of linked nodes that are not loaded)", () => {
     expect(TITLES_QUERY).toContain(":in $ [?s ...]");
     expect(TITLES_QUERY).toContain("[?b :block/uuid ?u] [(str ?u) ?s]");
     expect(titles).toEqual(new Map([[SITE, "Website relaunch"]]));
+  });
+});
+
+describe("tag by entity id, not title (T14, F2)", () => {
+  // The host EDN-reads a top-level string input: "2026 goals" arrives as 2026, "true" as a boolean, ":kw" as a keyword
+  // (src/ui/test-fakes.ts `hostReadInput`), so a title input never matched these tags. Fixture tags renamed, nothing else.
+  for (const title of ["2026 goals", "true", ":kw"]) {
+    it(`a tag titled "${title}" loads its nodes and tasks`, async () => {
+      const dq = fixtureDq({ retitle: { Project: title } });
+      const renamed = await loadTagInfos(dq);
+      const t = renamed.find((x) => x.title === title)!;
+      const { nodes, tasks } = await loadNodesAndTasks(dq, renamed, t, { childTags: true, zone: west5 });
+      expect(nodeTitles(nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
+      expect(tasks).toHaveLength(5);
+    });
+  }
+
+  it("two tags with the same title do not merge: each loads only its own nodes", async () => {
+    const dq = fixtureDq({ retitle: { Meeting: "Project" } });
+    const twins = await loadTagInfos(dq);
+    const [project, meeting] = [tag("Project").id, tag("Meeting").id].map((id) => twins.find((x) => x.id === id)!);
+    expect(meeting.title).toBe("Project");
+    expect(nodeTitles((await loadNodesAndTasks(dq, twins, project, { childTags: true, zone: west5 })).nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
+    expect(nodeTitles((await loadNodesAndTasks(dq, twins, meeting, { childTags: true, zone: west5 })).nodes)).toEqual(["Kickoff", "Late review", "Untimed meeting"]);
+  });
+
+  it("staleness is keyed on the tag id: a renamed tag re-asks neither query", async () => {
+    const { dq, calls } = fakeDq();
+    const prev = await readRaw(dq, tags, tag("Project"));
+    const renamed = _b(
+      (tagsFixture.query.detail as unknown as [Record<string, unknown>][]).map(([t]) => [t.title === "Project" ? { ...t, title: "Projects" } : t]),
+      propsFixture.query.detail as unknown[],
+    );
+    calls.length = 0;
+    const next = await readRaw(dq, renamed, renamed.find((t) => t.id === tag("Project").id)!, prev);
+    expect(calls).toEqual([]);
+    expect(next.nodes).toBe(prev.nodes);
+    expect(next.tasks).toBe(prev.tasks);
+  });
+});
+
+describe("recycled content is not loaded (T14, F4)", () => {
+  // Shape observed live 2026-10-03: a page in Recycle has :logseq.property/deleted-at; its blocks have none and keep
+  // :block/page → that page. Fixture rows (all seeded nodes are on page 226) plus a deleted-at on a page or a block.
+  const PAGE = 226;
+  const load = (recycled: Recycled, title = "Project") =>
+    loadNodesAndTasks(fixtureDq({ recycled }), tags, tag(title), { childTags: true, zone: west5 });
+  const byName = (title: string, rows: { title: string; id: number }[]) => rows.find((x) => x.title.startsWith(title))!.id;
+  const fixtureNode = async (title: string) => byName(title, (await load({})).nodes);
+  const fixtureTask = async (title: string) => byName(title, (await load({})).tasks);
+
+  it("both queries carry the Recycle clauses: the node, the node a task links, and the task", () => {
+    expect(nodesQuery(tags)).toContain(notRecycled("?b"));
+    expect(TASKS_QUERY).toContain(notRecycled("?n"));
+    expect(TASKS_QUERY).toContain(notRecycled("?b"));
+  });
+
+  it("a node on a recycled page is not loaded, nor are the tasks that link only such nodes", async () => {
+    expect(await load({ pages: [PAGE] })).toEqual({ nodes: [], tasks: [] });
+    expect((await load({ pages: [PAGE] }, "Meeting")).nodes).toEqual([]);
+  });
+
+  it("a node with deleted-at is not loaded; a task's ref to it does not count", async () => {
+    const { nodes, tasks } = await load({ blocks: [await fixtureNode("Website relaunch")] });
+    expect(nodeTitles(nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app"]);
+    expect(tasks.map((t) => t.title).sort()).toEqual(["Acme contract", "Wireframes"]);
+  });
+
+  it("a task with deleted-at is not loaded", async () => {
+    const { tasks } = await load({ blocks: [await fixtureTask("Wireframes")] });
+    expect(tasks.map((t) => t.title.split(" [[")[0]).sort()).toEqual(["Acme contract", "Draft brief", "Ship homepage", "Survey users"]);
   });
 });

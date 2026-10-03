@@ -7,6 +7,14 @@ import { buildNodes, buildTasks, systemZone, type ZoneOffset } from "./normalize
 export const CLASS_EXTENDS_RULES = ` [[(class-extends ?p ?c) [?c :logseq.property.class/extends ?p]]
   [(class-extends ?p ?c) [?t :logseq.property.class/extends ?p] (class-extends ?t ?c)]]`;
 
+/**
+ * Datascript clauses that keep block `v` only when it is not in Recycle: neither the block nor its page carries
+ * `:logseq.property/deleted-at`. A block on a recycled page has no deleted-at of its own and keeps `:block/page` → that
+ * page (seen live 2026-10-03, T14 F4). `?pg` is local to the `not-join`, so the clauses can be used for two variables.
+ */
+export const notRecycled = (v: string): string =>
+  `(not [${v} :logseq.property/deleted-at _]) (not-join [${v}] [${v} :block/page ?pg] [?pg :logseq.property/deleted-at _])`;
+
 /** What `buildNodes` reads besides the properties: `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` (plain refs → `{id}`). */
 const NODE_ATTRS = ":db/id :block/uuid :block/title :block/tags";
 
@@ -29,25 +37,32 @@ export function nodePull(tags: TagInfo[]): string {
   return [NODE_ATTRS, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ");
 }
 
-// Same join as probe query `nodesOfTagWithExtends` (fixture nodes.json), with the narrow pull.
+/**
+ * The tag is the `?tag` input as its entity id (a number): the host EDN-reads a top-level string input, so a title such as
+ * "2026 goals", "true" or ":kw" never matched (T14, F2, seen live); a number is passed through, and two tags with the same
+ * title no longer merge. Same join as probe query `nodesOfTagWithExtends` (fixture nodes.json), with the narrow pull;
+ * blocks in Recycle (or on a recycled page) are left out (`notRecycled`).
+ */
 export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${nodePull(tags)}])
-          :in $ ?tag-title %
-          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]
-                 [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))]`;
+          :in $ ?tag %
+          :where [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
+                 ${notRecycled("?b")}]`;
 
 /**
  * #Task blocks that reference a node of the tag (same tag join as `nodesQuery`), pulling what `buildTasks` reads: Status
  * with its ident (the empty placeholder is recognised by it), Deadline, Scheduled and the refs' ids. T13a: bound by the
- * tag instead of every #Task of the graph, and no nested tag or ref titles (2,033 rows 314 ms → ~100 ms live).
+ * tag instead of every #Task of the graph, and no nested tag or ref titles (2,033 rows 314 ms → ~100 ms live). Neither
+ * the task nor the node it links may be in Recycle (T14); `buildTasks` also drops refs to nodes that are not loaded.
  */
 export const TASKS_QUERY = `[:find (pull ?b [:db/id :block/uuid :block/title
                         {:logseq.property/status [:db/ident :block/title]}
                         :logseq.property/deadline :logseq.property/scheduled
                         {:block/refs [:db/id]}])
-          :in $ ?tag-title %
-          :where [?tag :block/tags :logseq.class/Tag] [?tag :block/title ?tag-title]
-                 [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
-                 [?b :block/refs ?n] [?b :block/tags :logseq.class/Task]]`;
+          :in $ ?tag %
+          :where [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
+                 ${notRecycled("?n")}
+                 [?b :block/refs ?n] [?b :block/tags :logseq.class/Task]
+                 ${notRecycled("?b")}]`;
 
 export interface LoadNodesOptions {
   /** Include nodes of tags that extend `tag` (any depth). */
@@ -58,7 +73,7 @@ export interface LoadNodesOptions {
 
 /** Nodes of `tag` (plus extending tags when `childTags`) with their dates and choice values mapped. */
 export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<PlannerNode[]> {
-  const raw = await dq(nodesQuery(tags), tag.title, CLASS_EXTENDS_RULES);
+  const raw = await dq(nodesQuery(tags), tag.id, CLASS_EXTENDS_RULES);
   return buildNodes(raw, tags, tag, opts.childTags, opts.zone ?? systemZone);
 }
 
@@ -66,8 +81,8 @@ export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: Loa
 export interface RawData {
   /** The node query string (`nodesQuery(tags)`): it names the pulled idents. */
   nodesQuery: string;
-  /** The tag title both queries were run with. */
-  title: string;
+  /** The tag entity id both queries were run with. */
+  tagId: number;
   nodes: unknown[];
   tasks: unknown[];
 }
@@ -75,17 +90,17 @@ export interface RawData {
 /**
  * Runs the node and task queries for `tag`. The task query does not need the nodes (it joins on the tag), so both are
  * asked at once. With `prev` (rows read earlier, e.g. with the tags shown before a refresh re-read them), only the
- * stale part is asked again: the node rows when the pull (`nodesQuery(tags)`) or the tag title differ, the task rows
- * when the title differs; with neither, `prev` is returned and no query is sent.
+ * stale part is asked again: the node rows when the pull (`nodesQuery(tags)`) or the tag id differ, the task rows
+ * when the tag id differs (a renamed tag is the same tag); with neither, `prev` is returned and no query is sent.
  */
 export async function readRaw(dq: Dq, tags: TagInfo[], tag: TagInfo, prev?: RawData): Promise<RawData> {
   const query = nodesQuery(tags);
-  const sameTitle = prev?.title === tag.title;
+  const sameTag = prev?.tagId === tag.id;
   const [nodes, tasks] = await Promise.all([
-    sameTitle && prev!.nodesQuery === query ? prev!.nodes : dq(query, tag.title, CLASS_EXTENDS_RULES),
-    sameTitle ? prev!.tasks : dq(TASKS_QUERY, tag.title, CLASS_EXTENDS_RULES),
+    sameTag && prev!.nodesQuery === query ? prev!.nodes : dq(query, tag.id, CLASS_EXTENDS_RULES),
+    sameTag ? prev!.tasks : dq(TASKS_QUERY, tag.id, CLASS_EXTENDS_RULES),
   ]);
-  return { nodesQuery: query, title: tag.title, nodes, tasks };
+  return { nodesQuery: query, tagId: tag.id, nodes, tasks };
 }
 
 /** Raw rows → nodes (`tags` maps the dates and closed values) and the #Task blocks whose refs hit one of them. */

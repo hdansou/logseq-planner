@@ -323,7 +323,7 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
   it("a node whose value is the empty placeholder sits in No <prop> (normalised to no value)", async () => {
     const t = tag("Project");
     const status = choiceProp(t, "Status").ident;
-    const pulled = (await dq(nodesQuery(tags), "Project", CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+    const pulled = (await dq(nodesQuery(tags), t.id, CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
     const rows = pulled.map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
     const nodes = await loadNodes(async (q, ...i) => (q === nodesQuery(tags) ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
     expect(nodes.find((n) => n.uuid === ARCHIVE)!.choices[status]).toBeUndefined();

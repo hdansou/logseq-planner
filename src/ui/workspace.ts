@@ -563,7 +563,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       config = t ? defaultViewConfig(t) : null;
     }
     // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
-    // only when its rows are stale (`readRaw`: the pulled idents or the tag title changed). Another view: read afresh.
+    // only when its rows are stale (`readRaw`: the pulled idents or the tag id changed). Another view: read afresh.
     const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
       : config === s.config ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), shownRaw))
       : await readData(config, tags);

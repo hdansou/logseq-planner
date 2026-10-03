@@ -5,7 +5,7 @@ import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { buildTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodePropIdents, nodesQuery, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
+import { nodePropIdents, nodesQuery, notRecycled, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -85,19 +85,53 @@ function fixtureTitles(): Map<string, string> {
 }
 
 /**
+ * A top-level string input as the host passes it to datascript: EDN-read (frontend/worker/handler/query.cljs
+ * `query-input-value`), so a string that reads as a number, a boolean, nil or a keyword arrives as that value, and only
+ * other strings stay strings. Seen live 2026-10-03 (T14, F2): tags titled "2026 goals", "true" and ":kw" were not found
+ * when their title was the input. A number (or a collection) is passed through unchanged.
+ */
+export function hostReadInput(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  const first = v.trim().split(/\s+/)[0] ?? "";
+  if (/^[+-]?\d/.test(first)) return Number.parseFloat(first);
+  if (first === "true" || first === "false") return first === "true";
+  if (first === "nil") return null;
+  if (first.startsWith(":")) return { keyword: first.slice(1) };
+  return v;
+}
+
+/** Block or page ids (`:db/id`) that carry `:logseq.property/deleted-at` (in Recycle). */
+export interface Recycled {
+  /** Pages in Recycle: their blocks keep `:block/page` → the page and have no deleted-at themselves (seen live 2026-10-03, T14 F4). */
+  pages?: number[];
+  /** Blocks (nodes or tasks) that carry deleted-at themselves. */
+  blocks?: number[];
+}
+
+/**
  * Answers the real loaders' queries from the T01 fixtures; nodes exist for Project (+ Client project) and Meeting, and
  * with `taskNodes` for Task (the fixture task blocks). TITLES_QUERY is answered from every fixture block's uuid and title.
  * `projectCopies` adds that many copies of Website relaunch ("Website relaunch 2", …; same dates, no tasks) to crowd a
- * calendar day; `edits` applies values written by `fakeGraph`.
+ * calendar day; `edits` applies values written by `fakeGraph`. `retitle` renames fixture tags (original title → new
+ * title) in the tag rows, nothing else (T14: titles the host's input reading mangles, and same-titled tags).
+ * `recycled` marks pages or blocks as in Recycle; the node and task queries leave them out only when they carry the
+ * Recycle clauses (`notRecycled`), as datascript would.
+ * Every top-level string input goes through `hostReadInput` first, like the host's.
  */
-export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean } = {}): Dq => async (query, ...inputs) => {
-  if (query === TAGS_QUERY) return opts.noTags ? [] : (tagsFixture.query.detail as unknown[]);
+export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean; retitle?: Record<string, string>; recycled?: Recycled } = {}): Dq => async (query, ...rawInputs) => {
+  const inputs = rawInputs.map(hostReadInput);
+  if (query === TAGS_QUERY) return opts.noTags ? [] : tagRows();
   if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
-  if (query === nodesQuery(fixtureTags)) return nodeRows(inputs[0]).map(([n]) => [narrowNode(n)]);
+  if (query === nodesQuery(fixtureTags)) {
+    const live = liveFilter(query, "?b");
+    return nodeRows(inputs[0]).filter(([n]) => live(n)).map(([n]) => [narrowNode(n)]);
+  }
   if (query === TASKS_QUERY) {
     // Bound by the tag: the fixture tasks that reference one of its nodes (child tags included, as the query's rule does).
-    const ids = new Set(nodeRows(inputs[0]).map(([n]) => n.id));
-    return taskRows().filter((t) => ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t)]);
+    const liveNode = liveFilter(query, "?n");
+    const liveTask = liveFilter(query, "?b");
+    const ids = new Set(nodeRows(inputs[0]).filter(([n]) => liveNode(n)).map(([n]) => n.id));
+    return taskRows().filter((t) => liveTask(t) && ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t)]);
   }
   if (query === TITLES_QUERY) {
     const titles = fixtureTitles();
@@ -105,8 +139,35 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   }
   throw new Error(`unexpected query ${query}`);
 
-  /** The `pull [*]` fixture rows of the nodes of tag `title` (child tags included), with the edits applied. */
-  function nodeRows(title: unknown): [Row][] {
+  /** The fixture tag rows with `retitle` applied. */
+  function tagRows(): [Row][] {
+    return (tagsFixture.query.detail as unknown as [Row][]).map(([t]) => [opts.retitle && String(t.title) in opts.retitle ? { ...t, title: opts.retitle[String(t.title)] } : t]);
+  }
+
+  /**
+   * The datascript meaning of the Recycle clauses for variable `v`, when the query has them: the block has no
+   * deleted-at, and neither has its `:block/page`. Without them every row passes (the host returns recycled blocks).
+   */
+  function liveFilter(q: string, v: string): (row: Row) => boolean {
+    if (!q.includes(notRecycled(v))) return () => true;
+    const pages = new Set(opts.recycled?.pages ?? []);
+    const blocks = new Set(opts.recycled?.blocks ?? []);
+    return (row) => !blocks.has(row.id as number) && !pages.has((row.page as { id?: number } | undefined)?.id as number);
+  }
+
+  /**
+   * The `pull [*]` fixture rows of the nodes of the tag the input names (child tags included), with the edits applied.
+   * The node and task queries join the input as the tag's entity id: a number matches the tag with that id; anything
+   * else matches nothing (a title input, even one the host did not read as a number, a boolean or a keyword).
+   */
+  function nodeRows(input: unknown): [Row][] {
+    const rows = tagRows().map(([t]) => t);
+    const matched = typeof input === "number" ? rows.filter((t) => t.id === input) : [];
+    const original = (t: Row) => (tagsFixture.query.detail as unknown as [Row][]).find(([o]) => o.id === t.id)![0].title;
+    return matched.flatMap((t) => rowsOfTitle(original(t)));
+  }
+
+  function rowsOfTitle(title: unknown): [Row][] {
     if (title === "Project") {
       const rows = nodesFixture.projectWithExtends.detail as unknown as [Record<string, unknown>][];
       const site = rows.find(([n]) => n.title === "Website relaunch")![0];

@@ -216,6 +216,7 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 - The Agenda's Overdue bucket is not capped. In the large test, 923 overdue entries all
   rendered.
 - A Date property value with no journal day fails with an error instead of a guess.
+- Nodes and tasks in Recycle, or on a page in Recycle, are not shown.
 
 **Large tags**
 
