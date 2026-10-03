@@ -55,7 +55,7 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
       #Task blocks whose refs hit those nodes. Test first: child-tag on/off, both date types,
       DateTime near midnight, task linked by inline ref and by node property. Est: ~45 min
 
-- [ ] **T05 Spans, rollups, done, filters** — `src/core/nodes.ts`. Start/end resolution,
+- [x] **T05 Spans, rollups, done, filters** — `src/core/nodes.ts`. Start/end resolution,
       derived spans, points, done/total, done-value guess and override, choice filters.
       Test first: mapped, derived, one-date, no-date, canceled excluded, guess + override.
       Est: ~30 min
@@ -191,3 +191,18 @@ Total: about 10 hours.
   with a vector input works live.
   Open for the views (T08–T11): a task title linked by inline ref still contains the raw
   `[[uuid]]` (e.g. `Draft brief [[6a00…0001]]`); it must be shown with the node's name.
+- 2026-10-03 T05 done (f2bc923). 71 unit tests in total. `PlannerTask` now carries
+  `deadline`/`scheduled` (already in the T04 pull). Live on `plugin-test` (seed verified,
+  functions run in the plugin iframe on live nodes and tasks): spans Website relaunch
+  mapped 09-23 → 10-23, Acme rollout mapped 09-30 → 10-08, Mobile app point 10-08,
+  Archive cleanup undated; Kickoff and Late review points with times, Untimed meeting
+  undated; derived span from Wireframes' Scheduled (2026-10-09 09:00) on an in-memory
+  dateless copy of Mobile app (the seed has no dateless node with tasks); rollups 1/2,
+  0/1, 0/1, 0/0; Status: Done and Canceled count as done, only Canceled is canceled;
+  Owner values not done, override makes one done; filters by Alice, by no value, and
+  empty selection behave as specified.
+  Decisions taken in T05 (change here if wrong): derived spans use all linked tasks, done
+  and canceled included; a derived span with one date stays `derived`; Start after End
+  is passed through; the done override applies to built-in values too. To change in T06:
+  the override is a list of value titles, which breaks on rename; store closed-value
+  uuids in the saved view instead.
