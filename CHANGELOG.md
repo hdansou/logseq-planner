@@ -160,6 +160,9 @@ All notable changes to this project are documented here. The format follows
   nested tags and ref titles. Both are asked at once (`loadNodesAndTasks`; `loadTasks` is gone). Same nodes, tasks and
   views as before; on the 2,000-node seed the node pull went from 276 ms to about 80 ms and the task pull from 314 ms to
   about 100 ms when run live by hand.
+- Refresh (T13a): the signature of the data on screen is kept until other data is shown, so a live refresh serialises
+  only the newly read data (about a megabyte of JSON at 2,000 nodes and tasks) instead of both; `viewItems` files the
+  tasks by node id once instead of scanning every task for every node (2,000 × 2,000).
 - The view toolbar's prev / range / next / Today markup (`viewNav`), the segmented control and HTML escaping live in
   `src/ui/html.ts`; the category colour rules are generic `[data-cat]` rules in `theme.css` (`--pl-node-fill`,
   `--pl-node-hue`) and the undated-list link is `.pl-link`, shared by both views.

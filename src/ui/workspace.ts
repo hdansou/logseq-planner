@@ -510,9 +510,21 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return run(openBody).then(() => deps.timing?.rendered("redrawn"));
   };
 
+  type Shown = { tags: TagInfo[]; nodes: PlannerNode[]; tasks: PlannerTask[]; titles: ReadonlyMap<string, string> };
   /** What is on screen, as one comparable string: a reload that produces the same signature needs no redraw. */
-  const signature = (data: { tags: TagInfo[]; nodes: PlannerNode[]; tasks: PlannerTask[]; titles: ReadonlyMap<string, string> }, weekStart: number | null) =>
-    JSON.stringify([data.tags, data.nodes, data.tasks, [...data.titles], weekStart, localToday()]);
+  const signature = (data: Shown, weekStart: number | null, today: string) =>
+    JSON.stringify([data.tags, data.nodes, data.tasks, [...data.titles], weekStart, today]);
+  /**
+   * The signature of what `s` holds, kept while the same objects are shown (T13a: at 2,000 nodes and tasks one signature
+   * is about a megabyte of JSON; a refresh then serialises only the new data, not the shown data again).
+   */
+  let shownSig: { key: unknown[]; sig: string } | null = null;
+  const sigKey = (data: Shown, weekStart: number | null, today: string) => [data.tags, data.nodes, data.tasks, data.titles, weekStart, today];
+  const shownSignature = (today: string) => {
+    const key = sigKey(s, s.weekStart, today);
+    if (!shownSig || key.some((k, i) => k !== shownSig!.key[i])) shownSig = { key, sig: signature(s, s.weekStart, today) };
+    return shownSig.sig;
+  };
 
   /** One live refresh, on the queue. Applies nothing when the user got busy while it loaded: it is asked again later. */
   async function reload() {
@@ -543,14 +555,18 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       wantRefresh = true; // a popover, a write or a drag started while loading: drop the result
       return void deps.timing?.rendered("deferred");
     }
-    const same = config === s.config && signature({ tags, ...data }, weekStart) === signature(s, s.weekStart);
+    const today = localToday();
+    const next = { tags, ...data };
+    const sig = signature(next, weekStart, today);
+    const same = config === s.config && sig === shownSignature(today);
     if (same) return void deps.timing?.rendered("same");
     if (config !== s.config) {
       s.config = config;
       s.viewId = null;
       s.error = error;
     }
-    Object.assign(s, { tags, weekStart, ...data });
+    Object.assign(s, { weekStart, ...next });
+    shownSig = { key: sigKey(s, weekStart, today), sig };
     render(undefined, true);
     deps.timing?.rendered("redrawn");
   }

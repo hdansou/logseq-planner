@@ -3,7 +3,7 @@
 // Pure: no DOM, no SDK, no clock. Days are `YYYY-MM-DD` calendar days; all arithmetic runs on UTC midnights, which have
 // no DST, so a day is always one day.
 import type { ClosedValue, LocalDate, NodeSpan, PlannerNode, PlannerTask, Rollup } from "../types";
-import { isDone, resolveSpan, rollup, tasksOf } from "./nodes";
+import { isDone, resolveSpan, rollup } from "./nodes";
 
 // ---------------------------------------------------------------- calendar days
 
@@ -77,8 +77,17 @@ export interface ViewItem {
 
 /** Resolves spans, linked tasks and rollups for `nodes` (the view's Start/End idents, either may be null). */
 export function viewItems(nodes: PlannerNode[], tasks: PlannerTask[], start: string | null, end: string | null, statusValues: ClosedValue[]): ViewItem[] {
+  // Tasks by node id, in task order (what `tasksOf` returns per node), built once: 2,000 nodes × 2,000 tasks (T13a).
+  const byNode = new Map<number, PlannerTask[]>();
+  for (const t of tasks) {
+    for (const id of new Set(t.nodeIds)) {
+      const list = byNode.get(id);
+      if (list) list.push(t);
+      else byNode.set(id, [t]);
+    }
+  }
   return nodes.map((node) => {
-    const own = tasksOf(node, tasks);
+    const own = byNode.get(node.id) ?? [];
     return { node, span: resolveSpan(node, own, start, end), tasks: own, progress: rollup(own, statusValues) };
   });
 }
