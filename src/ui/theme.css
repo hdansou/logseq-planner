@@ -98,3 +98,8 @@ input[type="checkbox"] { accent-color: var(--pl-tint); }
 
 /* Today: accent, never tint */
 .pl-today { color: var(--pl-today); font-weight: 700; background: transparent; }
+
+/* Reduced motion: no transitions or animations anywhere in the plugin's frame. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}

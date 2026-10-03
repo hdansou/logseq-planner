@@ -135,6 +135,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- No transitions under reduced motion (N02): one rule in `theme.css` under `prefers-reduced-motion: reduce`
+  turns transitions and animations off for every element of the plugin frame.
 - The settings bar is a labelled group (N02): `role="group"` on the "View settings" region, so assistive tech
   announces its label.
 - Refresh (T14): the refresh signature uses the workspace's injected `today` and compares with the day the screen was

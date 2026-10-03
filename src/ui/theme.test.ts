@@ -65,6 +65,11 @@ describe("stylesheet defaults", () => {
     for (const [name] of PL_MAP) expect(block(":root"), name).toContain(`${name}:`);
     for (const n of ["--pl-surface", "--pl-float", "--pl-hover", "--pl-tint", "--pl-today", "--pl-green"]) expect(block("html.dark"), n).toContain(`${n}:`);
   });
+  it("turns transitions and animations off under prefers-reduced-motion (N02)", () => {
+    expect(css).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\*,\s*\*::before,\s*\*::after\s*\{[^}]*transition:\s*none\s*!important;[^}]*animation:\s*none\s*!important;?[^}]*\}\s*\}/,
+    );
+  });
   it("never uses prefers-color-scheme", () => expect(css).not.toContain("prefers-color-scheme"));
   // happy-dom applies no stylesheet, so a DOM test sees `hidden === true` while the list is still drawn (seen live,
   // T07 D6: a component `display` rule beat the UA [hidden] rule). Only this stylesheet check guards it.
