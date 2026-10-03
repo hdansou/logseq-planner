@@ -72,6 +72,12 @@ All notable changes to this project are documented here. The format follows
   deadlines (⚑, the node's colour, late ones in red, done ones struck through), the time when there is one; "+N more"
   opens the Week layout on that week. Week: seven tall day columns, chips with time and node. Undated nodes listed under
   the grid. Click opens the node or task and hides Planner; Shift+click opens it in the right sidebar.
+- Agenda layout (T10): `src/core/agenda.ts` files the visible nodes and their linked tasks into Overdue, Today, each of
+  the next 14 days, Later, No date and Earlier, or groups them by node (own dated line, tasks underneath, overdue groups
+  first). A node is filed by its span, a task by Scheduled / Deadline; an open entry that ended is overdue (a node only
+  when its tag has a done notion, else Earlier). Done (a node by the view's done values, a task by its Status flags) and
+  canceled entries are hidden unless Show done, which reveals those under Today, a day, Earlier (14 days back at most) and
+  No date. Entries sort by date, then time, then title; empty buckets are not listed. `today` is injected.
 
 ### Fixed
 - Calendar (T09): day numbers (Month) and day labels (Week) are no longer hidden behind lane-0 bands. The week row's
