@@ -34,4 +34,5 @@ All notable changes to this project are documented here. The format follows
   mismatch). Not yet verified live.
 
 ### Changed
+- The saved-views page lookup ignores a page in the recycle bin (`deleted-at`), so views are no longer appended to a recycled page.
 - Done-value override is now a list of closed-value uuids, not titles (a rename no longer breaks it).

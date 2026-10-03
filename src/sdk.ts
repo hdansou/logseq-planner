@@ -27,6 +27,10 @@ export const datascriptQuery: Dq = (query, ...inputs) => logseq.DB.datascriptQue
 /** Escapes a string for use inside a datascript string literal. */
 const quote = (s: string) => `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 
+/** Live page with exactly this title; a page in the recycle bin keeps its title and tag but has `deleted-at`. */
+export const pageQuery = (title: string) =>
+  `[:find ?u :where [?p :block/title ${quote(title)}] [?p :block/tags ?t] [?t :db/ident :logseq.class/Page] (not [?p :logseq.property/deleted-at _]) [?p :block/uuid ?u]]`;
+
 const toViewBlock = async (b: { uuid: string; content?: string; title?: string }): Promise<ViewBlock> => {
   const raw = await logseq.Editor.getBlockProperty(b.uuid, CONFIG_KEY);
   return { uuid: b.uuid, name: b.content ?? b.title ?? "", config: typeof raw === "string" ? raw : null };
@@ -37,11 +41,9 @@ const toViewBlock = async (b: { uuid: string; content?: string; title?: string }
  * state property code and the SDK typings; the write calls resolve null on failure, which the store catches by reading back.
  */
 export const storageDeps = (): StorageDeps => ({
-  // Strict lookup (gotcha §4): title match plus Page class membership, never getPage.
+  // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
   findPage: async (title) => {
-    const rows = (await datascriptQuery(
-      `[:find ?u :where [?p :block/title ${quote(title)}] [?p :block/tags ?t] [?t :db/ident :logseq.class/Page] [?p :block/uuid ?u]]`,
-    )) as unknown[][];
+    const rows = (await datascriptQuery(pageQuery(title))) as unknown[][];
     return rows.length > 0 ? String(rows[0][0]) : null;
   },
   createPage: async (title) => void (await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false })),

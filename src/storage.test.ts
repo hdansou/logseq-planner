@@ -88,6 +88,19 @@ describe("list", () => {
   });
 });
 
+describe("recycled page", () => {
+  it("only a recycled page exists: findPage sees none, so list is empty and create calls createPage", async () => {
+    const { g, deps, log } = fakeGraph();
+    const view = { uuid: "old", name: "Old", config: serializeViewConfig(timeline) };
+    g.blocks = [view];
+    // the strict query ignores recycled pages, so the fake reports no page
+    const store = createViewStore(deps);
+    expect(await store.list()).toEqual([]);
+    await store.create("New", timeline);
+    expect(log).toContain(`createPage ${PAGE_TITLE}`);
+  });
+});
+
 describe("create", () => {
   it("creates the page, appends the block, ensures the schema right before the config write, reads back", async () => {
     const { g, deps, log } = fakeGraph();
