@@ -13,10 +13,10 @@ Result column: `pass`, `partial` (part of the row was checked; the note says whi
 The Build column is the Planner commit the row was checked on. Rows checked during T07–T12 keep
 that task's build and were not all re-run on the current one; the #Project and #Meeting views were
 re-run after the T13a performance changes. Second pass on 2026-10-03 (builds 771140f and da5d181; same web app, in-memory `Demo` graph, large-seed rows on the DEV
-build): the rows that were not run or partial were re-run where the web app allows. Totals for sections A–I: 115 pass,
-5 partial (E8, E11, F9, H6, H10), 6 not run (A9, D11, D12, E12, H14, I9). Section J: 15 pass. A9, D11 and E12 need the
-desktop app or a real mouse, D12 Firefox, I9 VoiceOver; H14 was not needed. Everything was run in the web app
-(an older Logseq checkout), not the desktop app.
+build): the rows that were not run or partial were re-run where the web app allows. Totals for sections A–I: 117 pass,
+6 partial (E8, E11, E12, F9, H6, H10), 3 not run (D12 Firefox, I9 VoiceOver, H14 not needed). Section J: 15 pass.
+A9, D11 and E12 were run on the desktop app (third pass, see "Desktop pass" below); every other row was run in the web
+app (an older Logseq checkout).
 
 ## Environment
 
@@ -75,7 +75,7 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | A6 | Click Close | Planner hides | pass | 4d45a0b | 2026-10-03 |  |
 | A7 | Reopen after A5 / A6 with no edits in between | Same tag and view as before; the data is current (a stale hide refreshes once) | pass | 869508c | 2026-10-03 | 0 reloads when not stale; two reloads after a stale hide (known) |
 | A8 | Resize the window to 720 px wide and open | Nothing is cut off; the left column and the built-in tag group are reachable (built-in tags collapsed, filters visible) | pass | 4d45a0b | 2026-10-03 | 720 px: bars wrap, no page overflow, Close at x=704 |
-| A9 | Desktop app only: open at the macOS window | Content clears the window buttons (`pl-mac-desktop` padding) | not run |  |  | desktop app not used in this pass |
+| A9 | Desktop app only: open at the macOS window | Content clears the window buttons (`pl-mac-desktop` padding) | pass | e849107 | 2026-10-03 | desktop app 2.0.1 nightly (rev 8ffbb22, 2026-10-01), second instance over CDP: `html.pl-mac-desktop`, top bar padding-left 84 px, the title starts at x = 84. The native window buttons are not in a CDP screenshot, so their position was not seen |
 | A10 | Reload the whole app, then open Planner | Opens; no `[Ready Error]` or deferred-timeout error in the console | pass | 4d45a0b | 2026-10-03 | several app reloads; no Ready Error from the :8294 build |
 
 ## B. Workspace shell
@@ -181,7 +181,7 @@ log the host calls if you can (wrap `logseq.api.upsert_block_property` in the ho
 | D8 | Failure rollback by a rejecting write (stub rejects) | Same rollback, the error shows the message | pass | 4d45a0b | 2026-10-03 | error bar shows "boom from host"; graph unchanged |
 | D9 | Reload the app after a move | The moved card is still in its new column | pass | ab9ed41 | 2026-10-03 |  |
 | D10 | After a Planner move press ⌘Z in the app | The card goes back (Undo reverts the write) and Planner follows without a manual reload | pass | 869508c | 2026-10-03 |  |
-| D11 | Drag to a column that is scrolled out of view | Not verified so far (does not register under playwright's dragTo). Try by hand with the mouse, then use the Move menu to reach every column | not run |  |  | did not register under playwright dragTo; by hand not tried |
+| D11 | Drag to a column that is scrolled out of view | Not verified so far (does not register under playwright's dragTo). Try by hand with the mouse, then use the Move menu to reach every column | pass | e849107 | 2026-10-03 | desktop app, playwright mouse (not a hand): holding the dragged card at the right edge scrolled the view (scrollLeft 0 to 214, its maximum), the drop on Canceled landed and was read back with the CLI. In the web app the same row was not run |
 | D12 | Drag starting on the card's button in Firefox | Not verified so far; record whether it drags | not run |  |  | Firefox not used |
 | D13 | Sticky column headers and the Move menu near the window edges | Header stays while the board scrolls; the menu is not clipped by the edge | pass | 4d45a0b | 2026-10-03 | header position sticky top 0; Move menu inside the window (935–1135 × 235–495 of 1280×720). Scrolling look not judged |
 | D14 | A card is dragged while a change arrives from elsewhere | The redraw waits until the drag ends (deferral during a drag, not verified so far); no card is lost | pass | 771140f | 2026-10-03 | card held mid-drag (mouse down and move) while another node's Status was set from the host: the board did not change during the drag, and redrew with the edit after Escape; no card lost; a later edit redrew too. The edit came from the host API in the same page, not from a second tab |
@@ -205,7 +205,7 @@ Read the timings from `__plannerTimings.refresh` where noted (docs/probes.md).
 | E9 | Leave Planner visible and idle for 35 s | A poll reload happens (every 30 s), no visible change | pass | 869508c | 2026-10-03 |  |
 | E10 | An edit from a second browser tab on the same graph | The card / bar moves in the first tab | pass | 869508c | 2026-10-03 |  |
 | E11 | Delete the tag that the open view shows (or remove a property the view uses) | Planner falls back to the default view and says so in the error bar; no crash | partial | 4d45a0b | 2026-10-03 | fallback to the default view with "Invalid view config: unknown tag … Showing the default view instead." happens on the next refresh, not at the deletion (see E8) |
-| E12 | Sync: change from another device; second desktop window | Not verified so far (`DB.onChanged` under sync is untested); record what happens | not run |  |  | no sync account, no desktop app |
+| E12 | Sync: change from another device; second desktop window | Not verified so far (`DB.onChanged` under sync is untested); record what happens | partial | e849107 | 2026-10-03 | desktop app: a Status edit made in a second window on the same graph moved the card in the first window's Kanban within 2.5 s; writes from the `logseq` CLI (four tasks added) showed at once too. Sync from another device: not run (no sync account in the test instance) |
 
 ## F. Themes
 
@@ -313,16 +313,40 @@ Rows added with the T14 review fixes; none run live yet.
 | J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | pass | 771140f | 2026-10-03 | the host sanitises a bad `start-of-week` config (it stays 6), so `logseq.api.get_user_configs` was wrapped to return "banana": the workspace shows only "Logseq preferredStartOfWeek is "banana", expected 0–6" with Dismiss and Retry; after unwrapping, Retry loads the workspace |
 | J15 | A task with only a past Scheduled date (open, no Deadline): look at the Timeline (expand its node), the Calendar and the Agenda by date | Timeline: the scheduled marker is red (`[data-tl-marker="scheduled"][data-late]`); Calendar: no chip (Scheduled is not shown); Agenda: it is under Overdue, "scheduled … N days late" | pass | 771140f | 2026-10-03 | four tasks linked to Website relaunch. Scheduled D-3 only: red scheduled ring (red border, no fill), Overdue "scheduled 30 Sep 09:00, 3 days late", no Calendar chip. Same but Done: not late, under Earlier with Show done. Scheduled D-2 + Deadline D+3: not late. Deadline D-2 + Scheduled D+1: red deadline diamond, Overdue "2 days late", late Calendar chip |
 
+## Desktop pass (2026-10-03, build e849107)
+
+Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over
+CDP (`test-logseq-desktop` skill). Planner loaded as an unpacked plugin (its path added to `externals` in
+`~/.logseq/preferences.json`, production build in `dist/`). Graph `planner-desktop`, created and seeded with the `logseq`
+CLI (`graph create`, `graph import --type edn` of the small and the large seed with the app closed), persisted on disk.
+
+| Check | Result |
+|---|---|
+| First open on the persisted graph | pass: tags listed, #Project shows the seed in all four views, no error |
+| Lateness rule (J15) with four tasks added by `logseq upsert task` while Planner was open | pass: same marks as in the web app; the CLI writes appeared without reopening |
+| Kanban drag to a visible column; Move by drag to a column reached by auto-scroll (D11) | pass: written, read back with `logseq query` |
+| `g Shift+P` with Planner closed | pass: Planner opens |
+| Saved view "Desk kanban": saved, app stopped and relaunched | pass: listed after the restart, opens #Project Kanban |
+| 2,000 nodes (#Load item), production build | tag switch to the first paint 351 ms; view switches 18–72 ms; zoom and Next / Today 47–78 ms to paint |
+| Refresh at 2,000 nodes (Kanban, Status set from the host, API call to redraw, 5 runs) | 294–373 ms (target 300 with the debounce): over on 4 of 5 |
+| Unrelated edit | pass: no redraw |
+| Edit in a second window on the same graph | pass: the first window's Kanban moved the card within 2.5 s |
+| Dark mode (Inkwell Slate, the profile's theme) | pass: tokens flip (`--pl-label`, `--pl-red`, body background) with no reload |
+| Click a Timeline name; Shift+click | pass: click opens the node and hides Planner; Shift+click adds it to the right sidebar, Planner stays |
+| macOS window-button padding (A9) | pass by measurement (84 px); buttons not visible to CDP |
+
+Not run on the desktop: sync from another device; the rest of sections A–J (run in the web app only); VoiceOver; a
+drag by hand. `logseq graph import` is refused while the app has the graph open ("Server is owned by another process"):
+import with the app closed, or write with `logseq upsert …`, which goes through the app's worker.
+
 ## Not covered / known gaps
 
 Copied from the progress log (tasks.md). Re-check each when the environment allows; none blocks v1 on its own.
 
-- Desktop app: nothing was verified on it. The web app checkout is d2ab7726ab (2026-09-02), older than the installed
-  desktop app (2.0.1, 2026-09-21). The macOS window-button padding and the `g Shift+P` chord are unverified there.
-- `DB.onChanged` under sync, and from a second desktop window, is not tested (the poll is the safety net).
-- Dragging to a Kanban column that is scrolled out of view (did not register under playwright's `dragTo`; the Move menu
-  reaches every column); dragging from the card's button in Firefox; the sticky header and Move-menu clipping near the
-  window edges.
+- Desktop app: only the checks under "Desktop pass" were run on it; sections A–J otherwise come from the web app
+  (checkout d2ab7726ab, 2026-09-02), older than the desktop build.
+- `DB.onChanged` under sync is not tested (the poll is the safety net); a second desktop window is (it refreshes).
+- Dragging from the card's button in Firefox; the sticky header and Move-menu clipping near the window edges.
 - Logseq's default dark theme for the Timeline (the recorded profile's dark theme was Inkwell).
 - Contrast (F9): in Logseq's default themes the greyed done and canceled rows measure 3.33 (light) and 2.98 (dark),
   under 4.5; they take the host's `--muted-foreground`. Inkwell measures 4.63 / 4.98.

@@ -13,9 +13,9 @@ subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
 State: every v1 item below (T00–T14) and the performance item T13a are done; so are N02 (as far
 as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commit
-after it. No remote, nothing pushed. All live validation was done in the Logseq WEB app (dev build
-of the main checkout at d2ab7726ab, 2026-09-02, in-memory graph). Nothing has run on the desktop
-app or on a current Logseq build. docs/manual-test.md: A–I 115 pass, 5 partial, 6 not run; J 15 pass.
+and the docs commits after it. No remote, nothing pushed. The full checklist was run in the Logseq WEB app (dev build of the main checkout at
+d2ab7726ab, 2026-09-02, in-memory graph); a focused pass was run on the desktop app 2.0.1 nightly
+(8ffbb22, 2026-10-01) with the CLI-seeded graph `planner-desktop` (kept for re-runs). docs/manual-test.md: A–I 115 pass, 5 partial, 6 not run; J 15 pass.
 
 Read in this order: this section, "Next" below, then the Progress log entry of whatever
 you touch (it records what was verified live, the decisions taken and what was not
@@ -52,13 +52,12 @@ Live-check method (web app):
 
 ## Next
 
-- [ ] **N01 Desktop validation** — needs the owner's go-ahead (installs in their profile).
-      Seed a test graph with the `logseq` CLI, load the built plugin as an unpacked plugin,
-      run docs/manual-test.md there. Covers what the web app could not: a current Logseq
-      build, a persisted graph (queries that scan on a constant attribute value are
-      untested there), macOS window-button padding, the `g Shift+P` chord, refresh under
-      sync and from a second window, dragging a card to a column scrolled out of view,
-      timings on a production build.
+- [x] **N01 Desktop validation** — done 2026-10-03 as a focused pass (docs/manual-test.md
+      "Desktop pass"): persisted CLI-seeded graph, current build, window-button padding,
+      `g Shift+P`, second window, off-screen drag, production timings, saved view across a
+      restart. Planner is now an unpacked plugin in the owner's profile (`externals` in
+      `~/.logseq/preferences.json`). Left: sync from another device; the full A–J checklist
+      on the desktop; refresh at 2,000 nodes is 294–373 ms there (N04).
 - [x] **N02 Checklist rows not run** — done 2026-10-03 for every row the web app can cover (see
       the Progress log). Left: A9, E12 and D11 (desktop app or a real mouse: fold into N01), D12
       (Firefox), I9 (VoiceOver); partial E8, E11 (tag deletion, N04), F9, H6, H10.
@@ -578,3 +577,15 @@ Total: about 10 hours.
   Not verified: anything on the desktop app or a current Logseq build; D14 / J12 with an
   edit from a second tab (the edit came from the host API in the same page); J13 through
   the Logseq UI; scrolling smoothness.
+- 2026-10-03 N01 desktop pass (owner's go-ahead: "let's do it"). Results and method in
+  docs/manual-test.md "Desktop pass"; A9 and D11 pass, E12 partial (second window yes, sync
+  not run). No defect found. Method: `logseq graph create` + `graph import --type edn` with
+  the app closed (`node -e` writes `seedEdn(new Date())` / `buildLargeSeed(N).edn` to a
+  file; the large import took 78 s); add the repo path to `externals` in
+  `~/.logseq/preferences.json` (backup taken) and `npm run build`; launch the second
+  instance on its own port (9344: 9333 was in use by another session); drive the plugin
+  frame with playwright `connectOverCDP` from the main checkout's node_modules (frame URL
+  contains `logseq-planner`); a second window opens with
+  `window.apis.doAction(["openNewWindow", repo])`. The production build has no
+  `__plannerTimings`: times were taken from the click or API call to the first DOM
+  mutation in the frame.
