@@ -7,11 +7,13 @@ export type Later = (fn: () => void, ms: number) => () => void;
 
 /**
  * Quiet period after the last event before the reload starts. The redraw target is < 300 ms after the last change
- * (REQUIREMENTS.md), and a reload is the tag query, the node query, the task query and a render (~10 ms per query
- * and a few ms of render live on a seed, more at ~2,000 nodes), so the wait takes at most a third of the budget.
- * Long enough to merge the several payloads one edit publishes (a node write also lists its referencing tasks).
+ * (REQUIREMENTS.md); at ~2,000 nodes a reload (tag queries, node and task queries, render) took ~240 ms live (T13a), so
+ * the wait gets what is left: 50 ms (was 100). The events of one edit mostly arrive within a few ms, which 50 ms merges;
+ * but those of one user action can be more than 100 ms apart anyway (T12 live: 2 reloads for one upsert, 4 for an
+ * append, at 100 ms), so the debounce length is not what coalesces them. That is the rule below: one refresh at a time,
+ * and events during a running one earn exactly one more.
  */
-export const DEBOUNCE_MS = 100;
+export const DEBOUNCE_MS = 50;
 
 /**
  * Safety net while Planner is visible: catches changes that never raised an event (sync from another device is untested,

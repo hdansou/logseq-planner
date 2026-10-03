@@ -233,7 +233,7 @@ Targets (REQUIREMENTS.md): first view under 1 s; redraw after a change under 300
 
 How to read: `PLANNER_PW_CWD=<dir> npm run probe -- --timings` prints `{load, refresh, history}`; `load` is the first
 open of the page session (queryMs, renderMs, totalMs). `refresh.totalMs` starts at the debounced trigger, so the whole
-redraw after a change is about `DEBOUNCE_MS` (100) + `refresh.totalMs`: the target is `refresh.totalMs` under 200 ms.
+redraw after a change is about `DEBOUNCE_MS` (50 since T13a) + `refresh.totalMs`: the target is `refresh.totalMs` under 250 ms.
 Medians of 3 runs; reload the page between first-load runs. A view switch is not recorded by the recorder; time it in the
 plugin iframe, from the click to the view being in the DOM and painted:
 
@@ -254,8 +254,8 @@ performance.now() - t0
 | H2 | Reload, open Planner (opens on #Load item, Timeline, Month); read `load` | `load.totalMs` under 1000 (the first view); note `queryMs` and `renderMs` apart | | | | |
 | H3 | Timeline: switch to Calendar, Agenda and Kanban with the snippet | Each under 1000 ms from click to painted; note each | | | | |
 | H4 | Back to the Timeline; Week, Quarter zoom, Next / Prev / Today | Each redraw feels immediate; note any over 300 ms | | | | |
-| H5 | Set a node's Status from the host on a visible node (Kanban, Status columns); read `refresh` | `refresh.outcome` = `redrawn`, `totalMs` under 200 (so under 300 ms with the debounce); the card is in its new column | | | | |
-| H6 | Edit an unrelated block; read `refresh` | `outcome` = `same`, `totalMs` under 200 | | | | |
+| H5 | Set a node's Status from the host on a visible node (Kanban, Status columns); read `refresh` | `refresh.outcome` = `redrawn`, `totalMs` under 250 (so under 300 ms with the 50 ms debounce); the card is in its new column | | | | |
+| H6 | Edit an unrelated block; read `refresh` | `outcome` = `same`, `totalMs` under 250 | | | | |
 | H7 | Repeat H5 on Timeline, Calendar and Agenda (change a node's End date) | Same targets for each view | | | | |
 | H8 | Kanban drag on #Load item (Status, then with Lead swimlanes) | The move shows at once (optimistic) and the quiet reload after it does not stall; note the time to settle | | | | |
 | H9 | Filters: tick Lead = Alice, Team = Ops; clear | The list narrows and widens at once; counts correct (check one against a query) | | | | |

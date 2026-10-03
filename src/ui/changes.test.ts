@@ -29,8 +29,8 @@ describe("debounce", () => {
     expect(refreshFn).toHaveBeenCalledTimes(1);
   });
 
-  it("the debounce leaves room for the load inside the 300 ms redraw target", () => {
-    expect(DEBOUNCE_MS).toBeLessThanOrEqual(100);
+  it("the debounce is 50 ms: room for a ~240 ms reload inside the 300 ms redraw target (T13a)", () => {
+    expect(DEBOUNCE_MS).toBe(50);
   });
 
   it("an event during a running refresh gives exactly one more refresh after it", async () => {

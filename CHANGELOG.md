@@ -170,6 +170,9 @@ All notable changes to this project are documented here. The format follows
   property added to or removed from any tag, or its type changed between Date and DateTime) or the view's tag was
   renamed; the task query only when the tag was renamed. When the view's tag or a property it uses is gone, the
   default view is read afresh, as before.
+- Live updates (T13a): the debounce after the last `DB.onChanged` is 50 ms (was 100). One edit's events mostly arrive
+  within a few ms; events of one user action that are further apart are merged by the one-more-refresh rule, not by
+  the debounce length.
 - Timeline (T13a): only nodes that touch the range get a row. The per-node edge hints for nodes wholly outside the
   range are replaced by one line above the grid, "412 earlier · 1,105 later"; each side is a button
   (`data-tl-jump="earlier|later"`, `data-tl-day`) that moves the range to the nearest of those nodes (latest end before
