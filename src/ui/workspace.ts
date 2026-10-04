@@ -49,6 +49,8 @@ export interface WorkspaceDeps {
   openNode(uuid: string, opts: { sidebar: boolean }): void;
   /** Today as a local `YYYY-MM-DD`; defaults to the machine's clock. */
   today?: () => string;
+  /** The local time now as `HH:MM` (the Timeline Day zoom's now line, N10); defaults to the machine's clock. */
+  time?: () => string;
   /** The host's first day of the week, 0 = Sunday … 6 = Saturday; read on every `open()`. */
   weekStart(): Promise<number>;
   /** The SDK calls behind a Kanban move (`kanbanWriteDeps()` in src/sdk.ts). */
@@ -121,6 +123,8 @@ interface State {
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
 interface Now {
   today: string;
+  /** `HH:MM`. */
+  time: string;
   weekStart: number;
 }
 
@@ -176,11 +180,20 @@ const toggle = <T>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y 
 const taskStatusValues = (tags: TagInfo[]): ClosedValue[] =>
   tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")?.values ?? [];
 
+const pad2 = (n: number) => String(n).padStart(2, "0");
 /** The machine's local day as `YYYY-MM-DD` (the default `today`). */
 export function localToday(): string {
   const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
 }
+/** The machine's local time as `HH:MM` (the default `time`). */
+export function localTime(): string {
+  const d = new Date();
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/** The Timeline in Day zoom: the only view that shows the time of day (its now line). */
+const showsTime = (config: ViewConfig | null) => config?.kind === "timeline" && config.zoom === "day";
 
 // ---------------------------------------------------------------- render (pure: state → HTML)
 
@@ -294,7 +307,7 @@ function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   const statusValues = taskStatusValues(s.tags);
   return layoutTimeline({
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
-    zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
+    zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues,
     titles: s.titles,
   });
 }
@@ -408,10 +421,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map() };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
+  const timeNow = () => (deps.time ?? localTime)();
   const now = (): Now => {
     if (s.weekStart === null) throw new Error("Week start not read yet: the workspace renders a view only after open()");
-    return { today: todayNow(), weekStart: s.weekStart };
+    return { today: todayNow(), time: timeNow(), weekStart: s.weekStart };
   };
+  /** What of the clock a redraw depends on for `config`: the day, plus the minute in the Day zoom (its now line). */
+  const clockOf = (config: ViewConfig | null, today: string) => (showsTime(config) ? `${today} ${timeNow()}` : today);
   let queue: Promise<void> = Promise.resolve();
   /** A live refresh is waiting for a popover to close, a Kanban write to finish or a drag to end. */
   let wantRefresh = false;
@@ -419,8 +435,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let dragging: string | null = null;
   /** A render was asked for during a drag: it runs when the drag ends. */
   let drawOwed = false;
-  /** The day the workspace was last drawn on (the Timeline's today line, the Agenda's buckets depend on it). */
-  let drawnToday = "";
+  /** The clock the workspace was last drawn on (`clockOf`: the Timeline's today line, the Agenda's buckets depend on it). */
+  let drawnClock = "";
+  /** The day the Timeline's Day zoom last opened its scroll for (N10); null while the Day zoom is not shown. */
+  let dayScrolled: string | null = null;
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
 
@@ -454,7 +472,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
     const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
     const folds = keep ? [...root.querySelectorAll<HTMLDetailsElement>("details")].map((d) => [selectorOf(d), d.open] as const) : [];
-    drawnToday = todayNow();
+    const viewLeft = root.querySelector<HTMLElement>("[data-region=view]")?.scrollLeft ?? 0;
+    drawnClock = clockOf(s.config, todayNow());
     root.innerHTML = renderWorkspace(s, now);
     for (const [sel, open] of folds) {
       const d = root.querySelector<HTMLDetailsElement>(sel);
@@ -464,9 +483,25 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const el = scrolls[i] && root.querySelector<HTMLElement>(sel);
       if (el) Object.assign(el, { scrollTop: scrolls[i]!.top, scrollLeft: scrolls[i]!.left });
     });
+    scrollDay(viewLeft, keep);
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
     refreshWhenFree(); // a redraw that was waiting for a popover, a write or a drag
+  };
+
+  /**
+   * Timeline Day zoom (N10): 96 tracks overflow sideways, so a Day drawn for a new day (zoom switch, Prev / Next / Today,
+   * a jump, a new tag after its loading state) opens scrolled to the scroll the view carries (`data-tl-scroll-left`). A
+   * redraw of the same day keeps the user's scroll: a live refresh restores it (`keep`), an action's redraw gets `left`.
+   */
+  const scrollDay = (left: number, keep: boolean) => {
+    const tl = root.querySelector<HTMLElement>("[data-timeline][data-tl-start]");
+    const view = root.querySelector<HTMLElement>("[data-region=view]");
+    if (!tl || !view) return void (dayScrolled = null);
+    const day = tl.dataset.tlStart!;
+    if (day !== dayScrolled) view.scrollLeft = Number(tl.dataset.tlScrollLeft);
+    else if (!keep) view.scrollLeft = left;
+    dayScrolled = day;
   };
 
   const tagOf = (config: ViewConfig, tags: TagInfo[] = s.tags) => validateViewConfig(config, tags);
@@ -577,18 +612,18 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   type Shown = { tags: TagInfo[]; nodes: PlannerNode[]; tasks: PlannerTask[]; titles: ReadonlyMap<string, string> };
   /** What is on screen, as one comparable string: a reload that produces the same signature needs no redraw. */
-  const signature = (data: Shown, weekStart: number | null, today: string) =>
-    JSON.stringify([data.tags, data.nodes, data.tasks, [...data.titles], weekStart, today]);
+  const signature = (data: Shown, weekStart: number | null, clock: string) =>
+    JSON.stringify([data.tags, data.nodes, data.tasks, [...data.titles], weekStart, clock]);
   /**
    * The signature of what `s` holds, kept while the same objects are shown (T13a: at 2,000 nodes and tasks one signature
    * is about a megabyte of JSON; a refresh then serialises only the new data, not the shown data again).
    */
   let shownSig: { key: unknown[]; sig: string } | null = null;
-  const sigKey = (data: Shown, weekStart: number | null, today: string) => [data.tags, data.nodes, data.tasks, data.titles, weekStart, today];
-  /** The signature of what is on screen: the data in `s` with the day it was drawn on (`drawnToday`), not today now. */
+  const sigKey = (data: Shown, weekStart: number | null, clock: string) => [data.tags, data.nodes, data.tasks, data.titles, weekStart, clock];
+  /** The signature of what is on screen: the data in `s` with the clock it was drawn on (`drawnClock`), not the clock now. */
   const shownSignature = () => {
-    const key = sigKey(s, s.weekStart, drawnToday);
-    if (!shownSig || key.some((k, i) => k !== shownSig!.key[i])) shownSig = { key, sig: signature(s, s.weekStart, drawnToday) };
+    const key = sigKey(s, s.weekStart, drawnClock);
+    if (!shownSig || key.some((k, i) => k !== shownSig!.key[i])) shownSig = { key, sig: signature(s, s.weekStart, drawnClock) };
     return shownSig.sig;
   };
 
@@ -631,9 +666,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       wantRefresh = true; // a popover, a write or a drag started while loading: drop the result
       return void deps.timing?.rendered("deferred");
     }
-    const today = todayNow();
+    const clock = clockOf(config, todayNow());
     const next = { tags, ...data };
-    const sig = signature(next, weekStart, today);
+    const sig = signature(next, weekStart, clock);
     const same = config === s.config && sig === shownSignature();
     if (same) return void deps.timing?.rendered("same");
     if (replaced) {
@@ -642,7 +677,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     s.config = config;
     Object.assign(s, { weekStart, ...next });
-    shownSig = { key: sigKey(s, weekStart, today), sig };
+    shownSig = { key: sigKey(s, weekStart, clock), sig };
     render(undefined, true);
     deps.timing?.rendered("redrawn");
   }

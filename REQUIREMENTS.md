@@ -53,7 +53,14 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - **Week start** follows Logseq's `preferredStartOfWeek`.
 
 ### Timeline
-- Zoom **Week** (wide day columns), **Month** (narrow day columns), **Quarter** (week columns).
+- Zoom **Day** (one day, 24 hour columns), **Week** (wide day columns), **Month** (narrow day columns), **Quarter**
+  (week columns).
+- **Day** zoom (N10, for work tracked in hours with DateTime properties): the grid is 96 tracks of 15 minutes. A span is
+  placed by its times (start rounded down, end rounded up to the quarter hour, at least one quarter hour); a missing
+  time is 00:00 for a start and the end of the day for an end, so a Date-only span covers the whole day; a span running
+  past midnight is clipped. One-date nodes and task markers sit at their time (Date-only: at 00:00). The today line
+  marks the current time. Prev / next move by one day. The view opens scrolled to the day's first timed item (08:00 on
+  a day without one) and keeps the user's scroll while the same day is shown.
 - One row per node sorted by start; progress strip on each bar; derived spans dashed;
   one-date nodes as diamonds; nodes with tasks expand to task sub-rows; today line; bars
   clipped at the range edge are marked; undated nodes in a footnote. Prev / next / today.
@@ -122,7 +129,8 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - Side panel and in-page block surfaces (next, in that order).
 - Dragging or resizing to change dates; a detail/edit panel.
 - More than one tag per view.
-- Repeating tasks; calendar day view and hour grid; Timeline year zoom; dependency arrows.
+- Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom;
+  dependency arrows.
 - Kanban manual card order; Agenda ranges other than 14 days.
 - Creating properties on the user's tags (e.g. a one-click "add Start/End").
 - Marketplace release (prepared after v1 works).

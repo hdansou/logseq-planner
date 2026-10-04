@@ -15,6 +15,15 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Timeline **Day** zoom (N10), first in the zoom control (Day | Week | Month | Quarter): one day on 96 tracks of 15
+  minutes under 24 hour columns ("00" … "23"). Spans are placed by their DateTime times (start rounded down, end rounded
+  up, at least one quarter hour); a Date-only start is 00:00 and a Date-only end runs to the end of the day, so a
+  Date-only span covers the day; spans past midnight are clipped and marked. One-date nodes and task markers sit at
+  their time (Date-only: 00:00). The today line marks the current time and moves on the live refresh. Prev / Next move
+  by one day; the earlier / later buttons jump to the nearest node's day. The view opens scrolled to the day's first
+  timed item (08:00 on a day without one) and keeps the user's scroll while the same day is redrawn. Saved views carry
+  `"zoom": "day"`. The layout's positions are now tracks (a day in Week / Month / Quarter, 15 minutes in Day):
+  `--pl-tl-days` / `--pl-tl-day` are renamed `--pl-tl-tracks` / `--pl-tl-track`, and the range has a `tracks` count.
 - Project tracker graph (N09): `npm run tracker` mirrors tasks.md into the `planner-project` Logseq graph (a #Project, #Milestone
   nodes, one #Task per item; Status, Team, Owner, Milestone, and Scheduled / Start / End from the git log as exact times;
   Start and End are DateTime properties). Idempotent, `--dry-run`, metadata in `scripts/tracker-meta.json`; Team, Owner,

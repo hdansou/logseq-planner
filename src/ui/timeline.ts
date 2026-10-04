@@ -1,9 +1,9 @@
 // Timeline view (T08): renders a `TimelineLayout` as HTML for the workspace's view area and its per-view toolbar, and
 // names the action a click means. Pure state → HTML, like workspace.ts; the workspace owns state and events.
-// One CSS grid of day tracks (timeline.css): the label column, then `--pl-tl-days` tracks of `--pl-tl-day`; every
-// position is a day index from the layout (`grid-column: index + 2`).
+// One CSS grid of tracks (timeline.css): the label column, then `--pl-tl-tracks` tracks of `--pl-tl-track`; every
+// position is a track index from the layout (`grid-column: index + 2`). A track is a day, or 15 minutes in Day zoom (N10).
 import { formatDay } from "../core/layout-common";
-import { type OutsideCount, type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
+import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import { esc, flag, segmented, viewNav } from "./html";
 
 export type TimelineAction =
@@ -15,9 +15,27 @@ export type TimelineAction =
   | { type: "jump"; day: string }
   | { type: "open"; uuid: string };
 
-const ZOOMS: [Zoom, string][] = [["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
+const ZOOMS: [Zoom, string][] = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
 
-/** Day index → grid line (column 1 is the label column). */
+/**
+ * Day zoom track width (15 minutes), set inline so the scroll the view opens at is computed from the same number (the
+ * other zooms' widths live in timeline.css). 4 tracks = 48 px per hour.
+ */
+export const DAY_TRACK_PX = 12;
+/** Day zoom: tracks shown before the first item when the view opens (30 minutes), and where an empty day opens (08:00). */
+const DAY_LEAD = 2;
+const DAY_DEFAULT_TRACK = 32;
+
+/**
+ * The Day zoom's grid attributes: its day (`data-tl-start`; the workspace scrolls when it changes) and the scroll it
+ * opens at (`data-tl-scroll-left`, px), from `dayFocus` with the rows expanded now.
+ */
+function dayAttrs(layout: TimelineLayout, expanded: ReadonlySet<number>): string {
+  const track = dayFocus(layout, expanded) ?? DAY_DEFAULT_TRACK;
+  return ` data-tl-start="${layout.range.start}" data-tl-scroll-left="${Math.max(0, track - DAY_LEAD) * DAY_TRACK_PX}"`;
+}
+
+/** Track → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
 
 export function renderTimelineToolbar(layout: TimelineLayout): string {
@@ -85,7 +103,7 @@ function renderRow(r: TimelineRow, expanded: boolean): string {
 export function renderTimeline(layout: TimelineLayout, heading: string, expanded: ReadonlySet<number>): string {
   const { columns, rows, range } = layout;
   const head = columns.map((c) =>
-    `<span class="pl-tl-col" data-tl-col="${c.start}"${flag("data-today", c.today)} style="grid-column: ${col(c.from)} / ${col(c.to)}">${esc(c.label)}</span>`).join("");
+    `<span class="pl-tl-col" data-tl-col="${c.key}"${flag("data-today", c.today)} style="grid-column: ${col(c.from)} / ${col(c.to)}">${esc(c.label)}</span>`).join("");
   const cells = columns.map((c) =>
     `<i class="pl-tl-cell"${flag("data-weekend", c.weekend)}${flag("data-week-start", c.weekStart)}${flag("data-month-start", c.monthStart)} style="grid-column: ${col(c.from)} / ${col(c.to)}"></i>`).join("");
   const today = layout.todayAt === null ? "" : `<div class="pl-tl-today" data-tl-today aria-hidden="true" style="--pl-tl-today: ${layout.todayAt}"></div>`;
@@ -93,7 +111,9 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
     ? `<p class="pl-tl-undated" data-tl-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-tl-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
     : "";
   return renderOutside(layout.earlier, layout.later)
-    + `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-days: ${range.days}">`
+    + (layout.zoom === "day"
+      ? `<div class="pl-tl" data-timeline data-zoom="day"${dayAttrs(layout, expanded)} style="--pl-tl-tracks: ${range.tracks}; --pl-tl-track: ${DAY_TRACK_PX}px">`
+      : `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-tracks: ${range.tracks}">`)
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`
     + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
     + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${rows.map((r) => renderRow(r, expanded.has(r.node.id))).join("")}</ul>`

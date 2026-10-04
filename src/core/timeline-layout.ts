@@ -1,7 +1,16 @@
 // Timeline layout: visible range, axis columns, rows (bars, points, task markers), today line and the undated list.
-// Pure: no DOM, no SDK, no clock (`today` is injected). Calendar-day arithmetic, labels and colours come from
-// layout-common.ts (shared with the Calendar). Positions are day indices from the range start
-// (`to` exclusive), so the UI places everything on one CSS grid of day tracks, whatever the zoom.
+// Pure: no DOM, no SDK, no clock (`today` and `now` are injected). Calendar-day arithmetic, labels and colours come from
+// layout-common.ts (shared with the Calendar).
+//
+// Track model (N10). Every position is a track index from the range start (`to` exclusive), so the UI places everything
+// on one CSS grid of tracks, whatever the zoom. A track is one calendar day in Week, Month and Quarter (a Quarter column
+// spans 7 tracks) and 15 minutes in Day (96 tracks per day; an hour column spans 4). `perDay` = tracks per day.
+// A date's track is its day's first track plus, when a track is shorter than a day, its time: floor for a start, ceil for
+// an (exclusive) end. A missing time is 00:00 for a start and the end of the day for an end, so a Date-only span covers
+// whole days in every zoom. A span takes at least one track. With one track per day times are ignored, so the day zooms
+// place exactly as before N10. One-date nodes and task markers sit at their start track (Date-only: the day's first).
+// Today line: today's track in the day zooms; in Day, the current time (`now`) as a fractional track, on today only.
+// The Day range is the anchor's day; Prev / Next move it by one day.
 import type { ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
@@ -9,14 +18,20 @@ import {
   weekdayName, type ViewItem,
 } from "./layout-common";
 
-export type Zoom = "week" | "month" | "quarter";
+export type Zoom = "day" | "week" | "month" | "quarter";
 
-/** Range shape per zoom (prototype): columns are days (week, month) or weeks (quarter); `lead` days before the anchor's week; prev/next `step`. */
-const ZOOM: Record<Zoom, { days: number; lead: number; step: number; unit: 1 | 7 }> = {
-  week: { days: 21, lead: 7, step: 7, unit: 1 },
-  month: { days: 56, lead: 14, step: 21, unit: 1 },
-  quarter: { days: 119, lead: 28, step: 42, unit: 7 },
+/**
+ * Range shape per zoom: `days` long, starting `lead` days before the anchor's week (Day: the anchor's day itself);
+ * prev/next `step` days; `perDay` tracks per day; columns of `unit` tracks: hours (day), days (week, month), weeks (quarter).
+ */
+const ZOOM: Record<Zoom, { days: number; lead: number; step: number; perDay: 1 | 96; unit: 1 | 4 | 7 }> = {
+  day: { days: 1, lead: 0, step: 1, perDay: 96, unit: 4 },
+  week: { days: 21, lead: 7, step: 7, perDay: 1, unit: 1 },
+  month: { days: 56, lead: 14, step: 21, perDay: 1, unit: 1 },
+  quarter: { days: 119, lead: 28, step: 42, perDay: 1, unit: 7 },
 };
+const MINUTES_PER_DAY = 1440;
+const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 
 // ---------------------------------------------------------------- types
 
@@ -24,30 +39,36 @@ export interface TimelineRange {
   start: string;
   /** Inclusive. */
   end: string;
+  /** Calendar days in the range. */
   days: number;
-  /** "20 Sep – 10 Oct 2026". */
+  /** Grid tracks: `days` × tracks per day (96 in Day, else 1). */
+  tracks: number;
+  /** "20 Sep – 10 Oct 2026"; Day: "Sat 3 Oct 2026". */
   label: string;
 }
 
-/** One axis column: a day (week, month) or a week (quarter), spanning day indices `from`…`to` (exclusive). */
+/** One axis column: an hour (day), a day (week, month) or a week (quarter), spanning tracks `from`…`to` (exclusive). */
 export interface TimelineColumn {
+  /** Unique per column: the day (`YYYY-MM-DD`), or `YYYY-MM-DDTHH` for an hour column. */
+  key: string;
+  /** First and last day it covers (an hour column: its day). */
   start: string;
   end: string;
   from: number;
   to: number;
-  /** "Sun 20" (week), "20 Sep" on week starts only (month), "20 Sep" (quarter). */
+  /** "13" (day), "Sun 20" (week), "20 Sep" on week starts only (month), "20 Sep" (quarter). */
   label: string;
-  /** A Saturday or Sunday day column (never a week column). */
+  /** A Saturday or Sunday day column (never a week or an hour column). */
   weekend: boolean;
-  /** Holds today. */
+  /** Holds today; an hour column: holds now. */
   today: boolean;
-  /** Starts a week (every quarter column). */
+  /** Starts a week (every quarter column; never an hour column). */
   weekStart: boolean;
-  /** Holds the 1st of a month. */
+  /** Holds the 1st of a month (never an hour column). */
   monthStart: boolean;
 }
 
-/** Day indices on the range, `to` exclusive; clipped at an edge the node runs past. */
+/** Tracks on the range, `to` exclusive; clipped at an edge the node runs past. */
 export interface Placement {
   from: number;
   to: number;
@@ -58,7 +79,7 @@ export interface Placement {
 export interface TimelineMarker {
   kind: "scheduled" | "deadline";
   date: LocalDate;
-  /** Day index. */
+  /** Track. */
   at: number;
   /** The marker of an open task's due date (Deadline, else Scheduled), when that is before today. */
   late: boolean;
@@ -87,7 +108,7 @@ export interface TimelineRow {
   cat: number;
   /** Spans (mapped, derived) that touch the range. */
   bar: Placement | null;
-  /** Day index of a point inside the range. */
+  /** Track of a point inside the range. */
   point: number | null;
   progress: Rollup;
   tasks: TimelineTaskRow[];
@@ -114,7 +135,10 @@ export interface TimelineLayout {
   later: OutsideCount;
   /** Nodes without any date, by title. */
   undated: { node: PlannerNode; title: string }[];
-  /** Day index of today; null when today is out of range. */
+  /**
+   * The today line: today's track (Week, Month, Quarter), or in Day the current time as a fractional track (13:30 → 54);
+   * null when today is out of range.
+   */
   todayAt: number | null;
 }
 
@@ -124,6 +148,8 @@ export interface TimelineInput {
   /** Any day of the period to show; the range starts `lead` days before its week. */
   anchor: string;
   today: string;
+  /** The local time now, `HH:MM` (the Day zoom's now line and current hour). */
+  now: string;
   /** 0 = Sunday … 6 = Saturday. */
   weekStart: number;
   /** Task Status closed values (built-in flags decide done). */
@@ -136,17 +162,29 @@ export interface TimelineInput {
 
 export function timelineRange(zoom: Zoom, anchor: string, weekStart: number): TimelineRange {
   const z = ZOOM[zoom];
-  const start = addDays(startOfWeek(anchor, weekStart), -z.lead);
+  const start = zoom === "day" ? anchor : addDays(startOfWeek(anchor, weekStart), -z.lead);
   const end = addDays(start, z.days - 1);
-  return { start, end, days: z.days, label: formatRange(start, end) };
+  const label = zoom === "day" ? `${weekdayName(start)} ${formatDay(start, true)}` : formatRange(start, end);
+  return { start, end, days: z.days, tracks: z.days * z.perDay, label };
 }
 
 /** The anchor one step earlier (-1) or later (1). */
 export const shiftAnchor = (anchor: string, zoom: Zoom, dir: -1 | 1): string => addDays(anchor, dir * ZOOM[zoom].step);
 
-function columnsOf(zoom: Zoom, range: TimelineRange, today: string, weekStart: number): TimelineColumn[] {
+/** Day: one column per hour, labelled "00" … "23"; the current hour's column is today's. */
+function hourColumns(range: TimelineRange, today: string, now: string): TimelineColumn[] {
+  const day = range.start;
+  const nowHour = day === today ? Math.floor(minutes(now) / 60) : -1;
+  return Array.from({ length: 24 }, (_, h) => {
+    const hh = String(h).padStart(2, "0");
+    return { key: `${day}T${hh}`, start: day, end: day, from: h * 4, to: h * 4 + 4, label: hh, weekend: false, today: h === nowHour, weekStart: false, monthStart: false };
+  });
+}
+
+function columnsOf(zoom: Zoom, range: TimelineRange, today: string, now: string, weekStart: number): TimelineColumn[] {
+  if (zoom === "day") return hourColumns(range, today, now);
   const unit = ZOOM[zoom].unit;
-  return Array.from({ length: range.days / unit }, (_, i) => {
+  return Array.from({ length: range.tracks / unit }, (_, i) => {
     const from = i * unit;
     const start = addDays(range.start, from);
     const end = addDays(start, unit - 1);
@@ -154,7 +192,7 @@ function columnsOf(zoom: Zoom, range: TimelineRange, today: string, weekStart: n
     const isWeekStart = unit === 7 || wd === weekStart;
     const label = zoom === "week" ? `${weekdayName(start)} ${Number(start.slice(8))}` : isWeekStart ? formatDay(start) : "";
     return {
-      start, end, from, to: from + unit, label,
+      key: start, start, end, from, to: from + unit, label,
       weekend: unit === 1 && (wd === 0 || wd === 6),
       today: start <= today && today <= end,
       weekStart: isWeekStart,
@@ -165,15 +203,28 @@ function columnsOf(zoom: Zoom, range: TimelineRange, today: string, weekStart: n
 
 // ---------------------------------------------------------------- rows
 
-/** Day index of `day` on the range, or the side it falls off. */
-const indexOn = (range: TimelineRange, day: string) => daysBetween(range.start, day);
+/**
+ * Track of `date` on the range (negative or past the end when it falls off): its day's first track, plus its time when a
+ * track is shorter than a day (floor for a start, ceil for an exclusive end; no time = the day's start / end).
+ */
+function trackOf(range: TimelineRange, date: LocalDate, edge: "start" | "end"): number {
+  const perDay = range.tracks / range.days;
+  const first = daysBetween(range.start, date.day) * perDay;
+  if (perDay === 1 || date.time === null) return first + (edge === "end" ? perDay : 0);
+  const t = (minutes(date.time) * perDay) / MINUTES_PER_DAY;
+  return first + (edge === "end" ? Math.ceil(t) : Math.floor(t));
+}
 
-function place(range: TimelineRange, start: string, end: string): { bar: Placement | null; outside: "before" | "after" | null } {
-  const from = indexOn(range, start);
-  const to = indexOn(range, end) + 1;
-  if (to <= 0) return { bar: null, outside: "before" };
-  if (from >= range.days) return { bar: null, outside: "after" };
-  return { bar: { from: Math.max(from, 0), to: Math.min(to, range.days), clipStart: from < 0, clipEnd: to > range.days }, outside: null };
+/** The day holding `track` (relative to the range start; any sign). */
+const dayOfTrack = (range: TimelineRange, track: number) => addDays(range.start, Math.floor(track / (range.tracks / range.days)));
+
+/** A span's tracks (at least one), clipped to the range, or the side it falls off with the day of its nearest track. */
+function place(range: TimelineRange, start: LocalDate, end: LocalDate): { bar: Placement } | { outside: "before" | "after"; nearest: string } {
+  const from = trackOf(range, start, "start");
+  const to = Math.max(trackOf(range, end, "end"), from + 1);
+  if (to <= 0) return { outside: "before", nearest: dayOfTrack(range, to - 1) };
+  if (from >= range.tracks) return { outside: "after", nearest: dayOfTrack(range, from) };
+  return { bar: { from: Math.max(from, 0), to: Math.min(to, range.tracks), clipStart: from < 0, clipEnd: to > range.tracks } };
 }
 
 function taskRow(task: PlannerTask, input: TimelineInput, range: TimelineRange): TimelineTaskRow {
@@ -181,8 +232,8 @@ function taskRow(task: PlannerTask, input: TimelineInput, range: TimelineRange):
   const markers: TimelineMarker[] = [];
   for (const [kind, date] of [["scheduled", task.scheduled], ["deadline", task.deadline]] as const) {
     if (!date) continue;
-    const at = indexOn(range, date.day);
-    if (at < 0 || at >= range.days) continue;
+    const at = trackOf(range, date, "start");
+    if (at < 0 || at >= range.tracks) continue;
     markers.push({ kind, date, at, late: date === dueDate(task) && isLate(task, done, input.today) });
   }
   const title = displayTitle(task.title, input.titles);
@@ -212,34 +263,60 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     }
     const start = span.start!;
     const end = span.end!;
-    const { bar, outside } = place(range, start.day, end.day);
-    if (outside === "before") {
-      earlier.count++;
-      if (earlier.nearest === null || end.day > earlier.nearest) earlier.nearest = end.day;
+    const placed = place(range, start, end);
+    if ("outside" in placed) {
+      const side = placed.outside === "before" ? earlier : later;
+      side.count++;
+      if (side.nearest === null || (placed.outside === "before" ? placed.nearest > side.nearest : placed.nearest < side.nearest)) side.nearest = placed.nearest;
       continue;
     }
-    if (outside === "after") {
-      later.count++;
-      if (later.nearest === null || start.day < later.nearest) later.nearest = start.day;
-      continue;
-    }
+    const { bar } = placed;
     const title = displayTitle(node.title, input.titles);
     const isPoint = span.kind === "point";
     rows.push({
       node, title, kind: span.kind, start, end, progress,
       cat: categoryOf(node.uuid),
       bar: isPoint ? null : bar,
-      point: isPoint && bar ? bar.from : null,
+      point: isPoint ? bar.from : null,
       tasks: [...tasks].sort((a, b) => byTaskOrder(a, b, input.titles)).map((t) => taskRow(t, input, range)),
       label: nodeLabel(title, span, progress),
     });
   }
   rows.sort((a, b) => compareDates(a.start, b.start) || compareDates(a.end, b.end) || a.title.localeCompare(b.title));
   undated.sort((a, b) => a.title.localeCompare(b.title));
-  const t = indexOn(range, input.today);
   return {
     zoom: input.zoom, range, rows, undated, earlier, later,
-    columns: columnsOf(input.zoom, range, input.today, input.weekStart),
-    todayAt: t >= 0 && t < range.days ? t : null,
+    columns: columnsOf(input.zoom, range, input.today, input.now, input.weekStart),
+    todayAt: todayAt(input.zoom, range, input.today, input.now),
   };
+}
+
+function todayAt(zoom: Zoom, range: TimelineRange, today: string, now: string): number | null {
+  if (zoom === "day") return today === range.start ? (minutes(now) * range.tracks) / MINUTES_PER_DAY : null;
+  const t = trackOf(range, { day: today, time: null }, "start");
+  return t >= 0 && t < range.tracks ? t : null;
+}
+
+/**
+ * Day zoom: the track the view opens at (N10). The earliest bar or point that starts on the day at a time, or task
+ * marker with a time on an `expanded` row; else 0 when a Date-only point or marker (drawn at the day's first track) is
+ * there; else null (nothing pinned to a time: the UI picks its default hour). Bars running in from the day before and
+ * Date-only spans cover the day, so they never pull the view to 00:00. Null in the other zooms.
+ */
+export function dayFocus(layout: TimelineLayout, expanded: ReadonlySet<number>): number | null {
+  if (layout.zoom !== "day") return null;
+  const timed: number[] = [];
+  let untimed = false;
+  for (const r of layout.rows) {
+    if (r.point !== null) {
+      if (r.start.time === null) untimed = true;
+      else timed.push(r.point);
+    } else if (r.bar && !r.bar.clipStart && r.start.time !== null) timed.push(r.bar.from);
+    if (!expanded.has(r.node.id)) continue;
+    for (const m of r.tasks.flatMap((t) => t.markers)) {
+      if (m.date.time === null) untimed = true;
+      else timed.push(m.at);
+    }
+  }
+  return timed.length ? Math.min(...timed) : untimed ? 0 : null;
 }

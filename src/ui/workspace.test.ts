@@ -6,6 +6,7 @@ import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
 import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { DAY_TRACK_PX } from "./timeline";
 import { loadNodes, loadNodesAndTasks, TITLES_QUERY } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
 
@@ -25,10 +26,10 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const shownNodes = () => $$("[data-tl-row]").length + $$("[data-tl-undated] [data-tl-open]").length;
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
 
-async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number> } = {}) {
+async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number>; time?: () => string } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0) });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: opts.time ?? (() => "13:30"), kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0) });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -536,6 +537,79 @@ describe("saved views", () => {
     await click(ws, "[data-view-open=v1]");
     expect(text("[data-region=error]")).toContain("unknown date property");
     expect(ws.config()!.tag).toBe(tag("Meeting").ident); // the current view stays
+  });
+});
+
+describe("Timeline Day zoom (N10)", () => {
+  /** Day track width in px (timeline.ts `DAY_TRACK_PX`) and the scroll the Day view opens at for a first track `t`. */
+  const opensAt = (t: number) => Math.max(0, t - 2) * DAY_TRACK_PX;
+  const view = () => $("[data-region=view]")!;
+
+  it("Day is the first zoom; it shows one day of 24 hour columns and steps by one day", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    expect($$("[data-tl-zoom]").map((b) => b.dataset.tlZoom)).toEqual(["day", "week", "month", "quarter"]);
+    await click(ws, "[data-tl-zoom=day]");
+    expect(ws.config()).toMatchObject({ kind: "timeline", zoom: "day" });
+    expect($("[data-tl-zoom=day]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(text("[data-tl-range]")).toBe("Sat 3 Oct 2026");
+    expect($$("[data-tl-col]")).toHaveLength(24);
+    const config = JSON.stringify(ws.config());
+    await click(ws, "[data-tl-nav=next]");
+    expect(text("[data-tl-range]")).toBe("Sun 4 Oct 2026");
+    await click(ws, "[data-tl-nav=prev]");
+    await click(ws, "[data-tl-nav=prev]");
+    expect(text("[data-tl-range]")).toBe("Fri 2 Oct 2026");
+    await click(ws, "[data-tl-nav=today]");
+    expect(text("[data-tl-range]")).toBe("Sat 3 Oct 2026");
+    expect(JSON.stringify(ws.config())).toBe(config); // the anchor is session state
+  });
+
+  it("is saved with the view and restored when it is opened", async () => {
+    const { ws, store } = await setup();
+    await pickTag(ws, "Project");
+    await click(ws, "[data-tl-zoom=day]");
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, "[data-action=save-view]");
+    const id = (await store.list())[0].id;
+    store.invalidate();
+    await click(ws, "[data-tl-zoom=week]");
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-open="${id}"]`);
+    expect(ws.config()).toMatchObject({ kind: "timeline", zoom: "day" });
+    expect(text("[data-tl-range]")).toBe("Sat 3 Oct 2026");
+  });
+
+  it("opens scrolled to the day's first timed item, or 08:00 on a day without one", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Meeting");
+    await click(ws, "[data-tl-zoom=day]");
+    expect(view().scrollLeft).toBe(opensAt(42)); // Kickoff 10:30
+    await click(ws, "[data-tl-nav=next]");
+    expect(view().scrollLeft).toBe(opensAt(95)); // Late review 23:45
+    await click(ws, "[data-tl-nav=next]");
+    expect(view().scrollLeft).toBe(opensAt(32)); // nothing: 08:00
+    await click(ws, "[data-tl-nav=today]");
+    expect(view().scrollLeft).toBe(opensAt(42));
+  });
+
+  it("does not move the user's scroll on a redraw of the same day: an expanded row, a live refresh", async () => {
+    let time = "13:30";
+    const { ws } = await setup({ time: () => time });
+    await pickTag(ws, "Project");
+    await click(ws, "[data-tl-zoom=day]");
+    expect(view().scrollLeft).toBe(opensAt(32)); // Date-only spans only
+    view().scrollLeft = 100;
+    await click(ws, "[data-tl-toggle]");
+    expect($$("[data-tl-task]").length).toBeGreaterThan(0);
+    expect(view().scrollLeft).toBe(100);
+    time = "14:00"; // the refresh redraws for the now line alone
+    await ws.refresh();
+    expect($("[data-tl-today]")!.getAttribute("style")).toContain("--pl-tl-today: 56");
+    expect(view().scrollLeft).toBe(100);
+    await click(ws, "[data-tl-zoom=week]");
+    await click(ws, "[data-tl-zoom=day]"); // back to Day: opens again
+    expect(view().scrollLeft).toBe(opensAt(32));
   });
 });
 

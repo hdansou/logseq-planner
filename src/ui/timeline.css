@@ -1,13 +1,14 @@
 /* Timeline (T08; docs/design.md "Timeline"). Tokens only: every colour is a --pl-* variable from theme.css.
-   One grid of day tracks shared by the head, the backdrop and every row: the label column, then --pl-tl-days
-   tracks of --pl-tl-day. Week columns in Quarter span seven narrow day tracks. */
+   One grid of tracks shared by the head, the backdrop and every row: the label column, then --pl-tl-tracks
+   tracks of --pl-tl-track. A track is a day; week columns in Quarter span seven narrow day tracks. In Day zoom (N10) a
+   track is 15 minutes, an hour column spans four, and the track width is set inline (timeline.ts DAY_TRACK_PX). */
 
 /* Grid. isolation keeps the z-index ladder below inside the timeline:
    backdrop 0 < bars and marks 1 < today line 2 < sticky labels 3 < sticky head 4. */
-.pl-tl { --pl-tl-label-w: 240px; --pl-tl-day: 18px; position: relative; isolation: isolate; width: max-content; min-width: 100%; font-size: 13px; }
-.pl-tl[data-zoom="week"] { --pl-tl-day: 44px; }
-.pl-tl[data-zoom="quarter"] { --pl-tl-day: calc(52px / 7); }
-.pl-tl-grid, .pl-tl-head, .pl-tl-row { display: grid; grid-template-columns: var(--pl-tl-label-w) repeat(var(--pl-tl-days), var(--pl-tl-day)); }
+.pl-tl { --pl-tl-label-w: 240px; --pl-tl-track: 18px; position: relative; isolation: isolate; width: max-content; min-width: 100%; font-size: 13px; }
+.pl-tl[data-zoom="week"] { --pl-tl-track: 44px; }
+.pl-tl[data-zoom="quarter"] { --pl-tl-track: calc(52px / 7); }
+.pl-tl-grid, .pl-tl-head, .pl-tl-row { display: grid; grid-template-columns: var(--pl-tl-label-w) repeat(var(--pl-tl-tracks), var(--pl-tl-track)); }
 
 /* Backdrop: weekends, week and month boundaries, full height */
 .pl-tl-grid { position: absolute; inset: 0; z-index: 0; grid-template-rows: 100%; pointer-events: none; }
@@ -15,6 +16,7 @@
 .pl-tl-cell[data-weekend] { background: var(--pl-fill); }
 .pl-tl-cell[data-week-start] { box-shadow: inset 1px 0 0 var(--pl-line-soft); }
 .pl-tl-cell[data-month-start] { box-shadow: inset 1px 0 0 var(--pl-line); }
+.pl-tl[data-zoom="day"] .pl-tl-cell { box-shadow: inset 1px 0 0 var(--pl-line-soft); } /* hour lines */
 
 /* Head: sticky on vertical scroll; labels overflow into the following narrow columns */
 .pl-tl-head { position: sticky; top: 0; z-index: 4; min-height: 28px; align-items: end; background: var(--pl-surface);
@@ -84,7 +86,9 @@
 
 /* Today line: accent, never tint (design.md) */
 .pl-tl-today { position: absolute; top: 0; bottom: 0; z-index: 2; width: 2px; margin-left: -1px; pointer-events: none;
-  left: calc(var(--pl-tl-label-w) + (var(--pl-tl-today) + .5) * var(--pl-tl-day)); background: var(--pl-today); }
+  left: calc(var(--pl-tl-label-w) + (var(--pl-tl-today) + .5) * var(--pl-tl-track)); background: var(--pl-today); }
+/* Day zoom: the line marks the current time, a fractional track (the edge, not the middle of a day track) */
+.pl-tl[data-zoom="day"] .pl-tl-today { left: calc(var(--pl-tl-label-w) + var(--pl-tl-today) * var(--pl-tl-track)); }
 
 /* Undated footnote */
 .pl-tl-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }

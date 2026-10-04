@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { defaultViewConfig, parseViewConfig, serializeViewConfig, toChoiceFilters, validateViewConfig } from "./view-config";
+import { defaultViewConfig, parseViewConfig, serializeViewConfig, toChoiceFilters, validateViewConfig, type ViewConfig } from "./view-config";
 import type { TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -187,6 +187,14 @@ describe("strict shapes (T14 review)", () => {
     const c = { ...(defaultViewConfig(p, "kanban") as object), hiddenColumns: { [status.ident]: ["none", "no-such-uuid"], ":x/gone": ["none"] } };
     expect(validateViewConfig(c as never, tags)).toBe(p);
     expect(parseViewConfig(JSON.stringify({ v: 1, config: c }))).toEqual(c);
+  });
+
+  it("every Timeline zoom, Day included (N10), validates and round trips", () => {
+    for (const zoom of ["day", "week", "month", "quarter"] as const) {
+      const c = { ...defaultViewConfig(p, "timeline"), zoom } as ViewConfig;
+      expect(validateViewConfig(c, tags)).toBe(p);
+      expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+    }
   });
 
   it("rejects an unknown kind or option at parse time", () => {

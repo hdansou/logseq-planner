@@ -6,7 +6,7 @@ import { loadNodesAndTasks } from "./queries";
 import { fixtureDq } from "../ui/test-fakes";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
-import { layoutTimeline, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
+import { dayFocus, layoutTimeline, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -20,6 +20,7 @@ const dq = fixtureDq();
 const dateIdent = (t: TagInfo, title: string) => t.dateProps.find((p) => p.title === title)!.ident;
 const statusValues = tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")!.values;
 const TODAY = "2026-10-03"; // a Saturday
+const NOW = "13:30";
 const d = (day: string, time: string | null = null): LocalDate => ({ day, time });
 
 async function load(tagTitle: string) {
@@ -34,7 +35,7 @@ async function layout(tagTitle: string, zoom: Zoom, over: Partial<TimelineInput>
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutTimeline({
-    items: viewItems(nodes, tasks, start, end, statusValues), zoom, anchor: TODAY, today: TODAY, weekStart: 0,
+    items: viewItems(nodes, tasks, start, end, statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0,
     statusValues, titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -50,7 +51,7 @@ function synthetic(start: string, end: string | null, zoom: Zoom, anchor = TODAY
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
   const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
-  return layoutTimeline({ items: viewItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, weekStart, statusValues, titles: new Map() });
+  return layoutTimeline({ items: viewItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, now: NOW, weekStart, statusValues, titles: new Map() });
 }
 
 describe("calendar days (arithmetic itself: layout-common.test.ts)", () => {
@@ -67,7 +68,7 @@ describe("calendar days (arithmetic itself: layout-common.test.ts)", () => {
 describe("visible range per zoom (week start Sunday, today Sat 3 Oct 2026)", () => {
   it("week: 21 wide day columns from the week before the anchor's week", async () => {
     const l = await layout("Project", "week");
-    expect(l.range).toEqual({ start: "2026-09-20", end: "2026-10-10", days: 21, label: "20 Sep – 10 Oct 2026" });
+    expect(l.range).toEqual({ start: "2026-09-20", end: "2026-10-10", days: 21, tracks: 21, label: "20 Sep – 10 Oct 2026" });
     expect(l.columns).toHaveLength(21);
     expect(l.columns.every((c) => c.to - c.from === 1)).toBe(true);
     expect(l.columns[0]).toMatchObject({ start: "2026-09-20", end: "2026-09-20", label: "Sun 20", weekend: true, weekStart: true });
@@ -76,14 +77,14 @@ describe("visible range per zoom (week start Sunday, today Sat 3 Oct 2026)", () 
 
   it("month: 56 narrow day columns starting two weeks before the anchor's week, labelled on week starts", async () => {
     const l = await layout("Project", "month");
-    expect(l.range).toEqual({ start: "2026-09-13", end: "2026-11-07", days: 56, label: "13 Sep – 7 Nov 2026" });
+    expect(l.range).toEqual({ start: "2026-09-13", end: "2026-11-07", days: 56, tracks: 56, label: "13 Sep – 7 Nov 2026" });
     expect(l.columns).toHaveLength(56);
     expect(l.columns.filter((c) => c.label).map((c) => c.label)).toEqual(["13 Sep", "20 Sep", "27 Sep", "4 Oct", "11 Oct", "18 Oct", "25 Oct", "1 Nov"]);
   });
 
   it("quarter: 17 week columns of seven days each", async () => {
     const l = await layout("Project", "quarter");
-    expect(l.range).toEqual({ start: "2026-08-30", end: "2026-12-26", days: 119, label: "30 Aug – 26 Dec 2026" });
+    expect(l.range).toEqual({ start: "2026-08-30", end: "2026-12-26", days: 119, tracks: 119, label: "30 Aug – 26 Dec 2026" });
     expect(l.columns).toHaveLength(17);
     expect(l.columns[0]).toMatchObject({ start: "2026-08-30", end: "2026-09-05", from: 0, to: 7, label: "30 Aug" });
     expect(l.columns.every((c) => c.to - c.from === 7 && !c.weekend)).toBe(true);
@@ -165,7 +166,7 @@ describe("rows", () => {
       ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
     const nodes = [node(1, "2026-07-01", "2026-07-10"), node(2, "2026-08-01", "2026-09-05"), node(3, "2026-09-25", "2026-09-30"),
       node(4, "2026-11-02", "2026-11-20"), node(5, "2026-10-20", "2026-12-01"), node(6, "2027-01-05", "2027-01-06")];
-    const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom: "week", anchor, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
+    const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom: "week", anchor, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
     const l = at(TODAY); // 20 Sep – 10 Oct
     expect(l.rows.map((r) => r.title)).toEqual(["N3"]);
     expect(l.earlier).toEqual({ count: 2, nearest: "2026-09-05" });
@@ -187,7 +188,7 @@ describe("rows", () => {
     const p = tag("Project");
     const bare = nodes.map((n) => (n.title === "Mobile app" ? { ...n, dates: {} } : n));
     const l = layoutTimeline({
-      items: viewItems(bare, tasks, dateIdent(p, "Start"), dateIdent(p, "End"), statusValues), zoom: "month", anchor: TODAY, today: TODAY,
+      items: viewItems(bare, tasks, dateIdent(p, "Start"), dateIdent(p, "End"), statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW,
       weekStart: 0, statusValues, titles: titlesByUuid(nodes),
     });
     expect(row(l, "Mobile app")).toMatchObject({ kind: "derived", bar: { from: 26, to: 27 } }); // Wireframes, Scheduled 9 Oct
@@ -250,7 +251,7 @@ describe("task rows", () => {
     });
     const l = layoutTimeline({
       items: viewItems([node], [mk(1, "2026-10-01", null), mk(2, "2026-10-01", "2026-10-02"), mk(3, "2026-10-03", null), mk(4, "2026-10-01", "2026-10-09")], s, null, statusValues),
-      zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map(),
+      zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(),
     });
     const lateOf = (title: string) => l.rows[0].tasks.find((t) => t.title === title)!.markers.map((m) => [m.kind, m.late]);
     expect(lateOf("T1")).toEqual([["scheduled", true]]);
@@ -272,7 +273,7 @@ describe("task rows", () => {
     const t = (id: number, title: string, deadline: string | null): PlannerTask =>
       ({ id, uuid: `t${id}`, title, status: null, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
     const tasks = [t(1, "b undated", null), t(2, "late", "2026-10-09"), t(3, "a undated", null), t(4, "early", "2026-10-02")];
-    const l = layoutTimeline({ items: viewItems([node], tasks, dateIdent(p, "Start"), null, statusValues), zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
+    const l = layoutTimeline({ items: viewItems([node], tasks, dateIdent(p, "Start"), null, statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
     expect(l.rows[0].tasks.map((x) => x.title)).toEqual(["early", "late", "a undated", "b undated"]);
     expect(l.rows[0].tasks[0].status).toBeNull();
   });
@@ -290,5 +291,157 @@ describe("today line", () => {
     expect(l.range.start).toBe("2026-10-04");
     expect(l.todayAt).toBeNull();
     expect(l.columns.some((c) => c.today)).toBe(false);
+  });
+});
+
+describe("Day zoom (N10): one day of 96 tracks of 15 minutes, 24 hour columns", () => {
+  /** Nodes with Start/End (either may be null: a point) and their tasks, laid out on Sat 3 Oct in Day zoom. */
+  function day(specs: [LocalDate | null, LocalDate | null][], over: Partial<TimelineInput> = {}, tasks: PlannerTask[] = []) {
+    const p = tag("Project");
+    const s = dateIdent(p, "Start");
+    const e = dateIdent(p, "End");
+    const nodes = specs.map(([start, end], i): PlannerNode => ({
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], choices: {},
+      dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
+    }));
+    return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(), ...over });
+  }
+  const bar = (l: TimelineLayout, i = 0) => l.rows[i].bar;
+  const todo = () => {
+    const v = statusValues.find((x) => x.title === "Todo")!;
+    return { ident: v.ident!, title: v.title };
+  };
+  const task = (id: number, scheduled: LocalDate | null, deadline: LocalDate | null): PlannerTask =>
+    ({ id, uuid: `t${id}`, title: `T${id}`, status: todo(), nodeIds: [1], scheduled, deadline });
+
+  it("range: exactly the anchor's day, whatever the week start, labelled with its weekday", () => {
+    const want = { start: TODAY, end: TODAY, days: 1, tracks: 96, label: "Sat 3 Oct 2026" };
+    expect(timelineRange("day", TODAY, 0)).toEqual(want);
+    expect(timelineRange("day", TODAY, 1)).toEqual(want);
+    expect(timelineRange("day", "2026-10-05", 0).label).toBe("Mon 5 Oct 2026");
+  });
+
+  it("prev / next move by one day", () => {
+    expect(shiftAnchor(TODAY, "day", 1)).toBe("2026-10-04");
+    expect(shiftAnchor(TODAY, "day", -1)).toBe("2026-10-02");
+    expect(shiftAnchor("2026-12-31", "day", 1)).toBe("2027-01-01");
+  });
+
+  it("24 hour columns of 4 tracks labelled 00 … 23, without weekend, week or month decorations; today = the current hour", () => {
+    const l = day([], { anchor: "2026-10-01" }); // a 1st
+    expect(l.columns).toHaveLength(24);
+    expect(l.columns.map((c) => c.label)).toEqual(Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")));
+    expect(l.columns[13]).toEqual({ key: "2026-10-01T13", start: "2026-10-01", end: "2026-10-01", from: 52, to: 56, label: "13", weekend: false, today: false, weekStart: false, monthStart: false });
+    const sat = day([]);
+    expect(sat.columns.some((c) => c.weekend || c.weekStart || c.monthStart)).toBe(false);
+    expect(sat.columns.filter((c) => c.today).map((c) => c.key)).toEqual(["2026-10-03T13"]);
+  });
+
+  it("keys the day columns by their day (the other zooms)", async () => {
+    const l = await layout("Project", "week");
+    expect(l.columns[13]).toMatchObject({ key: TODAY, start: TODAY });
+  });
+
+  it("places a span by its times: floor for the start track, ceil for the end", () => {
+    expect(bar(day([[d(TODAY, "13:07"), d(TODAY, "14:08")]]))).toEqual({ from: 52, to: 57, clipStart: false, clipEnd: false });
+    expect(bar(day([[d(TODAY, "13:00"), d(TODAY, "14:00")]]))).toEqual({ from: 52, to: 56, clipStart: false, clipEnd: false });
+    expect(bar(day([[d(TODAY, "00:00"), d(TODAY, "23:59")]]))).toEqual({ from: 0, to: 96, clipStart: false, clipEnd: false });
+  });
+
+  it("a span takes at least one track", () => {
+    expect(bar(day([[d(TODAY, "13:00"), d(TODAY, "13:00")]]))).toEqual({ from: 52, to: 53, clipStart: false, clipEnd: false });
+    expect(bar(day([[d(TODAY, "13:05"), d(TODAY, "13:10")]]))).toEqual({ from: 52, to: 53, clipStart: false, clipEnd: false });
+  });
+
+  it("Date-only ends: a start without a time is 00:00, an end without one runs to the end of its day", () => {
+    expect(bar(day([[d(TODAY), d(TODAY)]]))).toEqual({ from: 0, to: 96, clipStart: false, clipEnd: false });
+    expect(bar(day([[d(TODAY, "09:00"), d(TODAY)]]))).toEqual({ from: 36, to: 96, clipStart: false, clipEnd: false });
+    expect(bar(day([[d(TODAY), d(TODAY, "10:00")]]))).toEqual({ from: 0, to: 40, clipStart: false, clipEnd: false });
+  });
+
+  it("clips a span across midnight at the edge it runs past; a Date-only span over several days at both", () => {
+    expect(bar(day([[d("2026-10-02", "22:00"), d(TODAY, "02:00")]]))).toEqual({ from: 0, to: 8, clipStart: true, clipEnd: false });
+    expect(bar(day([[d(TODAY, "23:00"), d("2026-10-04", "01:00")]]))).toEqual({ from: 92, to: 96, clipStart: false, clipEnd: true });
+    expect(bar(day([[d("2026-10-01"), d("2026-10-05")]]))).toEqual({ from: 0, to: 96, clipStart: true, clipEnd: true });
+  });
+
+  it("a one-date node is a point at its time's track; a Date-only one at track 0", () => {
+    const l = day([[d(TODAY, "13:07"), null], [d(TODAY), null]]);
+    expect(l.rows.map((r) => [r.title, r.kind, r.point, r.bar])).toEqual([["N2", "point", 0, null], ["N1", "point", 52, null]]);
+    expect(l.rows[1].label).toBe("N1, 3 Oct 13:07");
+  });
+
+  it("nodes wholly before or after the day are counted; nearest = the day of the last / first track they cover", () => {
+    const l = day([
+      [d("2026-10-02", "09:00"), d("2026-10-02", "17:00")],
+      [d("2026-10-02", "22:00"), d(TODAY, "00:00")], // ends at midnight: wholly on the 2nd
+      [d("2026-10-04", "08:00"), null],
+      [d("2026-10-05"), d("2026-10-06")],
+      [d(TODAY, "10:00"), d(TODAY, "11:00")],
+    ]);
+    expect(l.rows.map((r) => r.title)).toEqual(["N5"]);
+    expect(l.earlier).toEqual({ count: 2, nearest: "2026-10-02" });
+    expect(l.later).toEqual({ count: 2, nearest: "2026-10-04" });
+  });
+
+  it("task markers sit at their time's track (Date-only at track 0); lateness is unchanged; other days are dropped", () => {
+    const tasks = [task(1, d(TODAY, "09:10"), d(TODAY, "17:00")), task(2, null, d(TODAY)), task(3, d("2026-10-04", "01:00"), null)];
+    const l = day([[d(TODAY, "08:00"), d(TODAY, "18:00")]], {}, tasks);
+    const markers = (title: string) => l.rows[0].tasks.find((t) => t.title === title)!.markers.map((m) => [m.kind, m.at, m.late]);
+    expect(markers("T1")).toEqual([["scheduled", 36, false], ["deadline", 68, false]]);
+    expect(markers("T2")).toEqual([["deadline", 0, false]]);
+    expect(markers("T3")).toEqual([]);
+    const tomorrow = day([[d(TODAY, "08:00"), d(TODAY, "18:00")]], { today: "2026-10-04" }, tasks);
+    expect(tomorrow.rows[0].tasks.find((t) => t.title === "T1")!.markers.map((m) => m.late)).toEqual([false, true]);
+  });
+
+  it("the now line sits at the current time in tracks, only on today", () => {
+    expect(day([]).todayAt).toBe(54); // 13:30
+    expect(day([], { now: "13:07" }).todayAt).toBeCloseTo(787 / 15);
+    expect(day([], { now: "00:00" }).todayAt).toBe(0);
+    expect(day([], { anchor: "2026-10-04" }).todayAt).toBeNull();
+  });
+
+  it("the other zooms ignore times: same placement as before", async () => {
+    const l = synthetic("2026-10-03", "2026-10-03", "week");
+    expect(l.rows[0].bar).toEqual({ from: 13, to: 14, clipStart: false, clipEnd: false });
+    const m = await layout("Meeting", "week", { now: "23:59" });
+    expect(m.rows.map((r) => r.point)).toEqual([13, 14]);
+    expect(m.todayAt).toBe(13);
+  });
+});
+
+describe("dayFocus (N10): where the Day zoom opens", () => {
+  const p = () => tag("Project");
+  function day(specs: [LocalDate | null, LocalDate | null][], tasks: PlannerTask[] = []) {
+    const s = dateIdent(p(), "Start");
+    const e = dateIdent(p(), "End");
+    const nodes = specs.map(([start, end], i): PlannerNode => ({
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], choices: {},
+      dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
+    }));
+    return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+  }
+  const task = (id: number, scheduled: LocalDate | null): PlannerTask => ({ id, uuid: `t${id}`, title: `T${id}`, status: null, nodeIds: [1], scheduled, deadline: null });
+
+  it("the earliest bar or point that starts on the day at a time", () => {
+    expect(dayFocus(day([[d(TODAY, "13:07"), d(TODAY, "14:08")], [d(TODAY, "10:00"), null]]), new Set())).toBe(40);
+  });
+
+  it("Date-only items and spans running in from the day before do not pull it to 00:00 when a timed item is there", () => {
+    const l = day([[d(TODAY), d(TODAY)], [d("2026-10-02", "22:00"), d(TODAY, "02:00")], [d(TODAY), null], [d(TODAY, "13:07"), d(TODAY, "14:08")]]);
+    expect(dayFocus(l, new Set())).toBe(52);
+  });
+
+  it("markers count only on expanded rows", () => {
+    const l = day([[d(TODAY, "13:00"), d(TODAY, "14:00")]], [task(1, d(TODAY, "09:00"))]);
+    expect(dayFocus(l, new Set())).toBe(52);
+    expect(dayFocus(l, new Set([1]))).toBe(36);
+  });
+
+  it("a Date-only point or marker alone: 00:00; nothing on the day: null", () => {
+    expect(dayFocus(day([[d(TODAY), null]]), new Set())).toBe(0);
+    expect(dayFocus(day([[d(TODAY), d(TODAY)]]), new Set())).toBeNull();
+    expect(dayFocus(day([]), new Set())).toBeNull();
   });
 });

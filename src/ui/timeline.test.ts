@@ -6,11 +6,11 @@ import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
-import { renderTimeline } from "./timeline";
+import { DAY_TRACK_PX, renderTimeline } from "./timeline";
 import { layoutTimeline } from "../core/timeline-layout";
 
 /** A layout with no items (range of today, Month), to render summaries alone. */
-const emptyLayout = () => layoutTimeline({ items: [], zoom: "month", anchor: TODAY, today: TODAY, weekStart: 0, statusValues: [], titles: new Map() });
+const emptyLayout = () => layoutTimeline({ items: [], zoom: "month", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
 
 const TODAY = "2026-10-03";
 const SITE = "6a000000-0000-4000-8000-000000000001";
@@ -45,7 +45,7 @@ beforeEach(async () => {
   document.body.append(root);
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
-  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, kanban: noWrites, weekStart: async () => 0 });
+  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, time: () => "13:30", kanban: noWrites, weekStart: async () => 0 });
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);
 });
@@ -53,7 +53,7 @@ beforeEach(async () => {
 describe("toolbar", () => {
   it("shows the zoom switch (Month by default), prev / today / next and the range label", () => {
     expect($$("[data-region=view-toolbar] [data-tl-zoom]").map((b) => [b.textContent, b.getAttribute("aria-pressed")]))
-      .toEqual([["Week", "false"], ["Month", "true"], ["Quarter", "false"]]);
+      .toEqual([["Day", "false"], ["Week", "false"], ["Month", "true"], ["Quarter", "false"]]);
     for (const nav of ["prev", "today", "next"]) expect($(`[data-region=view-toolbar] [data-tl-nav=${nav}]`)!.tagName).toBe("BUTTON");
     expect($("[data-tl-nav=prev]")!.getAttribute("aria-label")).toBe("Previous");
     expect(text("[data-tl-range]")).toBe("13 Sep – 7 Nov 2026");
@@ -105,6 +105,74 @@ describe("toolbar", () => {
     expect($("[data-tl-zoom]")).toBeNull();
     expect($("[data-timeline]")).toBeNull();
     expect($("[data-kanban]")).not.toBeNull();
+  });
+});
+
+describe("Day zoom (N10)", () => {
+  it("one grid of 96 quarter-hour tracks with the Day track width inline; the other zooms set the track count only", async () => {
+    const month = $("[data-timeline]")!;
+    expect(month.getAttribute("style")).toBe("--pl-tl-tracks: 56");
+    expect(month.hasAttribute("data-tl-start")).toBe(false);
+    await click("[data-tl-zoom=day]");
+    const tl = $("[data-timeline]")!;
+    expect(tl.dataset.zoom).toBe("day");
+    expect(tl.getAttribute("style")).toBe(`--pl-tl-tracks: 96; --pl-tl-track: ${DAY_TRACK_PX}px`);
+    expect(tl.dataset.tlStart).toBe(TODAY);
+    expect(timelineCss).toMatch(/\.pl-tl\[data-zoom="week"\]\s*\{\s*--pl-tl-track:\s*44px/);
+  });
+
+  it("24 hour columns labelled 00 … 23, keyed by day and hour; the current hour is today's; no weekend or week marks", async () => {
+    await click("[data-tl-zoom=day]");
+    const cols = $$("[data-tl-col]");
+    expect(cols.map((c) => c.textContent)).toEqual(Array.from({ length: 24 }, (_, h) => String(h).padStart(2, "0")));
+    expect(cols[13].dataset.tlCol).toBe(`${TODAY}T13`);
+    expect(cols[13].getAttribute("style")).toContain("grid-column: 54 / 58");
+    expect($$("[data-tl-col][data-today]").map((c) => c.dataset.tlCol)).toEqual([`${TODAY}T13`]);
+    expect($$(".pl-tl-cell")).toHaveLength(24);
+    expect($$(".pl-tl-cell[data-weekend], .pl-tl-cell[data-week-start], .pl-tl-cell[data-month-start]")).toHaveLength(0);
+    expect(timelineCss).toMatch(/\.pl-tl\[data-zoom="day"\] \.pl-tl-cell\s*\{[^}]*box-shadow/);
+  });
+
+  it("Date-only spans across the day are clipped bars over all 96 tracks; a timed point sits at its quarter hour", async () => {
+    await click("[data-tl-zoom=day]");
+    const bar = rowOf("Website relaunch").querySelector<HTMLElement>("[data-tl-bar]")!;
+    expect(bar.getAttribute("style")).toContain("grid-column: 2 / 98");
+    expect(bar.hasAttribute("data-clip-start") && bar.hasAttribute("data-clip-end")).toBe(true);
+    expect(bar.getAttribute("aria-label")).toBe("Website relaunch, 23 Sep – 23 Oct, 1 of 2 done, continues before this range, continues after this range");
+    await click(`[data-tag-id="${tag("Meeting").id}"]`); // a new tag starts on its default view (Month)
+    await click("[data-tl-zoom=day]");
+    const kickoff = $("[data-tl-point]")!;
+    expect(kickoff.getAttribute("style")).toContain("grid-column: 44"); // 10:30 = track 42
+    expect(kickoff.getAttribute("aria-label")).toBe("Kickoff, 3 Oct 10:30");
+    expect(text("[data-tl-outside-summary]")).toBe("1 later");
+    expect($("[data-tl-jump=later]")!.dataset.tlDay).toBe("2026-10-04");
+  });
+
+  it("task markers at their time's track", async () => {
+    await click("[data-tl-zoom=day]");
+    await click("[data-tl-nav=next]");
+    await click("[data-tl-nav=next]"); // Mon 5 Oct: Draft brief, deadline 17:00
+    await click(`[data-tl-toggle="${rowOf("Website relaunch").dataset.tlRow}"]`);
+    const marker = $("[data-tl-task] [data-tl-marker=deadline]")!;
+    expect(marker.getAttribute("style")).toContain("grid-column: 70"); // 17:00 = track 68
+    expect(marker.getAttribute("title")).toBe("due 5 Oct 17:00");
+  });
+
+  it("the now line sits at the current time, only on today; the CSS puts it at the track edge, not the middle", async () => {
+    await click("[data-tl-zoom=day]");
+    expect($("[data-tl-today]")!.getAttribute("style")).toContain("--pl-tl-today: 54"); // 13:30
+    expect(timelineCss).toMatch(/\.pl-tl\[data-zoom="day"\] \.pl-tl-today\s*\{[^}]*left:\s*calc\(var\(--pl-tl-label-w\) \+ var\(--pl-tl-today\) \* var\(--pl-tl-track\)\)/);
+    await click("[data-tl-nav=next]");
+    expect($("[data-tl-today]")).toBeNull();
+    expect($("[data-tl-col][data-today]")).toBeNull();
+  });
+
+  it("carries the scroll the Day view opens at: the earliest timed item with a 30-minute lead, else 08:00", async () => {
+    await click("[data-tl-zoom=day]");
+    expect($("[data-timeline]")!.dataset.tlScrollLeft).toBe(String(30 * DAY_TRACK_PX)); // Date-only spans only
+    await click(`[data-tag-id="${tag("Meeting").id}"]`);
+    await click("[data-tl-zoom=day]");
+    expect($("[data-timeline]")!.dataset.tlScrollLeft).toBe(String(40 * DAY_TRACK_PX)); // Kickoff 10:30
   });
 });
 
@@ -258,6 +326,6 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
 
   it("dashes derived spans and lays the axis on one grid of day tracks", () => {
     expect(timelineCss).toMatch(/\.pl-tl-bar\[data-kind="derived"\]\s*\{[^}]*dashed/);
-    expect(timelineCss).toMatch(/grid-template-columns:\s*var\(--pl-tl-label-w\)\s+repeat\(var\(--pl-tl-days\),\s*var\(--pl-tl-day\)\)/);
+    expect(timelineCss).toMatch(/grid-template-columns:\s*var\(--pl-tl-label-w\)\s+repeat\(var\(--pl-tl-tracks\),\s*var\(--pl-tl-track\)\)/);
   });
 });

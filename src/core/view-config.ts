@@ -5,7 +5,7 @@ import type { ChoiceFilters, TagInfo } from "../types";
 export const VIEW_KINDS = ["timeline", "calendar", "agenda", "kanban"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
-const ZOOMS = ["week", "month", "quarter"] as const;
+const ZOOMS = ["day", "week", "month", "quarter"] as const;
 const LAYOUTS = ["month", "week"] as const;
 const GROUPS = ["node", "date"] as const;
 const SORTS = ["due", "priority", "title"] as const;

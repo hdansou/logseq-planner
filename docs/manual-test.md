@@ -125,6 +125,12 @@ columns without lanes. After a check, set the view back.
 | C1.11 | Kanban, Swimlanes = Owner | Lanes Alice 2, Bob 1, No Owner 1 | pass | 4d44aac | 2026-10-03 |  |
 | C1.12 | Kanban sort: Due, Title | Order follows; "Priority" appears only on tags that have a Priority property (not here) | pass | 4d44aac | 2026-10-03 |  |
 | C1.13 | Save a view on each of the four kinds and reopen it | Zoom, layout, group-by + Show done, board config restored | pass | 4d44aac | 2026-10-03 |  |
+| C1.14 | Timeline: zoom control, then **Day** (N10) | Zoom reads Day, Week, Month, Quarter; Day shows "Sat 3 Oct 2026" (D), 24 hour columns "00" … "23" with hour lines and no weekend shading; the current hour's label in the accent colour and the today line at the current time; Website relaunch and Acme rollout are full-width bars marked "‹" and "›" (Date-only spans that run past the day); no Mobile app row, "1 later" above the grid; the view opens scrolled to about 07:30 (no timed item on D for #Project) | not run |  |  |  |
+| C1.15 | Timeline Day: Prev / Next / Today and the earlier / later buttons | Prev / Next move one day ("Fri 2 Oct 2026", "Sun 4 Oct 2026"); Today returns to D; "N later" jumps to the day of the nearest later node (Mobile app on D+5, a diamond at 00:00, Date-only, so that day opens at 00:00); each new day opens scrolled to its first timed item, else 07:30 | not run |  |  |  |
+| C1.16 | Timeline Day on D+2, expand Website relaunch | Draft brief's deadline diamond at 17:00; the view opens near 08:00 before the expand; scrolling then expanding or collapsing a row keeps the scroll | not run |  |  |  |
+| C1.17 | Timeline Day on #Meeting, D | Kickoff a diamond at 10:30 (its label reads "Kickoff, 3 Oct 10:30"), the view opens scrolled to about 10:00; D+1: Late review at 23:45 | not run |  |  |  |
+| C1.18 | Timeline Day on the `planner-project` graph (#Milestone and #Task with DateTime Start / End) | Each milestone and task is a bar across the hours it took (13:07–14:08 covers 13:00 to 14:15); a span from 22:00 to 02:00 the next day is clipped "›" on the first day and "‹" on the second; a Date-only span covers the whole day; leaving Planner open over a minute moves the today line | not run |  |  |  |
+| C1.19 | Save a view in Day zoom, switch to Week, reopen the saved view | Day zoom restored (on the anchor's day, today by default) | not run |  |  |  |
 
 ### C2. #Meeting
 

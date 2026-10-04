@@ -75,7 +75,12 @@ previous and next buttons and **Today** move the period.
 
 **Timeline.** One row per node, sorted by start, with a progress strip on each bar.
 
-- **Zoom**: Week (21 day columns), Month (56 day columns), Quarter (17 week columns).
+- **Zoom**: Day (one day, 24 hour columns), Week (21 day columns), Month (56 day columns),
+  Quarter (17 week columns).
+- **Day** zoom places DateTime spans by their times, to the quarter hour. A Date-only span
+  covers the whole day; a span that runs past midnight is cut off at the edge and marked.
+  Task markers sit at their time. The today line marks the current time. The view opens
+  scrolled to the first timed item of the day, or to 08:00.
 - Derived spans are dashed. One-date nodes are diamonds. A today line marks the current day.
   A bar cut off at the edge of the range is marked.
 - Nodes with tasks expand into task rows with Scheduled and Deadline markers. A task is late
@@ -196,8 +201,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 - Version 1 is read-only except for Kanban moves. You cannot change dates by dragging or
   resizing.
-- One tag per view. No day view or hour grid in the Calendar, no year zoom or dependency
-  arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
+- One tag per view. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
+  no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - Side-panel and in-page block surfaces do not exist yet.
 
 **Where it was tested**
