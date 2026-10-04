@@ -142,9 +142,40 @@ Live-check method (web app):
       tests (schema: node properties; config; links in the layout; the path geometry; the
       rollup exclusion); live on `planner-project`: #Task Week and Day show T07 → T08–T11,
       T08–T11 → T12, and the counts no longer include dependents.
+- [ ] **N13 Move the tag and filter panel to the right** — owner request 2026-10-03, logged
+      and scoped, not started. Reason: Planner will also run in Logseq's right sidebar
+      (N06), where a panel on the left of the view makes no sense; do the move now so the
+      workspace and the sidebar surface share one layout: view on the left, panel (tag
+      tree, filters) on the right.
+      Scope:
+      (1) Layout: `.pl-body` becomes view then panel (`1fr 220px`); the `aside` moves after
+          `main` in the DOM so reading and Tab order match what is seen (top bar, settings
+          bar, view toolbar, view, panel); its border moves to its left edge. Rename the
+          region from "sidebar" to "panel" in code, hooks and docs (`data-region`, the
+          `--pl-sidebar` token), so "sidebar" only means Logseq's right sidebar from now on.
+      (2) Collapse: a toggle in the settings bar hides and shows the panel (the view takes
+          the full width); the state is kept per graph with the plugin's other state, not in
+          the view config. Needed for the narrow sidebar surface and useful in the
+          workspace. Filters that are active while the panel is hidden show as a count on
+          the toggle.
+      (3) Narrow widths: below a set width (about 640 px, the future sidebar surface) the
+          panel opens over the view as a drawer from the right and closes on Escape or an
+          outside click; nothing overlaps at 200% zoom (checklist row I10).
+      (4) Unchanged: the Timeline's sticky label column stays on the left of the grid; the
+          macOS window-button padding; the Close button; popovers near the right edge
+          (Saved views, the Kanban Move menu) must still fit next to or over the panel.
+      (5) Out of scope here: rendering Planner inside Logseq's right sidebar (N06); making
+          the panel resizable; moving the settings bar.
+      Acceptance: unit tests for the markup order, the toggle (state, focus, aria-expanded,
+      active-filter count), the drawer mode; docs (REQUIREMENTS, README, docs/design.md,
+      docs/manual-test.md rows that name the left sidebar); live on the desktop app with
+      real clicks: all four views, both themes, keyboard order, the panel toggle, a narrow
+      window.
+      Open questions for the owner: panel collapsed or open by default; whether the tag
+      tree should stay in the panel at all, since the settings bar already has a Tag menu.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
-- [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
+- [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
       (REQUIREMENTS.md).
 - [ ] **N07 Query Builder follow-up (other repo)** — its theme code has the same
       theme-switch race fixed here in 2c90798; not checked there.
