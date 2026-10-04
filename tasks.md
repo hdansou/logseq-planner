@@ -173,6 +173,48 @@ Live-check method (web app):
       window.
       Open questions for the owner: panel collapsed or open by default; whether the tag
       tree should stay in the panel at all, since the settings bar already has a Tag menu.
+- [ ] **N14 Views over more than one tag** — owner request 2026-10-03, logged and scoped,
+      not started. Example: #Milestone and #Task in one view. Today a view has one tag (plus
+      the tags that extend it); dates, filters, Kanban columns and "Depends on" all come
+      from that tag's properties.
+      Scope, in two steps:
+      Step 1, union of tags.
+      (1) Selection: the tag list and the Tag menu allow more than one tag (a tick per tag
+          row; a plain click still switches to one tag). The Tag control reads
+          "#Milestone + #Task". A node carrying two selected tags shows once.
+      (2) Dates: Start / End are mapped per tag, each with its own default rule (Milestone:
+          Start / End; Task: Start / End or Scheduled / Deadline). The settings bar gets one
+          "Dates" control with a row per tag.
+      (3) Shared properties: filters, Kanban Columns / Swimlanes, Done when and Depends on
+          offer the properties every selected tag has (same property, not same title).
+          A node of a tag without the Kanban column property cannot occur under this rule.
+          New: a "Tag" filter group and a Tag swimlane, so one tag can be hidden or laned.
+      (4) Views: Timeline, Calendar, Agenda and Kanban show the union. The Timeline can
+          group rows by tag (a heading row per tag) or list them by date.
+      (5) Config: `tag` becomes `tags` with per-tag dates; saved views with one tag load
+          unchanged (same handling as the other added keys).
+      Step 2, parents and children.
+      (6) When a selected tag's node references a node of another selected tag (a task that
+          points to its milestone), the Timeline can nest it under that node as a full row
+          with its own bar, in place of today's marker-only task row; the rollup on the
+          parent stays. The Agenda by node does the same. This is the "milestones with their
+          tasks" view; it also covers the follow-up noted under N10 (task bars under a
+          milestone).
+      (7) The link used for nesting is any reference except the "Depends on" property
+          (N12 rule).
+      Out of scope: views defined by a free query; different filters per tag; nesting more
+      than one level; tags that share no date property and no choice property still work
+      but get no filters.
+      Risks: the 2,000-node target now applies to the union; the default-view rule and the
+      "unknown tag" fallback must handle a list; the tag tree's "include child tags" tick
+      applies per selected tag.
+      Acceptance: unit tests (config migration, per-tag dates, shared-property rule, union
+      load, grouping, nesting, rollups); live on `planner-project` with #Milestone + #Task:
+      each milestone with its tasks as bars under it, connectors between the tasks, Kanban
+      by Status over both tags, a view saved and reopened.
+      Open questions for the owner: is nesting (step 2) the main goal, with the flat union
+      only a means; how many tags at most (the scope assumes any number, tested with two to
+      four); should colour follow the tag in a multi-tag view.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
