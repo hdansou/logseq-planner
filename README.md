@@ -94,6 +94,9 @@ previous and next buttons and **Today** move the period.
 - Nodes with tasks expand into task rows with Scheduled and Deadline markers. A task is late
   when it is open and its due date, the Deadline or else the Scheduled date, is before today;
   the marker of that date turns red.
+- With a **Depends on** property, a line with an arrow runs from the end of each dependency's
+  bar to the start of its dependent's (both must be in the range). A bar's tooltip and label
+  name what it depends on.
 - Only nodes that touch the range get a row. A line above the grid counts the others, for
   example "412 earlier · 1,105 later". Each side is a button that moves to the nearest such
   node.

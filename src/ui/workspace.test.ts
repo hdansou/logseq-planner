@@ -890,3 +890,86 @@ describe("Depends on (N12)", () => {
     expect(count("Draft brief")).toBeNull();
   });
 });
+
+describe("Timeline connectors (N12)", () => {
+  const DEPS = { Wireframes: ["Draft brief"], "Ship homepage": ["Draft brief"] };
+  const uuidOf = (title: string) => $$("[data-tl-row] .pl-tl-name").find((e) => e.textContent!.startsWith(title))!.dataset.tlOpen!;
+  const links = () => $$("[data-tl-links] [data-tl-link]").map((p) => p.getAttribute("data-tl-link"));
+  /** Fake layout boxes so the post-render step can measure: the timeline 1000 px wide, each span at `x` px per row index. */
+  const fakeBoxes = (x = 100) => vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+    const spans = [...root.querySelectorAll("[data-tl-bar], [data-tl-point]")];
+    const i = spans.indexOf(this);
+    const [l, t, r, b] = this.hasAttribute("data-timeline") ? [0, 0, 1000, 400] : i >= 0 ? [x + i * 50, 40 + i * 32, x + i * 50 + 20, 60 + i * 32] : [0, 0, 0, 0];
+    return { left: l, top: t, right: r, bottom: b, x: l, y: t, width: r - l, height: b - t, toJSON: () => ({}) } as DOMRect;
+  });
+
+  async function taskTimeline() {
+    const { ws } = await setup({ dq: fixtureDq({ taskNodes: true, depends: DEPS }) });
+    await pickTag(ws, "Task");
+    await click(ws, "[data-tl-zoom=week]");
+    return ws;
+  }
+
+  it("draws a path per dependency whose both ends are on screen; None removes them", async () => {
+    const ws = await taskTimeline();
+    expect(links()).toContain(`${uuidOf("Draft brief")}:${uuidOf("Wireframes")}`);
+    expect($("[data-tl-links]")!.getAttribute("aria-hidden")).toBe("true");
+    await click(ws, "[data-control=depends]");
+    await click(ws, '[data-popover=depends] [data-option=""]');
+    expect($("[data-tl-links]")).toBeNull();
+    expect(links()).toEqual([]);
+  });
+
+  it("the post-render step sets each path's d after every render", async () => {
+    const boxes = fakeBoxes();
+    try {
+      const ws = await taskTimeline();
+      const path = () => $(`[data-tl-link="${uuidOf("Draft brief")}:${uuidOf("Wireframes")}"]`)!;
+      expect(path().getAttribute("d")).toMatch(/^M\d/);
+      // Any redraw (expand / collapse, nav, a menu) replaces the svg; the step draws the new one.
+      const svg = $("[data-tl-links]");
+      await click(ws, "[data-tl-nav=today]");
+      expect($("[data-tl-links]")).not.toBe(svg);
+      expect(path().getAttribute("d")).toMatch(/^M\d/);
+    } finally {
+      boxes.mockRestore();
+    }
+  });
+
+  it("a window resize redraws the paths without a render; stop() removes the listener", async () => {
+    let boxes = fakeBoxes(100);
+    try {
+      const ws = await taskTimeline();
+      const path = () => $(`[data-tl-link="${uuidOf("Draft brief")}:${uuidOf("Wireframes")}"]`)!;
+      const before = path().getAttribute("d");
+      boxes.mockRestore();
+      boxes = fakeBoxes(300);
+      const svg = $("[data-tl-links]");
+      window.dispatchEvent(new Event("resize"));
+      expect($("[data-tl-links]")).toBe(svg); // not re-rendered
+      const after = path().getAttribute("d");
+      expect(after).not.toBe(before);
+      ws.stop();
+      boxes.mockRestore();
+      boxes = fakeBoxes(500);
+      window.dispatchEvent(new Event("resize"));
+      expect(path().getAttribute("d")).toBe(after);
+    } finally {
+      boxes.mockRestore();
+    }
+  });
+
+  it("views without connectors measure nothing after a render", async () => {
+    const boxes = fakeBoxes();
+    try {
+      const { ws } = await setup();
+      await pickTag(ws, "Project");
+      boxes.mockClear();
+      await click(ws, "[data-tl-zoom=week]");
+      expect(boxes).not.toHaveBeenCalled();
+    } finally {
+      boxes.mockRestore();
+    }
+  });
+});
+

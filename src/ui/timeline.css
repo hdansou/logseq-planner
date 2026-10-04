@@ -4,7 +4,7 @@
    track is 15 minutes, an hour column spans four, and the track width is set inline (timeline.ts DAY_TRACK_PX). */
 
 /* Grid. isolation keeps the z-index ladder below inside the timeline:
-   backdrop 0 < bars and marks 1 < today line 2 < sticky labels 3 < sticky head 4. */
+   backdrop 0 < connectors, then bars and marks 1 < today line 2 < sticky labels 3 < sticky head 4. */
 .pl-tl { --pl-tl-label-w: 240px; --pl-tl-track: 18px; position: relative; isolation: isolate; width: max-content; min-width: 100%; font-size: 13px; }
 .pl-tl[data-zoom="week"] { --pl-tl-track: 44px; }
 .pl-tl[data-zoom="quarter"] { --pl-tl-track: calc(52px / 7); }
@@ -89,6 +89,13 @@
   left: calc(var(--pl-tl-label-w) + (var(--pl-tl-today) + .5) * var(--pl-tl-track)); background: var(--pl-today); }
 /* Day zoom: the line marks the current time, a fractional track (the edge, not the middle of a day track) */
 .pl-tl[data-zoom="day"] .pl-tl-today { left: calc(var(--pl-tl-label-w) + var(--pl-tl-today) * var(--pl-tl-track)); }
+
+/* Dependency connectors (N12): one svg over the whole timeline, above the backdrop, under the bars (same z-index as the
+   bars, earlier in the DOM), never in the way of the pointer. Paths get their d from the DOM after render (timeline.ts
+   drawLinks). One neutral colour, no meaning beyond "depends on". */
+.pl-tl-links { position: absolute; top: 0; left: 0; z-index: 1; width: 100%; height: 100%; overflow: visible; pointer-events: none;
+  color: var(--pl-label-2); }
+.pl-tl-link { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; }
 
 /* Undated footnote */
 .pl-tl-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }

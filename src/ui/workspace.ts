@@ -22,7 +22,7 @@ import { checkList, esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
-import { renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
+import { drawLinks, renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -80,6 +80,8 @@ export interface Workspace {
   idle(): Promise<void>;
   /** The current view config (null until a tag exists). */
   config(): ViewConfig | null;
+  /** Removes the listeners the workspace put outside its root (the window resize that redraws the Timeline connectors); call on unload. */
+  stop(): void;
 }
 
 type Popover = "tag" | "start" | "end" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
@@ -492,6 +494,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (el) Object.assign(el, { scrollTop: scrolls[i]!.top, scrollLeft: scrolls[i]!.left });
     });
     scrollDay(viewLeft, keep);
+    drawTimelineLinks();
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
     refreshWhenFree(); // a redraw that was waiting for a popover, a write or a drag
@@ -511,6 +514,17 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     else if (!keep) view.scrollLeft = left;
     dayScrolled = day;
   };
+
+  /**
+   * Timeline connectors (N12): their geometry comes from the drawn bars, so they are measured after every render and on
+   * a window resize (`drawLinks` returns at once when the Timeline has none). Scrolling moves the svg with the bars.
+   */
+  const drawTimelineLinks = () => {
+    const tl = root.querySelector<HTMLElement>("[data-timeline]");
+    if (tl) drawLinks(tl);
+  };
+  const win = root.ownerDocument.defaultView;
+  win?.addEventListener("resize", drawTimelineLinks);
 
   const tagOf = (config: ViewConfig, tags: TagInfo[] = s.tags) => validateViewConfig(config, tags);
 
@@ -1068,5 +1082,6 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     showViews: () => run(listViews),
     idle: () => queue,
     config: () => s.config,
+    stop: () => win?.removeEventListener("resize", drawTimelineLinks),
   };
 }

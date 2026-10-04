@@ -3,7 +3,7 @@
 // One CSS grid of tracks (timeline.css): the label column, then `--pl-tl-tracks` tracks of `--pl-tl-track`; every
 // position is a track index from the layout (`grid-column: index + 2`). A track is a day, or 15 minutes in Day zoom (N10).
 import { formatDay } from "../core/layout-common";
-import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
+import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineLink, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import { esc, flag, segmented, viewNav } from "./html";
 
 export type TimelineAction =
@@ -44,12 +44,14 @@ export function renderTimelineToolbar(layout: TimelineLayout): string {
 
 function renderSpan(r: TimelineRow): string {
   const uuid = esc(r.node.uuid);
+  // N12: the dependencies in words, so the connectors are not the only way to know them.
+  const deps = r.dependsOn.length ? `, depends on ${r.dependsOn.join(", ")}` : "";
   if (r.point !== null) {
-    return `<button type="button" class="pl-tl-diamond" data-tl-point data-tl-open="${uuid}" style="grid-column: ${col(r.point)}" aria-label="${esc(r.label)}" title="${esc(r.label)}"></button>`;
+    return `<button type="button" class="pl-tl-diamond" data-tl-point data-tl-open="${uuid}" style="grid-column: ${col(r.point)}" aria-label="${esc(r.label + deps)}" title="${esc(r.label + deps)}"></button>`;
   }
   if (r.bar) {
     const b = r.bar;
-    const clip = (b.clipStart ? ", continues before this range" : "") + (b.clipEnd ? ", continues after this range" : "");
+    const clip = (b.clipStart ? ", continues before this range" : "") + (b.clipEnd ? ", continues after this range" : "") + deps;
     const pct = r.progress.total ? Math.round((r.progress.done / r.progress.total) * 100) : null;
     return `<button type="button" class="pl-tl-bar" data-tl-bar data-tl-open="${uuid}" data-kind="${r.kind}"${flag("data-clip-start", b.clipStart)}${flag("data-clip-end", b.clipEnd)}`
       + ` style="grid-column: ${col(b.from)} / ${col(b.to)}" aria-label="${esc(r.label + clip)}" title="${esc(r.label + clip)}">`
@@ -99,6 +101,75 @@ function renderRow(r: TimelineRow, expanded: boolean): string {
     + (expanded ? r.tasks.map((t) => renderTask(t, id)).join("") : "");
 }
 
+/**
+ * Dependency connectors (N12): one svg over the grid, under the bars (timeline.css), a path per link
+ * (`data-tl-link="<from uuid>:<to uuid>"`) ending in an arrow at the dependent. The paths get their `d` after render
+ * (`drawLinks`): geometry comes from the DOM. Nothing when there are no links.
+ */
+function renderLinks(links: TimelineLink[]): string {
+  if (!links.length) return "";
+  return `<svg class="pl-tl-links" data-tl-links aria-hidden="true">`
+    + `<defs><marker id="pl-tl-arrow" viewBox="0 0 6 6" refX="6" refY="3" markerUnits="userSpaceOnUse" markerWidth="7" markerHeight="7" orient="auto">`
+    + `<path d="M0 0 L6 3 L0 6 z" fill="currentColor"></path></marker></defs>`
+    + links.map((l) => `<path class="pl-tl-link" data-tl-link="${esc(l.from)}:${esc(l.to)}" marker-end="url(#pl-tl-arrow)"></path>`).join("")
+    + `</svg>`;
+}
+
+/** Horizontal run out of the dependency's bar and into the dependent's (px), and the elbow's distance from a bar (half the space between the bars of two rows). */
+const LINK_STUB = 8;
+const LINK_GAP = 6;
+/** The sides of a box, as `getBoundingClientRect` gives them. */
+export interface LinkRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/**
+ * The `d` of a connector from the dependency's box to the dependent's, in the coordinates of `origin` (the timeline's
+ * top left, where the svg sits). Out of the dependency's right edge middle, a stub to the right, vertical to the
+ * dependent's middle, then into its left edge middle. When the dependent starts before that stub has room (it overlaps
+ * or starts earlier), an elbow: out, vertical to just above (or below) the dependent, back left past its start, vertical
+ * to its middle, then in. Straight lines only; numbers to one decimal.
+ */
+export function linkPath(from: LinkRect, to: LinkRect, origin: { left: number; top: number }): string {
+  const n = (v: number) => String(Math.round(v * 10) / 10);
+  const x1 = from.right - origin.left;
+  const y1 = (from.top + from.bottom) / 2 - origin.top;
+  const x2 = to.left - origin.left;
+  const y2 = (to.top + to.bottom) / 2 - origin.top;
+  const out = `M${n(x1)} ${n(y1)} H${n(x1 + LINK_STUB)}`;
+  if (x2 - x1 >= 2 * LINK_STUB) return `${out} V${n(y2)} H${n(x2)}`;
+  const elbow = y2 > y1 ? to.top - origin.top - LINK_GAP : to.bottom - origin.top + LINK_GAP;
+  return `${out} V${n(elbow)} H${n(x2 - LINK_STUB)} V${n(y2)} H${n(x2)}`;
+}
+
+/**
+ * Post-render step (N12): measures the bars and points the connectors join and sets each path's `d`. The svg lives in
+ * the scrolling content and covers the timeline (timeline.css), so scrolling needs no redraw. Returns at once when the
+ * timeline has no connectors, and leaves the paths as they are while it has no size (Planner hidden).
+ */
+export function drawLinks(tl: HTMLElement): void {
+  const paths = [...tl.querySelectorAll<SVGPathElement>("[data-tl-links] [data-tl-link]")];
+  if (!paths.length) return;
+  const origin = tl.getBoundingClientRect();
+  if (origin.width === 0) return;
+  const spans = new Map<string, Element>();
+  for (const el of tl.querySelectorAll("[data-tl-bar], [data-tl-point]")) spans.set(el.getAttribute("data-tl-open")!, el);
+  const box = (uuid: string) => {
+    const el = spans.get(uuid);
+    if (!el) throw new Error(`Timeline connector: no bar or point for ${uuid}`);
+    return el.getBoundingClientRect();
+  };
+  // Every measurement first, then every write: one layout pass.
+  const ds = paths.map((p) => {
+    const [from, to] = p.getAttribute("data-tl-link")!.split(":");
+    return linkPath(box(from), box(to), origin);
+  });
+  paths.forEach((p, i) => p.setAttribute("d", ds[i]));
+}
+
 /** The timeline grid plus the undated footnote. `heading` names the rows (the tag, e.g. "#Project"). */
 export function renderTimeline(layout: TimelineLayout, heading: string, expanded: ReadonlySet<number>): string {
   const { columns, rows, range } = layout;
@@ -116,6 +187,7 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
       : `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-tracks: ${range.tracks}">`)
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`
     + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
+    + renderLinks(layout.links)
     + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${rows.map((r) => renderRow(r, expanded.has(r.node.id))).join("")}</ul>`
     + today + `</div>` + undated;
 }

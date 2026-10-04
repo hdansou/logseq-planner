@@ -2,11 +2,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadTagInfos } from "../core/schema";
 import { createViewStore } from "../storage";
-import type { TagInfo } from "../types";
+import type { PlannerNode, TagInfo } from "../types";
+import { viewItems } from "../core/layout-common";
 import { createWorkspace, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
-import { DAY_TRACK_PX, renderTimeline } from "./timeline";
+import { DAY_TRACK_PX, drawLinks, linkPath, renderTimeline } from "./timeline";
 import { layoutTimeline } from "../core/timeline-layout";
 
 /** A layout with no items (range of today, Month), to render summaries alone. */
@@ -327,5 +328,119 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
   it("dashes derived spans and lays the axis on one grid of day tracks", () => {
     expect(timelineCss).toMatch(/\.pl-tl-bar\[data-kind="derived"\]\s*\{[^}]*dashed/);
     expect(timelineCss).toMatch(/grid-template-columns:\s*var\(--pl-tl-label-w\)\s+repeat\(var\(--pl-tl-tracks\),\s*var\(--pl-tl-track\)\)/);
+  });
+});
+
+describe("dependency connectors (N12)", () => {
+  /** Week (20 Sep – 10 Oct): N1 a bar, N2 and N3 bars that depend on N1, N4 a point that depends on N2 and N3. */
+  const linked = () => {
+    const p = tag("Project");
+    const s = p.dateProps.find((x) => x.title === "Start")!.ident;
+    const e = p.dateProps.find((x) => x.title === "End")!.ident;
+    const node = (id: number, start: string, end: string | null, deps: number[] = []): PlannerNode =>
+      ({ id, uuid: `u${id}`, title: `N${id} <b>`, tagIds: [], dependsOn: deps, choices: {}, dates: { [s]: { day: start, time: null }, ...(end ? { [e]: { day: end, time: null } } : {}) } });
+    const nodes = [node(1, "2026-09-28", "2026-10-01"), node(2, "2026-10-02", "2026-10-05", [1]), node(3, "2026-10-02", "2026-10-06", [1]), node(4, "2026-10-08", null, [2, 3])];
+    return layoutTimeline({ items: viewItems(nodes, [], s, e, []), zoom: "week", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
+  };
+  const host = (html: string) => {
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    return el;
+  };
+
+  it("one hidden, non-interactive svg inside the timeline, between the head and the rows, with a path per link", () => {
+    const el = host(renderTimeline(linked(), "#Project", new Set()));
+    const svg = el.querySelector("[data-timeline] > svg.pl-tl-links[data-tl-links]")!;
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.previousElementSibling!.classList.contains("pl-tl-head")).toBe(true);
+    expect(svg.nextElementSibling!.classList.contains("pl-tl-rows")).toBe(true);
+    expect([...svg.querySelectorAll("path[data-tl-link]")].map((p) => p.getAttribute("data-tl-link"))).toEqual(["u1:u2", "u1:u3", "u2:u4", "u3:u4"]);
+    for (const path of svg.querySelectorAll("path[data-tl-link]")) expect(path.getAttribute("marker-end")).toBe("url(#pl-tl-arrow)");
+    expect(svg.querySelector("marker#pl-tl-arrow")).not.toBeNull();
+  });
+
+  it("no svg without links", () => {
+    expect(host(renderTimeline(emptyLayout(), "#Project", new Set())).querySelector("[data-tl-links]")).toBeNull();
+    expect($("[data-tl-links]")).toBeNull(); // the fixture Project view: no dependency property
+  });
+
+  it("a bar or point with dependencies says so in its label (titles, escaped); others are unchanged", () => {
+    const el = host(renderTimeline(linked(), "#Project", new Set()));
+    const span = (uuid: string) => el.querySelector(`[data-tl-open="${uuid}"]:is([data-tl-bar], [data-tl-point])`)!;
+    expect(span("u1").getAttribute("aria-label")).toBe("N1 <b>, 28 Sep – 1 Oct");
+    expect(span("u2").getAttribute("aria-label")).toBe("N2 <b>, 2 Oct – 5 Oct, depends on N1 <b>");
+    expect(span("u4").getAttribute("aria-label")).toBe("N4 <b>, 8 Oct, depends on N2 <b>, N3 <b>");
+    expect(span("u4").getAttribute("title")).toBe(span("u4").getAttribute("aria-label"));
+    expect(el.querySelector("b")).toBeNull(); // escaped: no element made from a title
+  });
+
+  describe("linkPath (rects relative to the timeline's origin)", () => {
+    const rect = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom });
+    const origin = { left: 100, top: 50 };
+
+    it("dependent starts after the end: right from the dependency's right edge middle, a stub, down, then into the left edge middle", () => {
+      // from: 200–300 at rows 60–80 (middle 70); to: 340–400 at 92–112 (middle 102)
+      expect(linkPath(rect(200, 60, 300, 80), rect(340, 92, 400, 112), origin)).toBe("M200 20 H208 V52 H240");
+    });
+
+    it("dependent above the dependency (rows sorted otherwise): the same route, going up", () => {
+      expect(linkPath(rect(200, 124, 300, 144), rect(340, 92, 400, 112), origin)).toBe("M200 84 H208 V52 H240");
+    });
+
+    it("dependent starts before the dependency's end (overlap): out, down to just above the dependent, back left, down, in", () => {
+      // to.left 250 < from.right 300: elbow at to.top - 6 = 86 → 36 relative
+      expect(linkPath(rect(200, 60, 300, 80), rect(250, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H142 V52 H150");
+    });
+
+    it("dependent starts earlier and sits above: the elbow runs just below the dependent", () => {
+      expect(linkPath(rect(200, 124, 300, 144), rect(120, 92, 180, 112), origin)).toBe("M200 84 H208 V68 H12 V52 H20");
+    });
+
+    it("too little room for a straight route (less than two stubs) takes the elbow", () => {
+      expect(linkPath(rect(200, 60, 300, 80), rect(310, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H202 V52 H210");
+    });
+
+    it("keeps fractions to one decimal", () => {
+      expect(linkPath(rect(200.26, 60, 300.04, 80.5), rect(340.33, 92, 400, 113), origin)).toBe("M200 20.3 H208 V52.5 H240.3");
+    });
+  });
+
+  describe("drawLinks (post-render: geometry from the DOM)", () => {
+    /** Fake layout boxes: the timeline at (0,0) 1000 wide, each span by its uuid. */
+    const boxes = (el: HTMLElement, spans: Record<string, [number, number, number, number]>, width = 1000) =>
+      vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+        const uuid = this.getAttribute("data-tl-open");
+        const r = this.hasAttribute("data-timeline") ? [0, 0, width, 500] : uuid && (this.hasAttribute("data-tl-bar") || this.hasAttribute("data-tl-point")) ? spans[uuid] : [0, 0, 0, 0];
+        const [left, top, right, bottom] = r ?? [0, 0, 0, 0];
+        return { left, top, right, bottom, x: left, y: top, width: right - left, height: bottom - top, toJSON: () => ({}) } as DOMRect;
+      });
+
+    it("sets every path's d from the measured spans", () => {
+      const el = host(renderTimeline(linked(), "#Project", new Set()));
+      const spy = boxes(el, { u1: [300, 40, 400, 60], u2: [420, 72, 480, 92], u3: [420, 104, 500, 124], u4: [560, 140, 571, 151] });
+      drawLinks(el.querySelector<HTMLElement>("[data-timeline]")!);
+      spy.mockRestore();
+      const d = (link: string) => el.querySelector(`[data-tl-link="${link}"]`)!.getAttribute("d");
+      expect(d("u1:u2")).toBe("M400 50 H408 V82 H420");
+      expect(d("u2:u4")).toBe("M480 82 H488 V145.5 H560");
+    });
+
+    it("does nothing while the timeline has no size (Planner hidden) or has no links", () => {
+      const el = host(renderTimeline(linked(), "#Project", new Set()));
+      const spy = boxes(el, { u1: [300, 40, 400, 60], u2: [420, 72, 480, 92], u3: [420, 104, 500, 124], u4: [560, 140, 571, 151] }, 0);
+      drawLinks(el.querySelector<HTMLElement>("[data-timeline]")!);
+      expect(el.querySelector("[data-tl-link]")!.hasAttribute("d")).toBe(false);
+      const none = host(renderTimeline(emptyLayout(), "#Project", new Set()));
+      const calls = spy.mock.calls.length;
+      drawLinks(none.querySelector<HTMLElement>("[data-timeline]")!);
+      expect(spy.mock.calls.length).toBe(calls); // returns before measuring anything
+      spy.mockRestore();
+    });
+  });
+
+  it("stylesheet: the svg covers the timeline above the backdrop, ignores the pointer, and strokes in a neutral token", () => {
+    expect(timelineCss).toMatch(/\.pl-tl-links\s*\{[^}]*position:\s*absolute[^}]*pointer-events:\s*none/);
+    expect(timelineCss).toMatch(/\.pl-tl-links\s*\{[^}]*z-index:\s*1/);
+    expect(timelineCss).toMatch(/\.pl-tl-link\s*\{[^}]*stroke-width:\s*1\.5/);
   });
 });

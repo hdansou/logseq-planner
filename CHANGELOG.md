@@ -21,6 +21,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   the default rule; a property the tag no longer has counts as None. With a dependency property, a #Task that points
   to a node through it is that node's dependent, not one of its tasks: it leaves the node's rollup and task rows in
   every view. The property is pulled with the nodes and the tasks (no `pull [*]`).
+- Timeline dependency connectors (N12): a line with an arrow from the end of each dependency's bar (or point) to the
+  start of its dependent's, in every zoom, for pairs whose both nodes have a row in the range; a right-angle detour
+  when the dependent starts before the dependency ends. One svg (`data-tl-links`) over the grid, under the bars,
+  ignoring the pointer, one path per link (`data-tl-link="<from>:<to>"`); the geometry is measured from the drawn bars
+  after every render and on a window resize. A bar or point with dependencies adds ", depends on A, B" to its label.
 - Tracker (N11): `npm run tracker` writes a planned schedule instead of commit times. Every task gets 2 hours
   (weekdays 09:00-17:00 local) and starts after the tasks it depends on (`after` map in the meta file; default: the previous task, tasks with
   commits first by first commit, then the rest by id; independent tasks overlap). Start / End / Scheduled are the plan, so dates before today are

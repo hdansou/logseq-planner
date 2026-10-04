@@ -290,6 +290,14 @@ describe("live updates (T12)", () => {
     expect(f.offs.visible).toHaveBeenCalledTimes(1);
   });
 
+  it("unload removes the workspace's window resize listener (N12 connectors)", async () => {
+    const remove = vi.spyOn(window, "removeEventListener");
+    const f = await opened();
+    f.unload.forEach((cb) => cb());
+    expect(remove.mock.calls.some(([type]) => type === "resize")).toBe(true);
+    remove.mockRestore();
+  });
+
   it("unload unsubscribes and cancels the timers", async () => {
     const f = await opened();
     f.feed.fire();

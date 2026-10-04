@@ -114,6 +114,14 @@ export interface TimelineRow {
   tasks: TimelineTaskRow[];
   /** "Website relaunch, 23 Sep – 23 Oct, 1 of 2 done". */
   label: string;
+  /** Display titles of the shown nodes it depends on (N12), on screen or not, in the property's order; [] for none. */
+  dependsOn: string[];
+}
+
+/** A dependency connector (N12): from the dependency's row to its dependent's row, both by node uuid. */
+export interface TimelineLink {
+  from: string;
+  to: string;
 }
 
 /** Dated nodes wholly on one side of the range: how many, and the day to move the range to for the nearest one. */
@@ -135,6 +143,8 @@ export interface TimelineLayout {
   later: OutsideCount;
   /** Nodes without any date, by title. */
   undated: { node: PlannerNode; title: string }[];
+  /** Dependency connectors (N12) between rows: both nodes have a row (bar or point) in the range; in row order of the dependents. */
+  links: TimelineLink[];
   /**
    * The today line: today's track (Week, Month, Quarter), or in Day the current time as a fractional track (13:30 → 54);
    * null when today is out of range.
@@ -280,15 +290,36 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
       point: isPoint ? bar.from : null,
       tasks: [...tasks].sort((a, b) => byTaskOrder(a, b, input.titles)).map((t) => taskRow(t, input, range)),
       label: nodeLabel(title, span, progress),
+      dependsOn: [],
     });
   }
   rows.sort((a, b) => compareDates(a.start, b.start) || compareDates(a.end, b.end) || a.title.localeCompare(b.title));
   undated.sort((a, b) => a.title.localeCompare(b.title));
   return {
-    zoom: input.zoom, range, rows, undated, earlier, later,
+    zoom: input.zoom, range, rows, undated, earlier, later, links: linkRows(rows, input),
     columns: columnsOf(input.zoom, range, input.today, input.now, input.weekStart),
     todayAt: todayAt(input.zoom, range, input.today, input.now),
   };
+}
+
+/**
+ * Fills each row's `dependsOn` titles (the shown nodes it depends on) and returns the links whose both ends have a row
+ * (N12). Nodes that are filtered out or not loaded are not in `input.items`, so they neither link nor are named.
+ */
+function linkRows(rows: TimelineRow[], input: TimelineInput): TimelineLink[] {
+  if (!rows.some((r) => r.node.dependsOn.length)) return [];
+  const shown = new Map(input.items.map(({ node }) => [node.id, node]));
+  const onScreen = new Set(rows.map((r) => r.node.id));
+  const links: TimelineLink[] = [];
+  for (const r of rows) {
+    for (const id of r.node.dependsOn) {
+      const dep = shown.get(id);
+      if (!dep) continue;
+      r.dependsOn.push(displayTitle(dep.title, input.titles));
+      if (onScreen.has(id)) links.push({ from: dep.uuid, to: r.node.uuid });
+    }
+  }
+  return links;
 }
 
 function todayAt(zoom: Zoom, range: TimelineRange, today: string, now: string): number | null {

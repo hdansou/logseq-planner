@@ -67,6 +67,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     const offTheme = watchTheme(deps.theme, doc);
     deps.changes.onUnload(() => {
       changes?.stop();
+      workspace.stop();
       offVisible();
       void offTheme.then((off) => off());
     });

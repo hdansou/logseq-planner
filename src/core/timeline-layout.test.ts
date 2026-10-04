@@ -445,3 +445,40 @@ describe("dayFocus (N10): where the Day zoom opens", () => {
     expect(dayFocus(day([]), new Set())).toBeNull();
   });
 });
+
+describe("dependency links (N12)", () => {
+  const p = tag("Project");
+  const s = dateIdent(p, "Start");
+  const e = dateIdent(p, "End");
+  /** A node with a span (or no dates when `start` is null) depending on the node ids `deps`. */
+  const node = (id: number, start: string | null, end: string | null, deps: number[] = []): PlannerNode =>
+    ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dependsOn: deps, choices: {}, dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) } });
+  const lay = (nodes: PlannerNode[], zoom: Zoom = "week") =>
+    layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+
+  it("links each on-screen dependency to its on-screen dependent (dependency uuid → dependent uuid), bars and points alike", () => {
+    // week range 20 Sep – 10 Oct; N4 is a point (Start only)
+    const l = lay([node(1, "2026-09-28", "2026-10-01"), node(2, "2026-10-02", "2026-10-05", [1]), node(3, "2026-10-02", "2026-10-06", [1]), node(4, "2026-10-08", null, [2, 3])]);
+    expect(l.links).toEqual([{ from: "u1", to: "u2" }, { from: "u1", to: "u3" }, { from: "u2", to: "u4" }, { from: "u3", to: "u4" }]);
+  });
+
+  it("no link when either end has no row: out of range, undated, filtered out (not in the items) or not loaded", () => {
+    const l = lay([node(1, "2026-08-01", "2026-08-05"), node(2, "2026-10-02", "2026-10-05", [1, 5, 99]), node(3, "2026-10-02", "2026-10-06", [2]), node(5, null, null)]);
+    expect(l.rows.map((r) => r.title)).toEqual(["N2", "N3"]);
+    expect(l.links).toEqual([{ from: "u2", to: "u3" }]);
+    const filtered = lay([node(2, "2026-10-02", "2026-10-05"), node(3, "2026-10-02", "2026-10-06", [2])].slice(1)); // N2 filtered out
+    expect(filtered.links).toEqual([]);
+    const later = lay([node(1, "2026-10-02", "2026-10-05"), node(2, "2026-12-01", "2026-12-05", [1])]);
+    expect(later.links).toEqual([]);
+  });
+
+  it("each row names the shown nodes it depends on (titles, on screen or not); [] without dependencies", () => {
+    const l = lay([node(1, "2026-08-01", "2026-08-05"), node(2, "2026-10-02", "2026-10-05", [1, 99]), node(3, "2026-10-02", "2026-10-06", [2, 1])]);
+    expect(l.rows.map((r) => [r.title, r.dependsOn])).toEqual([["N2", ["N1"]], ["N3", ["N2", "N1"]]]);
+    expect(lay([node(1, "2026-10-02", "2026-10-05")]).rows[0].dependsOn).toEqual([]);
+  });
+
+  it("without dependencies there are no links", async () => {
+    expect((await layout("Project", "month")).links).toEqual([]);
+  });
+});

@@ -72,6 +72,12 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - One row per node sorted by start; progress strip on each bar; derived spans dashed;
   one-date nodes as diamonds; nodes with tasks expand to task sub-rows; today line; bars
   clipped at the range edge are marked; undated nodes in a footnote. Prev / next / today.
+- **Dependency connectors** (N12): with a Depends on property, a line runs from the right end of each dependency's bar
+  (or point) to the left end of its dependent's, with an arrow at the dependent, in every zoom; when the dependent starts
+  before the dependency ends, the line takes a right-angle detour between the rows. Only pairs whose both nodes have a
+  row in the range (after filters) are drawn. One neutral colour; lines never take the pointer. A bar or point with
+  dependencies adds ", depends on A, B" to its label, so the relation is not visual only. No dragging to create or edit
+  dependencies, no connectors in other views, no critical path, no lag / lead.
 - Only nodes that touch the range get a row. The dated nodes wholly outside it are counted on
   one line above the grid ("412 earlier · 1,105 later"); each side is a button that moves the
   range to the nearest of those nodes (approved 2026-10-03, T13a: at 2,000 nodes the out-of-range
@@ -137,8 +143,7 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 - Side panel and in-page block surfaces (next, in that order).
 - Dragging or resizing to change dates; a detail/edit panel.
 - More than one tag per view.
-- Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom;
-  dependency arrows.
+- Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.
 - Kanban manual card order; Agenda ranges other than 14 days.
 - Creating properties on the user's tags (e.g. a one-click "add Start/End").
 - Marketplace release (prepared after v1 works).
