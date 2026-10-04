@@ -37,7 +37,7 @@ async function click(sel: string, init: MouseEventInit = {}) {
 }
 
 /** Opens the Planner on #Project (or `tagTitle`) in the Agenda. */
-async function setup(opts: { dq?: Dq; tagTitle?: string } = {}) {
+async function setup(opts: { dq?: Dq; tagTitle?: string; today?: string } = {}) {
   tags = await loadTagInfos(fixtureDq());
   document.body.innerHTML = "";
   root = document.createElement("div");
@@ -45,7 +45,7 @@ async function setup(opts: { dq?: Dq; tagTitle?: string } = {}) {
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
   ws = createWorkspace(root, {
-    dq: opts.dq ?? fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, kanban: noWrites, weekStart: async () => 0,
+    dq: opts.dq ?? fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => opts.today ?? TODAY, kanban: noWrites, weekStart: async () => 0,
   });
   await ws.open();
   await click(`[data-tag-id="${tag(opts.tagTitle ?? "Project").id}"]`);
@@ -232,6 +232,28 @@ describe("rendering less at 2,000 nodes (T13a)", () => {
     expect($("[data-ag-more]")).toBeNull();
   });
 
+  it("by date: Overdue renders its first 100 entries, then Show more adds 100; the heading keeps the real total", async () => {
+    await setup({ dq: fixtureDq({ projectCopies: 220 }), today: "2027-06-01" }); // long past every date: all open nodes are overdue
+    await click("[data-ag-group-by=date]");
+    const total = Number(text("[data-ag-bucket=overdue] [data-ag-count]"));
+    expect(total).toBeGreaterThan(200);
+    expect(entriesIn("overdue")).toHaveLength(100);
+    expect(text("[data-ag-bucket=overdue] [data-ag-more]")).toBe(`Show 100 more of ${total - 100}`);
+    await click("[data-ag-bucket=overdue] [data-ag-more]");
+    expect(entriesIn("overdue")).toHaveLength(200);
+    expect(text("[data-ag-bucket=overdue] [data-ag-count]")).toBe(String(total));
+    await ws.refresh(); // a live refresh keeps the expanded count
+    expect(entriesIn("overdue")).toHaveLength(200);
+    await click("[data-ag-bucket=overdue] [data-ag-more]");
+    expect(entriesIn("overdue")).toHaveLength(total);
+    expect($("[data-ag-more]")).toBeNull();
+  });
+
+  it("by date: no Show more button when Overdue fits", async () => {
+    await click("[data-ag-group-by=date]");
+    expect($("[data-ag-more]")).toBeNull();
+  });
+
   it("no Show more button when every group fits", () => {
     expect(groups()).toHaveLength(4);
     expect($("[data-ag-more]")).toBeNull();
@@ -301,7 +323,7 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
   it("late entries in red, done ones struck through for canceled and greyed, today in the accent colour", () => {
     expect(agendaCss).toMatch(/\[data-late\][^{]*\{[^}]*var\(--pl-red-text\)/);
     expect(agendaCss).toMatch(/\[data-status="canceled"\][^{]*\{[^}]*line-through/);
-    expect(agendaCss).toMatch(/\[data-done\][^{]*\{[^}]*var\(--pl-label-2\)/);
+    expect(agendaCss).toMatch(/\[data-done\][^{]*\{[^}]*var\(--pl-label-done\)/);
     expect(agendaCss).toMatch(/\[data-ag-bucket="today"\][^{]*\{[^}]*var\(--pl-today\)/);
   });
 

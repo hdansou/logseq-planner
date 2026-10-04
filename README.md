@@ -126,6 +126,8 @@ sorts at that date and shows how many days late.
 - **Group by**: Date or Node.
 - By date: Overdue, Today, each of the next 14 days, then **Later**, **No date** and
   **Earlier**. The last three are folded and render when opened. Empty buckets are omitted.
+  Overdue renders its first 100 entries; **Show 100 more of N** adds the next 100 (its
+  heading keeps the real total).
 - By node: one panel per node with its progress and tasks, overdue first. The first 100
   groups render; **Show 100 more of N** adds the next 100.
 - **Show done** includes done and canceled entries (within 14 days, or under No date).
@@ -253,8 +255,6 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   nothing.
 - In Calendar Month, a band that continues on both sides shows its title in the middle of
   the row, not at the left edge.
-- The Agenda's Overdue bucket is not capped. In the large test, 923 overdue entries all
-  rendered.
 - A Date property value that points at no journal page (for example a value Logseq left as
   its empty placeholder) counts as no value.
 - Nodes and tasks in Recycle, or on a page in Recycle, are not shown.

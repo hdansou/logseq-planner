@@ -302,6 +302,7 @@ performance.now() - t0
 | H12 | Open and close Planner 5 times | Reopen is instant when nothing changed (no reload); `history` shows no growth of `totalMs` | pass | 771140f | 2026-10-03 | DEV build, #Load item Kanban, 5 close / reopen cycles: the view is visible 55–62 ms after the click; no new load or refresh measurement in `history` (no reload) |
 | H13 | Memory: note the page's JS heap before and after opening Planner and switching all views | Record the numbers (no target) | pass | 771140f | 2026-10-03 | `performance.memory.usedJSHeapSize` of the page (DEV builds of Logseq and Planner, one process for both): 347 MB before opening, 361 MB after opening #Load item and switching all views and zooms, 353 MB after 5 open / close cycles |
 | H14 | Seed `--seed-large 200` first on a fresh graph if the 2000 import fails or times out | Record which N imports; report the failure text | not run |  |  | not needed: N = 2000 imported |
+| H15 | Agenda by date, Overdue bucket with hundreds of entries | Overdue lists its first 100 entries, then "Show 100 more of N" (`[data-ag-bucket=overdue] [data-ag-more=overdue]`); the heading keeps the real total; a live refresh keeps the expanded count **[N04]** |  |  |  |  |
 
 ## I. Accessibility basics
 

@@ -119,6 +119,8 @@ interface State {
   agendaOpen: Set<string>;
   /** Agenda by node: how many groups are rendered. Session state. */
   agendaGroups: number;
+  /** Agenda by date: how many Overdue entries are rendered. Session state. */
+  agendaOverdue: number;
   /** Kanban: cards rendered per cell by `cellKey`, for cells whose "Show more" was used. Session state. */
   kbShown: Map<string, number>;
   /**
@@ -416,7 +418,7 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   }
   if (s.config.kind === "agenda") {
     const layout = agendaLayout(s, now(), tag, shown);
-    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
+    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups, overdue: s.agendaOverdue }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
   }
   const c = s.config;
   const layout = kanbanLayout(s, now(), tag, shown);
@@ -454,7 +456,7 @@ function selectorOf(el: Element): string {
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
-    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false };
+    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -890,7 +892,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "showDone":
         return void run(() => setConfig({ ...c, showDone: !c.showDone }));
       case "more":
-        return void run(() => void (s.agendaGroups += AGENDA_GROUP_PAGE));
+        return void run(() => void (a.overdue ? (s.agendaOverdue += AGENDA_GROUP_PAGE) : (s.agendaGroups += AGENDA_GROUP_PAGE)));
     }
   }
 

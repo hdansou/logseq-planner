@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import { PL_MAP, RERESOLVE_DELAYS_MS, THEME_TOKENS, plVars, watchTheme } from "./theme";
 import type { ThemeDeps } from "../types";
 import css from "./theme.css?inline";
+import agendaCss from "./agenda.css?inline";
+import calendarCss from "./calendar.css?inline";
+import kanbanCss from "./kanban.css?inline";
+import timelineCss from "./timeline.css?inline";
 
 describe("plVars", () => {
   it("wraps shui channels in hsl() and passes other values through", () => {
@@ -169,5 +173,38 @@ describe("watchTheme", () => {
     settleOld({ "--background": "0 0% 99%" });
     await flush();
     expect(document.documentElement.style.getPropertyValue("--pl-surface")).toBe("hsl(0 0% 30%)");
+  });
+});
+
+/** N04: the greyed done / canceled titles must stay readable on the host's default themes. */
+describe("--pl-label-done", () => {
+  const MIX = "color-mix(in srgb, var(--pl-label) 72%, var(--pl-surface))";
+  const block = (sel: string) => css.slice(css.indexOf(sel + " {"), css.indexOf("}", css.indexOf(sel + " {")));
+  const hex = (v: string) => [1, 3, 5].map((i) => parseInt(v.slice(i, i + 2), 16));
+  const decl = (sel: string, name: string) => new RegExp(`${name}: (#[0-9a-f]{6});`).exec(block(sel))![1];
+  const channel = (c: number) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
+  const luminance = ([r, g, b]: number[]) => 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+  const contrast = (a: number[], b: number[]) => { const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+  /** sRGB mix of `label` at 72% over `surface`, as color-mix(in srgb) does (channels rounded). */
+  const mix = (label: number[], surface: number[]) => label.map((c, i) => Math.round(c * 0.72 + surface[i] * 0.28));
+
+  it("is the primary label mixed 72% with the surface, declared once and not mapped from the host", () => {
+    expect(block(":root")).toContain(`--pl-label-done: ${MIX};`);
+    expect(PL_MAP.map(([name]) => name)).not.toContain("--pl-label-done");
+  });
+
+  it.each([[":root", "light"], ["html.dark", "dark"]])("reads at 4.5:1 or more on the plugin's %s surface (%s)", (sel) => {
+    const label = hex(decl(sel, "--pl-label"));
+    const surface = hex(decl(sel, "--pl-surface"));
+    const ratio = contrast(mix(label, surface), surface);
+    expect(ratio).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("styles the done titles of all four views with it, not the secondary label", () => {
+    expect(agendaCss).toMatch(/\.pl-ag-entry\[data-done\] \.pl-ag-title \{ color: var\(--pl-label-done\); \}/);
+    expect(timelineCss).toMatch(/\.pl-tl-task\[data-done\] \.pl-tl-name \{ color: var\(--pl-label-done\); \}/);
+    expect(kanbanCss).toMatch(/\.pl-kb-card\[data-done\] \.pl-kb-title \{ color: var\(--pl-label-done\); text-decoration: line-through; \}/);
+    expect(kanbanCss).toMatch(/\.pl-kb-head\[data-done\] \.pl-kb-head-title \{ color: var\(--pl-label-done\); \}/);
+    expect(calendarCss).toMatch(/\.pl-cal-chip\[data-done\] \.pl-cal-title \{ color: var\(--pl-label-done\); text-decoration: line-through; \}/);
   });
 });
