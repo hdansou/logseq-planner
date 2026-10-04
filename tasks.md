@@ -174,7 +174,7 @@ Live-check method (web app):
       Owner said "go" on 2026-10-03 with the coordinator's defaults: the panel is open by
       default in the workspace and closed by default at narrow widths (drawer); the tag
       tree stays in the panel.
-- [ ] **N14 Views over more than one tag** — owner request 2026-10-03, logged and scoped,
+- [x] **N14 Views over more than one tag** — owner request 2026-10-03, logged and scoped,
       not started. Example: #Milestone and #Task in one view. Today a view has one tag (plus
       the tags that extend it); dates, filters, Kanban columns and "Depends on" all come
       from that tag's properties.
@@ -947,3 +947,19 @@ Total: about 10 hours.
   once, again after 250 ms and 1000 ms, last call wins). Live on the desktop test
   instance: switching between two dark themes, Query Builder's tokens right after the
   event were the old theme's and matched the host 1.8 s later. Not pushed there.
+- 2026-10-04 N14 done (4f84882, 285a6ca, 8eb07ab). 805 unit tests. Config: `tags` list
+  with per-tag `dates`; stored one-tag views are converted in `parseViewConfig`. Tag
+  checkboxes in the panel, a Dates popover with two or more tags, shared choice
+  properties, a Tag filter and a read-only Tag swimlane, Timeline Arrange (By date / By
+  tag / Nested), children nested one level under the node they reference, the Agenda by
+  node likewise. Live on the desktop app, `planner-project`, #Milestone + #Task (rows
+  K1–K7, K9, K11): union loads in 93 ms, six milestones with 31 task bars under them,
+  rollups right, 38 connectors, Kanban and Agenda over both tags, saved view round trip.
+  Deviations accepted: "Depends on" offers the node properties of any selected tag (the
+  shared rule would hide `depends_on`, which only #Task has); a #Task block that is a node
+  of the view is never also a marker row, in one-tag views too; nested progress is used
+  only in Timeline Nested and Agenda by node.
+  Defect found live, to fix: in a view that goes from one tag to several, "Depends on"
+  stays None; it should take the default property (`depends_on`) unless the user chose.
+  Not verified: K8 (a view saved before N14; unit-tested), K10 (collapse kept across a view
+  switch), a drag across Tag lanes, cost at 2,000 nodes, real mouse clicks.
