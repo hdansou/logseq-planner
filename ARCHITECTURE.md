@@ -258,7 +258,7 @@ recorded in tasks.md.
 | Timeline builds rows only for nodes in range and counts the rest. Agenda renders folded buckets when opened. Kanban cells and Agenda node groups are paged. | At 2,000 nodes the out-of-range rows and large views made most of the DOM (T13a). |
 | Debounce `DB.onChanged` and poll every 30 s while visible. | Hidden iframes throttle timers. `DB.onChanged` fires for local edits, other tabs, the plugin's own writes and undo, but its payload is unusable (T01, T12). |
 | `DB.onChanged` is a wake-up only. | `txData` is empty and payload keys are mangled (T01). |
-| Write the full-screen container style directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
+| Write the workspace frame style (starting under the host header, N15) directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
 | Defer registrations with `setTimeout(…, 0)` and keep `main()` minimal. | Registrations must not delay the ready handshake (host gotcha §18, cited in CLAUDE.md and `src/index.ts`). |
 | Fail fast: a missing or invalid week start and an unknown ident in a saved view throw. | Project rule: no fallback that hides invalid state. |
 | A Date value without a journal day (the empty placeholder) is no value, not an error. | The host leaves `:logseq.property/empty-placeholder` when a value is removed (T11); throwing failed the whole tag's load (T14). |

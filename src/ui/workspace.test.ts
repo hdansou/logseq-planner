@@ -381,6 +381,7 @@ describe("tag tree", () => {
     expect(workspaceCss).toMatch(/\.pl-ws\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100vh/);
     expect(workspaceCss).toMatch(/\.pl-body\s*\{[^}]*flex:\s*1 1 0;[^}]*min-height:\s*0/);
     expect(workspaceCss).not.toMatch(/\.pl-sidebar\s*\{[^}]*align-self:/);
+    expect(workspaceCss).not.toMatch(/pl-mac-desktop/); // N15: the frame starts under the host header
   });
 
   it("spaces a group heading that follows a tag list (stylesheet; happy-dom does not lay out)", () => {

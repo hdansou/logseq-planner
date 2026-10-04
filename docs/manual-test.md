@@ -75,8 +75,14 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | A6 | Click Close | Planner hides | pass | 4d45a0b | 2026-10-03 |  |
 | A7 | Reopen after A5 / A6 with no edits in between | Same tag and view as before; the data is current (a stale hide refreshes once) | pass | 869508c | 2026-10-03 | 0 reloads when not stale; two reloads after a stale hide (known) |
 | A8 | Resize the window to 720 px wide and open | Nothing is cut off; the left column and the built-in tag group are reachable (built-in tags collapsed, filters visible) | pass | 4d45a0b | 2026-10-03 | 720 px: bars wrap, no page overflow, Close at x=704 |
-| A9 | Desktop app only: open at the macOS window | Content clears the window buttons (`pl-mac-desktop` padding) | pass | e849107 | 2026-10-03 | desktop app 2.0.1 nightly (rev 8ffbb22, 2026-10-01), second instance over CDP: `html.pl-mac-desktop`, top bar padding-left 84 px, the title starts at x = 84. The native window buttons are not in a CDP screenshot, so their position was not seen |
+| A9 | Desktop app only: open at the macOS window | Retired by N15: Content clears the window buttons (`pl-mac-desktop` padding) | pass | e849107 | 2026-10-03 | desktop app 2.0.1 nightly (rev 8ffbb22, 2026-10-01), second instance over CDP: `html.pl-mac-desktop`, top bar padding-left 84 px, the title starts at x = 84. The native window buttons are not in a CDP screenshot, so their position was not seen |
 | A10 | Reload the whole app, then open Planner | Opens; no `[Ready Error]` or deferred-timeout error in the console | pass | 4d45a0b | 2026-10-03 | several app reloads; no Ready Error from the :8294 build |
+| A11 | Open Planner (desktop app) | The frame starts at the lower edge of the host header (48 px); the host header stays visible above it (N15) | not run |  |  |  |
+| A12 | With Planner open, drag the host header | The window moves (N15) | not run |  |  |  |
+| A13 | With Planner open, drag the window edges and corners | The window resizes (N15) | not run |  |  |  |
+| A14 | With Planner open, double-click an empty part of the host header | The window zooms (maximizes or restores) (N15) | not run |  |  |  |
+| A15 | Click the toolbar button twice | The first click opens Planner, the second hides it; a third opens it again (N15) | not run |  |  |  |
+| A16 | With real mouse clicks (not CDP), use Planner's top bar: view switch, Saved views, Close | Every control takes the click (N15) | not run |  |  |  |
 
 ## B. Workspace shell
 

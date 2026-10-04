@@ -8,8 +8,6 @@ html, body, #app { height: 100%; }
 
 /* Top bar */
 .pl-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--pl-line-soft); }
-/* Desktop on macOS: the full-screen frame covers the window buttons (skill: ui-positioning, full-screen recipe). */
-html.pl-mac-desktop .pl-top { padding-left: 84px; }
 .pl-title { margin: 0; font-size: 15px; font-weight: 700; }
 .pl-spacer { flex: 1; }
 .pl-seg > button:disabled { cursor: default; color: var(--pl-label-2); }

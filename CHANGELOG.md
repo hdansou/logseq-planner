@@ -11,6 +11,12 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
 
 ### Changed
 
+- The workspace starts under the app header instead of covering the whole window (N15): the frame's top and height
+  come from the host's `--ls-headbar-height` (fallback 3rem), so the window moves by the host header, zooms on a
+  header double-click and resizes by its edges as usual. The toolbar button now toggles Planner (opens, and hides
+  it while shown); the command palette entry and `g shift+p` still only open it. Removed with the full-height frame:
+  `-webkit-app-region: no-drag` (the earlier fix for clicks on the top bar, now superseded) and the macOS
+  window-button padding (`macWindowButtons`, `pl-mac-desktop`).
 - New icon: three staggered bars (a small Gantt) in the toolbar and the plugin list. The calendar glyph looked like the
   Journals calendar plugin's button.
 
@@ -175,7 +181,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
 ### Fixed
 - Clicks on the top bar (view switch, Saved views, Close) land on the desktop app: the host header under the
   full-screen frame is a window-drag region, so the frame now sets `-webkit-app-region: no-drag` (`FULL_SCREEN` in
-  `sdk.ts`, on both the container and the `setMainUIInlineStyle` fallback).
+  `sdk.ts`, on both the container and the `setMainUIInlineStyle` fallback). Superseded by N15 (see Changed): the
+  frame no longer covers the header and the property is gone.
 - A one-point span reads as one date (N02): when a span's start and end are the same day and time (a node derived
   from one task), its label reads "Mobile app, 9 Oct 09:00 from its tasks, 0 of 1 done", not "9 Oct 09:00 – 9 Oct
   09:00". One shared `formatSpan` in `layout-common.ts` serves the Timeline and Calendar labels (`nodeLabel`) and

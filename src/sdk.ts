@@ -6,13 +6,15 @@ import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /**
- * Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI.
- * `WebkitAppRegion: no-drag`: the host header under the frame (`#head`, top 48 px) is a window-drag region on the
- * desktop app; without no-drag it swallows mouse clicks on the top 48 px of the frame.
+ * The workspace frame (skill ui-positioning, recipe 3, minus the header): fixed over the host UI, but starting at the
+ * host header's lower edge. The host header (`#head`, `--ls-headbar-height`, 3rem = 48 px) is the window's drag strip
+ * on the desktop app: a frame over it either blocks clicks on Planner's top bar or, with `-webkit-app-region:
+ * no-drag`, blocks moving the window (tasks.md N15). Below it, the header stays draggable and double-clickable, and
+ * the window edges stay free for resizing.
  */
-const FULL_SCREEN: Record<string, string> = {
-  position: "fixed", zIndex: "999", top: "0", left: "0", right: "auto", width: "100vw", height: "100vh",
-  WebkitAppRegion: "no-drag",
+const HEADBAR = "var(--ls-headbar-height, 3rem)";
+const WORKSPACE_FRAME: Record<string, string> = {
+  position: "fixed", zIndex: "999", top: HEADBAR, left: "0", right: "auto", width: "100vw", height: `calc(100vh - ${HEADBAR})`,
 };
 
 /**
@@ -39,7 +41,7 @@ export const appDeps = (): AppDeps => ({
   registerCommandPalette: (command, action) => logseq.App.registerCommandPalette(command, action),
   provideModel: (model) => logseq.provideModel(model),
   showMainUI: () => {
-    setContainerStyle(FULL_SCREEN);
+    setContainerStyle(WORKSPACE_FRAME);
     logseq.showMainUI({ autoFocus: true });
   },
   hideMainUI: () => logseq.hideMainUI({ restoreEditingCursor: true }),
@@ -48,7 +50,6 @@ export const appDeps = (): AppDeps => ({
   openInSidebar: (uuid) => logseq.Editor.openInRightSidebar(uuid),
   later: (fn, ms) => void setTimeout(fn, ms),
   weekStart: () => hostWeekStart(),
-  macWindowButtons: /Mac/.test(navigator.platform) && /Electron/.test(navigator.userAgent),
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
   kanban: kanbanWriteDeps(),

@@ -6,7 +6,7 @@ Status: approved 2026-10-03. Prototype: https://claude.ai/artifact/KU9Z831Y9y974
 ## Goal
 
 Show the nodes of any tag in a Logseq DB graph, including tags users create, as a Timeline,
-Calendar, Agenda or Kanban board, in a full-screen workspace.
+Calendar, Agenda or Kanban board, in a workspace that fills the window under the app header.
 
 ## User stories
 
@@ -135,7 +135,9 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
   moves (closed-value property write). Nothing else.
 - Performance target: up to ~2,000 nodes of the chosen tag, loaded at once and filtered in
   the plugin. First view < 1 s; redraw after a change < 300 ms.
-- Full-screen main UI per the skill's ui-positioning recipe; registrations deferred out of
+- Workspace frame per the skill's ui-positioning recipe, but starting at the host header's lower edge (top and
+  height from `--ls-headbar-height`, fallback 3rem), so the window moves by the header, zooms on a header
+  double-click and resizes by its edges as usual (N15); registrations deferred out of
   `main()`; debounced `DB.onChanged` plus a slow poll because hidden iframes throttle timers.
 
 ## Non-goals (v1)

@@ -1,7 +1,7 @@
 # Planner
 
 Logseq DB plugin: Timeline, Calendar, Agenda and Kanban views over any tag, in a
-full-screen workspace. Read REQUIREMENTS.md, then tasks.md (next unchecked item), then
+workspace under the app header. Read REQUIREMENTS.md, then tasks.md (next unchecked item), then
 docs/design.md before changing UI.
 
 ## Stack
@@ -14,8 +14,8 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | Path | Owns | Never does |
 |---|---|---|
 | `src/index.ts` | entry: imports `@logseq/libs`, hands `appDeps()` to `registerApp` | business logic |
-| `src/app.ts` | `registerApp(deps, root)`: creates the workspace (stopped on unload), open (full-screen + focus retries) / close, Escape order, `g shift+p` binding, deferred registrations, `nodeOpener` (click → `openPage` + hide, Shift → `openInSidebar`), creates `createChanges` with the deferred registrations (first show = `workspace.open()`, later = `refresh()`; `ui:visible:changed` and its own open/close drive visibility) | call `logseq.*` |
-| `src/sdk.ts` | every SDK call and typing cast; full-screen container style; `hostWeekStart()` (`preferredStartOfWeek`, number or numeric string); `changesSdk()` (`DB.onChanged`, cancelable `setTimeout`, `ui:visible:changed`, `beforeunload`); `kanbanWriteDeps()` (`upsertBlockProperty` / `removeBlockProperty` passed through unchanged, `readChoice` = pull by `#uuid` input, `choiceReadQuery`) | DOM rendering inside the frame |
+| `src/app.ts` | `registerApp(deps, root)`: creates the workspace (stopped on unload), open (frame + focus retries) / close, the toolbar button toggles (the palette command only opens), Escape order, `g shift+p` binding, deferred registrations, `nodeOpener` (click → `openPage` + hide, Shift → `openInSidebar`), creates `createChanges` with the deferred registrations (first show = `workspace.open()`, later = `refresh()`; `ui:visible:changed` and its own open/close drive visibility) | call `logseq.*` |
+| `src/sdk.ts` | every SDK call and typing cast; workspace frame style (`WORKSPACE_FRAME`: starts under the host header, N15); `hostWeekStart()` (`preferredStartOfWeek`, number or numeric string); `changesSdk()` (`DB.onChanged`, cancelable `setTimeout`, `ui:visible:changed`, `beforeunload`); `kanbanWriteDeps()` (`upsertBlockProperty` / `removeBlockProperty` passed through unchanged, `readChoice` = pull by `#uuid` input, `choiceReadQuery`) | DOM rendering inside the frame |
 | `src/core/*` | schema, queries, normalisation, spans, layouts, kanban moves | touch DOM or SDK |
 | `src/core/schema.ts` | tag tree, date/choice/node props incl. inherited (node props: any cardinality, N12), closed values: `loadTagInfos(dq)` (injected `Dq`) + pure `buildTagInfos` | call `getTag(title)` (fails by title) |
 | `src/core/queries.ts` | `loadNodes` / `loadNodesAndTasks` (injected `Dq`): nodes of a tag ± child tags with a narrow pull (`nodesQuery(tags)` / `nodePull`: id, uuid, title, tags + every tag's date/choice idents, `nodePropIdents`; Date idents as `{ident [:db/id :block/journal-day]}`, so no journal-day query), and the #Task blocks that reference a node of the tag (`tasksQuery(dependsOn)`, same tag join, asked together with the nodes); the view's dependency property (N12) is pulled plainly at the end of both pulls (`nodesQuery(tags, dependsOn)`); `readRaw(dq, tags, tag, dependsOn, prev?)` re-asks only stale rows, `buildData` maps them with `raw.dependsOn`; `loadTitles(dq, uuids)`: one `TITLES_QUERY` (uuid strings as a collection, `(str ?u)`), none when empty | use the SDK, filter/span logic (`nodes.ts`), `pull [*]` |
@@ -59,8 +59,9 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 - Only `src/index.ts` imports `@logseq/libs`; other files use
   `/// <reference types="@logseq/libs" />` (vitest crashes otherwise).
 - Keep `main()` minimal; defer registrations with `setTimeout(…, 0)`.
-- Full-screen main UI: write the container style directly (saved layouts ignore
-  `setMainUIInlineStyle` position/size); leave room for macOS window buttons.
+- Workspace frame: write the container style directly (saved layouts ignore
+  `setMainUIInlineStyle` position/size); start it below the host header (`--ls-headbar-height`), never over it:
+  the header is the window drag strip (N15).
 - Dark mode: mirror onto `<html class="dark">`; CSS keys off `html.dark`, never
   `prefers-color-scheme`. Host tokens via `resolveThemeCssPropsVals`, re-resolved on theme
   change; shui values are channels → `hsl()`; never `hsl(#hex)`.

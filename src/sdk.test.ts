@@ -101,7 +101,9 @@ describe("Kanban writes (T11; T01 observed shapes, docs/probes.md)", () => {
   });
 });
 
-describe("full-screen frame is not a window-drag region", () => {
+describe("workspace frame starts under the host header (N15)", () => {
+  const TOP = "var(--ls-headbar-height, 3rem)";
+  const HEIGHT = "calc(100vh - var(--ls-headbar-height, 3rem))";
   const host = (el: unknown) => {
     const setMainUIInlineStyle = vi.fn();
     vi.stubGlobal("parent", { document: { querySelector: () => el } });
@@ -109,16 +111,28 @@ describe("full-screen frame is not a window-drag region", () => {
     return setMainUIInlineStyle;
   };
 
-  it("sets -webkit-app-region: no-drag, important, on the container (same-origin)", () => {
+  it("sets top and height from the host header variable, important, on the container (same-origin)", () => {
     const setProperty = vi.fn();
     host({ dataset: {}, style: { setProperty } });
     appDeps().showMainUI();
-    expect(setProperty).toHaveBeenCalledWith("-webkit-app-region", "no-drag", "important");
+    expect(setProperty).toHaveBeenCalledWith("top", TOP, "important");
+    expect(setProperty).toHaveBeenCalledWith("height", HEIGHT, "important");
+    expect(setProperty).toHaveBeenCalledWith("position", "fixed", "important");
+    expect(setProperty).toHaveBeenCalledWith("width", "100vw", "important");
+    expect(setProperty.mock.calls.map(([k]) => k)).not.toContain("-webkit-app-region");
   });
 
-  it("passes WebkitAppRegion to setMainUIInlineStyle on the cross-origin fallback", () => {
+  it("passes the same top and height to setMainUIInlineStyle on the cross-origin fallback", () => {
     const inline = host(null);
     appDeps().showMainUI();
-    expect(inline).toHaveBeenCalledWith(expect.objectContaining({ WebkitAppRegion: "no-drag" }));
+    expect(inline).toHaveBeenCalledWith({
+      position: "fixed", zIndex: "999", top: TOP, left: "0", right: "auto", width: "100vw", height: HEIGHT,
+    });
+    expect(Object.keys(inline.mock.calls[0][0])).not.toContain("WebkitAppRegion");
+  });
+
+  it("no longer reports macWindowButtons", () => {
+    host(null);
+    expect(appDeps()).not.toHaveProperty("macWindowButtons");
   });
 });

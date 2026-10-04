@@ -1,7 +1,7 @@
 # Planner
 
 Planner shows the nodes of any tag in a Logseq DB graph as a Timeline, a Calendar, an
-Agenda or a Kanban board, in a full-screen workspace. It works with built-in tags such as
+Agenda or a Kanban board, in a workspace that fills the window under the app header. The window can be moved and resized as usual. It works with built-in tags such as
 #Task and with tags you create.
 
 Status: version 0.1.0, in development. It has not been released. It was tested in the

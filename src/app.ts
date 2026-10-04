@@ -34,7 +34,9 @@ export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boo
 export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): void {
   const doc = root.ownerDocument;
   let changes: ReturnType<typeof createChanges> | null = null; // created with the deferred registrations
+  let visible = false; // the frame is shown: set by open / close and by the host's visibility event
   const close = () => {
+    visible = false;
     deps.hideMainUI();
     changes?.setVisible(false);
   };
@@ -42,7 +44,6 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
   let loaded = false;
   const refresh = () => (loaded ? workspace.refresh() : ((loaded = true), workspace.open()));
-  doc.documentElement.classList.toggle("pl-mac-desktop", deps.macWindowButtons);
 
   const focusIn = () => {
     if (root.contains(doc.activeElement)) return;
@@ -50,6 +51,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     root.querySelector<HTMLElement>("[data-view-kind][aria-pressed=true], [data-action=close]")?.focus();
   };
   const open = () => {
+    visible = true;
     deps.showMainUI();
     const shownBefore = loaded;
     changes?.setVisible(true);
@@ -57,13 +59,16 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     for (const ms of FOCUS_RETRIES_MS) deps.later(focusIn, ms);
   };
 
+  /** The toolbar button: hides Planner while it is shown (the host header stays usable under it), else opens it. The palette command only opens. */
+  const toggle = () => (visible ? close() : open());
+
   doc.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !workspace.escape()) close();
   });
 
   deps.defer(() => {
     changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
-    const offVisible = deps.changes.onVisibleChanged((visible) => changes?.setVisible(visible));
+    const offVisible = deps.changes.onVisibleChanged((shown) => ((visible = shown), changes?.setVisible(shown)));
     const offTheme = watchTheme(deps.theme, doc);
     deps.changes.onUnload(() => {
       changes?.stop();
@@ -71,7 +76,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
       offVisible();
       void offTheme.then((off) => off());
     });
-    deps.provideModel({ [OPEN_HANDLER]: open });
+    deps.provideModel({ [OPEN_HANDLER]: toggle });
     deps.registerUIItem("toolbar", {
       key: OPEN,
       template: `<a class="button" data-on-click="${OPEN_HANDLER}" title="Planner">${TOOLBAR_ICON}</a>`,

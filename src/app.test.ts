@@ -37,7 +37,6 @@ function fakeDeps() {
     },
     defer: vi.fn((fn: () => void) => void deferred.push(fn)),
     later: vi.fn(),
-    macWindowButtons: false,
     weekStart: vi.fn(async () => 1),
     // Tags from the T01 fixtures; no nodes anywhere.
     dq: vi.fn(async (query: string) => (query === TAGS_QUERY ? tagsFixture.query.detail : query === TAG_PROPERTIES_QUERY ? propsFixture.query.detail : [])),
@@ -119,11 +118,43 @@ describe("registerApp", () => {
     expect(deps.later.mock.calls.map(([, ms]) => ms)).toEqual([50, 300, 800]);
   });
 
-  it("marks the frame for the macOS window buttons on desktop", () => {
+  it("sets no pl-mac-desktop class (N15)", () => {
     const { deps } = fakeDeps();
-    registerApp({ ...deps, macWindowButtons: true }, root);
-    expect(document.documentElement.classList.contains("pl-mac-desktop")).toBe(true);
-    document.documentElement.classList.remove("pl-mac-desktop");
+    registerApp(deps, root);
+    expect(document.documentElement.classList.contains("pl-mac-desktop")).toBe(false);
+  });
+
+  it("the toolbar button toggles: a second click hides, a third shows again (N15)", () => {
+    const { deps, flush } = fakeDeps();
+    registerApp(deps, root);
+    flush();
+    const toggle = modelHandler(deps);
+    toggle();
+    expect(deps.showMainUI).toHaveBeenCalledTimes(1);
+    toggle();
+    expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
+    expect(deps.showMainUI).toHaveBeenCalledTimes(1);
+    toggle();
+    expect(deps.showMainUI).toHaveBeenCalledTimes(2);
+  });
+
+  it("the toolbar button shows after Escape or a host hide, and the palette command only opens (N15)", () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    f.flush();
+    const toggle = modelHandler(f.deps);
+    toggle();
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    toggle();
+    expect(f.deps.showMainUI).toHaveBeenCalledTimes(2);
+    f.visibility.forEach((cb) => cb(false));
+    toggle();
+    expect(f.deps.showMainUI).toHaveBeenCalledTimes(3);
+    const [, paletteAction] = f.deps.registerCommandPalette.mock.calls[0];
+    paletteAction({} as never);
+    paletteAction({} as never);
+    expect(f.deps.showMainUI).toHaveBeenCalledTimes(5);
+    expect(f.deps.hideMainUI).toHaveBeenCalledTimes(1); // only the Escape
   });
 
   it("Escape closes an open popover before it hides the main UI", async () => {
