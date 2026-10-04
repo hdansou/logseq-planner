@@ -308,7 +308,7 @@ Live-check method (web app):
       split in the workspace with a draggable divider. Revisit after the sidebar surface
       exists. Consequence: N13 (panel on the right, narrow-width drawer) comes before this
       and matters more.
-- [ ] **N07 Query Builder follow-up (other repo)** — its theme code has the same
+- [x] **N07 Query Builder follow-up (other repo)** — its theme code has the same
       theme-switch race fixed here in 2c90798; not checked there.
 
 ## v1
@@ -942,3 +942,8 @@ Total: about 10 hours.
   Seen: in a narrow window Logseq's own left sidebar, when open, becomes an overlay that
   covers most of Planner; closing it is the host's control. N04 still open: tag deletion
   triggers no refresh; refresh time at 2,000 nodes; saved-view writes not serialised.
+- 2026-10-04 N07 done, in the Query Builder repo (16d44d4 there, BUG-8): it had the same
+  defect, tokens resolved only at the theme event. Fixed the way 2c90798 does (resolve at
+  once, again after 250 ms and 1000 ms, last call wins). Live on the desktop test
+  instance: switching between two dark themes, Query Builder's tokens right after the
+  event were the old theme's and matched the host 1.8 s later. Not pushed there.
