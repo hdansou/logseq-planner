@@ -296,7 +296,7 @@ Live-check method (web app):
       closes a popover and then Planner.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
-- [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block,
+- [x] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block,
       drag-to-edit dates (REQUIREMENTS.md). Split on 2026-10-04:
       **N06a Sidebar surface** (done 58e37ae, see the Progress log). Prototype checked live on the desktop app: with
       Logseq's right sidebar open (`#right-sidebar.open`, 40% wide, a 3 px `.resizer` at
@@ -328,7 +328,7 @@ Live-check method (web app):
       view); live: a saved Timeline view and a saved Kanban view shown in a page, an edit
       refreshes them, a click opens the node, "Open in Planner" opens that view, light and
       dark.
-      **N06c Drag to edit dates** (scoped 2026-10-04, after N06b). Write probe on the desktop
+      **N06c Drag to edit dates** (done 951ff58, see the Progress log). Write probe on the desktop
       app through the plugin SDK: a DateTime property (user Start, built-in Scheduled) takes
       epoch ms with `upsertBlockProperty(uuid, <ident without colon>, ms)` and reads back
       the same number; a Date property takes the db id of the day's journal page (journal
@@ -1052,3 +1052,21 @@ Total: about 10 hours.
   default themes, the web app. Known: a block in Day zoom opens at 00:00; the slash
   command leaves the caret after the braces; the Agenda's heading ids repeat when one
   view is shown twice on a page.
+- 2026-10-04 N06c done (00dbc6c, 951ff58). 959 unit tests. An "Edit dates" toggle in the
+  Timeline toolbar (off by default, session only); with it on, bars move and resize by
+  pointer or by Alt+Arrow keys, snapped to the zoom's track; DateTime values are written
+  as epoch ms, Date values as the journal page of the local day; optimistic with read-back
+  and roll-back through the shared `writeInOrder` (also used by the Kanban move now).
+  Live on the desktop app (rows N1–N5, N8 pass; N7, N9, N11, N12 partial): DateTime move
+  in Week zoom keeps the time, Day zoom moves by 15 minutes, both handles resize, the
+  minimum is one track, Escape aborts, a click still opens the node, Alt+Left moves; on
+  `planner-desktop-2` a Date span moved to the right local days and Day zoom locks Date
+  values. The demo graph was put back with `npm run tracker` afterwards.
+  Not verified: N6 (a diamond), N10 (a failed write), N13 (sidebar surface), N14 (block
+  stays read-only; unit-tested), N15 (Logseq's Undo after an edit), dashed bars and task
+  markers as locked, pointer capture when the pointer leaves the frame.
+  Test note: a bar whose row is scrolled below the frame's edge takes no drag from
+  playwright's mouse; scroll the row into view first.
+  Seen again: after a graph switch in one app session Planner shows "Invalid view config:
+  unknown date property … Showing the default view instead." once — the last view of the
+  previous graph is kept across graphs. To fix (N04).
