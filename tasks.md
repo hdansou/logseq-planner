@@ -74,7 +74,7 @@ Live-check method (web app):
           groups, Timeline rows only in range).
 - [ ] **N04 Known limitations to fix or accept** — deleting a tag triggers no refresh (next
       change or 30 s poll); reopening after a stale hide reloads twice; the Agenda's
-      Overdue bucket is not capped (923 entries at 2,000 nodes); refresh at 2,000 nodes ran
+      Overdue bucket is capped at 100 per page (done 20a8892); refresh at 2,000 nodes ran
       165–254 ms with single runs at 320, and 187–432 ms after a Kanban drag (target 250 ms
       plus the 50 ms debounce); done and canceled rows measure 3.33 / 2.98 contrast in
       Logseq's default light / dark themes (host `--muted-foreground`; Inkwell 4.63 / 4.98);
@@ -142,7 +142,7 @@ Live-check method (web app):
       tests (schema: node properties; config; links in the layout; the path geometry; the
       rollup exclusion); live on `planner-project`: #Task Week and Day show T07 → T08–T11,
       T08–T11 → T12, and the counts no longer include dependents.
-- [ ] **N13 Move the tag and filter panel to the right** — owner request 2026-10-03, logged
+- [x] **N13 Move the tag and filter panel to the right** — owner request 2026-10-03, logged
       and scoped, not started. Reason: Planner will also run in Logseq's right sidebar
       (N06), where a panel on the left of the view makes no sense; do the move now so the
       workspace and the sidebar surface share one layout: view on the left, panel (tag
@@ -917,3 +917,23 @@ Total: about 10 hours.
   every other host shortcut; non-US keyboard layouts.
   Test note: a host search dialog left open keeps the toolbar button unclickable for
   playwright; close it by clicking its field and pressing Escape.
+- 2026-10-03 N13 done (cef037a, 43679d7, 89aa29d) and two N04 items (20a8892, fc8a1d8),
+  built in parallel (N04 on branch `n04` in its own worktree, merged in 7b84fd8 with one
+  one-line conflict in workspace.ts). 731 unit tests.
+  N13: view then panel (`aside[data-region=panel]`, "sidebar" renamed to "panel"
+  everywhere), a Panel toggle in the settings bar with the count of active filters, a
+  drawer under 640 px. Panel state is kept per mode (wide / narrow) for the session; it is
+  not persisted, because the plugin has no per-graph UI store (last view and tag are in
+  memory too). Live on the desktop app (rows A17–A21): layout in all four views, Tab
+  order, toggle and count, drawer at an emulated 620 px window, Escape and outside click.
+  N04: the Agenda's Overdue bucket pages by 100; done and canceled titles use
+  `--pl-label-done` (label mixed 72% over the surface): measured 7.61 / 6.11 in Logseq's
+  default light / dark and 6.94 in Inkwell dark (F9 now passes).
+  Not verified: real mouse clicks and a real window resize (the screen was locked, the
+  frontmost process was loginwindow; clicks were made in the app and the width was
+  emulated over CDP); A22 (popovers near the right edge); H15 (Overdue paging on the
+  large seed); the toggle's position when the settings bar wraps (it lands on a third row
+  at 430 px).
+  Seen: in a narrow window Logseq's own left sidebar, when open, becomes an overlay that
+  covers most of Planner; closing it is the host's control. N04 still open: tag deletion
+  triggers no refresh; refresh time at 2,000 nodes; saved-view writes not serialised.

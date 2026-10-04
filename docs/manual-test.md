@@ -83,11 +83,11 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | A14 | With Planner open, double-click an empty part of the host header | The window zooms (maximizes or restores) (N15) | not run |  |  |  |
 | A15 | Click the toolbar button twice | The first click opens Planner, the second hides it; a third opens it again (N15) | pass | a066651 | 2026-10-03 | real clicks on the host toolbar button: Planner hides, then shows again on the same view |
 | A16 | With real mouse clicks (not CDP), use Planner's top bar: view switch, Saved views, Close | Every control takes the click (N15) | pass | a066651 | 2026-10-03 | real clicks: Calendar, Saved views open and close, Timeline all respond |
-| A17 | Open each view (Timeline, Calendar, Agenda, Kanban) at a wide window | The tag tree and filters are in the panel on the right of the view, with a hairline on the panel's left edge; the Timeline's label column stays at the left of the grid (N13) | not run |  |  |  |
-| A18 | Tick two filter values, then click **Panel** (last in the settings bar); click it again | Hidden: the view takes the full width, the button reads "Panel · 2" and keeps focus; shown again: the button reads "Panel"; VoiceOver reads the count ("Panel · 2 filters active") (N13) | not run |  |  |  |
-| A19 | Tab from the top of the workspace | Order: view switch, Saved views, Close, settings bar controls ending with Panel, the view toolbar, the view's items, then the panel (tag tree, filters) (N13) | not run |  |  |  |
-| A20 | Narrow the window until the frame is under 640 px wide (or zoom in), open Planner | The panel is closed; Panel opens it as a drawer over the view from the right edge (shadow, at most 260 px); Escape closes the drawer and Planner stays open; a second Escape closes Planner; with a menu open, Escape closes the menu first (N13) | not run |  |  |  |
-| A21 | At a narrow width, open the drawer and click the view beside it | The drawer closes; clicks inside the drawer (tag, filter) and on the bars above keep it open; widening the window shows the panel docked again (N13) | not run |  |  |  |
+| A17 | Open each view (Timeline, Calendar, Agenda, Kanban) at a wide window | The tag tree and filters are in the panel on the right of the view, with a hairline on the panel's left edge; the Timeline's label column stays at the left of the grid (N13) | pass | 7b84fd8 | 2026-10-03 | desktop app (Logseq-DB): in Timeline, Calendar, Agenda and Kanban the view spans 0–1556 px and the panel 1556–1776 px of a 1776 px frame; DOM order main then panel |
+| A18 | Tick two filter values, then click **Panel** (last in the settings bar); click it again | Hidden: the view takes the full width, the button reads "Panel · 2" and keeps focus; shown again: the button reads "Panel"; VoiceOver reads the count ("Panel · 2 filters active") (N13) | pass | 7b84fd8 | 2026-10-03 | in-app clicks (the screen was locked, no real mouse input): with one filter ticked the toggle hides the panel, reads "Panel · 1" (accessible name "Panel · 1 filter active"), the view takes the full width, focus stays on the toggle; a second click brings the panel back |
+| A19 | Tab from the top of the workspace | Order: view switch, Saved views, Close, settings bar controls ending with Panel, the view toolbar, the view's items, then the panel (tag tree, filters) (N13) | pass | 7b84fd8 | 2026-10-03 | focusable controls in document order: topbar > settings > view-toolbar > view > panel |
+| A20 | Narrow the window until the frame is under 640 px wide (or zoom in), open Planner | The panel is closed; Panel opens it as a drawer over the view from the right edge (shadow, at most 260 px); Escape closes the drawer and Planner stays open; a second Escape closes Planner; with a menu open, Escape closes the menu first (N13) | pass | 7b84fd8 | 2026-10-03 | window emulated at 620 px (frame 430 px at the app's 144% zoom): mode drawer, panel closed by default; the toggle opens it at the right edge (171–431 px), absolute, with a shadow, no page overflow; Escape with a menu open closes the menu first. A drawer left open is open again the next time the frame is narrow (kept per mode) |
+| A21 | At a narrow width, open the drawer and click the view beside it | The drawer closes; clicks inside the drawer (tag, filter) and on the bars above keep it open; widening the window shows the panel docked again (N13) | pass | 7b84fd8 | 2026-10-03 | a click on the view closes the drawer and Planner stays open; a click on a view-toolbar control also closes it (the toolbar is inside the main region) |
 | A22 | Open popovers near the right edge: Saved views, the Kanban Move menu of a card in the last column, Kanban Show, Depends on; wide and narrow | Each popover is fully inside the frame and above the panel or drawer (N13) | not run |  |  |  |
 
 ## B. Workspace shell
@@ -249,7 +249,7 @@ row, an expanded Timeline row, the Kanban card hover and a late chip). The token
 | F6 | Toggle light / dark with Planner open | `html.dark` flips and tokens change with no reload | pass | 2c90798 | 2026-10-03 |  |
 | F7 | Switch theme 9 times in a row, rapidly, with Planner open | Each switch ends on the host's values (the 250 ms / 1 s re-resolve beats the stylesheet load race) | pass | 2c90798 | 2026-10-03 | 9 switches, not rapid |
 | F8 | Switch back to the default theme (picker sends `{url: null, mode}`) | Tokens reset to the default theme | pass | 4d45a0b | 2026-10-03 |  |
-| F9 | Contrast spot checks per theme | Late (red) chips and the done / canceled greyed rows stay readable | partial | 771140f | 2026-10-03 | measured (WCAG ratio, light / dark). Inkwell: late chip 5.03 / 5.12, late date text 6.06 / 6.77, done and canceled rows 4.63 / 4.98. Logseq default: late chip 5.03 / 5.12, late date text 5.46 / 4.77, done and canceled rows 3.33 / 2.98 (under 4.5: they use the host's `--muted-foreground`) |
+| F9 | Contrast spot checks per theme | Late (red) chips and the done / canceled greyed rows stay readable | pass | 7b84fd8 | 2026-10-03 | re-measured after the `--pl-label-done` token (N04): done titles in the Agenda measure 7.61 in Logseq's default light, 6.11 in default dark and 6.94 in Inkwell dark. Earlier figures for late text and chips stand (5.0–6.8) |
 
 ## G. Week start
 
@@ -302,7 +302,7 @@ performance.now() - t0
 | H12 | Open and close Planner 5 times | Reopen is instant when nothing changed (no reload); `history` shows no growth of `totalMs` | pass | 771140f | 2026-10-03 | DEV build, #Load item Kanban, 5 close / reopen cycles: the view is visible 55–62 ms after the click; no new load or refresh measurement in `history` (no reload) |
 | H13 | Memory: note the page's JS heap before and after opening Planner and switching all views | Record the numbers (no target) | pass | 771140f | 2026-10-03 | `performance.memory.usedJSHeapSize` of the page (DEV builds of Logseq and Planner, one process for both): 347 MB before opening, 361 MB after opening #Load item and switching all views and zooms, 353 MB after 5 open / close cycles |
 | H14 | Seed `--seed-large 200` first on a fresh graph if the 2000 import fails or times out | Record which N imports; report the failure text | not run |  |  | not needed: N = 2000 imported |
-| H15 | Agenda by date, Overdue bucket with hundreds of entries | Overdue lists its first 100 entries, then "Show 100 more of N" (`[data-ag-bucket=overdue] [data-ag-more=overdue]`); the heading keeps the real total; a live refresh keeps the expanded count **[N04]** |  |  |  |  |
+| H15 | Agenda by date, Overdue bucket with hundreds of entries | Overdue lists its first 100 entries, then "Show 100 more of N" (`[data-ag-bucket=overdue] [data-ag-more=overdue]`); the heading keeps the real total; a live refresh keeps the expanded count **[N04]** | not run |  | 2026-10-03 | needs the large seed; unit-tested only |
 
 ## I. Accessibility basics
 
@@ -384,8 +384,6 @@ Copied from the progress log (tasks.md). Re-check each when the environment allo
 - `DB.onChanged` under sync is not tested (the poll is the safety net); a second desktop window is (it refreshes).
 - Dragging from the card's button in Firefox; the sticky header and Move-menu clipping near the window edges.
 - Logseq's default dark theme for the Timeline (the recorded profile's dark theme was Inkwell).
-- Contrast (F9): in Logseq's default themes the greyed done and canceled rows measure 3.33 (light) and 2.98 (dark),
-  under 4.5; they take the host's `--muted-foreground`. Inkwell measures 4.63 / 4.98.
 - Refresh time at 2,000 nodes (H6): 165–254 ms on the Timeline with single runs at 320; 187–432 ms after a Kanban drag
   (target 250).
 - Open (T12): reopening after a stale hide runs two reloads instead of one (the second changes nothing).
