@@ -179,6 +179,12 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Logseq's shortcuts work while Planner is open on the desktop app (N16): keyboard focus sits in the plugin frame, so
+  Cmd+K, Cmd+Shift+P and `t t` never reached the host. A document listener now re-dispatches keys Planner did not use
+  (`src/ui/host-keys.ts`) on the host document, with `keyCode`. Not passed on: events Planner prevented (Escape now
+  calls `preventDefault`), Escape / Tab / Enter / Space / arrows / Home / End / Page keys without Cmd or Ctrl, and keys
+  typed in a field unless Cmd or Ctrl is held and the key is not an editing key (A, C, V, X, Z, Y, Backspace,
+  Delete, arrows). No effect in the web app or dev server (cross-origin frame).
 - Clicks on the top bar (view switch, Saved views, Close) land on the desktop app: the host header under the
   full-screen frame is a window-drag region, so the frame now sets `-webkit-app-region: no-drag` (`FULL_SCREEN` in
   `sdk.ts`, on both the container and the `setMainUIInlineStyle` fallback). Superseded by N15 (see Changed): the

@@ -1,4 +1,5 @@
 // Shared types. No SDK import and no runtime code.
+import type { HostDocument } from "./ui/host-keys";
 
 /** The SDK calls `registerApp` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface AppDeps {
@@ -30,6 +31,8 @@ export interface AppDeps {
   kanban: KanbanWriteDeps;
   /** The SDK behind live updates (T12). */
   changes: ChangesSdk;
+  /** The host's document when the frame is same-origin with it (desktop app), else null (web app, dev server): where unused keys are forwarded (N16). */
+  hostDocument(): HostDocument | null;
 }
 
 /** The SDK and timer calls `createChanges` and `registerApp` need for live updates; `src/sdk.ts` supplies the real ones. */

@@ -2,6 +2,7 @@
 // Every SDK call and typing cast lives here.
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
+import type { HostDocument } from "./ui/host-keys";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -35,6 +36,15 @@ function setContainerStyle(style: Record<string, string>): void {
   for (const [k, v] of Object.entries(style)) el.style.setProperty(k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`), v, "important");
 }
 
+/** The host document, or null when the frame is cross-origin (reading `parent.document` throws). */
+export function hostDocument(): HostDocument | null {
+  try {
+    return parent.document.defaultView ? parent.document : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The real SDK behind `registerApp`. */
 export const appDeps = (): AppDeps => ({
   registerUIItem: (type, item) => logseq.App.registerUIItem(type, item),
@@ -62,6 +72,7 @@ export const appDeps = (): AppDeps => ({
     onThemeChanged: (cb) => logseq.App.onThemeChanged(cb),
   },
   defer: (fn) => void setTimeout(fn, 0),
+  hostDocument,
 });
 
 /**

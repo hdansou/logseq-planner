@@ -40,6 +40,12 @@ Open Planner in one of three ways:
 Close it with the **Close** button or Escape. If a menu is open, Escape closes the menu
 first.
 
+Logseq's own shortcuts (Cmd+K search, Cmd+Shift+P command palette, `t t` theme, and the rest) keep
+working while Planner is open on the desktop app. Planner passes on the keys it does not use, but
+not Escape, Tab, Enter, Space, the arrow keys, Home, End or Page Up / Down on their own, and not
+the keys you type in a text field (Cmd+K and other non-editing Cmd / Ctrl shortcuts still pass). The web
+app cannot do this: Planner's frame is a different origin there, so click outside Planner first.
+
 ### Choose a tag
 
 Pick a tag in the left column or in the **Tag** menu. Your own tags are listed first. Built-in

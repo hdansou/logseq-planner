@@ -311,6 +311,12 @@ performance.now() - t0
 | I8 | Landmarks | Tags are in a `nav` named "Tags", settings in "View settings", the board in a labelled region ("... board by Status"), cells in labelled lists | pass | da5d181 | 2026-10-03 | nav "Tags", main, group "View", group "View settings", region "#Project board by Status", one labelled list per cell. The settings bar had a label but no role on 771140f; fixed in 1670261 and found by role on da5d181 |
 | I9 | Screen reader pass (VoiceOver) on one view | Titles, dates and counts are announced; the Move menu announces the property | not run |  |  |  |
 | I10 | Reduced motion and 200% browser zoom | Nothing overlaps; the grid scrolls inside the view | pass | da5d181 | 2026-10-03 | 640×360 viewport (about 200% zoom): no page overflow in any view, the Timeline, Calendar and Kanban scroll inside the view, the settings bar wraps (screenshots on 771140f). Reduced motion: 46 elements with a transition normally, 0 under `prefers-reduced-motion: reduce` (rule added in 03ffed6) |
+| I11 | Desktop app, Planner open: press Cmd+K | Logseq search opens above Planner with focus in its field; Escape closes search and Planner stays open | not run |  |  | N16 |
+| I12 | Desktop app, Planner open: press Cmd+Shift+P | The command palette opens | not run |  |  | N16 |
+| I13 | Desktop app, Planner open, focus not in a field: press `t` then `t` | The theme switches and Planner follows | not run |  |  | N16 |
+| I14 | Open Saved views, type `tt` and Cmd+A in the view-name field; then press Cmd+K there | The letters go into the field, Cmd+A selects its text, no host shortcut fires; Cmd+K opens search | not run |  |  | N16 |
+| I15 | Open a Planner menu, press Cmd+K, Escape (search closes), Escape (menu closes), Escape (Planner hides) | One layer per Escape, in that order; the host never sees the Escapes meant for Planner | not run |  |  | N16 |
+| I16 | Web app: press Cmd+K with Planner open | Nothing is forwarded (known limit: cross-origin frame); no console error | not run |  |  | N16 |
 
 ## J. Review fixes (T14)
 

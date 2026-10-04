@@ -1,5 +1,6 @@
 import { createViewStore } from "./storage";
 import { createChanges } from "./ui/changes";
+import { installHostKeys } from "./ui/host-keys";
 import type { AppDeps } from "./types";
 import { watchTheme } from "./ui/theme";
 import { createWorkspace, type Timing } from "./ui/workspace";
@@ -62,9 +63,14 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   /** The toolbar button: hides Planner while it is shown (the host header stays usable under it), else opens it. The palette command only opens. */
   const toggle = () => (visible ? close() : open());
 
+  // Escape is always Planner's (a popover, else the workspace), so it never reaches the host. Registered before the
+  // host-key forwarder so `defaultPrevented` is set when that one looks.
   doc.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !workspace.escape()) close();
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (!workspace.escape()) close();
   });
+  const offHostKeys = installHostKeys(doc, deps.hostDocument());
 
   deps.defer(() => {
     changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
@@ -74,6 +80,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
       changes?.stop();
       workspace.stop();
       offVisible();
+      offHostKeys();
       void offTheme.then((off) => off());
     });
     deps.provideModel({ [OPEN_HANDLER]: toggle });

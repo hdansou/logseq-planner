@@ -10,6 +10,8 @@ import { fakeChangeFeed, fakeClock, fakeStorage } from "./ui/test-fakes";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewBlock } from "./types";
+import type { HostDocument } from "./ui/host-keys";
+import { Window } from "happy-dom";
 
 /** Fake SDK: records every call; `defer` queues work so the test decides when it runs. */
 function fakeDeps() {
@@ -58,6 +60,7 @@ function fakeDeps() {
       onUnload: (cb: () => void) => void unload.push(cb),
     },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
+    hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
   return { deps, flush, clock, feed, visibility, unload, offs };
@@ -335,5 +338,55 @@ describe("live updates (T12)", () => {
     f.unload.forEach((cb) => cb());
     expect(f.feed.count()).toBe(0);
     expect(f.clock.pending()).toBe(0);
+  });
+
+  describe("host shortcuts (N16)", () => {
+    /** A second window as the host; `seen` is what reached its body. */
+    function withHost() {
+      const f = fakeDeps();
+      const host = new Window().document as unknown as HostDocument;
+      const seen: KeyboardEvent[] = [];
+      host.body.addEventListener("keydown", (e) => void seen.push(e));
+      f.deps.hostDocument.mockReturnValue(host);
+      registerApp(f.deps, root);
+      f.flush();
+      return { ...f, seen };
+    }
+    const key = (target: Element, key: string, init: KeyboardEventInit = {}) => {
+      const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
+      target.dispatchEvent(e);
+      return e;
+    };
+
+    it("Cmd+K from a toolbar button reaches the host; Escape with an open popover does not", async () => {
+      const f = withHost();
+      modelHandler(f.deps)();
+      await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")).not.toBeNull());
+      const button = root.querySelector<HTMLButtonElement>("[data-control=tag]")!;
+      key(button, "k", { metaKey: true });
+      expect(f.seen.map((e) => e.key)).toEqual(["k"]);
+      button.click();
+      await vi.waitFor(() => expect(root.querySelector("[data-popover=tag]")).not.toBeNull());
+      const escape = key(root.querySelector("[data-control=tag]")!, "Escape"); // the button was re-rendered
+      expect(root.querySelector("[data-popover=tag]")).toBeNull();
+      expect(escape.defaultPrevented).toBe(true);
+      expect(f.seen.map((e) => e.key)).toEqual(["k"]);
+      f.unload.forEach((cb) => cb());
+    });
+
+    it("unload removes the forwarder", () => {
+      const f = withHost();
+      f.unload.forEach((cb) => cb());
+      key(document.body, "k", { metaKey: true });
+      expect(f.seen).toHaveLength(0);
+    });
+
+    it("a cross-origin frame installs nothing", () => {
+      const f = fakeDeps();
+      const add = vi.spyOn(document, "addEventListener");
+      registerApp(f.deps, root);
+      expect(add.mock.calls.filter(([type]) => type === "keyup")).toHaveLength(0);
+      add.mockRestore();
+    });
   });
 });

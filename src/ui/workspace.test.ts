@@ -8,6 +8,8 @@ import { createWorkspace, initialTag, visibleData, type Workspace } from "./work
 import { DEPENDS_ON, fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import { DAY_TRACK_PX } from "./timeline";
 import { loadNodes, loadNodesAndTasks, tasksQuery, TITLES_QUERY } from "../core/queries";
+import { Window } from "happy-dom";
+import { installHostKeys, type HostDocument } from "./host-keys";
 import workspaceCss from "./workspace.css?inline";
 
 let tags: TagInfo[];
@@ -685,6 +687,29 @@ describe("closing", () => {
     expect($("[data-popover=views]")).toBeNull();
     expect(document.activeElement).toBe($("[data-control=saved-views]"));
     expect(ws.escape()).toBe(false);
+  });
+
+  it("keys typed in the view-name field stay there, except Cmd combos that are not editing keys (N16)", async () => {
+    const { ws } = await setup();
+    await click(ws, "[data-control=saved-views]");
+    const hostWindow = new Window();
+    const seen: string[] = [];
+    hostWindow.document.body.addEventListener("keydown", (e) => {
+      const k = e as unknown as KeyboardEvent;
+      seen.push(`${k.metaKey ? "cmd+" : ""}${k.key}`);
+    });
+    const off = installHostKeys(document, hostWindow.document as unknown as HostDocument);
+    const input = $<HTMLInputElement>("[data-field=view-name]")!;
+    const press = (key: string, init: KeyboardEventInit = {}) => input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init }));
+    press("t");
+    press("a", { metaKey: true });
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    input.dispatchEvent(enter);
+    expect(seen).toEqual([]);
+    expect(enter.defaultPrevented).toBe(true); // Enter saves: Planner used it
+    press("k", { metaKey: true });
+    expect(seen).toEqual(["cmd+k"]);
+    off();
   });
 
   it("the Close button calls onClose", async () => {
