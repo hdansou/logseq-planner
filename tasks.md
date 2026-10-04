@@ -313,7 +313,7 @@ Live-check method (web app):
       mode switch; live with real mouse input: page and Planner side by side, drag the
       host's resizer and Planner follows, all four views usable at the sidebar's width
       (panel as a drawer under 640 px), close and reopen.
-      **N06b In-page block** (scoped 2026-10-04, building). Probe on the desktop app: a block
+      **N06b In-page block** (done 4f288e8, see the Progress log). Probe on the desktop app: a block
       `{{renderer :planner, <saved view name>}}` fires `onMacroRendererSlotted` in a DB
       graph (slot id, arguments, block uuid) and `provideUI({slot, template})` renders the
       HTML in the page; `data-on-click` reaches the plugin's model. Build: the block shows a
@@ -1039,3 +1039,16 @@ Total: about 10 hours.
   docked); L9 (web app shows no switch).
   Known behaviour: a click on a node still opens it and hides Planner, even when the page
   is beside it; focus returns to Planner when it falls to the host body while docked.
+- 2026-10-04 N06b done (0377009, 4f288e8). 891 unit tests. `{{renderer :planner, <saved
+  view name>}}` shows a read-only picture of that saved view in the page; one shared
+  `renderViewArea` feeds the workspace and the block; the views' CSS is scoped under
+  `.planner-block` and the tokens are declared from the host's variables; blocks refresh
+  on graph changes; slash command "Planner view". Live on the desktop app (rows M1–M8):
+  Timeline and Kanban views in a page, the unknown-name message, refresh after a Status
+  change in about 2 s, a click on a row name opens the node, Open in Planner selects the
+  view, Inkwell light and dark.
+  Not verified: M9 (slash command), M10 (host styles outside the block, beyond one font
+  size read), clicks on a bar and a Kanban card, Open in Planner while docked, Logseq's
+  default themes, the web app. Known: a block in Day zoom opens at 00:00; the slash
+  command leaves the caret after the braces; the Agenda's heading ids repeat when one
+  view is shown twice on a page.
