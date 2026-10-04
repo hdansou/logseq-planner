@@ -97,12 +97,23 @@ Live-check method (web app):
       a Logseq graph (`planner-project`) as real example data for Planner. tasks.md stays
       the source of truth; the graph is a copy, refreshed by `npm run tracker` after each
       task. One #Project (Planner), #Milestone nodes, one #Task per item here (id in the
-      title, Status from the checkbox, Scheduled from the first commit that names the id),
+      title, Status from the checkbox, Scheduled from the first commit that names the id,
+      Start / End as DateTime = first / last commit time, so work is tracked in hours),
       Owner (Danzu, Claude) and Team (Product, Dev, QA, Security, Docs) choice properties;
       sub-agents are recorded by team, not as named people. Acceptance: script tests
       (parse, mapping, plan of CLI calls); live: the graph shows in Planner's four views on
       #Milestone and #Task, a second run changes nothing, a status change here shows after
       a re-run with the app open.
+- [ ] **N10 Hours in the Timeline (Day zoom)** — owner note 2026-10-03: DateTime is a
+      supported property type, so work can be tracked in hours. Today the Timeline lays
+      everything out on day tracks (DateTime keeps HH:MM for labels only) and REQUIREMENTS
+      lists "calendar day view and hour grid" as out of scope. Add a "Day" zoom to the
+      Timeline: one day, one column per hour; a span with DateTime ends is placed by its
+      times, a Date-only span covers the whole day; task markers sit at their hour; Prev /
+      Next step one day. Design first (range model is day-based: `TimelineRange`, `place`,
+      `indexOn`), then TDD. Acceptance on the tracker graph (N09), whose work all falls on
+      one day: milestones and tasks show as bars across the hours they took. Start after
+      N09 lands.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
