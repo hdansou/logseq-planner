@@ -1,5 +1,6 @@
 // The full-screen workspace shell: top bar (view switch, saved views, Close), settings bar (tag, child tags,
-// Start, End, done values), tag tree and choice filters, a per-view toolbar slot and the main area.
+// Start, End, done values), the main area with a per-view toolbar slot, and the panel on its right (tag tree and
+// choice filters, N13).
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
@@ -131,8 +132,8 @@ interface Now {
 }
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
-/** The elements that scroll inside the workspace: the view area (both axes: the Kanban board and the Timeline scroll sideways) and the sidebar. */
-const SCROLL_REGIONS = ["[data-region=view]", "[data-region=sidebar]"];
+/** The elements that scroll inside the workspace: the view area (both axes: the Kanban board and the Timeline scroll sideways) and the panel. */
+const SCROLL_REGIONS = ["[data-region=view]", "[data-region=panel]"];
 const byTitle = (a: TagInfo, b: TagInfo) => a.title.localeCompare(b.title);
 
 // ---------------------------------------------------------------- pure helpers
@@ -377,7 +378,7 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   if (!s.nodes.length) return view(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`));
   const shown = visibleData(s.config, tag, shownNodes(s), s.tasks);
   if (!shown.nodes.length) {
-    return view(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the left column.",
+    return view(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
   }
   if (s.config.kind === "timeline") {
@@ -412,9 +413,9 @@ function renderWorkspace(s: State, now: () => Now): string {
   const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
     + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings"></div>`)
-    + `<div class="pl-body"><aside class="pl-sidebar" data-region="sidebar">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside>`
-    + `<main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
-    + `<div class="pl-view" data-region="view">${main.view}</div></main></div></div>`;
+    + `<div class="pl-body"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
+    + `<div class="pl-view" data-region="view">${main.view}</div></main>`
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller

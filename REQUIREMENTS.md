@@ -56,6 +56,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   and expanded rows.
 - **Host shortcuts keep working** (desktop app). Keys Planner does not use are passed to Logseq, so Cmd+K,
   Cmd+Shift+P and `t t` work with Planner open; not available in the web app (cross-origin frame).
+- **Layout** (N13). Top bar, settings bar, then the body: the view (its toolbar, then the view) on
+  the left and the **panel** (tag tree and filters, 220 px) on its right, in that reading and Tab
+  order. "Sidebar" means Logseq's right sidebar only.
 - **Click** opens the node in the main area and hides Planner; **Shift+click** opens it in
   the right sidebar and keeps Planner open.
 - **Theme.** Follows the active Logseq theme and light/dark mode; Inkwell values are the

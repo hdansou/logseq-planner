@@ -11,6 +11,7 @@ import { loadNodes, loadNodesAndTasks, tasksQuery, TITLES_QUERY } from "../core/
 import { Window } from "happy-dom";
 import { installHostKeys, type HostDocument } from "./host-keys";
 import workspaceCss from "./workspace.css?inline";
+import themeCss from "./theme.css?inline";
 
 let tags: TagInfo[];
 const tag = (title: string) => {
@@ -378,11 +379,11 @@ describe("tag tree", () => {
     expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
   });
 
-  it("runs the left column to the bottom of the window (T07 open item; stylesheet, happy-dom does not lay out)", () => {
-    // The body takes the remaining height whether or not the error row is present, and the sidebar stretches in it.
+  it("runs the panel to the bottom of the window (T07 open item; stylesheet, happy-dom does not lay out)", () => {
+    // The body takes the remaining height whether or not the error row is present, and the panel stretches in it.
     expect(workspaceCss).toMatch(/\.pl-ws\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100vh/);
     expect(workspaceCss).toMatch(/\.pl-body\s*\{[^}]*flex:\s*1 1 0;[^}]*min-height:\s*0/);
-    expect(workspaceCss).not.toMatch(/\.pl-sidebar\s*\{[^}]*align-self:/);
+    expect(workspaceCss).not.toMatch(/\.pl-panel\s*\{[^}]*align-self:/);
     expect(workspaceCss).not.toMatch(/pl-mac-desktop/); // N15: the frame starts under the host header
   });
 
@@ -414,6 +415,38 @@ describe("tag tree", () => {
     await pickTag(ws, "Project");
     expect($(`[data-tag-id="${tag("Project").id}"]`)!.getAttribute("aria-pressed")).toBe("true");
     expect($(`[data-tag-id="${tag("Meeting").id}"]`)!.getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("panel (N13)", () => {
+  it("comes after the view: main, then the panel, so reading and Tab order match what is seen", async () => {
+    await setup();
+    const body = $(".pl-body")!;
+    expect([...body.children].map((c) => c.getAttribute("data-region"))).toEqual(["main", "panel"]);
+    const panel = $("aside")!;
+    expect(panel.classList.contains("pl-panel")).toBe(true);
+    expect(panel.getAttribute("data-region")).toBe("panel");
+    expect(panel.id).toBe("pl-panel");
+    expect(panel.getAttribute("aria-label")).toBe("Tags and filters");
+    expect(panel.querySelector("nav[aria-label=Tags]")).not.toBeNull();
+    expect(panel.querySelector("[data-filter-prop]")).not.toBeNull();
+    expect($(".pl-sidebar, [data-region=sidebar]")).toBeNull();
+  });
+
+  it("view then panel columns, border on the panel's left edge, no sidebar names left (stylesheets)", () => {
+    expect(workspaceCss).toMatch(/\.pl-body\s*\{[^}]*grid-template-columns:\s*1fr 220px/);
+    expect(themeCss).toMatch(/\.pl-panel\s*\{[^}]*background:\s*var\(--pl-panel\);[^}]*border-left:\s*1px solid var\(--pl-line-soft\)/);
+    expect(themeCss).not.toMatch(/border-right/);
+    for (const css of [workspaceCss, themeCss]) expect(css).not.toMatch(/sidebar/i);
+  });
+
+  it("the empty filter state points at the panel, not a left column", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    const status = choice(tag("Project"), "Status");
+    const unused = status.values.find((v) => $(`input[data-filter-value="${v.uuid}"]`)!.closest("label")!.querySelector(".pl-count")!.textContent === "0")!;
+    await click(ws, `input[data-filter-prop="${status.ident}"][data-filter-value="${unused.uuid}"]`);
+    expect(text("[data-empty=no-matches]")).toContain("Change the filters in the panel.");
   });
 });
 

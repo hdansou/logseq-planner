@@ -250,7 +250,7 @@ describe("today (T14)", () => {
 });
 
 describe("what a redraw keeps", () => {
-  it("anchor, expanded Timeline rows, scroll of the view and the sidebar, and keyboard focus", async () => {
+  it("anchor, expanded Timeline rows, scroll of the view and the panel, and keyboard focus", async () => {
     await click(`[data-tag-id="${tag("Project").id}"]`);
     await click("[data-tl-nav=next]");
     const range = $("[data-tl-range]")!.textContent;
@@ -260,7 +260,7 @@ describe("what a redraw keeps", () => {
     expect(expanded).toBeGreaterThan(0);
     $("[data-region=view]")!.scrollTop = 120;
     $("[data-region=view]")!.scrollLeft = 340;
-    $("[data-region=sidebar]")!.scrollTop = 55;
+    $("[data-region=panel]")!.scrollTop = 55;
     const filter = $<HTMLInputElement>("[data-filter-prop]")!;
     filter.focus();
     const focused = filter.outerHTML;
@@ -276,7 +276,7 @@ describe("what a redraw keeps", () => {
     expect($$("[data-tl-task]")).toHaveLength(expanded);
     expect($("[data-region=view]")!.scrollTop).toBe(120);
     expect($("[data-region=view]")!.scrollLeft).toBe(340);
-    expect($("[data-region=sidebar]")!.scrollTop).toBe(55);
+    expect($("[data-region=panel]")!.scrollTop).toBe(55);
     expect(document.activeElement!.outerHTML).toBe(focused);
     expect(document.activeElement).toBe($("[data-filter-prop]"));
   });

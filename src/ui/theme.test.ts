@@ -8,7 +8,7 @@ describe("plVars", () => {
   it("wraps shui channels in hsl() and passes other values through", () => {
     const out = plVars({ "--background": "0 0% 100%", "--ls-secondary-background-color": "#f2f2f5" });
     expect(out["--pl-surface"]).toBe("hsl(0 0% 100%)");
-    expect(out["--pl-sidebar"]).toBe("#f2f2f5");
+    expect(out["--pl-panel"]).toBe("#f2f2f5");
   });
 
   it("never produces hsl(#hex) or hsl(hsl(...))", () => {

@@ -3,7 +3,7 @@ html, body, #app { height: 100%; }
 * { box-sizing: border-box; }
 
 /* A column whose last child (the body) takes the remaining height, with or without the error row: with a fixed row
-   template the body landed in an auto row when no error was shown, and the sidebar stopped below its content (T07). */
+   template the body landed in an auto row when no error was shown, and the panel stopped below its content (T07). */
 .pl-ws { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* Top bar */
@@ -54,11 +54,11 @@ html, body, #app { height: 100%; }
   border-bottom: 1px solid var(--pl-line-soft); font-size: 13px; }
 .pl-error > span { flex: 1; }
 
-/* Body: tag tree and filters | main */
+/* Body: main | panel (tag tree and filters, N13: on the right, so the view comes first in reading and Tab order) */
 .pl-ws > :not(.pl-body) { flex: none; }
-.pl-body { display: grid; grid-template-columns: 220px 1fr; flex: 1 1 0; min-height: 0; }
-.pl-sidebar { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
-.pl-sidebar .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
+.pl-body { display: grid; grid-template-columns: 1fr 220px; flex: 1 1 0; min-height: 0; }
+.pl-panel { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
+.pl-panel .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
 .pl-tree + .pl-group-header { margin-top: 16px; }
 .pl-disclosure { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; }
 .pl-disclosure:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
@@ -66,12 +66,12 @@ html, body, #app { height: 100%; }
 .pl-disclosure[aria-expanded="true"]::before { content: "▾"; }
 .pl-tree, .pl-tree ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .pl-tree ul { padding-left: 14px; }
-.pl-sidebar button.pl-row { all: unset; box-sizing: border-box; display: flex; gap: 4px; width: 100%; border-radius: 8px; padding: 5px 10px;
+.pl-panel button.pl-row { all: unset; box-sizing: border-box; display: flex; gap: 4px; width: 100%; border-radius: 8px; padding: 5px 10px;
   cursor: pointer; transition: background-color .12s; }
-.pl-sidebar button.pl-row:hover { background: var(--pl-fill); }
-.pl-sidebar button.pl-row[aria-pressed="true"] { background: var(--pl-tint-soft); font-weight: 600; }
-.pl-sidebar button.pl-row[aria-pressed="true"] .pl-hash { color: var(--pl-tint); }
-.pl-sidebar button.pl-row:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+.pl-panel button.pl-row:hover { background: var(--pl-fill); }
+.pl-panel button.pl-row[aria-pressed="true"] { background: var(--pl-tint-soft); font-weight: 600; }
+.pl-panel button.pl-row[aria-pressed="true"] .pl-hash { color: var(--pl-tint); }
+.pl-panel button.pl-row:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-hash { color: var(--pl-label-2); }
 .pl-filter { border: 0; margin: 0; padding: 0; display: grid; gap: 1px; }
 .pl-filter legend { padding: 0 10px 4px; }

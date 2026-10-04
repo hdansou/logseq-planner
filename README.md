@@ -50,7 +50,7 @@ so its own keys work again.
 
 ### Choose a tag
 
-Pick a tag in the left column or in the **Tag** menu. Your own tags are listed first. Built-in
+Pick a tag in the panel on the right of the view or in the **Tag** menu. Your own tags are listed first. Built-in
 tags are under **Built-in tags**, collapsed until you select one. When the tag has child tags
 (tags that extend it), an **Include** checkbox adds their nodes. Planner opens on the first
 of your own root tags that has date properties.
@@ -62,7 +62,7 @@ of your own root tags that has date properties.
 | **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
 | **Depends on** | Shown when the tag has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
-| Filters (left column) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
+| Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
 
 How a node gets its dates:
 

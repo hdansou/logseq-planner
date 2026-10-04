@@ -22,7 +22,7 @@ const STATUS = ["green", "orange", "red", "blue", "purple"].flatMap((c) => [c, `
  */
 export const PL_MAP: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["--pl-surface", ["--background", "--ls-primary-background-color"]],
-  ["--pl-sidebar", ["--ls-secondary-background-color"]],
+  ["--pl-panel", ["--ls-secondary-background-color"]],
   ["--pl-float", ["--popover"]],
   ["--pl-label", ["--foreground", "--ls-primary-text-color"]],
   ["--pl-label-2", ["--muted-foreground", "--ls-secondary-text-color"]],

@@ -25,7 +25,7 @@ Read with `logseq.UI.resolveThemeCssPropsVals`, re-resolved on `onThemeModeChang
 | Planner token | Source (first that resolves) | Inkwell light / dark |
 |---|---|---|
 | `--pl-surface` | `--background` (shui), `--ls-primary-background-color` | #ffffff / #1c1c1e |
-| `--pl-sidebar` | `--ls-secondary-background-color` | #f2f2f5 / #161618 |
+| `--pl-panel` | `--ls-secondary-background-color` | #f2f2f5 / #161618 |
 | `--pl-float` | `--popover` | #ffffff / #2c2c2e |
 | `--pl-label` | `--foreground`, `--ls-primary-text-color` | #1d1d1f / #f5f5f7 |
 | `--pl-label-2` | `--muted-foreground`, `--ls-secondary-text-color` | #6e6e73 / #98989d |
@@ -58,12 +58,12 @@ key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
   (tint-soft alone is too faint on borderless controls).
 - **Popovers and menus** (done values, saved views): `float`, radius 14, `shadow-float`,
   no border; rows radius 9, hover `hover` with label text.
-- **Left sidebar** (tag tree, filters): `sidebar` background, 1px `line-soft` right edge;
+- **Panel** (tag tree, filters; right of the view, N13): `panel` background, 1px `line-soft` left edge;
   rows radius 8, 14px; hover `fill`; active `tint-soft` at 600 with the `#` in tint;
   group headers 11.5px/600 in label-2, not uppercase.
 - **Tags:** 22px pill on `fill-strong`, 12.5px/500, label text. **Category chips:** same
   shape on the node's highlight colour.
-- **Panels and cards:** Agenda groups and Kanban cells on `fill`, radius 12; Kanban cards on
+- **Groups and cards:** Agenda groups and Kanban cells on `fill`, radius 12; Kanban cards on
   surface, radius 10, hairline `line` ring, no shadow.
 - **Checkboxes:** `accent-color: tint`.
 - **Calendar:** round day numbers; today in accent at 700, transparent background.
