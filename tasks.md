@@ -1090,3 +1090,15 @@ Total: about 10 hours.
   Release preparation (3dfa558, 8460665) and screenshots: see N05. 972 unit tests.
   Known: after the plugin reloads, blocks on the page already open stay empty until the
   page renders again.
+- 2026-10-04 session wrap-up, for the next session:
+  Start with: (1) ask the owner which app they run Planner in and test there (the stable
+  Logseq.app was never tested); (2) a real-mouse pass with the owner present (top bar,
+  sidebar handle drag, Edit dates drag) — rows L2, N6, N10, N13, N15; (3) the owner's
+  decisions (N03c) in one batch; (4) publishing (N05) only on the owner's word.
+  Follow-ups worth a task: connector routing when bars touch (Week zoom ladders);
+  remember panel / surface / Edit dates per graph (no per-graph UI store exists);
+  `scripts/tracker-lib.test.mjs` pins the task ids, so every new task needs a test edit —
+  derive that list from tasks.md; two upstream reports to draft (CLI-owned worker writes no
+  `:block/refs`; `createJournalPage("YYYY-MM-DD")` lands a day early west of UTC).
+  Tooling kept: `~/.claude/skills/test-logseq-desktop` has `frame.mjs` (drive the plugin
+  frame), `click.swift`, `drag.swift`, `bounds.swift`. The test instance was stopped.
