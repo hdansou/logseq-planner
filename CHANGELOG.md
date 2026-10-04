@@ -179,6 +179,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- The Agenda's Overdue bucket renders its first 100 entries, then a "Show 100 more of N" button (the same button
+  and page size as the node groups; `data-ag-more="overdue"`); the heading keeps the real total and a live refresh
+  keeps the expanded count (N04). It used to render every entry (923 at 2,000 nodes).
 - Logseq's shortcuts work while Planner is open on the desktop app (N16): keyboard focus sits in the plugin frame, so
   Cmd+K, Cmd+Shift+P and `t t` never reached the host. A document listener now re-dispatches keys Planner did not use
   (`src/ui/host-keys.ts`) on the host document, with `keyCode`. Not passed on: events Planner prevented (Escape now
