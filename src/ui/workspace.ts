@@ -18,7 +18,7 @@ import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
-import { esc, menu as menuHtml, options } from "./html";
+import { checkList, esc, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
@@ -80,7 +80,7 @@ export interface Workspace {
   config(): ViewConfig | null;
 }
 
-type Popover = "tag" | "start" | "end" | "done" | "views" | "kb-column" | "kb-lane" | "kb-move";
+type Popover = "tag" | "start" | "end" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -241,8 +241,7 @@ function renderSettings(s: State, tag: TagInfo): string {
     const titles = primary.values.filter((v) => doneUuids(c, primary).includes(v.uuid)).map((v) => v.title);
     const popover = () => tag.choiceProps.map((p) => {
       const done = doneUuids(c, p);
-      return `<fieldset><legend>${esc(p.title)}</legend>${p.values.map((v) =>
-        `<label class="pl-row"><input type="checkbox" data-done-prop="${esc(p.ident)}" data-done-value="${esc(v.uuid)}"${done.includes(v.uuid) ? " checked" : ""}> ${esc(v.title)}</label>`).join("")}</fieldset>`;
+      return checkList(p.title, p.values.map((v) => ({ attrs: `data-done-prop="${esc(p.ident)}" data-done-value="${esc(v.uuid)}"`, text: v.title, checked: done.includes(v.uuid) })));
     }).join("") + `<p class="pl-hint">${primary.values.some((v) => v.ident !== null) && !c.doneValues[primary.ident] ? "Built-in values use their Done and Canceled flags." : "Saved with the view."}</p>`;
     html += menu("done", s, "Done when", `${esc(primary.title)} is ${esc(titles.join(", ") || "nothing")}`, popover, "done-values");
   }
@@ -375,7 +374,8 @@ function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view:
   const prop = (ident: string | null) => tag.choiceProps.find((p) => p.ident === ident) ?? null;
   return {
     view: renderKanban(layout, `#${tag.title}`, s.popover === "kb-move" ? s.moveCard : null, s.kbShown),
-    toolbar: renderKanbanToolbar({ choiceProps: tag.choiceProps, columnProp: prop(c.columnProp)!, laneProp: prop(c.laneProp), sort: c.sort, hasPriority: priorityProp(tag) !== null, popover: s.popover }),
+    toolbar: renderKanbanToolbar({ choiceProps: tag.choiceProps, columnProp: prop(c.columnProp)!, laneProp: prop(c.laneProp), columns: layout.allColumns,
+      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(tag) !== null, popover: s.popover }),
   };
 }
 
@@ -533,7 +533,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
-  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" ? "input" : "[aria-selected=true]"}`;
+  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" ? "input" : "[aria-selected=true]"}`;
 
   async function openBody() {
     s.loading = true;
@@ -676,7 +676,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         return void run(() => {}, () => (s.popover ? firstInPopover(s.popover) : trigger(p)));
@@ -791,7 +791,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
   }
 
-  /** Kanban controls: column, lane and sort are view config (saved with a view); moves are written to the graph. */
+  /** Kanban controls: column, shown columns, lane and sort are view config (saved with a view); moves are written to the graph. */
   function kanban(a: NonNullable<ReturnType<typeof kanbanAction>>, shift: boolean) {
     const c = s.config!;
     if (c.kind !== "kanban") throw new Error(`Kanban control in a ${c.kind} view`);
@@ -984,6 +984,21 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return void run(() => {
         const prop = tagOf(s.config!).choiceProps.find((p) => p.ident === d.doneProp)!;
         setConfig({ ...s.config!, doneValues: { ...s.config!.doneValues, [prop.ident]: toggle(doneUuids(s.config!, prop), d.doneValue!) } });
+      });
+    }
+    if (d.kbShowValue !== undefined) {
+      return void run(() => {
+        const c = s.config!;
+        if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`Kanban Show control in a ${c.kind} view`);
+        const layout = board();
+        const shown = layout.columns.map((x) => x.key);
+        // At least one column stays shown (its box is disabled; this guards a change event that arrives anyway).
+        if (shown.length === 1 && shown[0] === d.kbShowValue) return;
+        const next = toggle(shown, d.kbShowValue!);
+        // The columns not shown now, in the property's order; keys of values that are gone stay as they were.
+        const keys = layout.allColumns.map((x) => x.key);
+        const stale = (c.hiddenColumns[c.columnProp] ?? []).filter((k) => !keys.includes(k));
+        setConfig({ ...c, hiddenColumns: { ...c.hiddenColumns, [c.columnProp]: [...stale, ...keys.filter((k) => !next.includes(k))] } });
       });
     }
   });

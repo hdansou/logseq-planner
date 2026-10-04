@@ -186,6 +186,11 @@ log the host calls if you can (wrap `logseq.api.upsert_block_property` in the ho
 | D13 | Sticky column headers and the Move menu near the window edges | Header stays while the board scrolls; the menu is not clipped by the edge | pass | 4d45a0b | 2026-10-03 | header position sticky top 0; Move menu inside the window (935–1135 × 235–495 of 1280×720). Scrolling look not judged |
 | D14 | A card is dragged while a change arrives from elsewhere | The redraw waits until the drag ends (deferral during a drag, not verified so far); no card is lost | pass | 771140f | 2026-10-03 | card held mid-drag (mouse down and move) while another node's Status was set from the host: the board did not change during the drag, and redrew with the edit after Escape; no card lost; a later edit redrew too. The edit came from the host API in the same page, not from a second tab |
 | D15 | Check the "pending" look and that a pending card cannot be dragged twice | Pending card disabled until the write settles | pass | 4d45a0b | 2026-10-03 | slow write: card in the target, pending, draggable=false, aria-busy, ⋯ disabled, opacity 0.7, cursor progress; normal after it settled |
+| D16 | Show menu (`[data-control=kb-show]`): untick Backlog, In Review, Canceled and No Status | Board shows Todo, Doing, Done only; their counts unchanged; the cards of the hidden columns are gone; the button reads "3 of 7"; the popover stays open while ticking; Escape closes it and focus returns to the button | not run |  |  |  |
+| D17 | Show menu: untick until one column is left | The last ticked checkbox is disabled; the last column cannot be hidden | not run |  |  |  |
+| D18 | Hide a Status column, switch Columns to Owner, hide "No Owner", switch back to Status, then to Owner again | Each property keeps its own choice (Status without the hidden column, Owner without "No Owner") | not run |  |  |  |
+| D19 | With columns hidden, save the view; open another tag; open the saved view again | The same columns are hidden; the button reads the same "N of M" | not run |  |  |  |
+| D20 | With Done hidden, use a card's ⋯ Move menu and pick Done | The menu lists every column, Done included; the write is read back and the card leaves the board | not run |  |  |  |
 
 ## E. Live refresh
 

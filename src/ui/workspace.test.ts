@@ -206,6 +206,124 @@ describe("settings bar", () => {
   });
 });
 
+describe("Kanban Show menu (N08)", () => {
+  const kanban = async () => {
+    const r = await setup();
+    await pickTag(r.ws, "Project");
+    await click(r.ws, "[data-view-kind=kanban]");
+    return r;
+  };
+  const status = () => choice(tag("Project"), "Status");
+  const owner = () => choice(tag("Project"), "Owner");
+  const key = (title: string) => status().values.find((v) => v.title === title)!.uuid;
+  const box = (k: string) => $<HTMLInputElement>(`[data-popover=kb-show] input[data-kb-show-value="${k}"]`)!;
+  const heads = () => $$("[data-kb-column]").map((h) => h.querySelector(".pl-kb-head-title")!.textContent);
+  const hiddenOf = (ws: Workspace) => (ws.config() as { hiddenColumns: Record<string, string[]> }).hiddenColumns;
+
+  it("ticking a checkbox updates the config and the board; the popover stays open with focus on the checkbox", async () => {
+    const { ws } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    box(key("Backlog")).focus();
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`);
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: [key("Backlog")] });
+    expect(heads()).not.toContain("Backlog");
+    expect($("[data-popover=kb-show]")).not.toBeNull();
+    expect(document.activeElement).toBe(box(key("Backlog")));
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="none"]`);
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: [key("Backlog"), "none"] });
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`); // tick again: shown
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: ["none"] });
+    expect(heads()).toContain("Backlog");
+  });
+
+  it("Escape closes the popover and returns focus to its button; so does a click outside", async () => {
+    const { ws } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    expect(ws.escape()).toBe(true);
+    expect($("[data-popover=kb-show]")).toBeNull();
+    expect(document.activeElement).toBe($("[data-control=kb-show]"));
+    await click(ws, "[data-control=kb-show]");
+    await click(ws, "[data-region=main]");
+    expect($("[data-popover]")).toBeNull();
+  });
+
+  it("refuses to hide the last shown column", async () => {
+    const { ws } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    const others = [...status().values.map((v) => v.uuid), "none"].filter((k) => k !== key("Doing"));
+    for (const k of others) await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${k}"]`);
+    const before = hiddenOf(ws);
+    const last = box(key("Doing"));
+    expect(last.disabled).toBe(true);
+    // the handler refuses even when a change event arrives (a disabled box does not send one in a browser)
+    last.disabled = false;
+    last.checked = false;
+    last.dispatchEvent(new Event("change", { bubbles: true }));
+    await ws.idle();
+    expect(hiddenOf(ws)).toEqual(before);
+    expect(heads()).toEqual(["Doing"]);
+    expect(box(key("Doing")).checked).toBe(true);
+  });
+
+  it("keeps the choice per column property: switching Columns away and back restores it", async () => {
+    const { ws } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`);
+    await click(ws, "[data-control=kb-column]");
+    await click(ws, `[data-popover=kb-column] [data-option="${owner().ident}"]`);
+    expect(text("[data-control=kb-show]")).toBe("All▾");
+    expect(heads()).toEqual(["Alice", "Bob", "No Owner"]);
+    await click(ws, "[data-control=kb-show]");
+    expect(text("[data-popover=kb-show] legend")).toBe("Owner");
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="none"]`);
+    expect(heads()).toEqual(["Alice", "Bob"]);
+    await click(ws, "[data-control=kb-column]");
+    await click(ws, `[data-popover=kb-column] [data-option="${status().ident}"]`);
+    expect(heads()).not.toContain("Backlog");
+    expect(text("[data-control=kb-show]")).toBe("6 of 7▾");
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: [key("Backlog")], [owner().ident]: ["none"] });
+  });
+
+  it("is saved with the view and restored when it is opened", async () => {
+    const { ws, store } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Canceled")}"]`);
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, "[data-action=save-view]");
+    const id = (await store.list())[0].id;
+    store.invalidate(); // read the stored JSON back, not the cached object
+    await pickTag(ws, "Meeting");
+    expect(hiddenOf(ws)).toEqual({});
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-open="${id}"]`);
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: [key("Canceled")] });
+    expect(heads()).not.toContain("Canceled");
+    expect(text("[data-control=kb-show]")).toBe("6 of 7▾");
+  });
+
+  it("a key of a value that is gone is ignored on the board and kept when a box is ticked", async () => {
+    const { ws, store } = await kanban();
+    const saved = await store.create("Stale", { ...(ws.config() as object), hiddenColumns: { [status().ident]: ["gone-uuid", key("Done")] } } as never);
+    await ws.showViews();
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-open="${saved.id}"]`);
+    expect(text("[data-control=kb-show]")).toBe("6 of 7▾");
+    await click(ws, "[data-control=kb-show]");
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`);
+    expect(hiddenOf(ws)).toEqual({ [status().ident]: ["gone-uuid", key("Backlog"), key("Done")] });
+  });
+
+  it("a view-kind change resets it with the other Kanban settings (column, lane, sort), as before N08", async () => {
+    const { ws } = await kanban();
+    await click(ws, "[data-control=kb-show]");
+    await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`);
+    await click(ws, "[data-kb-sort=title]");
+    await click(ws, "[data-view-kind=timeline]");
+    await click(ws, "[data-view-kind=kanban]");
+    expect(ws.config()).toMatchObject({ sort: "due", hiddenColumns: {} });
+  });
+});
+
 describe("initial tag (T07 D3)", () => {
   it("opens on the first own root tag with dates in tree order: Meeting, not the child Client project", async () => {
     const { ws } = await setup();

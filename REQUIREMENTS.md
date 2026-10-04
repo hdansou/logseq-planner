@@ -79,6 +79,13 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
 
 ### Kanban
 - Columns = closed values of a chosen choice property (default Status) + "No <prop>".
+- **Show**: choose which columns show (a checkbox per value, in order, plus "No <prop>"; the
+  button reads "All" or "3 of 7"). Hidden columns and their cards leave the board; column
+  counts of the shown columns are unchanged, lane counts count the cards shown, every lane
+  stays. At least one column stays shown. Stored in the view config per column property
+  (`hiddenColumns`), so switching the column property and back keeps each choice; a saved
+  view without it shows every column; values that no longer exist are ignored. The Move menu
+  still lists every value: moving a card to a hidden column takes it off the board (N08).
 - Optional **swimlanes** by a second choice property + "No <prop>" lane.
 - Cards sorted by **due/end date** (default), **priority** or **title**; no manual order.
 - Drag writes the column property, and the lane property when moved across lanes; dropping

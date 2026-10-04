@@ -41,6 +41,15 @@ export function menu(id: string, open: boolean, label: string, buttonText: strin
     + `</span>`;
 }
 
+/**
+ * A fieldset of checkbox rows (the "Done when" and Kanban "Show" popovers). `attrs` is each input's `data-*` attributes
+ * as HTML (escape the values); `disabled` boxes cannot be changed.
+ */
+export function checkList(legend: string, items: { attrs: string; text: string; checked: boolean; disabled?: boolean }[]): string {
+  return `<fieldset><legend>${esc(legend)}</legend>${items.map((i) =>
+    `<label class="pl-row"><input type="checkbox" ${i.attrs}${flag("checked", i.checked)}${flag("disabled", !!i.disabled)}> ${esc(i.text)}</label>`).join("")}</fieldset>`;
+}
+
 /** A single-choice listbox of buttons carrying `data-option`; `value` "" stands for none. */
 export function options(label: string, items: { value: string; text: string }[], current: string): string {
   return `<div role="listbox" aria-label="${esc(label)}">${items

@@ -109,6 +109,11 @@ sorts at that date and shows how many days late.
 
 - **Columns**: a choice property (Status by default). Each closed value is a column, plus
   "No <property>".
+- **Show**: which columns show. Untick a value (or "No <property>") and its column and
+  cards leave the board; the button reads **All** or, for example, **3 of 7**. At least one
+  column stays shown. The choice is kept per column property, so switching **Columns** to
+  another property and back keeps it. The ⋯ menu still lists every value: moving a card to a
+  hidden column takes it off the board.
 - **Swimlanes**: None, or a second choice property. It adds a lane per value, plus
   "No <property>".
 - **Sort**: Due, Priority (offered only when the tag has a Priority property) or Title.
@@ -139,7 +144,7 @@ column and an error shows in the error bar. Undo in Logseq reverted a move in th
 **Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
 under the name in the Name field. A saved view stores the tag, child tags, Start and End,
 done values, filters and the view settings: Timeline zoom, Calendar layout, Agenda Group by
-and Show done, Kanban columns, swimlanes and sort. It does not store the period you are
+and Show done, Kanban columns, shown columns, swimlanes and sort. It does not store the period you are
 looking at. Saving always creates a new view. Deleting asks for no confirmation.
 A name loses the characters `#`, `[`, `]`, `{` and `}`, and runs of `(` or `)` become one, so
 Logseq cannot turn it into a tag, a link, a macro or a block ref ("#Project kanban" is saved as

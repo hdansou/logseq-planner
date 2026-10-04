@@ -15,6 +15,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Kanban **Show** menu (N08): choose which columns of the column property show, plus "No <prop>"; the button reads
+  "All" or "3 of 7". Hidden columns and their cards leave the board, lane counts count the cards shown, and at least
+  one column stays shown. Stored per column property in the view config (`hiddenColumns`) and saved with the view; a
+  view saved before this shows every column. The card's Move menu still lists every value.
 - Lateness counts the Scheduled date (N03b): a task's due date is its Deadline, or its Scheduled date when it
   has no Deadline, and an open task is late when its due day is before today (`dueDate` / `isLate` in
   `layout-common.ts`, the only definition). A scheduled-only task past its date gets a red scheduled marker in the

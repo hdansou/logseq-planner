@@ -163,6 +163,74 @@ describe("board", () => {
   });
 });
 
+describe("Show menu (N08)", () => {
+  const statusKeys = () => [...prop("Status").values.map((v) => v.uuid), "none"];
+  const box = (key: string) => $<HTMLInputElement>(`[data-popover=kb-show] input[data-kb-show-value="${key}"]`)!;
+  const heads = () => $$("[data-kb-column]").map((h) => h.querySelector(".pl-kb-head-title")!.textContent);
+  /** Unticks the columns `titles` of Status in the open Show popover. */
+  async function hide(...titles: string[]) {
+    for (const t of titles) await click(`[data-popover=kb-show] input[data-kb-show-value="${t === "No Status" ? "none" : val("Status", t).uuid}"]`);
+  }
+
+  it("sits right after Columns: label Show, a menu button reading All", () => {
+    const toolbar = $("[data-region=view-toolbar]")!;
+    expect([...toolbar.querySelectorAll(".pl-field-label")].map((l) => l.textContent)).toEqual(["Columns", "Show", "Swimlanes", "Sort"]);
+    const button = $("[data-control=kb-show]")!;
+    expect(button.tagName).toBe("BUTTON");
+    expect(button.getAttribute("aria-haspopup")).toBe("true");
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(text("[data-control=kb-show]")).toBe("All▾");
+  });
+
+  it("the popover lists a checkbox per Status value in order, then No Status, all ticked, and the hint", async () => {
+    await click("[data-control=kb-show]");
+    expect($("[data-control=kb-show]")!.getAttribute("aria-expanded")).toBe("true");
+    const boxes = $$("[data-popover=kb-show] input[type=checkbox]") as HTMLInputElement[];
+    expect(boxes.map((b) => b.dataset.kbShowValue)).toEqual(statusKeys());
+    expect(boxes.map((b) => b.closest("label")!.textContent!.trim())).toEqual(["Backlog", "Todo", "Doing", "In Review", "Done", "Canceled", "No Status"]);
+    expect(boxes.every((b) => b.checked && !b.disabled)).toBe(true);
+    expect(text("[data-popover=kb-show] legend")).toBe("Status");
+    expect(text("[data-popover=kb-show] .pl-hint")).toBe("Saved with the view.");
+    expect(document.activeElement).toBe(boxes[0]); // focus moves into the popover, like Done when
+  });
+
+  it("unticked columns and their cards leave the board; the button reads 3 of 7; the grid follows", async () => {
+    await click("[data-control=kb-show]");
+    await hide("Backlog", "In Review", "Canceled", "No Status");
+    expect(text("[data-control=kb-show]")).toBe("3 of 7▾");
+    expect(heads()).toEqual(["Todo", "Doing", "Done"]);
+    expect($$("[data-kb-card]").map((c) => c.dataset.kbCard).sort()).toEqual([MOBILE, SITE].sort());
+    expect($$("[data-kb-column]").map((h) => h.querySelector("[data-kb-count]")!.textContent)).toEqual(["1", "1", "0"]);
+    expect($("[data-kanban]")!.getAttribute("style")).toContain("--pl-kb-cols: 3");
+    expect($("[data-kanban]")!.getAttribute("aria-label")).toBe("#Project board by Status");
+    expect(statusKeys().map((k) => box(k).checked)).toEqual([false, true, true, false, true, false, false]);
+  });
+
+  it("the last ticked checkbox is disabled", async () => {
+    await click("[data-control=kb-show]");
+    await hide("Backlog", "Todo", "In Review", "Done", "Canceled");
+    expect(statusKeys().map((k) => box(k).disabled)).toEqual([false, false, false, false, false, false, false]);
+    await hide("No Status");
+    expect(text("[data-control=kb-show]")).toBe("1 of 7▾");
+    expect(statusKeys().map((k) => box(k).disabled)).toEqual([false, false, true, false, false, false, false]);
+    expect(heads()).toEqual(["Doing"]);
+  });
+
+  it("the Move menu still lists every column; moving a card to a hidden one writes it and the card leaves the board", async () => {
+    await click("[data-control=kb-show]");
+    await hide("Done");
+    await click("[data-control=kb-show]"); // close
+    await click(`[data-kb-move="${SITE}"]`);
+    expect($$("[data-popover=kb-move] [data-kb-to-col]").map((b) => b.textContent)).toEqual(["Backlog", "Todo", "Doing", "In Review", "Done", "Canceled", "No Status"]);
+    await click(`[data-popover=kb-move] [data-kb-to-col="${val("Status", "Done").uuid}"]`);
+    expect(writeCalls()).toEqual([["upsertBlockProperty", SITE, "logseq.property/status", val("Status", "Done").id]]);
+    expect($(`[data-kb-card="${SITE}"]`)).toBeNull();
+    expect($("[data-region=error]")).toBeNull();
+    // drag targets are only the shown columns
+    expect($$("[data-kb-cell]").map((c) => c.dataset.kbCol)).not.toContain(val("Status", "Done").uuid);
+  });
+});
+
 describe("capped cells (T13a)", () => {
   const doing = () => val("Status", "Doing").uuid;
 

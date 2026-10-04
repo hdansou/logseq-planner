@@ -1,13 +1,14 @@
 // Kanban view (T11): renders a `KanbanLayout` as HTML for the workspace's view area and its per-view toolbar, and names
 // the action a click means. Pure state → HTML, like agenda.ts; the workspace owns state, drag events and writes.
 // One CSS grid (kanban.css): a header row of columns, then per lane a lane heading spanning the board and one cell per
-// column. Hooks: `data-kb-column` (header, value uuid or "none"), `data-kb-lane-head`, `data-kb-cell` with
+// column. Toolbar: Columns, Show (`data-control="kb-show"`, a checkbox per column `data-kb-show-value="<uuid | none>"`),
+// Swimlanes, Sort. Hooks: `data-kb-column` (header, value uuid or "none"), `data-kb-lane-head`, `data-kb-cell` with
 // `data-kb-col` / `data-kb-lane`, `data-kb-card` (uuid; `draggable`, `data-kb-pending`), `data-kb-open`, `data-kb-move`
 // and, in the open Move menu, `data-kb-to-col` / `data-kb-to-lane`. A cell renders `KANBAN_CELL_PAGE` cards at first and a
 // `data-kb-more="<cellKey>"` button for the next page; the counts in the heads are the real totals.
 import { NO_VALUE, type KanbanCard, type KanbanCell, type KanbanLayout, type KanbanSlot, type KanbanSort } from "../core/kanban";
 import type { ChoiceProp } from "../types";
-import { esc, flag, menu, options, segmented } from "./html";
+import { checkList, esc, flag, menu, options, segmented } from "./html";
 
 export type KanbanAction =
   | { type: "sort"; sort: KanbanSort }
@@ -28,6 +29,10 @@ export interface KanbanToolbarInput {
   choiceProps: ChoiceProp[];
   columnProp: ChoiceProp;
   laneProp: ChoiceProp | null;
+  /** Every column of the column property, in order (`KanbanLayout.allColumns`). */
+  columns: KanbanSlot[];
+  /** The shown ones (`KanbanLayout.columns`). */
+  shown: KanbanSlot[];
   sort: KanbanSort;
   /** The tag has a Priority choice: the Priority sort is offered. */
   hasPriority: boolean;
@@ -39,8 +44,15 @@ export function renderKanbanToolbar(t: KanbanToolbarInput): string {
   const columns = () => options("Column property", t.choiceProps.map((p) => ({ value: p.ident, text: p.title })), t.columnProp.ident);
   const lanes = () => options("Swimlane property", [{ value: "", text: "None" }, ...t.choiceProps.filter((p) => p.ident !== t.columnProp.ident).map((p) => ({ value: p.ident, text: p.title }))], t.laneProp?.ident ?? "");
   const sorts: [KanbanSort, string][] = [["due", "Due"], ...(t.hasPriority ? [["priority", "Priority"] as [KanbanSort, string]] : []), ["title", "Title"]];
+  const shown = new Set(t.shown.map((c) => c.key));
+  // Ticked = shown; the last ticked box is disabled (at least one column stays shown).
+  const show = () => checkList(t.columnProp.title, t.columns.map((c) => ({
+    attrs: `data-kb-show-value="${esc(c.key)}"`, text: c.title, checked: shown.has(c.key), disabled: shown.size === 1 && shown.has(c.key),
+  }))) + `<p class="pl-hint">Saved with the view.</p>`;
+  const showText = shown.size === t.columns.length ? "All" : `${shown.size} of ${t.columns.length}`;
   const changes = esc(t.columnProp.title) + (t.laneProp ? ` or ${esc(t.laneProp.title)}` : "");
   return menu("kb-column", t.popover === "kb-column", "Columns", esc(t.columnProp.title), columns)
+    + menu("kb-show", t.popover === "kb-show", "Show", showText, show)
     + menu("kb-lane", t.popover === "kb-lane", "Swimlanes", esc(t.laneProp?.title ?? "None"), lanes)
     + `<span class="pl-field-label">Sort</span>` + segmented("Sort cards by", "kb-sort", sorts, t.sort)
     + `<span class="pl-spacer"></span><span class="pl-hint">Drag a card, or use its ⋯ menu, to change ${changes}</span>`;
@@ -70,7 +82,7 @@ function renderMoveMenu(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout
       .join("")}</div>`;
   };
   return `<div class="pl-popover pl-kb-move-menu" data-popover="kb-move">`
-    + list(layout.columns, cell.column.key, "kb-to-col")
+    + list(layout.allColumns, cell.column.key, "kb-to-col")
     + (cell.lane ? list(layout.lanes, cell.lane.key, "kb-to-lane") : "")
     + `</div>`;
 }
