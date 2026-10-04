@@ -1,11 +1,27 @@
 # Planner
 
 Planner shows the nodes of any tag in a Logseq DB graph as a Timeline, a Calendar, an
-Agenda or a Kanban board, in a workspace that fills the window under the app header. The window can be moved and resized as usual. It works with built-in tags such as
-#Task and with tags you create.
+Agenda or a Kanban board. It works with built-in tags such as #Task and with tags you create.
+It runs in three places:
 
-Status: version 0.1.0, in development. It has not been released. It was tested in the
-Logseq web app only (see [Limits and known issues](#limits-and-known-issues)).
+- **Workspace**: a full-window view under the app header (the window moves and resizes as usual).
+- **Sidebar** (desktop app): docked over Logseq's right sidebar, beside the page you are reading.
+- **In a page**: a read-only copy of a saved view, in a block (`/Planner view`).
+
+![The Timeline in Nested arrangement: milestones with their tasks as indented rows, bars with progress, and dependency arrows.](docs/screenshots/timeline-nested.png)
+
+![The Timeline in Day zoom: DateTime spans placed by their times, with a now line.](docs/screenshots/day-zoom.png)
+
+![The Kanban board: one column per Status value, cards with due dates, and the Show menu that hides columns.](docs/screenshots/kanban.png)
+
+![Planner docked in Logseq's right sidebar, next to an open page.](docs/screenshots/sidebar.png)
+
+![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
+
+Status: version 0.1.0, not released yet. Planner was validated in the Logseq desktop app
+(Logseq-DB 2.0.1, nightly builds of 2026-10-01 and later) and partly in the Logseq web app. It
+has **not** been tested in the stable Logseq.app. See [Limits and known issues](#limits-and-known-issues)
+for what was and was not checked.
 
 ## Requirements
 
@@ -17,7 +33,14 @@ Logseq web app only (see [Limits and known issues](#limits-and-known-issues)).
 
 ## Install
 
-Planner is not in the Logseq marketplace yet. Load it as an unpacked plugin from a build.
+**From the marketplace** (once it is listed): open Plugins in Logseq, search for Planner and install it.
+It is not listed yet.
+
+**From a zip** (a release's `logseq-planner.zip`): unzip it, turn on Developer mode in Settings >
+Advanced, open Plugins, choose Load unpacked plugin and select the unzipped `logseq-planner` folder
+(the one that holds `package.json` and `dist/`).
+
+**Unpacked, from the source**:
 
 1. Install Node.js 22 or later.
 2. In the repository folder, run `npm ci`, then `npm run build`. The build goes to `dist/`.
@@ -33,7 +56,7 @@ For development against the dev server instead, see [Development](#development).
 
 Open Planner in one of three ways:
 
-- Click the calendar button in the toolbar.
+- Click Planner's button in the toolbar (three staggered bars).
 - Run **Planner: open** from the command palette.
 - Press `g`, then `Shift+P`, while you are not editing a block.
 
@@ -274,6 +297,8 @@ reason; it cannot be opened, only deleted.
 The open view redraws after graph changes. It keeps your scroll position, expanded rows,
 unfolded Agenda buckets and focus. It waits while a menu is open, a card or a Timeline bar is being dragged, or a
 write is running.
+When you open another graph in the same Logseq session, Planner starts fresh: it forgets the previous graph's
+view, tags and saved-view list and loads the new graph (the surface, the panel state and Edit dates are kept).
 Planner also checks the graph every 30 seconds while it is visible. While hidden, it only
 notes that data may be stale and reloads once when you open it again.
 
@@ -282,10 +307,6 @@ notes that data may be stale and reloads once when you open it again.
 Planner follows the active Logseq theme and light or dark mode. Where Logseq exposes no
 value (status colors, today color), it uses the Inkwell defaults in
 [docs/design.md](docs/design.md).
-
-## Screenshots
-
-To be added. No images exist in the repository yet.
 
 ## Data and privacy
 
@@ -317,29 +338,34 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 - Planner writes only Kanban moves and, with Edit dates on, Timeline date edits. Calendar, Agenda and the in-page view
   never edit dates.
-- Edit dates has not been checked live yet (docs/manual-test.md, section N). Dragging inside the plugin frame relies on
-  pointer capture there.
+- Edit dates was checked live on the desktop app (move and resize of a DateTime and a Date span, Day zoom, Escape,
+  Alt+Arrow keys). Not checked: a diamond, a failed write, the sidebar surface, the block staying read-only (unit-tested
+  only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.
 - No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
-  no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
-- The sidebar surface is desktop only and has not been checked live yet. The in-page block (N06b) has not been
-  checked live yet (docs/manual-test.md, section M); the slash command leaves the caret after `}}`, and Logseq's own
-  page styles were not checked against the block's.
+  no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
+- The sidebar surface is desktop only. It was checked live there, but with in-app clicks: not a real-mouse drag of
+  Logseq's sidebar handle, not the narrow drawer while docked, and not the web app (which shows no switch).
+- The in-page block was checked live on the desktop app, but not the slash command (the caret lands after `}}`), the
+  host's page styles outside the block (beyond one font size), clicks on a bar or a Kanban card, Open in Planner while
+  docked, Logseq's default themes, or the web app.
 
 **Where it was tested**
 
-- All live checks ran in the Logseq web app dev build of 2026-09-02 (checkout `d2ab7726ab`),
-  on an in-memory test graph, in headless Chrome. Nothing was checked in the desktop app.
-  The macOS window-button padding and the `g` then `Shift+P` chord are unverified there.
-- Sync is untested. Changes that arrive by sync or from a second desktop window are caught
-  by the 30-second check, not by an event. `DB.onChanged` was seen firing for local edits,
-  another browser tab, the plugin's own writes and undo.
-- Dragging to a Kanban column that is scrolled out of view did not register in the test
-  tool, and dragging from the card's button in Firefox was not checked. Use the Move menu.
-  Deferral of a refresh during a drag in progress was not checked live.
-- Logseq's default dark theme was checked on the Timeline only. Shift+Enter on a focused
-  Timeline bar was not checked.
-- In docs/manual-test.md, 13 of 126 rows are marked partial and 13 were not run. The 14
-  rows for the T14 review fixes (J1 to J14) have not been run live yet.
+- Desktop app: Logseq-DB 2.0.1 nightly builds (2026-10-01 and later), on CLI-seeded persisted graphs. The checks were the
+  focused desktop pass in docs/manual-test.md, the sidebar and in-page block rows, and Edit dates. Most of the older
+  checklist rows (sections A to J) were run in the Logseq web app dev build of 2026-09-02 (checkout `d2ab7726ab`) on an
+  in-memory test graph in headless Chrome, and not repeated on the desktop.
+- The **stable Logseq.app was not tested**, and neither was any Logseq build other than those two.
+- Real mouse clicks were checked on the desktop top bar only after the first desktop pass failed on them (fixed); later
+  passes mostly used in-app clicks over CDP because the window could not be brought to the front.
+- Sync is untested. Changes that arrive by sync are caught by the 30-second check, not by an event. A second desktop
+  window on the same graph refreshes within about 2.5 s. `DB.onChanged` was seen firing for local edits, another
+  browser tab, the plugin's own writes and undo.
+- Switching graphs in one session is covered by unit tests only; the fix has not been re-run live.
+- Dragging to a Kanban column that is scrolled out of view did not register in the web test tool (it passes on the
+  desktop through auto-scroll), and dragging from the card's button in Firefox was not checked. Use the Move menu.
+- Logseq's default dark theme was checked on the Timeline only. VoiceOver was not tried.
+- In docs/manual-test.md, some rows are marked partial or not run; the file lists them.
 
 **Behavior**
 
@@ -367,8 +393,8 @@ build, headless Chrome (T13a, after commit 4d45a0b):
 | Live refresh (`refresh.totalMs`, five edits per view) | Timeline 179 to 184 ms, Calendar 165 to 169 ms, Agenda 169 to 179 ms, Kanban 181 to 186 ms (two Timeline runs at 260 ms) |
 | End of a write to the redraw | about 215 to 235 ms with the 50 ms debounce, with occasional runs near 310 ms (target: under 300 ms) |
 
-A production build, the desktop app and a graph where few tasks link the tag were not
-measured.
+On the desktop app (production build, 2,000 nodes) a tag switch took 351 ms to the first paint and a Kanban refresh
+294 to 373 ms (over the 300 ms target on 4 of 5 runs). A graph where few tasks link the tag was not measured.
 
 ## Development
 
@@ -468,4 +494,4 @@ work while the desktop app has the graph open. Logic and CLI shapes: `scripts/tr
 
 ## License
 
-MIT, as declared in `package.json`. The repository has no LICENSE file yet.
+MIT. See [LICENSE](LICENSE).
