@@ -25,6 +25,8 @@ How the work was run (rules set by the owner):
 - One task per sub-agent, on a lower model than the coordinator (Sonnet by default, Opus
   for design-heavy or review work). The coordinator reviews, validates and keeps this file
   current. Sub-agents never edit tasks.md and never claim live behaviour.
+- Dependencies between tasks are order constraints only: independent tasks may run in
+  parallel (parallel sub-agents on isolated worktrees or disjoint files).
 - TDD (tests written first and seen failing), DRY, KISS; docs in the same commit; commit
   per item; plain technical writing.
 - Nothing is marked done on unit tests alone: every acceptance item is exercised live on
@@ -124,8 +126,11 @@ Live-check method (web app):
       17:00, open tasks follow from Mon 5 Oct 09:00); `after` overrides per task. Graph:
       Start / End / Scheduled from the schedule (commit times only order the tasks and set
       Doing), a "Depends on" node property, milestone Start / End from their tasks.
+      Clarified by the owner the same day: dependencies must not force sequential
+      execution. Real dependencies are recorded per task (`after`); tasks with none between
+      them overlap; `scheduleStart` is set so the started work ends Fri 2 Oct 17:00.
       Acceptance: unit tests for the scheduler; live: Timeline Week and Day on #Milestone
-      and #Task show the chain across working days, a second run plans nothing.
+      and #Task show parallel bars across working days, a second run plans nothing.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
