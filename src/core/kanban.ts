@@ -23,6 +23,9 @@ import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewI
 import { isDone, isNodeDone } from "./nodes";
 import { isEmptyPlaceholder } from "./normalize";
 import { TAG_KEY } from "./schema";
+import { writeInOrder, writeKey } from "./write";
+
+export { writeKey };
 
 /** Key of the "No <prop>" column and lane (closed values are keyed by uuid, which is never this). */
 export const NO_VALUE = "none";
@@ -246,9 +249,6 @@ export function movedNode(node: PlannerNode, writes: PropertyWrite[]): PlannerNo
   return { ...node, choices };
 }
 
-/** The property key the write calls take: the full ident without its leading colon (the form T01's working calls used). */
-export const writeKey = (ident: string): string => ident.replace(/^:/, "");
-
 /** One write and its read-back; throws (without advice on the board) when the graph does not hold it. */
 async function writeOne(deps: KanbanWriteDeps, w: PropertyWrite): Promise<void> {
   const key = writeKey(w.prop.ident);
@@ -265,33 +265,11 @@ async function writeOne(deps: KanbanWriteDeps, w: PropertyWrite): Promise<void> 
 const undo = (w: PropertyWrite): PropertyWrite =>
   w.previous ? { ...w, kind: "set", value: w.previous } : { kind: "remove", uuid: w.uuid, node: w.node, prop: w.prop, previous: null };
 
-const SHOWS_GRAPH = "The board shows what the graph holds.";
-
 /**
  * Writes a move in order, reading each property back; throws on the first write the graph does not hold. When a later
  * write fails after an earlier one worked (a cross-column and cross-lane move), the earlier ones are put back to their
  * previous values, each read back (T14), and the error says whether that worked.
  */
-export async function writeMove(deps: KanbanWriteDeps, writes: PropertyWrite[]): Promise<void> {
-  const done: PropertyWrite[] = [];
-  for (const w of writes) {
-    try {
-      await writeOne(deps, w);
-    } catch (e) {
-      const failed = (e as Error).message;
-      if (!done.length) throw new Error(`${failed} ${SHOWS_GRAPH}`);
-      const back: string[] = [];
-      for (const d of [...done].reverse()) {
-        const was = d.previous?.title ?? "no value";
-        try {
-          await writeOne(deps, undo(d));
-        } catch (r) {
-          throw new Error(`${failed} Putting ${d.prop.title} back to ${was} failed too: ${(r as Error).message} ${SHOWS_GRAPH}`);
-        }
-        back.push(`${d.prop.title} was put back to ${was}`);
-      }
-      throw new Error(`${failed} ${back.join(", ")}, so the card has not moved.`);
-    }
-    done.push(w);
-  }
-}
+export const writeMove = (deps: KanbanWriteDeps, writes: PropertyWrite[]): Promise<void> =>
+  writeInOrder(writes, (w) => writeOne(deps, w), undo, (w) => w.previous?.title ?? "no value",
+    { shows: "The board shows what the graph holds.", unmoved: "the card has not moved" });
