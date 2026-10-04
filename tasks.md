@@ -93,7 +93,7 @@ Live-check method (web app):
       In Review, Canceled and No Status on #Project → three columns, cards of hidden
       columns gone, counts right; save, reopen the view; switch the column property and
       back; real mouse clicks on the desktop app.
-- [ ] **N09 Project tracker graph** — owner request 2026-10-03: replicate this task list in
+- [x] **N09 Project tracker graph** — owner request 2026-10-03: replicate this task list in
       a Logseq graph (`planner-project`) as real example data for Planner. tasks.md stays
       the source of truth; the graph is a copy, refreshed by `npm run tracker` after each
       task. One #Project (Planner), #Milestone nodes, one #Task per item here (id in the
@@ -647,3 +647,20 @@ Total: about 10 hours.
   saved view). Not verified: disabled-checkbox look in dark mode; focus after moving a
   card to a hidden column falls to the document. Note: the owner tests in the stable
   Logseq.app (b09316a); every desktop check here ran on Logseq-DB.app (8ffbb22).
+- 2026-10-03 N09 done (445f186, 3324724). 553 unit tests. `npm run tracker` mirrors this
+  file into the graph `planner-project` (Logseq-DB build, CLI 8ffbb22): 25 tasks, 6
+  milestones, the project; Start / End are DateTime (first / last commit time); Team,
+  Owner, Milestone, Start and End were added to the built-in Task tag. Live in Logseq-DB
+  (second instance): #Milestone Timeline shows "Foundation, 3 Oct 13:07 – 3 Oct 14:08, 7 of
+  7 done" and so on; #Task Kanban by Status with Team swimlanes (Product 1, Dev 20, QA 3,
+  Docs 1); a second run plans nothing; ticking N09 here and re-running with the app open
+  moved the N09 card to Done without reopening Planner.
+  Defect found live: blocks written through the CLI's own worker have no `:block/refs`, so
+  no task showed under its milestone; a CLI write while an app has the graph open builds
+  them. The script now reports blocks without references and rebuilds them when the app
+  has the graph open (22 rebuilt). Likely an upstream CLI defect; not filed.
+  Rule: run `npm run tracker` after each task, with `planner-project` open in Logseq-DB
+  when new tasks were added. T13a is not an item line here, so its commits count for T13.
+  Decisions taken (change if wrong): milestone grouping and team / owner defaults in
+  `scripts/tracker-meta.json`; sub-agents appear as teams, not as people; the project's
+  owner is Danzu, milestone owners Claude.
