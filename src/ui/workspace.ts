@@ -15,7 +15,7 @@ import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
-import { cardCell, findCell, layoutKanban, moveDescriptor, movedNode, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
+import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc, menu as menuHtml, options } from "./html";
@@ -334,6 +334,7 @@ function kanbanLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerN
     items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
     columnProp: prop(c.columnProp), laneProp: c.laneProp === null ? null : prop(c.laneProp), sort: c.sort, today: now.today,
     choiceProps: tag.choiceProps, doneValues: c.doneValues, titles: s.titles, pending: new Set(s.pending.keys()),
+    hidden: c.hiddenColumns[c.columnProp] ?? [],
   });
 }
 
@@ -831,7 +832,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const layout = board();
     const { card, cell } = cardCell(layout, uuid);
     if (card.pending) return;
-    const writes = moveDescriptor(card, cell, findCell(layout, column, lane));
+    const writes = moveDescriptor(card, cell, moveTarget(layout, column, lane));
     if (!writes.length) return void render(focus);
     s.pending.set(uuid, writes);
     render(focus);

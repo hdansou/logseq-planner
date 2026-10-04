@@ -32,8 +32,12 @@ export type ViewConfig = CommonConfig &
     | { kind: "timeline"; zoom: (typeof ZOOMS)[number] }
     | { kind: "calendar"; layout: (typeof LAYOUTS)[number] }
     | { kind: "agenda"; groupBy: (typeof GROUPS)[number]; showDone: boolean }
-    /** Column property (default Status); optional swimlane property; card sort. Null = the tag has no choice property. */
-    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number] }
+    /**
+     * Column property (default Status); optional swimlane property; card sort. Null = the tag has no choice property.
+     * `hiddenColumns`: per column property ident, the columns not shown (closed-value uuids, `NO_VALUE` = "No <prop>"),
+     * kept per property so switching the column property and back keeps each choice; unknown keys are ignored (N08).
+     */
+    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]> }
   );
 
 const VERSION = 1;
@@ -61,7 +65,7 @@ export function defaultViewConfig(tag: TagInfo, kind: ViewKind = "timeline"): Vi
       return { ...common, kind, groupBy: "node", showDone: false };
     case "kanban": {
       const status = tag.choiceProps.find((p) => p.title === "Status") ?? tag.choiceProps[0];
-      return { ...common, kind, columnProp: status?.ident ?? null, laneProp: null, sort: "due" };
+      return { ...common, kind, columnProp: status?.ident ?? null, laneProp: null, sort: "due", hiddenColumns: {} };
     }
   }
 }
@@ -96,12 +100,12 @@ const bool = (what: string, v: unknown) => {
 const stringOrNull = (what: string, v: unknown) => {
   if (v !== null && typeof v !== "string") throw invalid(`${what} must be a string or null`);
 };
-/** A plain object whose values are lists of value uuids (and `null` when `allowNull`). */
-const selection = (what: string, v: unknown, allowNull: boolean) => {
+/** A plain object whose values are lists of value uuids (and `null` when `allowNull`; `kind` names the strings in errors). */
+const selection = (what: string, v: unknown, allowNull: boolean, kind = "value uuids") => {
   if (!isObject(v)) throw invalid(`${what} must be an object`);
   for (const [ident, list] of Object.entries(v)) {
     if (!Array.isArray(list)) throw invalid(`${what}[${ident}] must be a list`);
-    if (!list.every((u) => typeof u === "string" || (allowNull && u === null))) throw invalid(`${what}[${ident}] must hold value uuids${allowNull ? " or null" : ""}`);
+    if (!list.every((u) => typeof u === "string" || (allowNull && u === null))) throw invalid(`${what}[${ident}] must hold ${kind}${allowNull ? " or null" : ""}`);
   }
 };
 
@@ -129,7 +133,8 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
     case "kanban":
       oneOf("kanban sort", SORTS, config.sort);
       stringOrNull("columnProp", config.columnProp);
-      return stringOrNull("laneProp", config.laneProp);
+      stringOrNull("laneProp", config.laneProp);
+      return selection("hiddenColumns", config.hiddenColumns, false, "column keys");
   }
 }
 
@@ -177,7 +182,11 @@ export function toChoiceFilters(config: ViewConfig, tag: TagInfo): ChoiceFilters
 
 export const serializeViewConfig = (config: ViewConfig): string => JSON.stringify({ v: VERSION, config });
 
-/** Throws on invalid JSON, another version or a config of the wrong shape (`checkViewConfigShape`); idents are checked by `validateViewConfig`. */
+/**
+ * Throws on invalid JSON, another version or a config of the wrong shape (`checkViewConfigShape`); idents are checked by
+ * `validateViewConfig`. A stored Kanban config without `hiddenColumns` loads with nothing hidden: the key was added (N08)
+ * after views were first saved, and this is the one place stored configs come in.
+ */
 export function parseViewConfig(text: string): ViewConfig {
   let parsed: { v?: unknown; config?: unknown };
   try {
@@ -186,6 +195,8 @@ export function parseViewConfig(text: string): ViewConfig {
     throw new Error("Invalid view config: not valid JSON");
   }
   if (parsed?.v !== VERSION) throw new Error(`Invalid view config: unsupported version ${String(parsed?.v)}, expected ${VERSION}`);
-  checkViewConfigShape(parsed.config);
-  return parsed.config;
+  const stored = parsed.config;
+  if (isObject(stored) && stored.kind === "kanban" && !("hiddenColumns" in stored)) stored.hiddenColumns = {};
+  checkViewConfigShape(stored);
+  return stored;
 }

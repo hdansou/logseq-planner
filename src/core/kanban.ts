@@ -5,6 +5,9 @@
 // Rules:
 // - Columns (and lanes) list every closed value in the property's order, whatever the filters, then the "No <prop>"
 //   column (lane), which is always there: it is the drop target that removes the value.
+// - Hidden columns (N08, the view's Show menu) are left out of the board with their cards; the other column counts are
+//   unchanged, lane counts count only the cards shown, every lane is still listed. Keys that match no column are
+//   ignored; a list that would hide every column hides none. `allColumns` keeps every column (the Move menu's targets).
 // - Sort inside a cell: "due" = the node's resolved span end (End, a one-date point, or derived from its tasks),
 //   undated last; "priority" = the tag's Priority choice (`priorityProp`): built-in Priority values are ordered Low,
 //   Medium, High, Urgent, so the LAST value ranks highest; no value last; "title". Ties: due, then title.
@@ -69,7 +72,10 @@ export interface KanbanCell {
 }
 
 export interface KanbanLayout {
+  /** The shown columns. */
   columns: KanbanSlot[];
+  /** Every column of the property in order, hidden ones included (the same objects as in `columns` for shown ones). */
+  allColumns: KanbanSlot[];
   /** Empty without swimlanes. */
   lanes: KanbanSlot[];
   /** One row per lane (a single row with `lane: null` without swimlanes), each with one cell per column. */
@@ -91,6 +97,8 @@ export interface KanbanInput {
   titles: ReadonlyMap<string, string>;
   /** Uuids of the nodes whose move is being written. */
   pending: ReadonlySet<string>;
+  /** Keys of the columns not shown (value uuids, `NO_VALUE`); unknown keys are ignored. */
+  hidden: readonly string[];
 }
 
 /**
@@ -121,7 +129,9 @@ const keyOf = (node: PlannerNode, prop: ChoiceProp) => node.choices[prop.ident]?
 export function layoutKanban(input: KanbanInput): KanbanLayout {
   const { columnProp, laneProp, today } = input;
   const priority = priorityProp(input);
-  const columns = slots(columnProp, input.doneValues);
+  const allColumns = slots(columnProp, input.doneValues);
+  const shown = allColumns.filter((c) => !input.hidden.includes(c.key));
+  const columns = shown.length ? shown : allColumns;
   const lanes = laneProp ? slots(laneProp, input.doneValues) : [];
   const rank = (c: KanbanCard) => (c.priority && priority ? priority.values.findIndex((v) => v.title === c.priority!.title) : -1);
   const byDue = (a: KanbanCard, b: KanbanCard) => (a.due ? (b.due ? compareDates(a.due, b.due) : -1) : b.due ? 1 : 0);
@@ -152,13 +162,14 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
   const rows = (laneProp ? lanes : [null]).map((lane) => ({ lane, cells: columns.map((column): KanbanCell => ({ column, lane, cards: [] })) }));
   for (const item of input.items) {
     const ci = columns.findIndex((c) => c.key === keyOf(item.node, columnProp));
+    if (ci < 0) continue; // a hidden column
     const li = laneProp ? lanes.findIndex((l) => l.key === keyOf(item.node, laneProp)) : 0;
     rows[li].cells[ci].cards.push(toCard(item));
     columns[ci].count++;
     if (laneProp) lanes[li].count++;
   }
   for (const r of rows) for (const c of r.cells) c.cards.sort(order);
-  return { columns, lanes, rows, sort: input.sort };
+  return { columns, allColumns, lanes, rows, sort: input.sort };
 }
 
 /** The cell at column `column` and lane `lane` (null without swimlanes); throws when there is none. */
@@ -180,13 +191,26 @@ export function cardCell(layout: KanbanLayout, uuid: string): { card: KanbanCard
   throw new Error(`No Kanban card ${uuid}`);
 }
 
+/**
+ * The column `column` (shown or hidden) and the lane `lane` (null without swimlanes) a move goes to: what
+ * `moveDescriptor` needs. Throws when the board has no such column or lane.
+ */
+export function moveTarget(layout: KanbanLayout, column: string, lane: string | null): Pick<KanbanCell, "column" | "lane"> {
+  const col = layout.allColumns.find((c) => c.key === column);
+  if (!col) throw new Error(`No Kanban column ${column}`);
+  if (lane === null) return { column: col, lane: null };
+  const ln = layout.lanes.find((l) => l.key === lane);
+  if (!ln) throw new Error(`No Kanban lane ${lane}`);
+  return { column: col, lane: ln };
+}
+
 const write = (card: KanbanCard, from: KanbanSlot, slot: KanbanSlot): PropertyWrite =>
   slot.value
     ? { kind: "set", uuid: card.uuid, node: card.title, prop: slot.prop, value: slot.value, previous: from.value }
     : { kind: "remove", uuid: card.uuid, node: card.title, prop: slot.prop, previous: from.value };
 
 /** The writes that move `card` from `from` to `to`: the column property when it changes, then the lane property when it does. */
-export function moveDescriptor(card: KanbanCard, from: KanbanCell, to: KanbanCell): PropertyWrite[] {
+export function moveDescriptor(card: KanbanCard, from: KanbanCell, to: Pick<KanbanCell, "column" | "lane">): PropertyWrite[] {
   const writes: PropertyWrite[] = [];
   if (from.column.key !== to.column.key) writes.push(write(card, from.column, to.column));
   if (from.lane && to.lane && from.lane.key !== to.lane.key) writes.push(write(card, from.lane, to.lane));

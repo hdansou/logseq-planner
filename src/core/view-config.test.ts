@@ -46,7 +46,7 @@ describe("defaultViewConfig", () => {
     expect(defaultViewConfig(p, "calendar")).toMatchObject({ kind: "calendar", layout: "month" });
     expect(defaultViewConfig(p, "agenda")).toMatchObject({ kind: "agenda", groupBy: "node", showDone: false });
     const k = defaultViewConfig(p, "kanban");
-    expect(k).toMatchObject({ kind: "kanban", columnProp: choice(p, "Status").ident, laneProp: null, sort: "due" });
+    expect(k).toMatchObject({ kind: "kanban", columnProp: choice(p, "Status").ident, laneProp: null, sort: "due", hiddenColumns: {} });
   });
 
   it("kanban falls back to the first choice property, or none", () => {
@@ -155,6 +155,38 @@ describe("strict shapes (T14 review)", () => {
     expect(() => parseViewConfig(JSON.stringify({ v: 1, config: agenda }))).toThrow(/showDone must be true or false/);
     const board = { ...(defaultViewConfig(p, "kanban") as object), laneProp: 3 };
     expect(() => parseViewConfig(JSON.stringify({ v: 1, config: board }))).toThrow(/laneProp must be a string or null/);
+  });
+
+  it("rejects hiddenColumns that are not an object of string lists (N08)", () => {
+    const board = defaultViewConfig(p, "kanban") as unknown as Record<string, unknown>;
+    const cases: [unknown, RegExp][] = [
+      [[], /hiddenColumns must be an object/],
+      [null, /hiddenColumns must be an object/],
+      [{ [status.ident]: "none" }, /hiddenColumns\[.*\] must be a list/],
+      [{ [status.ident]: [null] }, /hiddenColumns\[.*\] must hold/],
+      [{ [status.ident]: [1] }, /hiddenColumns\[.*\] must hold/],
+    ];
+    for (const [hiddenColumns, msg] of cases) {
+      const c = { ...board, hiddenColumns };
+      expect(() => parseViewConfig(JSON.stringify({ v: 1, config: c }))).toThrow(msg);
+      expect(() => validateViewConfig(c as never, tags)).toThrow(msg);
+    }
+  });
+
+  it("a kanban config held in memory must have hiddenColumns (only stored configs may lack it)", () => {
+    const { hiddenColumns: _, ...board } = defaultViewConfig(p, "kanban") as unknown as Record<string, unknown>;
+    expect(() => validateViewConfig(board as never, tags)).toThrow(/hiddenColumns must be an object/);
+  });
+
+  it("a stored kanban config without hiddenColumns (saved before N08) loads with nothing hidden", () => {
+    const { hiddenColumns: _, ...board } = defaultViewConfig(p, "kanban") as unknown as Record<string, unknown>;
+    expect(parseViewConfig(JSON.stringify({ v: 1, config: board }))).toEqual({ ...board, hiddenColumns: {} });
+  });
+
+  it("hidden columns: \"none\" and uuids that match no current value are valid (ignored when the board is drawn)", () => {
+    const c = { ...(defaultViewConfig(p, "kanban") as object), hiddenColumns: { [status.ident]: ["none", "no-such-uuid"], ":x/gone": ["none"] } };
+    expect(validateViewConfig(c as never, tags)).toBe(p);
+    expect(parseViewConfig(JSON.stringify({ v: 1, config: c }))).toEqual(c);
   });
 
   it("rejects an unknown kind or option at parse time", () => {

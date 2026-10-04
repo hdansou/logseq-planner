@@ -6,7 +6,7 @@ import { CLASS_EXTENDS_RULES, loadNodes, loadNodesAndTasks, nodesQuery } from ".
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
-  findCell, layoutKanban, moveDescriptor, movedNode, NO_VALUE, priorityProp, writeKey, writeMove,
+  findCell, layoutKanban, moveDescriptor, movedNode, moveTarget, NO_VALUE, priorityProp, writeKey, writeMove,
   type KanbanInput, type KanbanLayout, type PropertyWrite,
 } from "./kanban";
 import { fixtureDq } from "../ui/test-fakes";
@@ -37,7 +37,7 @@ async function project(over: Partial<KanbanInput> = {}): Promise<KanbanLayout> {
   const end = t.dateProps.find((p) => p.title === "End")!.ident;
   return layoutKanban({
     items: viewItems(nodes, tasks, start, end, statusValues), columnProp: choiceProp(t, "Status"), laneProp: null, sort: "due",
-    today: TODAY, choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), ...over,
+    today: TODAY, choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), hidden: [], ...over,
   });
 }
 
@@ -58,7 +58,7 @@ function tasksBoard(spec: [string, string | null, string | null][], sort: Kanban
   }));
   return layoutKanban({
     items: viewItems(nodes, [], null, deadline, statusValues), columnProp: status, laneProp: null, sort, today: TODAY,
-    choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(),
+    choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), hidden: [],
   });
 }
 const SORT_SPEC: [string, string | null, string | null][] = [
@@ -96,6 +96,72 @@ describe("columns", () => {
     const o = await project({ doneValues: { [status.ident]: [value(p, "Status", "In Review").uuid] } });
     expect(o.columns.filter((c) => c.done).map((c) => c.title)).toEqual(["In Review"]);
     expect(findCell(o, colKey(p, "Status", "In Review"), null).cards[0].done).toBe(true);
+  });
+});
+
+describe("hidden columns (N08)", () => {
+  const p = () => tag("Project");
+  const titles = (l: KanbanLayout) => l.columns.map((c) => c.title);
+  const onBoard = (l: KanbanLayout) => l.rows.flatMap((r) => r.cells.flatMap((c) => c.cards.map((x) => x.uuid))).sort();
+  const hideStatus = (...names: string[]) => names.map((n) => (n === "No Status" ? NO_VALUE : colKey(p(), "Status", n)));
+
+  it("are left out of the columns and cells; their cards are not on the board; shown counts unchanged", async () => {
+    const l = await project({ hidden: hideStatus("Backlog", "In Review", "Canceled", "No Status") });
+    expect(titles(l)).toEqual(["Todo", "Doing", "Done"]);
+    expect(l.columns.map((c) => c.count)).toEqual([1, 1, 0]);
+    expect(l.rows[0].cells.map((c) => c.column.title)).toEqual(["Todo", "Doing", "Done"]);
+    expect(onBoard(l)).toEqual([MOBILE, SITE].sort());
+    // every column of the property stays listed (the Show menu, the Move menu)
+    expect(l.allColumns.map((c) => c.title)).toEqual(["Backlog", "Todo", "Doing", "In Review", "Done", "Canceled", "No Status"]);
+    expect(l.allColumns[1]).toBe(l.columns[0]);
+  });
+
+  it("No <prop> can be hidden: cards without a value leave the board", async () => {
+    const l = await project({ columnProp: choiceProp(p(), "Owner"), hidden: [NO_VALUE] });
+    expect(titles(l)).toEqual(["Alice", "Bob"]);
+    expect(onBoard(l)).not.toContain(ARCHIVE);
+  });
+
+  it("swimlanes: every lane is still listed; lane counts count only cards in shown columns", async () => {
+    const l = await project({ laneProp: choiceProp(p(), "Owner"), hidden: hideStatus("Doing") });
+    expect(l.lanes.map((x) => x.title)).toEqual(["Alice", "Bob", "No Owner"]);
+    expect(l.lanes.map((x) => x.count)).toEqual([1, 1, 1]);
+    expect(l.rows.map((r) => r.cells.length)).toEqual([6, 6, 6]);
+    const empty = await project({ laneProp: choiceProp(p(), "Owner"), hidden: hideStatus("Todo") });
+    expect(empty.lanes.map((x) => [x.title, x.count])).toEqual([["Alice", 2], ["Bob", 0], ["No Owner", 1]]);
+  });
+
+  it("keys that match no current value are ignored; when every listed key is unknown nothing is hidden", async () => {
+    const l = await project({ hidden: ["no-such-uuid", ...hideStatus("Done")] });
+    expect(titles(l)).toEqual(["Backlog", "Todo", "Doing", "In Review", "Canceled", "No Status"]);
+    const none = await project({ hidden: ["no-such-uuid", "another"] });
+    expect(titles(none)).toHaveLength(7);
+  });
+
+  it("a list that would hide every column hides none (at least one column stays shown)", async () => {
+    const l = await project({ hidden: hideStatus("Backlog", "Todo", "Doing", "In Review", "Done", "Canceled", "No Status") });
+    expect(titles(l)).toHaveLength(7);
+  });
+
+  it("a pending card whose target column is hidden leaves the board like any other card", async () => {
+    const t = p();
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+    const status = choiceProp(t, "Status");
+    const moved = nodes.map((n) => (n.uuid === SITE ? movedNode(n, [{ kind: "set", uuid: SITE, node: "", prop: status, value: value(t, "Status", "Canceled"), previous: null }]) : n));
+    const l = await project({ items: viewItems(moved, tasks, null, null, statusValues), pending: new Set([SITE]), hidden: hideStatus("Canceled") });
+    expect(onBoard(l)).not.toContain(SITE);
+    expect(l.columns.find((c) => c.title === "Doing")!.count).toBe(0);
+  });
+
+  it("moveTarget: a hidden column is still a target (the Move menu lists it); the write is the same", async () => {
+    const l = await project({ hidden: hideStatus("Done") });
+    const from = findCell(l, colKey(p(), "Status", "Doing"), null);
+    const to = moveTarget(l, colKey(p(), "Status", "Done"), null);
+    expect(to.column.title).toBe("Done");
+    expect(moveDescriptor(from.cards[0], from, to)).toEqual<PropertyWrite[]>([
+      { kind: "set", uuid: SITE, node: "Website relaunch", prop: { ident: choiceProp(p(), "Status").ident, title: "Status" }, value: value(p(), "Status", "Done"), previous: value(p(), "Status", "Doing") },
+    ]);
+    expect(() => moveTarget(l, "no-such-uuid", null)).toThrow(/No Kanban column/);
   });
 });
 
