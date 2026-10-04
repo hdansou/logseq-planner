@@ -272,7 +272,7 @@ Live-check method (web app):
       instance runs at 144%); light and dark. Web app: frame under the header, no overlap.
       Order: independent of N13 (panel) and N14; can run in parallel with them, but it
       touches `src/sdk.ts` and `src/app.ts`, which N13 does not.
-- [ ] **N16 Host shortcuts while Planner is open** — owner report 2026-10-03: with Planner
+- [x] **N16 Host shortcuts while Planner is open** — owner report 2026-10-03: with Planner
       open no Logseq shortcut works (Cmd+Shift+P, Cmd+K, `t t`). Reproduced on the desktop
       test instance: keyboard focus is inside the plugin frame, so key events never reach
       the host; with Planner closed the same keys work. Prototype checked live: a listener
@@ -905,3 +905,14 @@ Total: about 10 hours.
   (`setMainUIInlineStyle` with `calc()` and a host variable); dark mode; the owner's
   original report of a blocked resize was never reproduced (Logseq-DB only; the stable
   Logseq.app was not tested).
+- 2026-10-03 N16 done (7d26266, 9d6aab9). 708 unit tests. `src/ui/host-keys.ts`: keys
+  Planner does not use are re-dispatched on the host document's body (desktop app only;
+  the frame is same-origin there), and focus is handed back to the Planner frame when the
+  host's focus falls to its body while Planner is visible. Live on the desktop app (rows
+  I11–I15, I17): `t t`, Cmd+K and Cmd+Shift+P work with Planner open, text typed in the
+  view-name field stays there, Escape closes a host dialog, then a Planner menu, then
+  Planner. Keys were sent through CDP, which goes through the app's normal focus routing
+  (unlike mouse clicks on drag regions). Not verified: I16 (web app: nothing forwarded);
+  every other host shortcut; non-US keyboard layouts.
+  Test note: a host search dialog left open keeps the toolbar button unclickable for
+  playwright; close it by clicking its field and pressing Escape.
