@@ -80,6 +80,11 @@ export interface Workspace {
    * added or deleted on another device show (T14). Queued; an error shows in the error bar.
    */
   showViews(): Promise<void>;
+  /**
+   * Opens a saved view by id (N06b: "Open in Planner" on an in-page block): re-lists the saved views, then shows that
+   * one as the Saved views menu does; the surface switch shows the workspace. Queued; an error shows in the error bar.
+   */
+  openView(id: string): Promise<void>;
   /** Closes an open popover, else the open panel drawer (N13), and returns true; false when there is nothing to close (the app then closes Planner). */
   escape(): boolean;
   /** Resolves when every queued action has finished (tests, focus after open). */
@@ -551,6 +556,18 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     deps.timing?.queried();
   }
 
+  /** Shows the saved view `id` from the listed views (the Saved views menu, and `openView`). */
+  const openSaved = async (id: string) => {
+    const v = s.views.find((x): x is SavedView => x.id === id && "config" in x);
+    if (!v) throw new Error("That saved view is gone or cannot be opened. Pick one under Saved views.");
+    const config = withKnownTags(v.config, s.tags); // a gone tag is dropped (N14)
+    tagOf(config); // throws before anything changes
+    s.popover = null;
+    s.config = config;
+    s.viewId = v.id;
+    await loadData();
+  };
+
   /** Applies a config change that keeps the loaded nodes valid (dates, done values, filters, kind). */
   const setConfig = (next: ViewConfig) => {
     tagOf(next);
@@ -771,17 +788,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const d = el.dataset;
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
     if (d.viewKind) return void run(() => setConfig(switchKind(s.config!, tagOf(s.config!), d.viewKind as ViewKind)));
-    if (d.viewOpen) {
-      return void run(async () => {
-        const v = s.views.find((x): x is SavedView => x.id === d.viewOpen && "config" in x)!;
-        const config = withKnownTags(v.config, s.tags); // a gone tag is dropped (N14)
-        tagOf(config); // throws before anything changes
-        s.popover = null;
-        s.config = config;
-        s.viewId = v.id;
-        await loadData();
-      }, () => trigger("views"));
-    }
+    if (d.viewOpen) return void run(() => openSaved(d.viewOpen!), () => trigger("views"));
     if (d.surface) {
       const next = d.surface as Surface;
       if (next === s.surface) return;
@@ -1109,6 +1116,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     },
     refresh,
     showViews: () => run(listViews),
+    openView: (id) => run(async () => {
+      s.surface = "workspace";
+      await listViews();
+      await openSaved(id);
+    }),
     idle: () => queue,
     config: () => s.config,
     stop() {

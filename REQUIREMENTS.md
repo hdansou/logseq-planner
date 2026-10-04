@@ -66,8 +66,8 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   a red marker in the Timeline (the due date's marker), a red chip in the Calendar (which
   shows Deadlines only), the Agenda's Overdue bucket, filed and counted from the due date.
 - **Saved views** stored in the graph on a plugin-owned page (one block per view, config as
-  a hidden string property holding JSON). Sync with the graph; reused later by the side
-  sidebar and in-page block. A view saved before N14 (one `tag`, `start`, `end`) opens as that
+  a hidden string property holding JSON). Sync with the graph; reused by the in-page block
+  (N06b). A view saved before N14 (one `tag`, `start`, `end`) opens as that
   one tag; a saved view naming a tag that is gone opens with the tags that are left (none left:
   the default view and an error).
 - **Live updates.** The open view redraws after graph changes (debounced), keeping scroll
@@ -94,6 +94,19 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   back to Workspace restores the full frame and leaves the sidebar as it is. Desktop app only: the
   web app's frame cannot read the host document, so the switch is not shown there. Inside the
   frame nothing changes: the top bar wraps, and under 640 px the panel is a drawer.
+- **In-page block** (N06b). A block `{{renderer :planner, <saved view name>}}` (slash command
+  **Planner view**) shows a read-only picture of that saved view inside the page: a header (the
+  view's name, its tags "#A + #B", an **Open in Planner** button that opens Planner in the
+  workspace on that view) and the same view the workspace draws (Timeline with its zoom, arrange
+  and nesting; Calendar; Agenda; Kanban with its hidden columns and swimlanes), anchored on today.
+  The name is matched exactly first, then ignoring case; an unknown name shows a message with the
+  saved views' names (or "Save a view in Planner first."), an unreadable view its error. A click
+  on an item opens the node (no Shift). The block redraws when the graph changes, whether Planner
+  is shown or not, and scrolls inside itself (at most 70% of the window's height). The block does
+  **not** have: the view toolbar (navigation, zoom, layout, sort), menus, popovers, filters, the
+  panel, drag, the Kanban Move menu, Timeline connectors or row toggles (nested children are open,
+  task rows folded), "Show more" (it reads "N more"). Its styles are scoped to the block; works in
+  the desktop and the web app.
 - **Click** opens the node in the main area and hides Planner; **Shift+click** opens it in
   the right sidebar and keeps Planner open.
 - **Theme.** Follows the active Logseq theme and light/dark mode; Inkwell values are the
@@ -200,7 +213,6 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 
 ## Non-goals (v1)
 
-- The in-page block surface (later; the sidebar surface exists, N06a).
 - Dragging or resizing to change dates; a detail/edit panel.
 - Views defined by a free query; different filters per tag.
 - Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.

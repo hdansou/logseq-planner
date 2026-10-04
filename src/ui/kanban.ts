@@ -126,7 +126,7 @@ function renderCell(cell: KanbanCell, layout: KanbanLayout, moveOpen: string | n
   const rest = cell.cards.length - cards.length;
   const page = Math.min(rest, KANBAN_CELL_PAGE);
   const more = rest > 0
-    ? `<button type="button" class="pl-btn pl-kb-more" data-kb-more="${esc(key)}">Show ${page} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`
+    ? `<button type="button" class="pl-btn pl-kb-more" data-kb-more="${esc(key)}" data-rest="${rest}">Show ${page} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`
     : "";
   return `<div class="pl-kb-cell" role="list" aria-label="${esc(name)}" data-kb-cell data-kb-col="${esc(cell.column.key)}"`
     + `${cell.lane ? ` data-kb-lane="${esc(cell.lane.key)}"` : ""}${flag("data-none", cell.column.key === NO_VALUE || cell.lane?.key === NO_VALUE)}>`

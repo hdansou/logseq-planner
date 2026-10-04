@@ -79,11 +79,11 @@ function renderEmpty(showDone: boolean): string {
     + `<span>${showDone ? "No nodes or tasks to list." : "No open nodes or tasks. Turn on Show done to include done and canceled ones."}</span></div>`;
 }
 
-/** The button for the next page while `rest` items are left; `scope` is the value of `data-ag-more` (empty for the node groups). */
+/** The button for the next page while `rest` items are left (`data-rest`, the in-page block's "N more", N06b); `scope` is the value of `data-ag-more` (empty for the node groups). */
 function moreButton(rest: number, scope: string): string {
   if (rest <= 0) return "";
   const page = Math.min(rest, AGENDA_GROUP_PAGE);
-  return `<button type="button" class="pl-btn pl-ag-more" data-ag-more="${scope}">Show ${page.toLocaleString("en-US")} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`;
+  return `<button type="button" class="pl-btn pl-ag-more" data-ag-more="${scope}" data-rest="${rest}">Show ${page.toLocaleString("en-US")} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`;
 }
 
 /** The first `shown` groups, then a button for the next page while some are left. */

@@ -1,9 +1,11 @@
 import { HEADBAR, sidebarFrame, WORKSPACE_FRAME } from "./sdk";
 import { createViewStore } from "./storage";
-import { createChanges } from "./ui/changes";
+import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
+import { blockStyle } from "./ui/block-style";
+import { createChanges, shareFeed } from "./ui/changes";
 import { startDock } from "./ui/dock";
 import { installHostKeys } from "./ui/host-keys";
-import type { AppDeps, Surface } from "./types";
+import type { AppDeps, ModelEvent, Surface } from "./types";
 import { watchTheme } from "./ui/theme";
 import { createWorkspace, type Timing } from "./ui/workspace";
 
@@ -29,6 +31,16 @@ export const nodeOpener = (deps: AppDeps) => (uuid: string, opts: { sidebar: boo
   deps.openPage(uuid);
   deps.hideMainUI();
 };
+
+/** The in-page block's slash command (N06b). */
+export const SLASH_COMMAND = "Planner view";
+
+/** A `data-*` value the clicked element must carry (camelCased dataset key); throws without it. */
+function datasetValue(e: ModelEvent, key: string, what: string): string {
+  const v = e.dataset?.[key];
+  if (!v) throw new Error(`Planner: the clicked element carries no ${what} (data-${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)})`);
+  return v;
+}
 
 /**
  * Renders the workspace into `root`, wires Escape (an open popover first, then Planner) and Close, and
@@ -73,7 +85,11 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     stopDock();
     deps.setFrame(WORKSPACE_FRAME); // the host's sidebar is left as it is
   };
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban, timing, setSurface: host ? setSurface : undefined });
+  const views = createViewStore(deps.storage); // one store for the workspace and the in-page blocks
+  const openNode = nodeOpener({ ...deps, hideMainUI: close });
+  const workspace = createWorkspace(root, { dq: deps.dq, views, onClose: close, openNode, weekStart: deps.weekStart, kanban: deps.kanban, timing, setSurface: host ? setSurface : undefined });
+  // N06b: read-only views in pages, drawn into host slots; they redraw on graph changes whether Planner is shown or not.
+  const blocks = createBlocks({ dq: deps.dq, views, weekStart: deps.weekStart, provideUI: deps.provideUI, host, doc });
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
   let loaded = false;
   const refresh = () => (loaded ? workspace.refresh() : ((loaded = true), workspace.open()));
@@ -94,6 +110,16 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     for (const ms of FOCUS_RETRIES_MS) deps.later(focusIn, ms);
   };
 
+  /** "Open in Planner" on an in-page block (N06b): Planner in the workspace mode, on that saved view. */
+  const openView = (id: string) => {
+    if (surface === "sidebar") {
+      surface = "workspace";
+      stopDock();
+    }
+    open();
+    void workspace.openView(id);
+  };
+
   /** The toolbar button: hides Planner while it is shown (the host header stays usable under it), else opens it. The palette command only opens. */
   const toggle = () => (visible ? close() : open());
 
@@ -107,18 +133,30 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const offHostKeys = installHostKeys(doc, host, { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
 
   deps.defer(() => {
-    changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
+    const feed = shareFeed(deps.changes.subscribe); // one DB.onChanged for the workspace and the blocks
+    changes = createChanges({ subscribe: feed, later: deps.changes.later, refresh });
+    // The blocks are always "visible": a pass with no block on screen reads nothing.
+    const blockChanges = createChanges({ subscribe: feed, later: deps.changes.later, refresh: blocks.refresh });
+    blockChanges.setVisible(true);
     const offVisible = deps.changes.onVisibleChanged((shown) => ((visible = shown), changes?.setVisible(shown)));
     const offTheme = watchTheme(deps.theme, doc);
     deps.changes.onUnload(() => {
       changes?.stop();
+      blockChanges.stop();
       stopDock();
       workspace.stop();
       offVisible();
       offHostKeys();
       void offTheme.then((off) => off());
     });
-    deps.provideModel({ [OPEN_HANDLER]: toggle });
+    deps.provideModel({
+      [OPEN_HANDLER]: toggle,
+      [OPEN_NODE]: (e) => openNode(datasetValue(e, "uuid", "node uuid"), { sidebar: false }),
+      [OPEN_VIEW]: (e) => openView(datasetValue(e, "viewId", "saved view id")),
+    });
+    deps.provideStyle({ key: "planner-block", style: blockStyle() });
+    deps.onMacroRendererSlotted((e) => void blocks.slotted(e));
+    deps.registerSlashCommand(SLASH_COMMAND, () => void deps.insertAtCursor(MACRO_TEXT));
     deps.registerUIItem("toolbar", {
       key: OPEN,
       template: `<a class="button" data-on-click="${OPEN_HANDLER}" title="Planner">${TOOLBAR_ICON}</a>`,

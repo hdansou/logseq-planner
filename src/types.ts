@@ -8,7 +8,18 @@ export interface AppDeps {
     command: { key: string; label: string; keybinding?: { binding: string; mode: "global" | "non-editing" | "editing" } },
     action: () => void,
   ): void;
-  provideModel(model: Record<string, () => void>): void;
+  /** Handlers named by `data-on-click`; a handler gets the clicked element's `data-*` attributes (`ModelEvent`). */
+  provideModel(model: Record<string, (e: ModelEvent) => void>): void;
+  /** `logseq.App.onMacroRendererSlotted`: a `{{renderer …}}` macro was drawn in a page (N06b). */
+  onMacroRendererSlotted(cb: (e: MacroSlotEvent) => void): void;
+  /** `logseq.provideUI` into a host slot (N06b in-page blocks). */
+  provideUI(ui: { key: string; slot: string; reset: true; template: string }): void;
+  /** `logseq.provideStyle` with a key: the host keeps one `<style>` per key (N06b in-page blocks). */
+  provideStyle(style: { key: string; style: string }): void;
+  /** `logseq.Editor.registerSlashCommand` with a callback (the host clears the typed command first). */
+  registerSlashCommand(label: string, action: () => void): void;
+  /** `logseq.Editor.insertAtEditingCursor`: inserts text at the caret of the block being edited. */
+  insertAtCursor(text: string): Promise<void>;
   /**
    * Styles the main-UI container (camelCase keys, written directly with `important` when same-origin, see CLAUDE.md):
    * `WORKSPACE_FRAME`, or `sidebarFrame(…)` while docked (N06a).
@@ -40,6 +51,17 @@ export interface AppDeps {
   changes: ChangesSdk;
   /** The host's document when the frame is same-origin with it (desktop app), else null (web app, dev server): where unused keys are forwarded (N16). */
   hostDocument(): HostDocument | null;
+}
+
+/** What a `data-on-click` model handler receives (the host copies the clicked element's `dataset`, camelCased keys). */
+export interface ModelEvent {
+  dataset?: Record<string, string | undefined>;
+}
+
+/** `onMacroRendererSlotted`'s event: the slot element's id and the macro's arguments (`{{renderer a, b}}` → `["a", "b"]`). */
+export interface MacroSlotEvent {
+  slot: string;
+  payload: { arguments: string[]; uuid: string };
 }
 
 /** Where Planner shows (N06a): the workspace under the header, or docked over Logseq's right sidebar. Session state. */

@@ -382,6 +382,24 @@ Desktop app only (the web app has no switch). None run live yet; check with real
 | L8 | Click **Workspace** | Planner fills the window under the header again; the sidebar stays as it is | pass | 58e37ae | 2026-10-03 | Workspace restores the full frame (0, 48, full width); the host sidebar is left open underneath |
 | L9 | Open Planner in the web app | The top bar has no Workspace / Sidebar switch | not run |  |  |  |
 
+## M. In-page block (N06b)
+
+Desktop app, graph `planner-project` (page "Planner block probe" holds `{{renderer :planner, Milestones with tasks}}`;
+that saved view is #Milestone + #Task, Timeline, nested). M9 also in the web app. None run live yet.
+
+| Id | Steps | Expected | Result | Build | Date | Notes |
+|---|---|---|---|---|---|---|
+| M1 | Open the page "Planner block probe" | The block shows a header ("Milestones with tasks", "#Milestone + #Task", **Open in Planner**) and the Timeline anchored on today, milestones with their tasks nested open; no toolbar, no toggles, no connectors; it scrolls sideways inside the block | not run |  |  |  |
+| M2 | Save a Kanban view in Planner, then put `{{renderer :planner, <its name>}}` in a page | The board with the view's columns (hidden columns left out) and swimlanes; no ⋯ Move buttons; cards cannot be dragged | not run |  |  |  |
+| M3 | Put `{{renderer :planner, No such view}}` in a page | "No saved Planner view named “No such view”." and the saved views' names | not run |  |  |  |
+| M4 | With the page open (Planner closed), change a milestone's date or a task's status in another block | The block redraws within a second or so with the change | not run |  |  |  |
+| M5 | Click a bar, a row name and (Kanban) a card in a block | The node opens in the main area | not run |  |  |  |
+| M6 | Click **Open in Planner** (also once with Planner docked in the sidebar) | Planner opens in the workspace on that saved view (Saved views shows its name) | not run |  |  |  |
+| M7 | Switch Logseq between light and dark with a block on screen | The block follows the theme: surface, text, lines and status colours, in both modes | not run |  |  |  |
+| M8 | Put two blocks on one page (the same view twice, or two views) | Both draw; both redraw after an edit | not run |  |  |  |
+| M9 | In a block, type `/Planner view`, Enter, then the name of a saved view | `{{renderer :planner, }}` is inserted (the caret lands after `}}`); with the name typed, the view shows | not run |  |  |  |
+| M10 | With a block on screen, look at the rest of the page, the sidebar and the header | Nothing outside the block changed (fonts, buttons, lists, colours) | not run |  |  |  |
+
 ## Desktop pass (2026-10-03, build e849107)
 
 Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over

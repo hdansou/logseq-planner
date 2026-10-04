@@ -1,0 +1,33 @@
+/* In-page block (N06b): the frame of a read-only Planner view inside a Logseq page. Only provided to the host
+   (src/ui/block-style.ts), never loaded in the plugin's own frame. Written for the block's root already; every other
+   rule the block uses comes from theme.css and the four view stylesheets, scoped under .planner-block. */
+.planner-block { display: block; position: relative; overflow: auto; max-height: 70vh; margin: 4px 0; padding: 0 12px 12px;
+  border: 1px solid var(--pl-line-soft); border-radius: 12px; text-align: left; white-space: normal; }
+.planner-block *, .planner-block *::before, .planner-block *::after { box-sizing: border-box; }
+
+/* Header: name, tags, Open in Planner. Sticks to the left edge while the view scrolls sideways. */
+.planner-block .pl-block-head { position: sticky; left: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+  padding: 10px 0 8px; background: var(--pl-surface); }
+.planner-block .pl-block-name { margin: 0; font-size: 15px; font-weight: 700; color: var(--pl-label); }
+.planner-block .pl-block-tags { font-size: 12.5px; color: var(--pl-label-2); }
+.planner-block .pl-block-head .pl-btn { margin-left: auto; padding: 3px 12px; font-size: 12.5px; }
+
+/* A message instead of a view: unknown name, unreadable view, load error */
+.planner-block .pl-block-message { margin: 0; padding: 12px 0 0; color: var(--pl-label-2); }
+.planner-block .pl-block-message b { color: var(--pl-label); }
+
+/* What the workspace shows as buttons and the block shows as text: "N more", jumps, "+N more" */
+.planner-block [data-planner-text], .planner-block [data-planner-text]:hover { cursor: default; background: transparent; color: var(--pl-label-2); }
+.planner-block .pl-block-more { margin: 4px 0 0; font-size: 12px; }
+
+/* Shared with the workspace's chrome (workspace.css), which is not provided to the host */
+.planner-block .pl-link { all: unset; border-radius: 4px; color: var(--pl-label); cursor: pointer; text-decoration: underline;
+  text-decoration-color: var(--pl-line); text-underline-offset: 2px; }
+.planner-block .pl-link:hover { text-decoration-color: currentColor; }
+.planner-block .pl-empty { display: grid; justify-items: center; gap: 6px; padding: 32px 16px; text-align: center; color: var(--pl-label-2); }
+.planner-block .pl-empty b { color: var(--pl-label); font-size: 15px; font-weight: 600; }
+.planner-block .pl-spacer { flex: 1; }
+
+/* Kanban without drag or Move menu: no grab cursor, no room kept for the ⋯ button */
+.planner-block .pl-kb-card { cursor: default; }
+.planner-block .pl-kb-open { padding-right: 10px; cursor: pointer; }

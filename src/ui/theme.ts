@@ -2,7 +2,7 @@
 import type { ThemeDeps } from "../types";
 
 /** shui tokens are bare `H S% L%` channels and must be wrapped in hsl(); everything else is a ready colour. */
-const SHUI = new Set(["--background", "--foreground", "--popover", "--muted-foreground", "--border", "--input",
+export const SHUI: ReadonlySet<string> = new Set(["--background", "--foreground", "--popover", "--muted-foreground", "--border", "--input",
   "--primary", "--primary-foreground", "--ring"]);
 
 /**

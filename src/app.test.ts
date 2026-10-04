@@ -2,11 +2,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nodeOpener, registerApp } from "./app";
 import { WORKSPACE_FRAME } from "./sdk";
-import type { AppDeps } from "./types";
+import type { AppDeps, MacroSlotEvent, StorageDeps } from "./types";
 import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY } from "./core/schema";
 import { DEBOUNCE_MS } from "./ui/changes";
+import { MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
+import { blockStyle } from "./ui/block-style";
 import { fakeChangeFeed, fakeClock, fakeStorage, fixtureDq } from "./ui/test-fakes";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
@@ -21,12 +23,19 @@ function fakeDeps() {
   const feed = fakeChangeFeed();
   const visibility: Array<(visible: boolean) => void> = [];
   const unload: Array<() => void> = [];
+  /** The macro-renderer listeners the app registered (N06b). */
+  const slotted: Array<(e: MacroSlotEvent) => void> = [];
   /** The off hooks the theme and visibility subscriptions return, by name. */
   const offs = { mode: vi.fn(), theme: vi.fn(), visible: vi.fn() };
   const deps = {
     registerUIItem: vi.fn(),
     registerCommandPalette: vi.fn(),
     provideModel: vi.fn(),
+    onMacroRendererSlotted: vi.fn((cb: (e: MacroSlotEvent) => void) => void slotted.push(cb)),
+    provideUI: vi.fn((ui: { key: string; slot: string; reset: true; template: string }) => void ui),
+    provideStyle: vi.fn((style: { key: string; style: string }) => void style),
+    registerSlashCommand: vi.fn((label: string, action: () => void) => void [label, action]),
+    insertAtCursor: vi.fn(async (text: string) => void text),
     showMainUI: vi.fn(),
     hideMainUI: vi.fn(),
     setFrame: vi.fn((style: Record<string, string>) => void style),
@@ -55,7 +64,7 @@ function fakeDeps() {
       setConfig: async () => {},
       removeBlock: async () => {},
       blockTags: async () => 0,
-    },
+    } as StorageDeps,
     changes: {
       subscribe: feed.subscribe,
       later: clock.later,
@@ -66,16 +75,22 @@ function fakeDeps() {
     hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
-  return { deps, flush, clock, feed, visibility, unload, offs };
+  return { deps, flush, clock, feed, visibility, unload, offs, slotted };
 }
 
 /** The model handler the toolbar button's `data-on-click` names. */
 function modelHandler(deps: ReturnType<typeof fakeDeps>["deps"]): () => void {
-  const [model] = deps.provideModel.mock.calls[0];
+  const [model] = deps.provideModel.mock.calls[0] as unknown as [Record<string, () => void>];
   const [, item] = deps.registerUIItem.mock.calls[0];
   const name = /data-on-click="([^"]+)"/.exec(item.template)![1];
   return model[name];
 }
+
+/** The handlers registered with `provideModel`, by name. */
+const modelOf = (deps: ReturnType<typeof fakeDeps>["deps"]) => deps.provideModel.mock.calls[0][0] as unknown as Record<string, (e: { dataset?: Record<string, string> }) => void>;
+const fixtureProject = () => buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]).find((t) => t.title === "Project")!;
+/** A saved Timeline view of #Project named "Roadmap". */
+const roadmapView = (): ViewBlock => ({ uuid: "v1", name: "Roadmap", config: serializeViewConfig(defaultViewConfig(fixtureProject())) });
 
 describe("registerApp", () => {
   let root: HTMLElement;
@@ -505,9 +520,13 @@ describe("sidebar surface (N06a)", () => {
    * A second window as the host, with Logseq's right sidebar (closed) and its resizer measured as on the desktop app
    * (1777 px window, sidebar 40% = 711 px). `setRightSidebarVisible` flips the sidebar's class as the host does.
    */
-  function docked() {
+  function docked(views: ViewBlock[] = []) {
     FakeResizeObserver.all = [];
     const f = fakeDeps();
+    if (views.length) {
+      f.deps.storage = fakeStorage({ blocks: views });
+      f.deps.dq.mockImplementation(fixtureDq() as never);
+    }
     const win = new Window();
     const host = win.document as unknown as HostDocument & Document;
     host.body.innerHTML = `<div id="right-sidebar" class="cp__right-sidebar closed"><div class="resizer"></div></div>`;
@@ -658,6 +677,18 @@ describe("sidebar surface (N06a)", () => {
     expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
 
+  it("Open in Planner from a page block (N06b) leaves the sidebar mode: workspace frame, that view selected", async () => {
+    const d = docked([roadmapView()]);
+    await opened(d);
+    switchTo("sidebar");
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
+    modelOf(d.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
+    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
+    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
+    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
+    expect(root.querySelector("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("true");
+  });
+
   it("unload disconnects the observers", async () => {
     const d = docked();
     await opened(d);
@@ -681,5 +712,95 @@ describe("sidebar surface (N06a)", () => {
     expect(focus).not.toHaveBeenCalled();
     focus.mockRestore();
     d.unload.forEach((cb) => cb());
+  });
+});
+
+describe("in-page block (N06b)", () => {
+  let root: HTMLElement;
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    root = document.createElement("div");
+    document.body.append(root);
+  });
+
+  /** The app with a saved view "Roadmap" and the fixture graph; the deferred registrations run. */
+  function withView() {
+    const f = fakeDeps();
+    f.deps.storage = fakeStorage({ blocks: [roadmapView()] });
+    f.deps.dq.mockImplementation(fixtureDq() as never);
+    registerApp(f.deps, root);
+    f.flush();
+    const slot = (id: string, args = [":planner", "Roadmap"]) => f.slotted.forEach((cb) => cb({ slot: id, payload: { arguments: args, uuid: `block-${id}` } }));
+    return { ...f, slot };
+  }
+
+  it("registers nothing until the deferred callback runs; then the macro listener, the scoped styles once and the slash command", () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    expect(f.deps.onMacroRendererSlotted).not.toHaveBeenCalled();
+    expect(f.deps.provideStyle).not.toHaveBeenCalled();
+    f.flush();
+    expect(f.deps.onMacroRendererSlotted).toHaveBeenCalledTimes(1);
+    expect(f.deps.provideStyle).toHaveBeenCalledTimes(1);
+    expect(f.deps.provideStyle).toHaveBeenCalledWith({ key: "planner-block", style: blockStyle() });
+    expect(f.deps.registerSlashCommand).toHaveBeenCalledWith("Planner view", expect.any(Function));
+  });
+
+  it("the slash command inserts the macro at the caret, for the user to type the view's name", () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    f.flush();
+    f.deps.registerSlashCommand.mock.calls[0][1]();
+    expect(f.deps.insertAtCursor).toHaveBeenCalledWith("{{renderer :planner, }}");
+    expect(MACRO_TEXT).toBe("{{renderer :planner, }}");
+  });
+
+  it("a Planner macro draws the saved view into its slot, Planner hidden", async () => {
+    const f = withView();
+    f.slot("slot__a");
+    await vi.waitFor(() => expect(f.deps.provideUI).toHaveBeenCalledTimes(1));
+    const [ui] = f.deps.provideUI.mock.calls[0];
+    expect(ui).toMatchObject({ key: "planner-block-slot__a", slot: "slot__a", reset: true });
+    expect(ui.template).toContain('data-view-kind="timeline"');
+    expect(f.deps.showMainUI).not.toHaveBeenCalled();
+  });
+
+  it("a graph change redraws the blocks while Planner is hidden, through the one DB.onChanged subscription", async () => {
+    const f = withView();
+    expect(f.feed.count()).toBe(1); // the workspace and the blocks share it
+    f.slot("slot__a");
+    await vi.waitFor(() => expect(f.deps.provideUI).toHaveBeenCalledTimes(1));
+    f.feed.fire();
+    f.clock.advance(DEBOUNCE_MS);
+    await vi.waitFor(() => expect(f.deps.provideUI).toHaveBeenCalledTimes(2));
+  });
+
+  it("a click on an item opens the node (plain open, Planner hidden)", () => {
+    const f = fakeDeps();
+    registerApp(f.deps, root);
+    f.flush();
+    modelOf(f.deps)[OPEN_NODE]({ dataset: { uuid: "u-1" } });
+    expect(f.deps.openPage).toHaveBeenCalledWith("u-1");
+    expect(f.deps.openInSidebar).not.toHaveBeenCalled();
+    expect(f.deps.hideMainUI).toHaveBeenCalledTimes(1);
+    expect(() => modelOf(f.deps)[OPEN_NODE]({ dataset: {} })).toThrow(/uuid/);
+  });
+
+  it("Open in Planner shows Planner with that saved view selected", async () => {
+    const f = withView();
+    modelOf(f.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
+    expect(f.deps.showMainUI).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
+    expect(root.querySelector("[data-view-kind=timeline]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(() => modelOf(f.deps)[OPEN_VIEW]({ dataset: {} })).toThrow(/view id/);
+  });
+
+  it("unload stops the blocks' refreshes too", async () => {
+    const f = withView();
+    f.slot("slot__a");
+    await vi.waitFor(() => expect(f.deps.provideUI).toHaveBeenCalledTimes(1));
+    f.unload.forEach((cb) => cb());
+    expect(f.feed.count()).toBe(0);
+    expect(f.clock.pending()).toBe(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createChanges, DEBOUNCE_MS, POLL_MS } from "./changes";
+import { createChanges, DEBOUNCE_MS, POLL_MS, shareFeed } from "./changes";
 import { fakeChangeFeed, fakeClock } from "./test-fakes";
 
 const settle = () => new Promise((r) => setTimeout(r, 0));
@@ -150,5 +150,36 @@ describe("stop", () => {
     clock.advance(POLL_MS * 2);
     changes.setVisible(true);
     expect(refreshFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("shareFeed (N06b: the workspace and the in-page blocks share one DB.onChanged)", () => {
+  it("subscribes to the source once, on the first listener, and fans every event out", () => {
+    const feed = fakeChangeFeed();
+    const shared = shareFeed(feed.subscribe);
+    expect(feed.count()).toBe(0);
+    const a = vi.fn();
+    const b = vi.fn();
+    shared(a);
+    shared(b);
+    expect(feed.count()).toBe(1);
+    feed.fire();
+    expect([a.mock.calls.length, b.mock.calls.length]).toEqual([1, 1]);
+  });
+
+  it("unsubscribes from the source when the last listener leaves", () => {
+    const feed = fakeChangeFeed();
+    const shared = shareFeed(feed.subscribe);
+    const a = vi.fn();
+    const offA = shared(a);
+    const offB = shared(vi.fn());
+    offA();
+    feed.fire();
+    expect(a).not.toHaveBeenCalled();
+    expect(feed.count()).toBe(1);
+    offB();
+    expect(feed.count()).toBe(0);
+    shared(vi.fn());
+    expect(feed.count()).toBe(1); // subscribes again for a new listener
   });
 });

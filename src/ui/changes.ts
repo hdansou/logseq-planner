@@ -113,3 +113,24 @@ export function createChanges(deps: ChangesDeps): Changes {
     },
   };
 }
+
+/**
+ * One source subscription shared by several listeners (N06b: the workspace's and the in-page blocks' `createChanges`
+ * both wake on the one `DB.onChanged`): the source is subscribed on the first listener and unsubscribed when the last
+ * one leaves; every event reaches every listener.
+ */
+export function shareFeed(subscribe: (cb: () => void) => () => void): (cb: () => void) => () => void {
+  const listeners = new Set<() => void>();
+  let off: (() => void) | null = null;
+  return (cb) => {
+    const own = () => cb(); // the same callback twice is two listeners
+    listeners.add(own);
+    off ??= subscribe(() => [...listeners].forEach((l) => l()));
+    return () => {
+      listeners.delete(own);
+      if (listeners.size || !off) return;
+      off();
+      off = null;
+    };
+  };
+}

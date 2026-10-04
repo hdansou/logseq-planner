@@ -63,12 +63,14 @@ Rules that hold across the tree:
 | `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, `withTags`, `withKnownTags`, `withDefaults`, versioned JSON (with the pre-N14 migration), `toChoiceFilters`. |
 | `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
 | `src/ui/view-area.ts` | `renderViewArea`: a view config, its loaded data and the clock to the view's HTML and toolbar HTML, empty states included; `ViewSession`; `readViewData` / `viewData`, the loader. Shared by the workspace and the in-page block (N06b), so the two cannot drift. |
+| `src/ui/block.ts` | In-page block (N06b): macro arguments → view name, lookup, message blocks, `readOnly` (the view's HTML without interactive-only markup, openers wired to `data-on-click`), `viewBlock`, and `createBlocks`: the registry of live slots and the draw passes. |
+| `src/ui/block-style.ts`, `block.css` | In-page block styles (N06b): `scopeCss`, `hostTokenCss`, `blockStyle` (provided to the host once). |
 | `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`. |
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
 | `src/ui/agenda.ts`, `agenda.css` | Agenda layout to HTML; `agendaAction`; `AGENDA_GROUP_PAGE` (100). |
 | `src/ui/kanban.ts`, `kanban.css` | Kanban layout to HTML; `kanbanAction`; `KANBAN_CELL_PAGE` (50). |
 | `src/ui/dock.ts` | `startDock` (N06a): follows Logseq's `#right-sidebar` with the host window's ResizeObserver, a MutationObserver on its `class` and the window `resize` event; places the frame, reports the user closing the sidebar; returns the stop function. |
-| `src/ui/changes.ts` | `createChanges`: debounce, poll, visibility, one refresh at a time. |
+| `src/ui/changes.ts` | `createChanges`: debounce, poll, visibility, one refresh at a time. `shareFeed`: one `DB.onChanged` for the workspace and the in-page blocks. |
 | `src/ui/html.ts` | Shared HTML helpers: `esc`, `flag`, `viewNav`, `segmented`, `toggleButton`, `menu`, `options`. |
 | `src/ui/theme.ts`, `theme.css` | `watchTheme`: host mode to `html.dark`, host tokens to `--pl-*`; Inkwell defaults and base component CSS. |
 | `src/ui/test-fakes.ts` | Test helpers: `fixtureDq`, `fakeStorage`, `noWrites`, `fakeGraph`, `fakeClock`, `fakeChangeFeed`. Used by tests only. |
@@ -176,6 +178,33 @@ Steps, with the module that does each:
   workspace cannot be drawn at all, a bare shell keeps the error, Dismiss and Close), so the
   queue never stays rejected and later actions still run.
 
+## In-page block (N06b)
+
+```
+ {{renderer :planner, Name}}  -- host draws the macro -->  onMacroRendererSlotted {slot, payload.arguments, uuid}
+        |
+ createBlocks.slotted        macroViewName (":planner", rest joined with ", ") -> registry slot -> {name, uuid}
+        |
+ pass (one at a time)        prune slots gone from the host document (cross-origin: keep the newest 20)
+        |                    weekStart + loadTagInfos + views.list (store invalidated)   once per pass
+        |                    findView (exact, then ignoring case) -> message, or
+        |                    readViewData + renderViewArea(blockSession)                 once per saved view
+        v
+ viewBlock / readOnly        header + view, interactive-only markup taken out, openers -> data-on-click
+        |
+ provideUI {key: planner-block-<slot>, slot, reset: true, template}
+```
+
+- The slot is host DOM: no script of Planner's runs there. Clicks reach the plugin as `data-on-click` model calls with
+  the element's dataset: `plannerOpenNode` (`data-uuid`, the node opener without Shift) and `plannerOpenView`
+  (`data-view-id`: Planner in the workspace mode, `Workspace.openView`).
+- Styles: `blockStyle()` once through `provideStyle` (key `planner-block`): theme.css and the four view stylesheets with
+  every selector under `.planner-block`, then the `--pl-*` tokens declared from the host's variables in `PL_MAP` order
+  (CSS `var()` chains with theme.css's defaults; a shui token as `hsl(var(--x))`), for light and `html.dark`. In the
+  frame, theme.ts resolves the same tokens by script.
+- Refresh: a second `createChanges` (always visible) on the shared `DB.onChanged` subscription (`shareFeed`) calls
+  `blocks.refresh()`, which redraws every kept slot; a pass with no slot reads nothing.
+
 ## Write paths
 
 Planner writes in two places. Both read back, because the host's write API resolves `null`
@@ -231,7 +260,8 @@ Tests pass fakes through these seams. No module under test imports the SDK.
 
 | Seam | Type | Real implementation | Test fake |
 |---|---|---|---|
-| Host registration, node opening | `AppDeps` | `appDeps()` | `fakeDeps` in `src/app.test.ts` |
+| Host registration, node opening, in-page block (macro slots, `provideUI`, `provideStyle`, slash command) | `AppDeps` | `appDeps()` | `fakeDeps` in `src/app.test.ts` |
+| In-page blocks | `BlockDeps` | built in `registerApp` | inline in `src/ui/block.test.ts` (`fixtureDq`, `fakeStorage`, the test document as host) |
 | Datascript queries | `Dq` | `datascriptQuery` | `fixtureDq` (answers the exact query strings from the probe fixtures, cutting `pull [*]` rows down to what the narrow pulls return) |
 | Saved views | `StorageDeps` | `storageDeps()` | `fakeStorage` |
 | Kanban writes | `KanbanWriteDeps` | `kanbanWriteDeps()` | `noWrites`, inline fakes |
@@ -278,6 +308,9 @@ recorded in tasks.md.
 | The node and task queries leave out blocks with `deleted-at` and blocks whose page has it. | A block on a page in Recycle has no `deleted-at` of its own and kept showing (T14). |
 | Saved filters and done values store closed-value uuids. | Titles break on rename, and entity ids differ per device (T05, T06). |
 | Planner never creates or edits properties on a user's tags. | Users' schemas are theirs (REQUIREMENTS.md). |
+| The in-page block and the workspace draw the view area with one function (`renderViewArea`) and load with one loader (`readViewData`). | Two copies would drift (N06b). |
+| The in-page block's markup is made read-only after rendering (`readOnly`), not by flags in each view renderer. | The renderers stay unchanged for the workspace; the slot runs no script, so menus, drag and toggles would only mislead (N06b). |
+| The host gets the `--pl-*` tokens as CSS `var()` chains, not resolved values. | They follow a theme or mode change without a script, and the host's variables are readable where the block lives (N06b). |
 
 ## Files not described here
 

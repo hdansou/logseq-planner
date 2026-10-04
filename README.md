@@ -66,6 +66,26 @@ The choice lasts until Logseq reloads the plugin. In a narrow sidebar the top ba
 under 640 px, the panel is a drawer (see **Panel** below). The web app has no switch: Planner's
 frame there cannot reach the sidebar.
 
+### A Planner view in a page
+
+Show a saved view inside any page, read-only:
+
+1. Save the view in Planner (**Saved views** → **Save current view**).
+2. In a page, type `/Planner view` and press Enter. It inserts `{{renderer :planner, }}`.
+3. The caret lands after `}}`: move it two characters left, type the saved view's name, for
+   example `{{renderer :planner, Milestones with tasks}}`, and leave the block.
+
+The name is matched exactly, then ignoring case; it may contain commas. An unknown name shows
+"No saved Planner view named “…”." and the names that exist. The block shows the view's name, its
+tags and an **Open in Planner** button (opens Planner on that view, in the workspace), then the
+view as Planner draws it, anchored on today. Click an item to open its node.
+
+It is read-only: no toolbar, menus, filters, drag, Move menu, connectors or row toggles. Nested
+Timeline children are shown open, task rows folded; long Agenda and Kanban lists end in "N more".
+It redraws when the graph changes, whether Planner is open or not, and scrolls inside itself. Two
+blocks of the same view load it once. Its styles apply inside the block only. It works in the
+desktop and the web app.
+
 ### Choose a tag
 
 Pick a tag in the panel on the right of the view or in the **Tag** menu. Your own tags are listed first. Built-in
@@ -269,8 +289,9 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   resizing.
 - No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
   no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
-- The in-page block surface does not exist yet. The sidebar surface is desktop only and has not been checked
-  live yet.
+- The sidebar surface is desktop only and has not been checked live yet. The in-page block (N06b) has not been
+  checked live yet (docs/manual-test.md, section M); the slash command leaves the caret after `}}`, and Logseq's own
+  page styles were not checked against the block's.
 
 **Where it was tested**
 

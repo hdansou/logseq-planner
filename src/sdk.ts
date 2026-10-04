@@ -73,6 +73,14 @@ export const appDeps = (): AppDeps => ({
   registerUIItem: (type, item) => logseq.App.registerUIItem(type, item),
   registerCommandPalette: (command, action) => logseq.App.registerCommandPalette(command, action),
   provideModel: (model) => logseq.provideModel(model),
+  // N06b, probed live on the desktop app (tasks.md): the event carries `slot` and `payload.arguments`; `provideUI` into
+  // that slot renders in the page; `data-on-click` calls the model with the element's dataset.
+  onMacroRendererSlotted: (cb) => logseq.App.onMacroRendererSlotted(cb as never),
+  provideUI: (ui) => void logseq.provideUI(ui),
+  // The typings say StyleString; the host takes `{ key, style }` too and keeps one <style> per key (LSPlugin.core.ts).
+  provideStyle: (style) => void logseq.provideStyle(style as never),
+  registerSlashCommand: (label, action) => void logseq.Editor.registerSlashCommand(label, async () => action()),
+  insertAtCursor: (text) => logseq.Editor.insertAtEditingCursor(text),
   setFrame: (style) => setContainerStyle(style),
   showMainUI: () => logseq.showMainUI({ autoFocus: true }),
   setRightSidebarVisible: (visible) => logseq.App.setRightSidebarVisible(visible),

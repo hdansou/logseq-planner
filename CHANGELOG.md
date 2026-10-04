@@ -35,6 +35,16 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+
+- In-page block (N06b): `{{renderer :planner, <saved view name>}}` shows a read-only picture of a saved view in a page,
+  with a header (name, tags, **Open in Planner**), drawn by the same `renderViewArea` as the workspace's view area
+  (`src/ui/view-area.ts`, extracted for it). Clicks reach the plugin through `data-on-click` model handlers
+  (`plannerOpenNode`, `plannerOpenView`). Styles go to the host once with `provideStyle`, every selector scoped under
+  `.planner-block` and the `--pl-*` tokens declared from the host's own variables (`src/ui/block-style.ts`). Blocks
+  redraw on graph changes through the workspace's `DB.onChanged` subscription, shared (`shareFeed`); one load per saved
+  view per pass. Slash command **Planner view** inserts the macro. The Agenda and Kanban "Show more" buttons carry
+  `data-rest` (what is left), which the block shows as "N more". `Workspace.openView(id)` opens a saved view by id.
+  Not checked live yet.
 - The sidebar surface (N06a, desktop app). A **Workspace | Sidebar** switch in the top bar, before Saved views
   (`[data-surface="workspace|sidebar"]`, `aria-pressed`; the root `.pl-ws` carries `data-surface-mode`), rendered only
   when the host document is reachable. Sidebar opens Logseq's right sidebar (`setRightSidebarVisible(true)`) and lays
