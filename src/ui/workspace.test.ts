@@ -698,7 +698,7 @@ describe("closing", () => {
       const k = e as unknown as KeyboardEvent;
       seen.push(`${k.metaKey ? "cmd+" : ""}${k.key}`);
     });
-    const off = installHostKeys(document, hostWindow.document as unknown as HostDocument);
+    const off = installHostKeys(document, hostWindow.document as unknown as HostDocument, { isVisible: () => true, focusFrame: () => {} });
     const input = $<HTMLInputElement>("[data-field=view-name]")!;
     const press = (key: string, init: KeyboardEventInit = {}) => input.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init }));
     press("t");

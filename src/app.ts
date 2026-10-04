@@ -70,7 +70,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     e.preventDefault();
     if (!workspace.escape()) close();
   });
-  const offHostKeys = installHostKeys(doc, deps.hostDocument());
+  const offHostKeys = installHostKeys(doc, deps.hostDocument(), { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
 
   deps.defer(() => {
     changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });

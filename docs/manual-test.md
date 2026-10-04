@@ -317,6 +317,7 @@ performance.now() - t0
 | I14 | Open Saved views, type `tt` and Cmd+A in the view-name field; then press Cmd+K there | The letters go into the field, Cmd+A selects its text, no host shortcut fires; Cmd+K opens search | not run |  |  | N16 |
 | I15 | Open a Planner menu, press Cmd+K, Escape (search closes), Escape (menu closes), Escape (Planner hides) | One layer per Escape, in that order; the host never sees the Escapes meant for Planner | not run |  |  | N16 |
 | I16 | Web app: press Cmd+K with Planner open | Nothing is forwarded (known limit: cross-origin frame); no console error | not run |  |  | N16 |
+| I17 | Desktop app, Planner open: press Cmd+K, Escape (search closes), Escape again | Focus is back in Planner after the first Escape, so the second Escape hides Planner without a click | not run |  |  | N16 |
 
 ## J. Review fixes (T14)
 

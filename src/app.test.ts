@@ -374,6 +374,32 @@ describe("live updates (T12)", () => {
       f.unload.forEach((cb) => cb());
     });
 
+    it("focus falling to the host body while Planner is shown focuses the frame; hidden, it does not", async () => {
+      const f = fakeDeps();
+      const host = new Window().document as unknown as HostDocument;
+      host.hasFocus = () => true;
+      f.deps.hostDocument.mockReturnValue(host);
+      const focus = vi.spyOn(window, "focus");
+      registerApp(f.deps, root);
+      f.flush();
+      const focusOut = async () => {
+        host.body.dispatchEvent(new Event("focusout", { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 5));
+      };
+      await focusOut();
+      expect(focus).not.toHaveBeenCalled(); // not shown yet
+      modelHandler(f.deps)();
+      focus.mockClear();
+      await focusOut();
+      expect(focus).toHaveBeenCalledTimes(1);
+      modelHandler(f.deps)(); // toggles: hidden
+      focus.mockClear();
+      await focusOut();
+      expect(focus).not.toHaveBeenCalled();
+      f.unload.forEach((cb) => cb());
+      focus.mockRestore();
+    });
+
     it("unload removes the forwarder", () => {
       const f = withHost();
       f.unload.forEach((cb) => cb());

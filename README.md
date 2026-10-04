@@ -44,7 +44,9 @@ Logseq's own shortcuts (Cmd+K search, Cmd+Shift+P command palette, `t t` theme, 
 working while Planner is open on the desktop app. Planner passes on the keys it does not use, but
 not Escape, Tab, Enter, Space, the arrow keys, Home, End or Page Up / Down on their own, and not
 the keys you type in a text field (Cmd+K and other non-editing Cmd / Ctrl shortcuts still pass). The web
-app cannot do this: Planner's frame is a different origin there, so click outside Planner first.
+app cannot do this: Planner's frame is a different origin there, so Logseq's shortcuts do not work while
+Planner has focus. When a Logseq dialog opened this way closes (Cmd+K, then Escape), focus returns to Planner,
+so its own keys work again.
 
 ### Choose a tag
 

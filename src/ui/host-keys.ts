@@ -37,15 +37,28 @@ export function shouldForward(e: KeyLike): boolean {
 }
 
 /** The host side the dispatcher needs: its document (events go to the body) whose window supplies `KeyboardEvent`. */
-export type HostDocument = Pick<Document, "body"> & { defaultView: (Window & typeof globalThis) | null };
+export type HostDocument = Pick<Document, "body" | "activeElement" | "hasFocus" | "addEventListener" | "removeEventListener"> & { defaultView: (Window & typeof globalThis) | null };
+
+/** What the focus hand-back needs from the app. */
+export interface FocusBack {
+  /** Planner is shown. */
+  isVisible(): boolean;
+  /** Focuses the plugin frame (`window.focus()`). */
+  focusFrame(): void;
+}
 
 /**
  * Listens on `doc` (bubble phase, so Planner's own handlers run first) and re-dispatches what `shouldForward` allows
  * on `host.body`, with `keyCode` / `which` (the host's shortcut handler reads `keyCode`) and the host window's
  * `KeyboardEvent`. A host that prevents the event makes the original prevented too. `host` null (cross-origin frame:
- * web app, dev server) installs nothing. Returns the remover.
+ * web app, dev server) installs nothing.
+ *
+ * Also hands focus back: when a host dialog opened by a forwarded key closes, the host's focus falls to its `body` and
+ * Planner's own keys stay dead. On a host `focusout`, the next macrotask checks that nothing in the host is focused,
+ * Planner is visible and the host window has focus (not in the background), then focuses the frame. Focus on a real
+ * host element (a dialog's input, a toolbar button) is left alone. Returns the remover.
  */
-export function installHostKeys(doc: Document, host: HostDocument | null): () => void {
+export function installHostKeys(doc: Document, host: HostDocument | null, back: FocusBack): () => void {
   if (!host) return () => {};
   const forward = (e: KeyboardEvent) => {
     if (!shouldForward(e)) return;
@@ -57,9 +70,20 @@ export function installHostKeys(doc: Document, host: HostDocument | null): () =>
     } as KeyboardEventInit);
     if (!host.body.dispatchEvent(sent)) e.preventDefault();
   };
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  const afterFocusOut = () => {
+    clearTimeout(pending);
+    pending = setTimeout(() => {
+      const active = host.activeElement;
+      if ((active === null || active === host.body) && back.isVisible() && host.hasFocus()) back.focusFrame();
+    }, 0);
+  };
   doc.addEventListener("keydown", forward);
   doc.addEventListener("keyup", forward);
+  host.addEventListener("focusout", afterFocusOut, true);
   return () => {
+    clearTimeout(pending);
+    host.removeEventListener("focusout", afterFocusOut, true);
     doc.removeEventListener("keydown", forward);
     doc.removeEventListener("keyup", forward);
   };

@@ -184,7 +184,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   (`src/ui/host-keys.ts`) on the host document, with `keyCode`. Not passed on: events Planner prevented (Escape now
   calls `preventDefault`), Escape / Tab / Enter / Space / arrows / Home / End / Page keys without Cmd or Ctrl, and keys
   typed in a field unless Cmd or Ctrl is held and the key is not an editing key (A, C, V, X, Z, Y, Backspace,
-  Delete, arrows). No effect in the web app or dev server (cross-origin frame).
+  Delete, arrows). No effect in the web app or dev server (cross-origin frame). When a host dialog opened this way
+  closes, the host's focus fell to its body and Planner's keys were dead until a click; while Planner is shown and the
+  host window has focus, focus now returns to the plugin frame (a focused host element is left alone).
 - Clicks on the top bar (view switch, Saved views, Close) land on the desktop app: the host header under the
   full-screen frame is a window-drag region, so the frame now sets `-webkit-app-region: no-drag` (`FULL_SCREEN` in
   `sdk.ts`, on both the container and the `setMainUIInlineStyle` fallback). Superseded by N15 (see Changed): the

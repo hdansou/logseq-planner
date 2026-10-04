@@ -68,8 +68,11 @@ describe("installHostKeys", () => {
   let received: KeyboardEvent[];
   let prevent: boolean;
   const offs: Array<() => void> = [];
+  let visible: boolean;
+  let hostFocused: boolean;
+  const focusFrame = vi.fn();
   const install = (h: HostDocument | null = host) => {
-    const off = installHostKeys(document, h);
+    const off = installHostKeys(document, h, { isVisible: () => visible, focusFrame });
     offs.push(off);
     return off;
   };
@@ -79,6 +82,10 @@ describe("installHostKeys", () => {
     host = hostWindow.document as unknown as HostDocument;
     received = [];
     prevent = false;
+    visible = true;
+    hostFocused = true;
+    focusFrame.mockClear();
+    host.hasFocus = () => hostFocused;
     host.body.addEventListener("keydown", (e) => {
       received.push(e);
       if (prevent) e.preventDefault();
@@ -143,5 +150,53 @@ describe("installHostKeys", () => {
     off();
     press({ key: "k", metaKey: true });
     expect(received).toHaveLength(0);
+  });
+
+  describe("focus hand-back", () => {
+    const focusOut = () => host.body.dispatchEvent(new hostWindow.FocusEvent("focusout", { bubbles: true }) as never);
+    const settle = () => new Promise((r) => setTimeout(r, 5));
+
+    it("focus falling to the host body while Planner is visible focuses the frame once", async () => {
+      install();
+      focusOut();
+      await settle();
+      expect(focusFrame).toHaveBeenCalledTimes(1);
+    });
+
+    it("focus that moved to a real host element is left alone", async () => {
+      install();
+      const input = host.body.appendChild(hostWindow.document.createElement("input") as never) as HTMLElement;
+      input.focus();
+      expect(host.activeElement).toBe(input);
+      focusOut();
+      await settle();
+      expect(focusFrame).not.toHaveBeenCalled();
+    });
+
+    it("does nothing while Planner is hidden", async () => {
+      install();
+      visible = false;
+      focusOut();
+      await settle();
+      expect(focusFrame).not.toHaveBeenCalled();
+    });
+
+    it("does nothing when the host window has no focus (app in the background)", async () => {
+      install();
+      hostFocused = false;
+      focusOut();
+      await settle();
+      expect(focusFrame).not.toHaveBeenCalled();
+    });
+
+    it("the remover stops it, also for a check already pending", async () => {
+      const off = install();
+      focusOut();
+      off();
+      await settle();
+      focusOut();
+      await settle();
+      expect(focusFrame).not.toHaveBeenCalled();
+    });
   });
 });
