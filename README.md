@@ -257,9 +257,10 @@ npm ci
 npm run dev        # Vite dev server on http://localhost:8293 (--strictPort); removes dist/ first
 npm run preview    # serves the build on http://localhost:8294 (--strictPort)
 npm run typecheck  # tsc --noEmit
-npm test           # Vitest, src/**/*.test.ts
+npm test           # Vitest, src/**/*.test.ts and scripts/**/*.test.mjs
 npm run build      # production build into dist/
 npm run probe      # live probe and seeds; see docs/probes.md
+npm run tracker    # mirror tasks.md into the planner-project graph (see below)
 ```
 
 Load the dev server in Logseq with Settings > Advanced > Developer mode, then Plugins >
@@ -293,6 +294,29 @@ Further reading:
 - [docs/design.md](docs/design.md): visual design and theme tokens.
 - [docs/probes.md](docs/probes.md): what the live probe observed about the Logseq API.
 - [docs/manual-test.md](docs/manual-test.md): the end-to-end checklist and its results.
+
+## Project tracker graph
+
+`npm run tracker` mirrors this repository's task list into a Logseq DB graph, so Planner has
+real project data: one `#Project` (Planner), one `#Milestone` per group of tasks, and one
+`#Task` per item of [tasks.md](tasks.md) (id in the title, Status from the checkbox, Team,
+Owner, Milestone). **tasks.md is the source of truth; the graph is a copy.** Run it after each
+task; it only writes differences, so a second run changes nothing. Scheduled, Start and End are
+exact commit times (the first and last commit whose subject names `(ID)`); milestones and the
+project take the earliest start and latest end of their tasks. Groups, team and owner
+overrides live in `scripts/tracker-meta.json`; a task in tasks.md that is in no milestone stops
+the run.
+
+```bash
+npm run tracker                       # graph planner-project (created on the first run)
+npm run tracker -- --graph <name>     # another graph
+npm run tracker -- --dry-run          # print the CLI calls, write nothing
+```
+
+It drives the `logseq` CLI (no shell) and checks the CLI revision first (`--revision`, default
+`8ffbb22`). The graph is created and imported once; later changes use `logseq upsert`, so they
+work while the desktop app has the graph open. Logic and CLI shapes: `scripts/tracker-lib.mjs`,
+`scripts/tracker.mjs`.
 
 ## License
 

@@ -1,0 +1,25 @@
+{
+  "project": "Planner",
+  "page": "Planner tracker",
+  "defaultTeam": "Dev",
+  "defaultOwner": "Claude",
+  "projectOwner": "Danzu",
+  "milestones": [
+    { "key": "foundation", "title": "Foundation", "tasks": ["T00", "T01", "T02", "T03", "T04", "T05", "T06"] },
+    { "key": "views", "title": "Views", "tasks": ["T07", "T08", "T09", "T10", "T11", "T12", "N10"] },
+    { "key": "validation", "title": "Validation and review", "tasks": ["T13", "T14", "N01", "N02"] },
+    { "key": "decisions", "title": "Decisions and follow-ups", "tasks": ["N03", "N04", "N08", "N09"] },
+    { "key": "release", "title": "Release", "tasks": ["N05"] },
+    { "key": "later", "title": "Later", "tasks": ["N06", "N07"] }
+  ],
+  "tasks": {
+    "T13": { "team": "QA" },
+    "N01": { "team": "QA" },
+    "N02": { "team": "QA" },
+    "T14": { "team": "Docs" },
+    "N03": { "team": "Product", "owner": "Danzu" },
+    "N05": { "owner": "Danzu" },
+    "N06": { "status": "Backlog" },
+    "N07": { "status": "Backlog" }
+  }
+}

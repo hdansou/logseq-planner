@@ -25,7 +25,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview --port 8294 --strictPort",
-    "probe": "node scripts/probe.mjs"
+    "probe": "node scripts/probe.mjs",
+    "tracker": "node scripts/tracker.mjs"
   },
   "logseq": {
     "id": "logseq-planner",

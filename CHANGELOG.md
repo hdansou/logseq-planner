@@ -15,6 +15,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Project tracker graph (N09): `npm run tracker` mirrors tasks.md into the `planner-project` Logseq graph (a #Project, #Milestone
+  nodes, one #Task per item; Status, Team, Owner, Milestone, and Scheduled / Start / End from the git log as exact times;
+  Start and End are DateTime properties). Idempotent, `--dry-run`, metadata in `scripts/tracker-meta.json`; Team, Owner,
+  Milestone, Start and End are also added to the built-in Task tag. Tests: `scripts/tracker-lib.test.mjs`.
 - Kanban **Show** menu (N08): choose which columns of the column property show, plus "No <prop>"; the button reads
   "All" or "3 of 7". Hidden columns and their cards leave the board, lane counts count the cards shown, and at least
   one column stays shown. Stored per column property in the view config (`hiddenColumns`) and saved with the view; a
