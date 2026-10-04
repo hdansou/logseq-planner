@@ -6,7 +6,8 @@ import { loadNodesAndTasks } from "./queries";
 import { fixtureDq } from "../ui/test-fakes";
 import { titlesByUuid } from "./display-title";
 import { nestItems, viewItems } from "./layout-common";
-import { dayFocus, layoutTimeline, shownRows, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
+import { dateChanges } from "./date-edit";
+import { clampDelta, dayFocus, editedBar, layoutTimeline, shownRows, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -556,5 +557,98 @@ describe("nested (N14 step 2)", () => {
   it("a child whose parent has no row in the range is a top-level row", async () => {
     const l = await nestedLayout({ anchor: "2026-11-20" }); // parents end by 23 Oct: none of them in range
     expect(l.rows.every((r) => r.childCount === 0 && r.parent === null)).toBe(true);
+  });
+});
+
+describe("date edits (N06c)", () => {
+  const p = tag("Project");
+  const START = p.dateProps.find((x) => x.title === "Start")!;
+  const END = p.dateProps.find((x) => x.title === "End")!;
+  const DT_START = { ...START, ident: ":user.property/dt-start", type: "datetime" as const };
+  const DT_END = { ...END, ident: ":user.property/dt-end", type: "datetime" as const };
+  const node = (dates: Record<string, LocalDate>, over: Partial<PlannerNode> = {}): PlannerNode =>
+    ({ id: 1, uuid: "u1", title: "Edge", tagIds: [], tag: "", links: [], dependsOn: [], dates, choices: {}, ...over });
+  /** One node laid out with Start / End mapped to `props`, Edit dates on (unless `edit` is false). */
+  const one = (n: PlannerNode, props: { start: typeof START | null; end: typeof END | null }, zoom: Zoom, over: Partial<TimelineInput> = {}, tasks: PlannerTask[] = []) =>
+    layoutTimeline({
+      items: viewItems([n], tasks, () => ({ start: props.start?.ident ?? null, end: props.end?.ident ?? null }), statusValues), zoom, anchor: TODAY, today: TODAY,
+      now: NOW, weekStart: 0, statusValues, titles: new Map(), edit: () => props, ...over,
+    });
+
+  it("off (no `edit`): not editing, every row's edit is null", async () => {
+    const l = await layout("Project", "month");
+    expect(l.editing).toBe(false);
+    expect(l.rows.every((r) => r.edit === null && !r.pending)).toBe(true);
+  });
+
+  it("a mapped bar: move and both ends; its props are the node's own Start and End", () => {
+    const l = one(node({ [START.ident]: d("2026-10-05"), [END.ident]: d("2026-10-09") }), { start: START, end: END }, "month");
+    expect(l.editing).toBe(true);
+    expect(l.rows[0].edit).toEqual({ start: START, end: END, point: false, move: true, resizeStart: true, resizeEnd: true });
+  });
+
+  it("a clipped end cannot be resized; the visible end and the move can", () => {
+    const l = one(node({ [START.ident]: d("2026-01-01"), [END.ident]: d("2026-10-05") }), { start: START, end: END }, "week");
+    expect(l.rows[0].bar!.clipStart).toBe(true);
+    expect(l.rows[0].edit).toMatchObject({ move: true, resizeStart: false, resizeEnd: true });
+  });
+
+  it("a derived span is locked (null)", () => {
+    const task: PlannerTask = { id: 9, uuid: "t", title: "T", status: null, nodeIds: [1], isNode: false, deadline: d("2026-10-06", "10:00"), scheduled: d("2026-10-04", "09:00") };
+    const l = one(node({}), { start: START, end: END }, "month", {}, [task]);
+    expect(l.rows[0].kind).toBe("derived");
+    expect(l.rows[0].edit).toBeNull();
+  });
+
+  it("a point moves only, through the property it is mapped as (Start, or End when Start has no value)", () => {
+    expect(one(node({ [START.ident]: d("2026-10-05") }), { start: START, end: END }, "month").rows[0].edit)
+      .toEqual({ start: START, end: null, point: true, move: true, resizeStart: false, resizeEnd: false });
+    expect(one(node({ [END.ident]: d("2026-10-05") }), { start: START, end: END }, "month").rows[0].edit)
+      .toEqual({ start: null, end: END, point: true, move: true, resizeStart: false, resizeEnd: false });
+  });
+
+  it("Day zoom: a Date is locked (a day cannot move by minutes), a DateTime span is editable, a mixed one only on its DateTime end", () => {
+    expect(one(node({ [START.ident]: d(TODAY), [END.ident]: d(TODAY) }), { start: START, end: END }, "day").rows[0].edit).toBeNull();
+    expect(one(node({ [START.ident]: d(TODAY) }), { start: START, end: END }, "day").rows[0].edit).toBeNull();
+    expect(one(node({ [DT_START.ident]: d(TODAY, "09:00"), [DT_END.ident]: d(TODAY, "11:00") }), { start: DT_START, end: DT_END }, "day").rows[0].edit)
+      .toMatchObject({ move: true, resizeStart: true, resizeEnd: true });
+    expect(one(node({ [DT_START.ident]: d(TODAY, "09:00"), [END.ident]: d(TODAY) }), { start: DT_START, end: END }, "day").rows[0].edit)
+      .toMatchObject({ move: false, resizeStart: true, resizeEnd: false });
+  });
+
+  it("a pending node is flagged and not editable", () => {
+    const l = one(node({ [START.ident]: d("2026-10-05"), [END.ident]: d("2026-10-09") }), { start: START, end: END }, "month", { pending: new Set(["u1"]) });
+    expect(l.rows[0]).toMatchObject({ pending: true, edit: null });
+  });
+
+  it("clampDelta: a resize keeps one track and its start before its end; nothing leaves the range", () => {
+    const l = one(node({ [START.ident]: d("2026-10-05"), [END.ident]: d("2026-10-07") }), { start: START, end: END }, "week"); // range 20 Sep – 10 Oct
+    const r = l.rows[0];
+    expect(clampDelta(l.range, r, "end", -5)).toBe(-2); // end on the start's day: one track
+    expect(clampDelta(l.range, r, "start", 9)).toBe(2);
+    expect(clampDelta(l.range, r, "start", -3)).toBe(-3);
+    expect(clampDelta(l.range, r, "move", 10)).toBe(5); // starts on the last day of the range
+    expect(clampDelta(l.range, r, "move", -40)).toBe(-17); // ends on the first day
+    expect(editedBar(l.range, r, dateChanges(r.edit!, r, "move", 2, 1))).toEqual({ from: 17, to: 20 });
+  });
+
+  it("clampDelta: a DateTime span in day tracks cannot end before it starts on the same day", () => {
+    const l = one(node({ [DT_START.ident]: d("2026-10-05", "10:00"), [DT_END.ident]: d("2026-10-06", "09:00") }), { start: DT_START, end: DT_END }, "week");
+    expect(clampDelta(l.range, l.rows[0], "end", -1)).toBe(0); // 5 Oct 09:00 is before 10:00
+  });
+
+  it("clampDelta in Day zoom: 15-minute steps, at least one track", () => {
+    const l = one(node({ [DT_START.ident]: d(TODAY, "09:00"), [DT_END.ident]: d(TODAY, "10:00") }), { start: DT_START, end: DT_END }, "day");
+    const r = l.rows[0];
+    expect(r.bar).toMatchObject({ from: 36, to: 40 });
+    expect(clampDelta(l.range, r, "end", -10)).toBe(-3);
+    expect(editedBar(l.range, r, dateChanges(r.edit!, r, "end", -3, 96))).toEqual({ from: 36, to: 37 });
+    expect(editedBar(l.range, r, dateChanges(r.edit!, r, "move", 2, 96))).toEqual({ from: 38, to: 42 });
+  });
+
+  it("editedBar of a point is its one track", () => {
+    const l = one(node({ [END.ident]: d("2026-10-05") }), { start: START, end: END }, "month");
+    const r = l.rows[0];
+    expect(editedBar(l.range, r, dateChanges(r.edit!, r, "move", 3, 1))).toEqual({ from: r.point! + 3, to: r.point! + 4 });
   });
 });

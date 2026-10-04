@@ -4,7 +4,7 @@ import { loadTagInfos, type Dq } from "../core/schema";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 import agendaCss from "./agenda.css?inline";
 
 const TODAY = "2026-10-03";
@@ -45,7 +45,7 @@ async function setup(opts: { dq?: Dq; tagTitle?: string; today?: string } = {}) 
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
   ws = createWorkspace(root, {
-    dq: opts.dq ?? fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => opts.today ?? TODAY, kanban: noWrites, weekStart: async () => 0,
+    dq: opts.dq ?? fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => opts.today ?? TODAY, kanban: noWrites, dates: noDateWrites, weekStart: async () => 0,
   });
   await ws.open();
   await click(`[data-tag-id="${tag(opts.tagTitle ?? "Project").id}"]`);

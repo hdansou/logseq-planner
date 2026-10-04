@@ -4,7 +4,7 @@ import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
-import type { AppDeps, ChangesSdk, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
+import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /**
  * The workspace frame (skill ui-positioning, recipe 3, minus the header): fixed over the host UI, but starting at the
@@ -93,6 +93,7 @@ export const appDeps = (): AppDeps => ({
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
   kanban: kanbanWriteDeps(),
+  dates: dateWriteDeps(),
   changes: changesSdk(),
   theme: {
     later: (fn, ms) => void setTimeout(fn, ms),
@@ -216,5 +217,38 @@ export const kanbanWriteDeps = (): KanbanWriteDeps => ({
     // Pull-map keys keep the full ident (with its colon); :db/id and :db/ident come back as `id` and `ident` (docs/probes.md).
     const v = rows[0][0]?.[ident];
     return v ? { id: v.id, ident: v.ident ?? null } : null;
+  },
+});
+
+/**
+ * The node's value of a Date or DateTime property, pulled by uuid with a `#uuid` input as `readChoice` does: a Date
+ * (a journal page ref) with the page's id and journal day, the way the node query pulls it; a DateTime as is (epoch ms).
+ */
+export function dateReadQuery(ident: string, type: "date" | "datetime"): string {
+  if (!isPropertyIdent(ident)) throw new Error(`Not a full property ident: ${ident}`);
+  const attr = type === "date" ? `{${ident} [:db/id :block/journal-day]}` : ident;
+  return `[:find (pull ?b [:block/uuid ${attr}]) :in $ ?u :where [?b :block/uuid ?u]]`;
+}
+
+/**
+ * The real SDK behind a Timeline date edit (N06c). Write probe on the desktop app (2026-10-04, tasks.md N06c): a
+ * DateTime takes epoch ms; a Date takes the db id of the day's journal page, which `createJournalPage` returns (existing
+ * or created) when given local noon. The arguments go through unchanged (`writeDates` builds them); `readDate` is the check.
+ */
+export const dateWriteDeps = (): DateWriteDeps => ({
+  upsertBlockProperty: (uuid, key, value) => logseq.Editor.upsertBlockProperty(uuid, key, value),
+  createJournalPage: async (date) => {
+    const page = await logseq.Editor.createJournalPage(date);
+    return page ? { id: page.id } : null;
+  },
+  readDate: async (uuid, ident, type) => {
+    if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);
+    const rows = (await datascriptQuery(dateReadQuery(ident, type), `#uuid "${uuid}"`)) as [Record<string, unknown> | null][];
+    if (!rows.length) throw new Error(`Block ${uuid} not found when reading ${ident} back`);
+    const v = rows[0][0]?.[ident];
+    if (v === undefined || v === null) return null;
+    if (type === "datetime") return v as number;
+    const ref = v as { id: number; "journal-day"?: number };
+    return { id: ref.id, journalDay: ref["journal-day"] ?? NaN }; // no journal day: not a journal page (never equal)
   },
 });

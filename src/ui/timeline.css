@@ -109,3 +109,15 @@
 .pl-tl-child .pl-tl-label { padding-left: 24px; }
 .pl-tl-row.pl-tl-child .pl-tl-name { font-weight: 500; }
 .pl-tl-task.pl-tl-deep .pl-tl-label { padding-left: 52px; }
+
+/* N06c Edit dates: editable bars and points take pointer drags (no browser panning or text selection); the body of a
+   movable one grabs, its first / last 6 px resize; locked items keep the default cursor; a pending edit is dimmed. */
+.pl-tl-bar[data-tl-editable], .pl-tl-diamond[data-tl-editable] { touch-action: none; user-select: none; -webkit-user-select: none; }
+.pl-tl-bar[data-tl-move], .pl-tl-diamond[data-tl-move] { cursor: grab; }
+.pl-tl-bar[data-tl-locked], .pl-tl-diamond[data-tl-locked], .pl-tl-marker[data-tl-locked] { cursor: default; }
+.pl-tl-handle { position: absolute; top: 0; bottom: 0; z-index: 1; width: 6px; cursor: ew-resize; }
+.pl-tl-handle[data-tl-handle="start"] { left: 0; }
+.pl-tl-handle[data-tl-handle="end"] { right: 0; }
+.pl-tl-handle:hover, [data-tl-dragging] > .pl-tl-handle { background: var(--pl-node-hue); }
+[data-tl-dragging] { cursor: grabbing; box-shadow: 0 0 0 2px var(--pl-ring); }
+.pl-tl-bar[data-tl-pending], .pl-tl-diamond[data-tl-pending] { opacity: .6; cursor: progress; }

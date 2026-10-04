@@ -72,6 +72,7 @@ function fakeDeps() {
       onUnload: (cb: () => void) => void unload.push(cb),
     },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
+    dates: { upsertBlockProperty: async () => null, createJournalPage: async () => null, readDate: async () => null },
     hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());

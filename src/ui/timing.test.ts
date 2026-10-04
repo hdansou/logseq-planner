@@ -22,7 +22,7 @@ async function setup(withTiming = true) {
   };
   const ws: Workspace = createWorkspace(root, {
     dq: graph.dq, views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03",
-    weekStart: async () => 0, kanban: graph.writes, ...(withTiming ? { timing } : {}),
+    weekStart: async () => 0, kanban: graph.writes, dates: graph.dates, ...(withTiming ? { timing } : {}),
   });
   return { ws, root, events, graph, tags };
 }

@@ -5,7 +5,7 @@
 import { formatDay } from "../core/layout-common";
 import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineLink, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import type { Arrange } from "../core/view-config";
-import { esc, flag, segmented, viewNav } from "./html";
+import { esc, flag, segmented, toggleButton, viewNav } from "./html";
 
 export type TimelineAction =
   | { type: "zoom"; zoom: Zoom }
@@ -17,6 +17,8 @@ export type TimelineAction =
   | { type: "toggle"; nodeId: number; nested: boolean }
   /** Earlier / later summary: move the range to this day (the nearest node outside it). */
   | { type: "jump"; day: string }
+  /** N06c: the Edit dates toggle (session state). */
+  | { type: "edit" }
   | { type: "open"; uuid: string };
 
 const ZOOMS: [Zoom, string][] = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
@@ -27,6 +29,13 @@ const ARRANGE_ITEMS: [Arrange, string][] = [["date", "By date"], ["tag", "By tag
  * other zooms' widths live in timeline.css). 4 tracks = 48 px per hour.
  */
 export const DAY_TRACK_PX = 12;
+/**
+ * Track width per zoom in px: Day's is set inline (above), the others come from timeline.css (a test keeps the two in
+ * step). A drag turns its pointer distance into tracks with it (N06c): the grid's tracks are fixed widths, so no measuring.
+ */
+export const TRACK_PX: Record<Zoom, number> = { day: DAY_TRACK_PX, week: 44, month: 18, quarter: 52 / 7 };
+/** The one element every editable bar and point is described by (N06c), not text on every bar. */
+export const EDIT_HELP_ID = "pl-tl-edit-help";
 /** Day zoom: tracks shown before the first item when the view opens (30 minutes), and where an empty day opens (08:00). */
 const DAY_LEAD = 2;
 const DAY_DEFAULT_TRACK = 32;
@@ -43,29 +52,47 @@ function dayAttrs(layout: TimelineLayout, expanded: ReadonlySet<number>): string
 /** Track → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
 
-/** Range navigation and Zoom; with two or more tags (`arrange` not null, N14) also the Arrange control (`data-tl-arrange`). */
+/**
+ * Range navigation, the Edit dates toggle (N06c: `data-tl-edit`, pressed while the layout is editing) and Zoom; with two
+ * or more tags (`arrange` not null, N14) also the Arrange control (`data-tl-arrange`).
+ */
 export function renderTimelineToolbar(layout: TimelineLayout, arrange: Arrange | null): string {
   const arranged = arrange === null ? "" : segmented("Arrange", "tl-arrange", ARRANGE_ITEMS, arrange);
-  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + arranged + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
+  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + toggleButton("Edit dates", "tl-edit", layout.editing) + arranged
+    + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
 }
 
-function renderSpan(r: TimelineRow): string {
+/**
+ * A bar's or point's edit hooks (N06c): `data-tl-pending` while its edit is written; with Edit dates on, either
+ * `data-tl-editable` (+ `data-tl-move` when the body drags, described by `EDIT_HELP_ID`) or `data-tl-locked`.
+ */
+function editAttrs(r: TimelineRow, editing: boolean): string {
+  if (r.pending) return ` data-tl-pending aria-busy="true"`;
+  if (!editing) return "";
+  return r.edit ? ` data-tl-editable${flag("data-tl-move", r.edit.move)} aria-describedby="${EDIT_HELP_ID}"` : " data-tl-locked";
+}
+
+/** A resize handle at a bar's start or end (N06c): the first / last 6 px. */
+const handle = (side: "start" | "end", on: boolean) => (on ? `<span class="pl-tl-handle" data-tl-handle="${side}" aria-hidden="true"></span>` : "");
+
+function renderSpan(r: TimelineRow, editing: boolean): string {
   const uuid = esc(r.node.uuid);
   // N12: the dependencies in words, so the connectors are not the only way to know them.
   const deps = r.dependsOn.length ? `, depends on ${r.dependsOn.join(", ")}` : "";
   if (r.point !== null) {
-    return `<button type="button" class="pl-tl-diamond" data-tl-point data-tl-open="${uuid}" style="grid-column: ${col(r.point)}" aria-label="${esc(r.label + deps)}" title="${esc(r.label + deps)}"></button>`;
+    return `<button type="button" class="pl-tl-diamond" data-tl-point data-tl-open="${uuid}"${editAttrs(r, editing)} style="grid-column: ${col(r.point)}" aria-label="${esc(r.label + deps)}" title="${esc(r.label + deps)}"></button>`;
   }
   if (r.bar) {
     const b = r.bar;
     const clip = (b.clipStart ? ", continues before this range" : "") + (b.clipEnd ? ", continues after this range" : "") + deps;
     const pct = r.progress.total ? Math.round((r.progress.done / r.progress.total) * 100) : null;
-    return `<button type="button" class="pl-tl-bar" data-tl-bar data-tl-open="${uuid}" data-kind="${r.kind}"${flag("data-clip-start", b.clipStart)}${flag("data-clip-end", b.clipEnd)}`
+    return `<button type="button" class="pl-tl-bar" data-tl-bar data-tl-open="${uuid}" data-kind="${r.kind}"${flag("data-clip-start", b.clipStart)}${flag("data-clip-end", b.clipEnd)}${editAttrs(r, editing)}`
       + ` style="grid-column: ${col(b.from)} / ${col(b.to)}" aria-label="${esc(r.label + clip)}" title="${esc(r.label + clip)}">`
       + (b.clipStart ? `<span class="pl-tl-clip" data-tl-clip="start" aria-hidden="true">‹</span>` : "")
       + `<span class="pl-tl-bar-text" aria-hidden="true">${pct === null ? "" : `${pct}%`}</span>`
       + (pct === null ? "" : `<span class="pl-tl-progress" style="width: ${pct}%"></span>`)
       + (b.clipEnd ? `<span class="pl-tl-clip" data-tl-clip="end" aria-hidden="true">›</span>` : "")
+      + handle("start", !!r.edit?.resizeStart) + handle("end", !!r.edit?.resizeEnd)
       + `</button>`;
   }
   throw new Error(`timeline row ${r.title} has neither a bar nor a point`);
@@ -84,11 +111,11 @@ function renderOutside(earlier: OutsideCount, later: OutsideCount): string {
   return parts.length ? `<p class="pl-tl-summary" data-tl-outside-summary>${parts.join(`<span aria-hidden="true"> · </span>`)}</p>` : "";
 }
 
-/** A task row under its node's row; `deep` = under a child row (N14), one more indent. */
-function renderTask(t: TimelineTaskRow, nodeId: number, deep: boolean): string {
+/** A task row under its node's row; `deep` = under a child row (N14), one more indent; `editing` (N06c): markers are locked. */
+function renderTask(t: TimelineTaskRow, nodeId: number, deep: boolean, editing: boolean): string {
   const markers = t.markers.map((m) => {
     const what = `${m.kind === "deadline" ? "due" : "scheduled"} ${formatDay(m.date.day)}${m.date.time ? ` ${m.date.time}` : ""}${m.late ? ", late" : ""}`;
-    return `<span class="pl-tl-marker" data-tl-marker="${m.kind}"${flag("data-late", m.late)} style="grid-column: ${col(m.at)}" title="${esc(what)}"></span>`;
+    return `<span class="pl-tl-marker" data-tl-marker="${m.kind}"${flag("data-late", m.late)}${flag("data-tl-locked", editing)} style="grid-column: ${col(m.at)}" title="${esc(what)}"></span>`;
   }).join("");
   const undated = !t.task.scheduled && !t.task.deadline;
   return `<li class="pl-tl-row pl-tl-task${deep ? " pl-tl-deep" : ""}" data-tl-task="${t.task.id}" data-tl-parent="${nodeId}" data-status="${esc(t.status ?? "none")}"${flag("data-done", t.done)}>`
@@ -107,7 +134,7 @@ export interface TimelineShown {
  * A node's row, then (when open) its task rows and, nested (N14), its child rows with theirs. A parent (`childCount`)
  * is open unless collapsed; any other row is open when expanded. A child row carries `data-tl-child-of="<parent uuid>"`.
  */
-function renderRow(r: TimelineRow, shown: TimelineShown): string {
+function renderRow(r: TimelineRow, shown: TimelineShown, editing: boolean): string {
   const id = r.node.id;
   const nested = r.childCount > 0;
   const open = nested ? !shown.collapsed.has(id) : shown.expanded.has(id);
@@ -119,8 +146,8 @@ function renderRow(r: TimelineRow, shown: TimelineShown): string {
   const child = r.parent === null ? "" : ` data-tl-child-of="${esc(r.parent)}"`;
   return `<li class="pl-tl-row${r.parent === null ? "" : " pl-tl-child"}" data-tl-row="${id}"${child} data-cat="${r.cat}"><div class="pl-tl-label">${toggle}`
     + `<button type="button" class="pl-tl-name" data-tl-open="${esc(r.node.uuid)}" aria-label="${esc(r.label)}">${esc(r.title)}</button>${count}</div>`
-    + renderSpan(r) + `</li>`
-    + (open ? r.tasks.map((t) => renderTask(t, id, r.parent !== null)).join("") + r.children.map((c) => renderRow(c, shown)).join("") : "");
+    + renderSpan(r, editing) + `</li>`
+    + (open ? r.tasks.map((t) => renderTask(t, id, r.parent !== null, editing)).join("") + r.children.map((c) => renderRow(c, shown, editing)).join("") : "");
 }
 
 /**
@@ -201,7 +228,7 @@ function renderRows(layout: TimelineLayout, shown: TimelineShown): string {
       ? `<li class="pl-tl-row pl-tl-group" data-tl-group="${esc(r.node.tag)}"><div class="pl-tl-label"><span class="pl-tl-group-title">${esc(titles.get(r.node.tag)!)}</span></div></li>`
       : "";
     group = r.node.tag;
-    return head + renderRow(r, shown);
+    return head + renderRow(r, shown, layout.editing);
   }).join("");
 }
 
@@ -216,6 +243,11 @@ export function renderTimeline(layout: TimelineLayout, heading: string, shown: T
   const cells = columns.map((c) =>
     `<i class="pl-tl-cell"${flag("data-weekend", c.weekend)}${flag("data-week-start", c.weekStart)}${flag("data-month-start", c.monthStart)} style="grid-column: ${col(c.from)} / ${col(c.to)}"></i>`).join("");
   const today = layout.todayAt === null ? "" : `<div class="pl-tl-today" data-tl-today aria-hidden="true" style="--pl-tl-today: ${layout.todayAt}"></div>`;
+  const step = layout.zoom === "day" ? "15 minutes" : "a day";
+  const help = layout.editing
+    ? `<p id="${EDIT_HELP_ID}" data-tl-edit-help hidden>Dates can be edited: drag to move, or drag the first or last edge to change that date. `
+      + `Alt+Left and Alt+Right move it by ${step}; Alt+Shift+Left and Alt+Shift+Right change its end by ${step}.</p>`
+    : "";
   const undated = layout.undated.length
     ? `<p class="pl-tl-undated" data-tl-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-tl-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
     : "";
@@ -227,12 +259,12 @@ export function renderTimeline(layout: TimelineLayout, heading: string, shown: T
     + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
     + renderLinks(layout.links)
     + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${renderRows(layout, shown)}</ul>`
-    + today + `</div>` + undated;
+    + today + help + `</div>` + undated;
 }
 
 /** The action a click on `target` asks for, or null when it is not a Timeline control. */
 export function timelineAction(target: Element): TimelineAction | null {
-  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-arrange], [data-tl-nav], [data-tl-toggle], [data-tl-jump], [data-tl-open]");
+  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-arrange], [data-tl-nav], [data-tl-toggle], [data-tl-jump], [data-tl-edit], [data-tl-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.tlZoom) return { type: "zoom", zoom: d.tlZoom as Zoom };
@@ -240,5 +272,6 @@ export function timelineAction(target: Element): TimelineAction | null {
   if (d.tlNav) return d.tlNav === "today" ? { type: "today" } : { type: "nav", dir: d.tlNav === "prev" ? -1 : 1 };
   if (d.tlToggle) return { type: "toggle", nodeId: Number(d.tlToggle), nested: el.hasAttribute("data-tl-nested") };
   if (d.tlJump) return { type: "jump", day: d.tlDay! };
+  if (el.hasAttribute("data-tl-edit")) return { type: "edit" };
   return { type: "open", uuid: d.tlOpen! };
 }

@@ -11,7 +11,10 @@
 // place exactly as before N10. One-date nodes and task markers sit at their start track (Date-only: the day's first).
 // Today line: today's track in the day zooms; in Day, the current time (`now`) as a fractional track, on today only.
 // The Day range is the anchor's day; Prev / Next move it by one day.
-import type { ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
+// Date edits (N06c): with `edit` given, each row says what of its span can be edited (`SpanEdit`), and `clampDelta` /
+// `editedBar` turn a drag of N tracks into the dates and the bar the layout would draw for them.
+import type { ClosedValue, DateProp, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
+import { dateChanges, editedSpan, type DateChange, type EditMode, type SpanEdit } from "./date-edit";
 import { displayTitle } from "./display-title";
 import {
   addDays, categoryOf, compareDates, daysBetween, dueDate, formatDay, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState, weekday,
@@ -125,6 +128,13 @@ export interface TimelineRow {
   childCount: number;
   /** Nested: the parent row's node uuid for a child row; null for a top-level row. */
   parent: string | null;
+  /**
+   * Date edits (N06c), while the Timeline edits dates: what of its span can be edited; null when nothing can (a span
+   * derived from tasks, a Date point in Day zoom, a write pending) and always outside edit mode.
+   */
+  edit: SpanEdit | null;
+  /** A date edit of this node is being written (N06c): it shows at its new place, without handles. */
+  pending: boolean;
 }
 
 /** A dependency connector (N12): from the dependency's row to its dependent's row, both by node uuid. */
@@ -175,7 +185,12 @@ export interface TimelineLayout {
    * null when today is out of range.
    */
   todayAt: number | null;
+  /** The Timeline edits dates (N06c: the session's Edit dates toggle): rows carry `edit`. */
+  editing: boolean;
 }
+
+/** A node's own mapped Start and End properties (its tag's mapping in the view), null for an unmapped one. */
+export type EditProps = (node: PlannerNode) => { start: DateProp | null; end: DateProp | null };
 
 export interface TimelineInput {
   items: ViewItem[];
@@ -200,6 +215,10 @@ export interface TimelineInput {
   nest?: ReadonlyMap<number, number>;
   /** Nested: parents whose children are hidden (session state); their children have no row. */
   collapsed?: ReadonlySet<number>;
+  /** Edit dates on (N06c): each node's mapped Start / End properties; absent = read-only rows (`edit` null). */
+  edit?: EditProps;
+  /** Node uuids whose date edit is being written (N06c). */
+  pending?: ReadonlySet<string>;
 }
 
 // ---------------------------------------------------------------- range and columns
@@ -317,6 +336,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     const { bar } = placed;
     const title = displayTitle(node.title, input.titles);
     const isPoint = span.kind === "point";
+    const pending = input.pending?.has(node.uuid) ?? false;
     rows.push({
       node, title, kind: span.kind, start, end, progress,
       cat: categoryOf(node.uuid),
@@ -325,6 +345,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
       tasks: [...tasks].sort((a, b) => byTaskOrder(a, b, input.titles)).map((t) => taskRow(t, input, range)),
       label: nodeLabel(title, span, progress),
       dependsOn: [], children: [], childCount: 0, parent: null,
+      edit: input.edit && !pending ? spanEdit(span.kind, node, input.edit(node), bar, input.zoom) : null, pending,
     });
   }
   rows.sort((a, b) => compareDates(a.start, b.start) || compareDates(a.end, b.end) || a.title.localeCompare(b.title));
@@ -339,7 +360,59 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     zoom: input.zoom, range, rows: top, groups, undated, earlier, later, links: linkRows(shownRows(top), input),
     columns: columnsOf(input.zoom, range, input.today, input.now, input.weekStart),
     todayAt: todayAt(input.zoom, range, input.today, input.now),
+    editing: input.edit !== undefined,
   };
+}
+
+// ---------------------------------------------------------------- date edits (N06c)
+
+/**
+ * What of a span can be edited: only the node's own mapped dates (a span derived from tasks: nothing). A Date value
+ * cannot move by 15 minutes, so in Day zoom it is locked; an end clipped at the range's edge cannot be resized (its
+ * handle is off screen), the visible end still can, and the bar can still move. A point moves only. Null when nothing
+ * can be edited.
+ */
+function spanEdit(kind: TimelineRow["kind"], node: PlannerNode, props: ReturnType<EditProps>, bar: Placement, zoom: Zoom): SpanEdit | null {
+  if (kind === "derived") return null;
+  const ok = (p: DateProp | null) => p !== null && !(zoom === "day" && p.type === "date");
+  if (kind === "point") {
+    const viaStart = props.start !== null && node.dates[props.start.ident] !== undefined;
+    const prop = viaStart ? props.start : props.end;
+    if (!ok(prop)) return null;
+    return { start: viaStart ? prop : null, end: viaStart ? null : prop, point: true, move: true, resizeStart: false, resizeEnd: false };
+  }
+  const edit = { start: props.start, end: props.end, point: false, move: ok(props.start) && ok(props.end),
+    resizeStart: ok(props.start) && !bar.clipStart, resizeEnd: ok(props.end) && !bar.clipEnd };
+  return edit.move || edit.resizeStart || edit.resizeEnd ? edit : null;
+}
+
+/** Tracks per day of the range: 1, or 96 in Day zoom. */
+export const perDayOf = (range: TimelineRange): 1 | 96 => (range.tracks / range.days === 1 ? 1 : 96);
+
+/**
+ * The delta nearest to `delta` (towards 0) that `mode` can take on `row` (an editable row): the result keeps at least
+ * one track on the range (nothing is dragged off screen), and a resized span keeps at least one track and its start
+ * on or before its end. 0 when no step fits.
+ */
+export function clampDelta(range: TimelineRange, row: TimelineRow, mode: EditMode, delta: number): number {
+  const edit = row.edit!;
+  const perDay = perDayOf(range);
+  const fits = (d: number) => {
+    const { start, end } = editedSpan(edit, row, dateChanges(edit, row, mode, d, perDay));
+    if ("outside" in place(range, start, end)) return false;
+    if (mode === "move") return true;
+    return trackOf(range, end, "end") - trackOf(range, start, "start") >= 1 && compareDates(start, end) <= 0;
+  };
+  for (let d = Math.trunc(delta); d !== 0; d -= Math.sign(d)) if (fits(d)) return d;
+  return 0;
+}
+
+/** The tracks the layout draws `row` on with `changes` applied (a point: its one track); throws when it falls off the range. */
+export function editedBar(range: TimelineRange, row: TimelineRow, changes: DateChange[]): { from: number; to: number } {
+  const { start, end } = editedSpan(row.edit!, row, changes);
+  const placed = place(range, start, end);
+  if ("outside" in placed) throw new Error(`"${row.title}" would leave the range`);
+  return row.edit!.point ? { from: placed.bar.from, to: placed.bar.from + 1 } : { from: placed.bar.from, to: placed.bar.to };
 }
 
 /** Nested: each row whose parent has a row goes under it (in date order); the rest are the top-level rows. */

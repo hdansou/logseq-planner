@@ -146,6 +146,19 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   row in the range (after filters) are drawn. One neutral colour; lines never take the pointer. A bar or point with
   dependencies adds ", depends on A, B" to its label, so the relation is not visual only. No dragging to create or edit
   dependencies, no connectors in other views, no critical path, no lag / lead.
+- **Edit dates** (N06c; v1 was read-only by the owner's decision): a toolbar toggle, off by default, session state only
+  (not saved with a view). Workspace and sidebar surfaces only, never the in-page block. When on: drag a bar's body to
+  move it (Start and End shift by the same number of tracks), drag its first or last 6 px to change that end only; a
+  one-date point moves. Deltas snap to the zoom's track (a day; 15 minutes in Day zoom); a span keeps at least one track
+  and its start on or before its end, and nothing is dragged off the range. A drag under 4 px is a click (opens the
+  node); Escape or a cancelled pointer aborts with no write. Only the node's own mapped Start / End are written: spans
+  derived from tasks, task markers and Date values in Day zoom are locked (default cursor, no handles); a bar clipped at
+  an edge has no handle on that side. A DateTime keeps its time of day when moved by days (local calendar arithmetic).
+  Keys on a focused bar: Alt+Left / Right move it one track, Alt+Shift+Left / Right change its End (its Start when only
+  the Start can change). Writes: DateTime = epoch ms, Date = the day's journal page id (`createJournalPage` at local
+  noon, so it may create that journal page); each read back; optimistic (the bar shows its new place, pending, until the
+  write settles); on failure the bar returns and the error bar says why; when the second of two writes fails the first
+  is put back and the error says whether that worked (as a Kanban move).
 - Only nodes that touch the range get a row. The dated nodes wholly outside it are counted on
   one line above the grid ("412 earlier · 1,105 later"); each side is a button that moves the
   range to the nearest of those nodes (approved 2026-10-03, T13a: at 2,000 nodes the out-of-range
@@ -202,8 +215,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   (no `pull [*]`), and the task query is bound to tasks that reference a node of the view's tags
   (one node query and one task query per load, the tags' entity ids as one collection input). Date (journal ref) and DateTime (ms)
   both normalised to local ISO days; DateTime keeps HH:MM for labels.
-- Writes: saved views (hidden string property, schema ensured before each write) and Kanban
-  moves (closed-value property write). Nothing else.
+- Writes: saved views (hidden string property, schema ensured before each write), Kanban
+  moves (closed-value property write) and, with Edit dates on, Timeline date edits (Date / DateTime property write,
+  N06c). Nothing else.
 - Performance target: up to ~2,000 nodes of the chosen tags (their union), loaded at once and filtered in
   the plugin. First view < 1 s; redraw after a change < 300 ms.
 - Workspace frame per the skill's ui-positioning recipe, but starting at the host header's lower edge (top and
@@ -213,7 +227,8 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 
 ## Non-goals (v1)
 
-- Dragging or resizing to change dates; a detail/edit panel.
+- A detail/edit panel. (Dragging or resizing to change dates was a v1 non-goal; it is in scope since N06c, behind the
+  Timeline's Edit dates toggle.)
 - Views defined by a free query; different filters per tag.
 - Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.
 - Kanban manual card order; Agenda ranges other than 14 days.

@@ -56,16 +56,18 @@ Rules that hold across the tree:
 | `src/core/nodes.ts` | `resolveSpan`, `rollup`, `isDone`, `isCanceled`, `filterNodes`, `tasksOf`. |
 | `src/core/display-title.ts` | `displayTitle`: inline `[[uuid]]` references shown as the node's title, `(link)` when unknown. |
 | `src/core/layout-common.ts` | Shared by the layouts: day arithmetic on UTC midnights, formatting, `weekStartFromHost`, `categoryOf`, `viewItems`, `nestItems` (parents and children, N14), task and node labels. |
-| `src/core/timeline-layout.ts` | `timelineRange`, `shiftAnchor`, `layoutTimeline`: columns, rows for nodes in range, `earlier` and `later` counts, undated list. |
+| `src/core/timeline-layout.ts` | `timelineRange`, `shiftAnchor`, `layoutTimeline`: columns, rows for nodes in range, `earlier` and `later` counts, undated list. With Edit dates on (N06c) each row's `edit` (`SpanEdit`: which props, move / resize start / resize end) and `pending`; `clampDelta`, `editedBar`, `perDayOf`. |
+| `src/core/date-edit.ts` | Timeline date edits (N06c): `shiftDate` (local calendar / wall-clock arithmetic, DST-safe), `epochOf` (local → epoch ms in the injected zone), `journalArg` (local noon), `dateChanges`, `editedSpan`, `editedNode`, `writeDates` (write, read back, roll back). |
+| `src/core/write.ts` | `writeKey` and `writeInOrder`: the ordered write with its roll-back and error wording, shared by Kanban moves and date edits. |
 | `src/core/calendar-layout.ts` | `calendarRange`, `shiftCalendarAnchor`, `layoutCalendar`: week rows, bands on stable lanes, chips, `MONTH_SLOTS`. |
 | `src/core/agenda.ts` | `layoutAgenda`: buckets or node groups, done and late logic, sort. |
 | `src/core/kanban.ts` | `layoutKanban`, `findCell`, `cardCell`, `moveDescriptor`, `movedNode`, `writeMove` (write and read back), `tagLaneProp` (read-only Tag swimlanes, N14). |
 | `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, `withTags`, `withKnownTags`, `withDefaults`, versioned JSON (with the pre-N14 migration), `toChoiceFilters`. |
-| `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
+| `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, Timeline date edits (N06c: pointer drag with capture, Alt+Arrow keys, Escape abort), `refresh()`. |
 | `src/ui/view-area.ts` | `renderViewArea`: a view config, its loaded data and the clock to the view's HTML and toolbar HTML, empty states included; `ViewSession`; `readViewData` / `viewData`, the loader. Shared by the workspace and the in-page block (N06b), so the two cannot drift. |
 | `src/ui/block.ts` | In-page block (N06b): macro arguments → view name, lookup, message blocks, `readOnly` (the view's HTML without interactive-only markup, openers wired to `data-on-click`), `viewBlock`, and `createBlocks`: the registry of live slots and the draw passes. |
 | `src/ui/block-style.ts`, `block.css` | In-page block styles (N06b): `scopeCss`, `hostTokenCss`, `blockStyle` (provided to the host once). |
-| `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`. |
+| `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`; `TRACK_PX` (track width per zoom, what a drag divides by); the Edit dates toggle, handles, `data-tl-locked` / `data-tl-pending` and the one description (`EDIT_HELP_ID`) (N06c). |
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
 | `src/ui/agenda.ts`, `agenda.css` | Agenda layout to HTML; `agendaAction`; `AGENDA_GROUP_PAGE` (100). |
 | `src/ui/kanban.ts`, `kanban.css` | Kanban layout to HTML; `kanbanAction`; `KANBAN_CELL_PAGE` (50). |
@@ -246,12 +248,26 @@ deleted on another device appear.
    from the graph whether the write worked or not. A failed write puts the card back and
    shows the error.
 
+**Timeline date edit** (N06c; `src/core/date-edit.ts` `writeDates`, deps from `dateWriteDeps()`):
+
+1. With Edit dates on, `layoutTimeline` gets each node's mapped Start / End props (`EditProps`, from the view's
+   mapping and the tag's `dateProps`, which carry the Date / DateTime type) and gives each row a `SpanEdit` or null.
+2. A pointer drag on a bar (pointer capture; `pointerdown` / `move` / `up` / `cancel` delegated on the root) turns its
+   horizontal distance into tracks with `TRACK_PX[zoom]` (fixed track widths, no measuring), `clampDelta` keeps it
+   valid, and only the bar's inline `grid-column` changes (`editedBar`); renders and live refreshes wait (`busy`). Under
+   4 px it is a click. Escape (`Workspace.escape`) or `pointercancel` restore the bar and write nothing.
+3. On the drop (or Alt+Arrow), `dateChanges` gives the new values (`shiftDate`); the workspace shows them at once
+   (`State.datePending`, `editedNode`), runs `writeDates`, then reloads from the graph whether it worked or not.
+4. `writeDates`: DateTime → `upsertBlockProperty(uuid, key, epochOf(value, zone))`; Date →
+   `createJournalPage("YYYY-MM-DDT12:00:00")`, then the page's db id. Each is read back (`readDate`: the pull the node
+   query uses; a Date also by journal day); the second of two failing puts the first back (`writeInOrder`).
+
 ## State: workspace or saved view
 
 | Kept in | What |
 |---|---|
 | `ViewConfig` (saved with a view) | tags (selection order), child tags on or off, Start and End per tag, done values, filters (the Tag filter under `"@tag"`); Timeline zoom and arrangement; Calendar layout; Agenda group by and show done; Kanban column property, swimlane property (or Tag), sort. Tags and properties by ident, closed values by uuid (entity ids differ per device). Versioned JSON (`v: 1`). |
-| Workspace `State`, session only | loaded tags, nodes, tasks and titles; saved views; the open popover and error; anchor day (shared by Timeline and Calendar, kept when a saved view opens); expanded Timeline rows; collapsed nested parents (N14); unfolded Agenda buckets and the Agenda group count; Kanban cards shown per cell; pending moves; the card whose Move menu is open; week start; whether the built-in tag group is open. |
+| Workspace `State`, session only | loaded tags, nodes, tasks and titles; saved views; the open popover and error; anchor day (shared by Timeline and Calendar, kept when a saved view opens); expanded Timeline rows; collapsed nested parents (N14); unfolded Agenda buckets and the Agenda group count; Kanban cards shown per cell; pending moves; the card whose Move menu is open; week start; whether the built-in tag group is open; the Timeline's Edit dates toggle and pending date edits (N06c). |
 | `src/storage.ts` cache | the saved-view list. |
 
 ## Dependency-injection seams
@@ -289,6 +305,8 @@ recorded in tasks.md.
 |---|---|
 | Read back every write (`storage.ts`, `writeMove`). | `upsertBlockProperty` resolves `null` on success and on failure (T01). A uuid or ident string as a value silently clears it. |
 | Kanban writes use the full ident without the colon and the closed value's entity id. | These forms worked live. An unqualified key created a plugin property (T01). |
+| Date edits write a DateTime as epoch ms and a Date as the day's journal page id, asking `createJournalPage` for local noon. | The write probe (N06c): a Date property rejects a journal-day number, an ISO string and ms; a bare "YYYY-MM-DD" gave the previous day west of UTC. |
+| A drag's track count comes from the zoom's fixed track width (`TRACK_PX`), not from measured rects. | The grid's tracks are fixed widths, and the tests (happy-dom, no layout) can drive drags; a test keeps `TRACK_PX` and timeline.css in step (N06c). |
 | The empty placeholder (`:logseq.property/empty-placeholder`) means "no value" in normalisation, filters and the removal read-back. | Removing a built-in Status does not retract it; the host sets the placeholder. The read-back first reported that as a failure (T11). |
 | Look up the live "Planner views" page before every write and exclude `deleted-at`. | A page in Recycle still matched the page query, and the host appended into it without error (T06, T07). A same-titled recycled page makes `createPage` return it and create nothing, so the error names Recycle. |
 | Re-resolve theme tokens at 250 ms and 1 s after a theme change; the last call wins. | `theme-changed` fires when the host injects the stylesheet, so a first resolve can keep the previous theme's values (T02). |

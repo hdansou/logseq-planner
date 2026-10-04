@@ -5,10 +5,11 @@ import { createViewStore } from "../storage";
 import type { PlannerNode, TagInfo } from "../types";
 import { viewItems } from "../core/layout-common";
 import { createWorkspace, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
-import { DAY_TRACK_PX, drawLinks, linkPath, renderTimeline } from "./timeline";
+import { DAY_TRACK_PX, drawLinks, EDIT_HELP_ID, linkPath, renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 import { layoutTimeline } from "../core/timeline-layout";
+import { loadNodesAndTasks } from "../core/queries";
 
 /** A layout with no items (range of today, Month), to render summaries alone. */
 const emptyLayout = () => layoutTimeline({ items: [], zoom: "month", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
@@ -48,7 +49,7 @@ beforeEach(async () => {
   document.body.append(root);
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
-  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, time: () => "13:30", kanban: noWrites, weekStart: async () => 0 });
+  ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, time: () => "13:30", kanban: noWrites, dates: noDateWrites, weekStart: async () => 0 });
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);
 });
@@ -444,5 +445,60 @@ describe("dependency connectors (N12)", () => {
     expect(timelineCss).toMatch(/\.pl-tl-links\s*\{[^}]*position:\s*absolute[^}]*pointer-events:\s*none/);
     expect(timelineCss).toMatch(/\.pl-tl-links\s*\{[^}]*z-index:\s*1/);
     expect(timelineCss).toMatch(/\.pl-tl-link\s*\{[^}]*stroke-width:\s*1\.5/);
+  });
+});
+
+describe("Edit dates markup (N06c)", () => {
+  /** The fixture Project nodes laid out (Month), Edit dates on when `edit` is set. */
+  async function layoutOf(editing: boolean, pending: string[] = []) {
+    const p = tag("Project");
+    const start = p.dateProps.find((x) => x.title === "Start")!;
+    const end = p.dateProps.find((x) => x.title === "End")!;
+    const { nodes, tasks } = await loadNodesAndTasks(fixtureDq(), tags, [p], { childTags: true, zone: () => -300 });
+    return layoutTimeline({
+      items: viewItems(nodes, tasks, () => ({ start: start.ident, end: end.ident }), []), zoom: "month", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0,
+      statusValues: [], titles: new Map(), ...(editing ? { edit: () => ({ start, end }) } : {}), pending: new Set(pending),
+    });
+  }
+  const html = (s: string) => {
+    const d = document.createElement("div");
+    d.innerHTML = s;
+    return d;
+  };
+
+  it("off: no handles, no editable or locked marks, no description; the toggle unpressed", async () => {
+    const l = await layoutOf(false);
+    const d = html(renderTimeline(l, "#Project", NONE_SHOWN));
+    expect(d.querySelector("[data-tl-handle], [data-tl-editable], [data-tl-locked], [data-tl-edit-help], [aria-describedby]")).toBeNull();
+    expect(html(renderTimelineToolbar(l, null)).querySelector("[data-tl-edit]")!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("on: editable bars carry handles inside and the one description; points move only; the toggle pressed", async () => {
+    const l = await layoutOf(true);
+    const d = html(renderTimeline(l, "#Project", NONE_SHOWN));
+    const bar = d.querySelector<HTMLElement>(`[data-tl-bar][data-tl-open="${SITE}"]`)!;
+    expect([bar.hasAttribute("data-tl-editable"), bar.hasAttribute("data-tl-move"), bar.getAttribute("aria-describedby")]).toEqual([true, true, EDIT_HELP_ID]);
+    expect([...bar.querySelectorAll("[data-tl-handle]")].map((h) => [h.getAttribute("data-tl-handle"), h.getAttribute("aria-hidden")])).toEqual([["start", "true"], ["end", "true"]]);
+    const pt = d.querySelector<HTMLElement>("[data-tl-point]")!;
+    expect([pt.hasAttribute("data-tl-editable"), pt.hasAttribute("data-tl-move"), pt.querySelector("[data-tl-handle]")]).toEqual([true, true, null]);
+    expect(d.querySelectorAll(`#${EDIT_HELP_ID}[hidden]`)).toHaveLength(1);
+    expect(html(renderTimelineToolbar(l, null)).querySelector("[data-tl-edit]")!.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("a pending bar: flagged busy, no handles, neither editable nor locked", async () => {
+    const d = html(renderTimeline(await layoutOf(true, [SITE]), "#Project", NONE_SHOWN));
+    const bar = d.querySelector<HTMLElement>(`[data-tl-bar][data-tl-open="${SITE}"]`)!;
+    expect([bar.hasAttribute("data-tl-pending"), bar.getAttribute("aria-busy"), bar.querySelector("[data-tl-handle]"), bar.hasAttribute("data-tl-editable"), bar.hasAttribute("data-tl-locked")])
+      .toEqual([true, "true", null, false, false]);
+  });
+
+  it("Day zoom: the description speaks of 15 minutes", async () => {
+    const l = { ...(await layoutOf(true)), zoom: "day" as const };
+    expect(html(renderTimeline(l, "#Project", NONE_SHOWN)).querySelector(`#${EDIT_HELP_ID}`)!.textContent).toContain("15 minutes");
+  });
+
+  it("the toggle is a Timeline action", () => {
+    const b = html(renderTimelineToolbar(emptyLayout(), null)).querySelector("[data-tl-edit]")!;
+    expect(timelineAction(b)).toEqual({ type: "edit" });
   });
 });

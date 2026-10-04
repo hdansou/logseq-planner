@@ -6,7 +6,7 @@ import { createViewStore } from "../storage";
 import type { StorageDeps, Surface, TagInfo } from "../types";
 import { createWorkspace, initialTag, NARROW_MEDIA, type Workspace } from "./workspace";
 import { visibleData } from "./view-area";
-import { DEPENDS_ON, fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { DEPENDS_ON, fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 import { DAY_TRACK_PX } from "./timeline";
 import { loadNodes, loadNodesAndTasks, tasksQuery, TITLES_QUERY } from "../core/queries";
 import { Window } from "happy-dom";
@@ -33,7 +33,7 @@ const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?
 async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number>; time?: () => string; setSurface?: (surface: Surface) => void } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: opts.time ?? (() => "13:30"), kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0), setSurface: opts.setSurface });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: opts.time ?? (() => "13:30"), kanban: noWrites, dates: noDateWrites, weekStart: opts.weekStart ?? (async () => 0), setSurface: opts.setSurface });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -568,7 +568,7 @@ describe("panel drawer at narrow widths (N13)", () => {
     viewport(500);
     const store = createViewStore(fakeStorage());
     const openNode = vi.fn();
-    const ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => "2026-10-03", time: () => "13:30", kanban: noWrites, weekStart: async () => 0 });
+    const ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => "2026-10-03", time: () => "13:30", kanban: noWrites, dates: noDateWrites, weekStart: async () => 0 });
     await ws.open();
     await click(ws, "[data-action=toggle-panel]");
     await click(ws, "[data-tl-open]");
@@ -879,7 +879,7 @@ describe("a throwing render never jams the action queue (T14)", () => {
   };
   const make = async (clock: ReturnType<typeof flakyToday>, weekStart = async () => 0) => {
     const onClose = vi.fn();
-    const ws = createWorkspace(root, { dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose, openNode: vi.fn(), zone: () => -300, today: clock.today, kanban: noWrites, weekStart });
+    const ws = createWorkspace(root, { dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose, openNode: vi.fn(), zone: () => -300, today: clock.today, kanban: noWrites, dates: noDateWrites, weekStart });
     await ws.open();
     return { ws, onClose };
   };

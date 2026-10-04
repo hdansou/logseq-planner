@@ -47,6 +47,8 @@ export interface AppDeps {
   storage: StorageDeps;
   /** The SDK behind Kanban moves. */
   kanban: KanbanWriteDeps;
+  /** The SDK behind Timeline date edits (N06c). */
+  dates: DateWriteDeps;
   /** The SDK behind live updates (T12). */
   changes: ChangesSdk;
   /** The host's document when the frame is same-origin with it (desktop app), else null (web app, dev server): where unused keys are forwarded (N16). */
@@ -286,4 +288,25 @@ export interface KanbanWriteDeps {
    * null when the attribute is absent. After removing a built-in property it can be the empty placeholder (seen live).
    */
   readChoice(uuid: string, ident: string): Promise<{ id: number; ident: string | null } | null>;
+}
+
+/**
+ * The SDK calls a Timeline date edit needs (N06c); `src/sdk.ts` supplies the real ones, tests pass fakes. Write probe
+ * (2026-10-04, desktop app): a DateTime property takes epoch ms and reads back the same number; a Date property takes
+ * the db id of the day's journal page (a journal day number, an ISO string or ms are rejected). Every write is read back.
+ */
+export interface DateWriteDeps {
+  /** `logseq.Editor.upsertBlockProperty(uuid, key, value)`: `key` = full ident without the leading colon; `value` = epoch ms (DateTime) or the journal page's db id (Date). */
+  upsertBlockProperty(uuid: string, key: string, value: number): Promise<unknown>;
+  /**
+   * `logseq.Editor.createJournalPage(date)`: the day's journal page, existing or created. Pass local noon
+   * (`"YYYY-MM-DDT12:00:00"`): a bare `"YYYY-MM-DD"` lands on the previous day west of UTC (probe). Null when the host
+   * returned nothing.
+   */
+  createJournalPage(date: string): Promise<{ id: number } | null>;
+  /**
+   * The node's value of the Date or DateTime property `ident` (with its leading colon) now: epoch ms for a DateTime, the
+   * journal page's db id and journal day (20261201) for a Date; null when the attribute is absent.
+   */
+  readDate(uuid: string, ident: string, type: "date" | "datetime"): Promise<number | { id: number; journalDay: number } | null>;
 }

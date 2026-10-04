@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, HEADBAR, hostWeekStart, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, dateReadQuery, dateWriteDeps, HEADBAR, hostWeekStart, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -184,5 +184,44 @@ describe("sidebar surface (N06a)", () => {
     vi.stubGlobal("logseq", { App: { setRightSidebarVisible } });
     appDeps().setRightSidebarVisible(true);
     expect(setRightSidebarVisible).toHaveBeenCalledWith(true);
+  });
+});
+
+describe("date writes (N06c; write probe 2026-10-04)", () => {
+  const UUID = "6a000000-0000-4000-8000-000000000001";
+  const START = ":user.property/start-Sd0PMVjj";
+
+  it("passes the key and the value through; asks the journal page with the argument as given and returns its id", async () => {
+    const upsertBlockProperty = vi.fn(async () => null);
+    const createJournalPage = vi.fn(async () => ({ id: 412, uuid: "x", journalDay: 20261201 }));
+    vi.stubGlobal("logseq", { Editor: { upsertBlockProperty, createJournalPage } });
+    await dateWriteDeps().upsertBlockProperty(UUID, "user.property/start-Sd0PMVjj", 1791041400000);
+    expect(upsertBlockProperty).toHaveBeenCalledWith(UUID, "user.property/start-Sd0PMVjj", 1791041400000);
+    expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toEqual({ id: 412 });
+    expect(createJournalPage).toHaveBeenCalledWith("2026-12-01T12:00:00");
+    createJournalPage.mockResolvedValueOnce(null as never);
+    expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toBeNull();
+  });
+
+  it("reads a Date back as its journal page id and day, a DateTime as epoch ms, by uuid with a #uuid input", async () => {
+    const sent: unknown[][] = [];
+    let rows: unknown[] = [[{ uuid: UUID, [START]: { id: 199, "journal-day": 20260923 } }]];
+    vi.stubGlobal("logseq", { DB: { datascriptQuery: async (...args: unknown[]) => (sent.push(args), rows) } });
+    expect(await dateWriteDeps().readDate(UUID, START, "date")).toEqual({ id: 199, journalDay: 20260923 });
+    expect(sent[0]).toEqual([`[:find (pull ?b [:block/uuid {${START} [:db/id :block/journal-day]}]) :in $ ?u :where [?b :block/uuid ?u]]`, `#uuid "${UUID}"`]);
+    rows = [[{ uuid: UUID, [START]: 1791041400000 }]];
+    expect(await dateWriteDeps().readDate(UUID, START, "datetime")).toBe(1791041400000);
+    expect(sent[1][0]).toBe(`[:find (pull ?b [:block/uuid ${START}]) :in $ ?u :where [?b :block/uuid ?u]]`);
+    expect(dateReadQuery(START, "datetime")).toBe(sent[1][0]);
+  });
+
+  it("an absent value reads as null; a missing block, a malformed ident or uuid fails", async () => {
+    let rows: unknown[] = [[{ uuid: UUID }]];
+    vi.stubGlobal("logseq", { DB: { datascriptQuery: async () => rows } });
+    expect(await dateWriteDeps().readDate(UUID, START, "date")).toBeNull();
+    rows = [];
+    await expect(dateWriteDeps().readDate(UUID, START, "date")).rejects.toThrow(/not found/);
+    expect(() => dateReadQuery("user.property/start", "date")).toThrow(/ident/);
+    await expect(dateWriteDeps().readDate("not-a-uuid", START, "datetime")).rejects.toThrow(/uuid/);
   });
 });

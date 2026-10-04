@@ -36,6 +36,22 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
 
 ### Added
 
+- Edit dates in the Timeline (N06c): an **Edit dates** toggle in the Timeline toolbar (`data-tl-edit`, `aria-pressed`;
+  off by default, session state, never saved with a view; workspace and sidebar, never the in-page block). When on,
+  drag a bar to move its Start and End together, drag its first or last 6 px (`data-tl-handle="start|end"`) to change
+  one end, drag a diamond to move its date; deltas snap to the zoom's track (a day, or 15 minutes in Day zoom), a span
+  keeps one track and its order, nothing leaves the range; only the bar's inline placement changes during the drag
+  (pointer capture, no HTML5 drag), the live refresh waits; under 4 px is a click; Escape or `pointercancel` aborts.
+  Alt+Left / Right on a focused bar moves it one track, Alt+Shift+Left / Right changes its End (Start when only that
+  end can change); handled, so never forwarded to Logseq; one description (`#pl-tl-edit-help`) names the keys. Locked
+  (`data-tl-locked`, default cursor, no handles): spans derived from tasks, task markers, Date values in Day zoom; a
+  clipped end has no handle. Writes: DateTime as epoch ms keeping the time of day (local calendar arithmetic, DST-safe),
+  Date as the day's journal page id (`createJournalPage` at local noon, which may create the page); each read back
+  (a Date also by journal day); optimistic with `data-tl-pending`; a failure returns the bar and shows the error; when
+  the second of two writes fails the first is put back and the error says whether that worked. New
+  `src/core/date-edit.ts`, `src/core/write.ts` (`writeInOrder`, now also behind `writeMove`), `dateWriteDeps()` in
+  src/sdk.ts. Not checked live yet (docs/manual-test.md, section N).
+
 - In-page block (N06b): `{{renderer :planner, <saved view name>}}` shows a read-only picture of a saved view in a page,
   with a header (name, tags, **Open in Planner**), drawn by the same `renderViewArea` as the workspace's view area
   (`src/ui/view-area.ts`, extracted for it). Clicks reach the plugin through `data-on-click` model handlers

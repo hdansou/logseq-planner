@@ -5,7 +5,7 @@ import { defaultViewConfig, validateViewConfig, VIEW_KINDS } from "../core/view-
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { AGENDA_GROUP_PAGE } from "./agenda";
-import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 import { blockSession, readViewData, renderViewArea, type Now, type ViewSession } from "./view-area";
 import { createWorkspace } from "./workspace";
 
@@ -13,7 +13,7 @@ const NOW: Now = { today: "2026-10-03", time: "13:30", weekStart: 0 };
 /** The session a freshly opened workspace has. */
 const workspaceSession = (): ViewSession => ({
   anchor: null, expanded: new Set(), collapsed: new Set(), agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE,
-  kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null,
+  kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null, editDates: false, datePending: new Map(),
 });
 /** HTML as the DOM serialises it (boolean attributes gain `=""`). */
 const normal = (html: string) => {
@@ -35,7 +35,7 @@ describe("renderViewArea (N06b: shared by the workspace and the in-page block)",
     const root = document.createElement("div");
     document.body.append(root);
     const ws = createWorkspace(root, { dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300,
-      today: () => NOW.today, time: () => NOW.time, kanban: noWrites, weekStart: async () => NOW.weekStart });
+      today: () => NOW.today, time: () => NOW.time, kanban: noWrites, dates: noDateWrites, weekStart: async () => NOW.weekStart });
     await ws.open();
     root.querySelector<HTMLElement>(`[data-view-kind=${kind}]`)!.click();
     await ws.idle();

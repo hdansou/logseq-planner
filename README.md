@@ -230,6 +230,33 @@ The card shows the new place at once and cannot be dragged while the write runs.
 reads the value back from the graph. If the graph does not hold it, the card returns to its
 column and an error shows in the error bar. Undo in Logseq reverted a move in the live test.
 
+### Edit dates in the Timeline
+
+Turn on **Edit dates** in the Timeline toolbar. It is off whenever Planner starts and is not saved with a view. It
+works in the workspace and in the sidebar, never in a Planner view inside a page.
+
+- Drag a bar to move it: its Start and End move by the same number of days (15 minutes in Day zoom).
+- Drag the first or last few pixels of a bar to change that date only. A bar keeps at least one day (one quarter hour
+  in Day zoom), and its start cannot pass its end.
+- Drag a diamond (a node with one date) to move that date.
+- With a bar or diamond focused (Tab), **Alt+Left** and **Alt+Right** move it by one day (15 minutes in Day zoom);
+  **Alt+Shift+Left** and **Alt+Shift+Right** change its End (its Start when only the Start can change).
+- **Escape** during a drag puts the bar back and writes nothing. A click (a move of less than 4 pixels) still opens
+  the node.
+
+A DateTime value keeps its time of day when it moves by days. A Date value is set to that day's journal page, so moving
+to a day without a journal page creates the page.
+
+Not editable (no handles, normal cursor): bars dashed because their dates come from their tasks, task markers, and
+Date values in Day zoom (a day cannot move by 15 minutes). A bar cut off at the edge of the range cannot be resized on
+that edge; zoom out or move the range to reach it. Only the node's own Start and End are written; a parent's dates,
+rollups and connectors follow from the data after the write.
+
+The bar shows its new place at once and is dimmed while Planner writes it. Planner then reads the dates back from the
+graph. If they differ, the bar returns to where the graph has it and the error bar says why; when only the second of
+two dates failed, the first is put back and the error says whether that worked. Whether Logseq's undo reverts a date
+edit has not been checked.
+
 ### Saved views
 
 **Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
@@ -245,7 +272,8 @@ reason; it cannot be opened, only deleted.
 ### Live refresh
 
 The open view redraws after graph changes. It keeps your scroll position, expanded rows,
-unfolded Agenda buckets and focus. It waits while a menu is open or a card is being dragged.
+unfolded Agenda buckets and focus. It waits while a menu is open, a card or a Timeline bar is being dragged, or a
+write is running.
 Planner also checks the graph every 30 seconds while it is visible. While hidden, it only
 notes that data may be stale and reloads once when you open it again.
 
@@ -269,12 +297,14 @@ Planner reads, through Logseq's database queries:
 - the titles of blocks that those titles link to;
 - Logseq's start-of-week setting and theme values.
 
-Planner writes two things, and nothing else:
+Planner writes three things, and nothing else:
 
 1. **Saved views.** One block per view on the page "Planner views", with the view's JSON in
    the hidden string property `planner-view-config`. Planner creates the page and the
    property when you first save.
 2. **Kanban moves.** The column or swimlane property of the card you moved.
+3. **Timeline date edits** (only with Edit dates on). The Start and/or End property of the bar you moved or resized.
+   For a Date property this can create the journal page of the new day.
 
 Planner makes no network calls.
 
@@ -285,8 +315,10 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 **Scope**
 
-- Version 1 is read-only except for Kanban moves. You cannot change dates by dragging or
-  resizing.
+- Planner writes only Kanban moves and, with Edit dates on, Timeline date edits. Calendar, Agenda and the in-page view
+  never edit dates.
+- Edit dates has not been checked live yet (docs/manual-test.md, section N). Dragging inside the plugin frame relies on
+  pointer capture there.
 - No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
   no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - The sidebar surface is desktop only and has not been checked live yet. The in-page block (N06b) has not been

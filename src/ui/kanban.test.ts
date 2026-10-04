@@ -43,7 +43,7 @@ async function setup(opts: { projectCopies?: number } = {}) {
   openNode = vi.fn<(uuid: string, opts: { sidebar: boolean }) => void>();
   store = createViewStore(fakeStorage());
   ws = createWorkspace(root, {
-    dq: graph.dq, views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, weekStart: async () => 0, kanban: graph.writes,
+    dq: graph.dq, views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => TODAY, weekStart: async () => 0, kanban: graph.writes, dates: graph.dates,
   });
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);

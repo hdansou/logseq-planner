@@ -39,7 +39,7 @@ async function setup(wrap: (dq: Dq) => Dq = (dq) => dq) {
   const base = wrap(graph.dq);
   ws = createWorkspace(root, {
     dq: async (q, ...i) => (dqCalls.push(q), base(q, ...i)), views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(),
-    zone: () => -300, today: () => "2026-10-03", weekStart: async () => 0, kanban: graph.writes,
+    zone: () => -300, today: () => "2026-10-03", weekStart: async () => 0, kanban: graph.writes, dates: graph.dates,
   });
   await ws.open();
 }
@@ -237,7 +237,7 @@ describe("today (T14)", () => {
     root.innerHTML = "";
     const w = createWorkspace(root, {
       dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300,
-      today: () => today, weekStart: async () => 0, kanban: graph.writes,
+      today: () => today, weekStart: async () => 0, kanban: graph.writes, dates: graph.dates,
     });
     await w.open();
     const marker = () => root.querySelector("[data-tl-col][data-today]")?.getAttribute("data-tl-col");

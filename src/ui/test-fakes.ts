@@ -6,19 +6,22 @@ import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
 import { NODE_REFS, nodesQuery, notRecycled, tasksQuery, TITLES_QUERY } from "../core/queries";
-import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
+import type { DateWriteDeps, KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
-/** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
-export type Edits = Map<string, Record<string, number | null>>;
+/**
+ * Property values written by a fake write layer, by node uuid then property ident (with colon): a closed value id, null
+ * = removed, or `{raw}`: the value as a pull returns it (N06c: DateTime epoch ms, a Date's `{id, "journal-day"}`).
+ */
+export type Edits = Map<string, Record<string, number | null | { raw: unknown }>>;
 
 /** The fixture row with the edits applied (a removed value loses its key, as in a real pull). */
 function edited(row: Record<string, unknown>, edits?: Edits): Record<string, unknown> {
   const e = edits?.get(row.uuid as string);
   if (!e) return row;
   const out = { ...row };
-  for (const [ident, id] of Object.entries(e)) {
-    if (id === null) delete out[ident];
-    else out[ident] = { id };
+  for (const [ident, v] of Object.entries(e)) {
+    if (v === null) delete out[ident];
+    else out[ident] = typeof v === "number" ? { id: v } : v.raw;
   }
   return out;
 }
@@ -293,6 +296,12 @@ export function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {
 }
 
 /** For views that never write: any Kanban write call fails the test. */
+export const noDateWrites: DateWriteDeps = {
+  upsertBlockProperty: async () => { throw new Error("unexpected upsertBlockProperty"); },
+  createJournalPage: async () => { throw new Error("unexpected createJournalPage"); },
+  readDate: async () => { throw new Error("unexpected readDate"); },
+};
+
 export const noWrites: KanbanWriteDeps = {
   upsertBlockProperty: async () => { throw new Error("unexpected upsertBlockProperty"); },
   removeBlockProperty: async () => { throw new Error("unexpected removeBlockProperty"); },
@@ -334,14 +343,46 @@ export function fakeGraph(opts: { projectCopies?: number } = {}) {
     readChoice: async (uuid, ident) => {
       calls.push(["readChoice", uuid, ident]);
       const e = edits.get(uuid);
-      if (e && ident in e) return e[ident] === null ? null : { id: e[ident]!, ident: null };
+      if (e && ident in e) return e[ident] === null ? null : { id: e[ident] as number, ident: null };
       const row = fixtureRows().find((n) => n.uuid === uuid);
       if (!row) throw new Error(`no node ${uuid}`);
       const v = row[ident] as { id: number } | undefined;
       return v ? { id: v.id, ident: null } : null;
     },
   };
-  return { dq: fixtureDq({ edits, projectCopies: opts.projectCopies }), writes, calls, edits, state };
+  // N06c: journal pages by id (the fixture's, then created ones) and date writes, behaving like the write probe: a page
+  // id is stored as the Date ref (with its journal day, as the node query pulls it), any other number as DateTime ms.
+  const pages = new Map(journalDays);
+  const dates: DateWriteDeps = {
+    upsertBlockProperty: async (uuid, key, value) => {
+      calls.push(["upsertBlockProperty", uuid, key, value]);
+      if (state.hold) await state.hold;
+      if (state.silent || !FULL_KEY.test(key)) return null;
+      edits.set(uuid, { ...edits.get(uuid), [`:${key}`]: { raw: pages.has(value) ? { id: value, "journal-day": pages.get(value) } : value } });
+      return null;
+    },
+    createJournalPage: async (date) => {
+      calls.push(["createJournalPage", date]);
+      const day = Number(date.slice(0, 10).replace(/-/g, ""));
+      const found = [...pages].find(([, jd]) => jd === day);
+      if (found) return { id: found[0] };
+      const id = 9000 + pages.size;
+      pages.set(id, day);
+      return { id };
+    },
+    readDate: async (uuid, ident, type) => {
+      calls.push(["readDate", uuid, ident, type]);
+      const e = edits.get(uuid)?.[ident];
+      const row = fixtureRows().find((n) => n.uuid === uuid);
+      if (!row) throw new Error(`no node ${uuid}`);
+      const v = e === undefined ? row[ident] : e === null ? undefined : (e as { raw: unknown }).raw;
+      if (v === undefined) return null;
+      if (type === "datetime") return v as number;
+      const id = (v as { id: number }).id;
+      return { id, journalDay: pages.get(id)! };
+    },
+  };
+  return { dq: fixtureDq({ edits, projectCopies: opts.projectCopies }), writes, dates, calls, edits, state };
 }
 
 /** A manual clock for `Later`: timers run only when `advance` moves time past them, in due order; `pending` counts live timers. */

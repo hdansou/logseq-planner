@@ -6,7 +6,7 @@ import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 
 /** One string with the three payloads: an element, an attribute break-out and a closing tag. */
 const H = `<img src=x onerror=alert(1)>" onmouseover="x</button>`;
@@ -68,7 +68,7 @@ beforeEach(async () => {
   const blocks = [{ uuid: "v1", name: `${H} view`, config: serializeViewConfig(defaultViewConfig(project)) }];
   ws = createWorkspace(root, {
     dq: hostileDq(), views: createViewStore(fakeStorage({ blocks })), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300,
-    today: () => "2026-10-03", kanban: noWrites, weekStart: async () => 0,
+    today: () => "2026-10-03", kanban: noWrites, dates: noDateWrites, weekStart: async () => 0,
   });
   await ws.open();
   await click(`[data-tag-id="${project.id}"]`);

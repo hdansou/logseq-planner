@@ -9,7 +9,8 @@ import { tagsTitle, TAG_KEY, type Dq, type ViewTags } from "../core/schema";
 import { dependsOnOf, toChoiceFilters, validateViewConfig, type ViewConfig } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
 import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
-import { layoutTimeline, type TimelineLayout } from "../core/timeline-layout";
+import { layoutTimeline, type EditProps, type TimelineLayout } from "../core/timeline-layout";
+import { editedNode, type DateChange } from "../core/date-edit";
 import { layoutCalendar, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, type PropertyWrite } from "../core/kanban";
@@ -50,6 +51,10 @@ export interface ViewSession {
   moveOpen: string | null;
   /** The open workspace popover (the Kanban toolbar's menus); null when none. */
   popover: string | null;
+  /** Timeline: the Edit dates toggle is on (N06c; never in the in-page block). */
+  editDates: boolean;
+  /** Timeline date edits being written, by node uuid: the bar shows where the writes put it (N06c). */
+  datePending: ReadonlyMap<string, DateChange[]>;
 }
 
 /**
@@ -60,6 +65,7 @@ export interface ViewSession {
 export const blockSession = (): ViewSession => ({
   anchor: null, expanded: new Set(), collapsed: new Set(), agendaOpen: new Set(["later", "none", "earlier"]),
   agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null,
+  editDates: false, datePending: new Map(),
 });
 
 /** Everything the view area is drawn from. */
@@ -99,9 +105,15 @@ export async function readViewData(dq: Dq, config: ViewConfig, tags: TagInfo[], 
   return viewData(dq, config, tags, await readRaw(dq, tags, view.tags, dependsOnOf(config, view)), zone);
 }
 
-/** The loaded nodes with the pending Kanban moves applied: where their cards show while the writes run. */
-export const shownNodes = (nodes: PlannerNode[], pending: ReadonlyMap<string, PropertyWrite[]>): PlannerNode[] =>
-  pending.size ? nodes.map((n) => (pending.has(n.uuid) ? movedNode(n, pending.get(n.uuid)!) : n)) : nodes;
+/** The loaded nodes with the pending Kanban moves and Timeline date edits applied: where they show while the writes run. */
+export function shownNodes(nodes: PlannerNode[], session: Pick<ViewSession, "pending" | "datePending">): PlannerNode[] {
+  const { pending, datePending } = session;
+  if (!pending.size && !datePending.size) return nodes;
+  return nodes.map((n) => {
+    const moved = pending.has(n.uuid) ? movedNode(n, pending.get(n.uuid)!) : n;
+    return datePending.has(n.uuid) ? editedNode(moved, datePending.get(n.uuid)!) : moved;
+  });
+}
 
 /** The nodes that pass the view's filters (the Tag filter by node tag, N14) and the tasks linked to them: what a view is handed (T07 D4). */
 export function visibleData(config: ViewConfig, view: ViewTags, nodes: PlannerNode[], tasks: PlannerTask[]) {
@@ -132,14 +144,24 @@ const datesOf = (c: ViewConfig) => (n: PlannerNode) => c.dates[n.tag];
 const nested = (a: ViewAreaInput, items: ViewItem[]) =>
   a.view.tags.length > 1 ? nestItems(items, taskStatusValues(a.tags), a.config.doneValues) : { items, parentOf: new Map<number, number>() };
 
-/** The Timeline layout for the visible nodes; with two or more tags arranged as the view says (N14). */
+/** Each node's own mapped Start / End properties (its tag's mapping, with their types): what a date edit writes (N06c). */
+const editProps = (a: ViewAreaInput): EditProps => (n) => {
+  const { start, end } = a.config.dates[n.tag];
+  const tag = a.view.tags.find((t) => t.ident === n.tag)!;
+  const prop = (ident: string | null) => (ident === null ? null : tag.dateProps.find((p) => p.ident === ident)!);
+  return { start: prop(start), end: prop(end) };
+};
+
+/** The Timeline layout for the visible nodes; with two or more tags arranged as the view says (N14); with Edit dates on, editable (N06c). */
 function timelineLayout(a: ViewAreaInput, now: Now, shown: Shown): TimelineLayout {
   const c = a.config;
   if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(a.tags);
   const multi = a.view.tags.length > 1;
   const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
-  const base = { zoom: c.zoom, anchor: a.session.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues, titles: a.titles };
+  const edit = a.session.editDates ? { edit: editProps(a) } : {};
+  const pending = a.session.datePending.size ? { pending: new Set(a.session.datePending.keys()) } : {};
+  const base = { zoom: c.zoom, anchor: a.session.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues, titles: a.titles, ...edit, ...pending };
   if (multi && c.arrange === "nested") {
     const nest = nested(a, items);
     return layoutTimeline({ ...base, items: nest.items, nest: nest.parentOf, collapsed: a.session.collapsed });
@@ -174,6 +196,10 @@ function agendaLayout(a: ViewAreaInput, now: Now, shown: Shown): AgendaLayout {
   });
 }
 
+/** The Timeline layout on screen (the view is a Timeline): what a date edit starts from (N06c). */
+export const timelineLayoutOf = (a: ViewAreaInput, now: Now): TimelineLayout =>
+  timelineLayout(a, now, visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks));
+
 /** A Kanban view's column or lane property: one of the view's shared choice properties, or the Tag lanes (N14); null for none. */
 export const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | null =>
   ident === null ? null : ident === TAG_KEY ? tagLaneProp(view.tags) : view.choiceProps.find((p) => p.ident === ident)!;
@@ -182,7 +208,7 @@ export const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | n
 export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   const c = a.config;
   if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
-  const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session.pending), a.tasks);
+  const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   const statusValues = taskStatusValues(a.tags);
   return layoutKanban({
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
@@ -213,7 +239,7 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
       : empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
   }
   if (!a.nodes.length) return only(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${multi ? "one of these tags" : name} and it shows up here.`));
-  const shown = visibleData(c, view, shownNodes(a.nodes, session.pending), a.tasks);
+  const shown = visibleData(c, view, shownNodes(a.nodes, session), a.tasks);
   if (!shown.nodes.length) {
     return only(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));

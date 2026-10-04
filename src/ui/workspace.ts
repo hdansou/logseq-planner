@@ -5,25 +5,28 @@
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
+// Timeline date edits (N06c, Edit dates on) are written through the injected `dates` deps: pointer events on a bar or
+// point (pointer capture, no HTML5 drag) and Alt+Arrow keys on a focused one.
 import { readRaw } from "../core/queries";
 import { isDone } from "../core/nodes";
-import type { ZoneOffset } from "../core/normalize";
+import { systemZone, type ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos, tagsTitle, TAG_KEY, type ViewTags } from "../core/schema";
 import {
   defaultViewConfig, dependsOnOf, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
 } from "../core/view-config";
-import { shiftAnchor } from "../core/timeline-layout";
+import { clampDelta, editedBar, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
+import { dateChanges, writeDates, type DateChange, type EditMode } from "../core/date-edit";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
-import type { ChoiceProp, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
+import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
-import { drawLinks, timelineAction } from "./timeline";
-import { empty, kanbanLayout, readViewData, renderViewArea, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
+import { empty, kanbanLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -56,6 +59,8 @@ export interface WorkspaceDeps {
   weekStart(): Promise<number>;
   /** The SDK calls behind a Kanban move (`kanbanWriteDeps()` in src/sdk.ts). */
   kanban: KanbanWriteDeps;
+  /** The SDK calls behind a Timeline date edit (`dateWriteDeps()` in src/sdk.ts, N06c). */
+  dates: DateWriteDeps;
   /** Dev-only load / refresh timings; omitted in production. */
   timing?: Timing;
   /**
@@ -147,6 +152,32 @@ interface State {
   canDock: boolean;
   /** The surface the switch shows pressed (N06a); session state, starts as the workspace. */
   surface: Surface;
+  /** Timeline: the Edit dates toggle (N06c). Session state: off on start, never saved with a view. */
+  editDates: boolean;
+  /** Timeline date edits being written, by node uuid: the bar shows at its new place (optimistic). Session state. */
+  datePending: Map<string, DateChange[]>;
+}
+
+/** A pointer that moves less than this (px) from where it went down is a click (N06c). */
+export const CLICK_PX = 4;
+
+/** A Timeline bar or point being dragged (N06c): only its inline grid placement changes until the drop. */
+interface TlDrag {
+  el: HTMLElement;
+  pointerId: number;
+  /** clientX where the pointer went down. */
+  x: number;
+  mode: EditMode;
+  row: TimelineRow;
+  range: TimelineRange;
+  /** Track width (px) of the zoom. */
+  px: number;
+  /** The element's style before the drag (restored when it ends without a write). */
+  style: string;
+  /** Tracks moved so far, clamped (`clampDelta`). */
+  delta: number;
+  /** Past `CLICK_PX`: a drag, not a click. */
+  moved: boolean;
 }
 
 /** Below this width the panel is a drawer over the view (N13); workspace.css has the same media query. */
@@ -372,7 +403,8 @@ function renderFilters(s: State, view: ViewTags): string {
 const areaOf = (s: State, view: ViewTags): ViewAreaInput => ({
   tags: s.tags, config: s.config!, view, nodes: s.nodes, tasks: s.tasks, titles: s.titles,
   session: { anchor: s.anchor, expanded: s.expanded, collapsed: s.collapsed, agendaOpen: s.agendaOpen, agendaGroups: s.agendaGroups,
-    agendaOverdue: s.agendaOverdue, kbShown: s.kbShown, pending: s.pending, moveOpen: s.popover === "kb-move" ? s.moveCard : null, popover: s.popover },
+    agendaOverdue: s.agendaOverdue, kbShown: s.kbShown, pending: s.pending, moveOpen: s.popover === "kb-move" ? s.moveCard : null, popover: s.popover,
+    editDates: s.editDates, datePending: s.datePending },
 });
 
 /** The main area (loading, an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar. */
@@ -412,7 +444,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
-    canDock: deps.setSurface !== undefined, surface: "workspace" };
+    canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, datePending: new Map() };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -429,6 +461,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let dragging: string | null = null;
   /** The lane the dragged card started in: lanes by tag (N14) take no drop from another lane. */
   let dragLane: string | null = null;
+  /** The Timeline bar or point being dragged to edit its dates (N06c). */
+  let tlDrag: TlDrag | null = null;
+  /** The click that follows a Timeline drag (or one Escape aborted) is not an open (N06c). */
+  let swallowClick = false;
   /** A render was asked for during a drag: it runs when the drag ends. */
   let drawOwed = false;
   /** The clock the workspace was last drawn on (`clockOf`: the Timeline's today line, the Agenda's buckets depend on it). */
@@ -436,7 +472,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** The day the Timeline's Day zoom last opened its scroll for (N10); null while the Day zoom is not shown. */
   let dayScrolled: string | null = null;
   /** Something the user is in the middle of that a redraw must not disturb. */
-  const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null;
+  const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null || s.datePending.size > 0 || tlDrag !== null;
 
   const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -445,8 +481,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    * when that fails too, a bare shell with the error, Dismiss and Close is drawn, so the user can always leave.
    */
   const render = (focus?: string, keep = false) => {
-    if (dragging !== null) {
-      drawOwed = true; // never replace the DOM under an active drag (T14): drawn when it ends
+    if (dragging !== null || tlDrag !== null) {
+      drawOwed = true; // never replace the DOM under an active drag (T14, N06c): drawn when it ends
       return;
     }
     try {
@@ -724,6 +760,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const refreshWhenFree = () => void (wantRefresh && !busy() && refresh());
 
   root.addEventListener("click", (e) => {
+    if (swallowClick) {
+      swallowClick = false; // the end of a Timeline drag, not an open (N06c)
+      return;
+    }
     const t = e.target as HTMLElement;
     // A click outside the open popover's anchor closes it, and a click on the view beside or under the open drawer closes
     // the drawer (N13; the bars above stay usable with it open); either click still does what it was meant to do.
@@ -843,8 +883,100 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       }
       case "jump":
         return void run(() => void (s.anchor = a.day));
+      case "edit":
+        return void run(() => void (s.editDates = !s.editDates), () => "[data-tl-edit]");
     }
   }
+
+  // ---------------------------------------------------------------- Timeline date edits (N06c)
+
+  /** The Timeline layout on screen now (the view is a Timeline). */
+  const timelineNow = (): TimelineLayout => timelineLayoutOf(areaOf(s, tagOf(s.config!)), now());
+  /** The row of the bar or point `el` in `layout`, when it is editable now. */
+  const editableRow = (layout: TimelineLayout, el: HTMLElement): TimelineRow | null =>
+    shownRows(layout.rows).find((r) => r.node.uuid === el.dataset.tlOpen && r.edit !== null) ?? null;
+  /** The selector of a row's bar or point after a redraw. */
+  const spanSelector = (row: TimelineRow) => `${row.point === null ? "[data-tl-bar]" : "[data-tl-point]"}[data-tl-open="${CSS.escape(row.node.uuid)}"]`;
+
+  /**
+   * Edits `row`'s dates by `delta` tracks (`mode`: move, start, end). Optimistic like a Kanban move: the bar shows at
+   * its new place at once, flagged pending (no handles); then the writes run (`writeDates`, each read back). Success or
+   * not, the view is reloaded from the graph, so a failed write puts the bar back where the graph has it and the error
+   * shows in the error bar.
+   */
+  function editDates(row: TimelineRow, mode: EditMode, delta: number, perDay: 1 | 96, focus?: string) {
+    const changes = dateChanges(row.edit!, row, mode, delta, perDay);
+    if (!changes.length) return void render(focus);
+    const uuid = row.node.uuid;
+    s.datePending.set(uuid, changes);
+    render(focus);
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        await writeDates(deps.dates, { uuid, title: row.title }, changes, deps.zone ?? systemZone);
+      } catch (e) {
+        failure = e;
+      }
+      s.datePending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    }, () => focus);
+  }
+
+  /** A drag is over without a write: the bar goes back to where it was drawn; a render it held up runs. */
+  const endTlDrag = (g: TlDrag) => {
+    tlDrag = null;
+    g.el.setAttribute("style", g.style);
+    g.el.removeAttribute("data-tl-dragging");
+    if (drawOwed) {
+      drawOwed = false;
+      render();
+    }
+    refreshWhenFree();
+  };
+
+  root.addEventListener("pointerdown", (e) => {
+    swallowClick = false; // a click that did not follow its drag is not swallowed later
+    if (!s.editDates || tlDrag || e.button !== 0) return;
+    const t = e.target as Element;
+    const el = t.closest?.<HTMLElement>("[data-tl-editable]");
+    if (!el) return;
+    const side = t.closest<HTMLElement>("[data-tl-handle]")?.dataset.tlHandle as "start" | "end" | undefined;
+    const mode: EditMode = side ?? "move";
+    if (mode === "move" && !el.hasAttribute("data-tl-move")) return; // resize only: the body is a plain click
+    const layout = timelineNow();
+    const row = editableRow(layout, el);
+    if (!row) return;
+    tlDrag = { el, pointerId: e.pointerId, x: e.clientX, mode, row, range: layout.range, px: TRACK_PX[layout.zoom], style: el.getAttribute("style") ?? "", delta: 0, moved: false };
+    el.setPointerCapture(e.pointerId); // moves and the release keep coming to the bar when the pointer leaves it
+  });
+  root.addEventListener("pointermove", (e) => {
+    const g = tlDrag;
+    if (!g || e.pointerId !== g.pointerId) return;
+    const dx = e.clientX - g.x;
+    if (!g.moved && Math.abs(dx) < CLICK_PX) return;
+    if (!g.moved) g.el.setAttribute("data-tl-dragging", "");
+    g.moved = true;
+    const delta = clampDelta(g.range, g.row, g.mode, Math.round(dx / g.px));
+    if (delta === g.delta) return;
+    g.delta = delta;
+    const bar = editedBar(g.range, g.row, dateChanges(g.row.edit!, g.row, g.mode, delta, perDayOf(g.range)));
+    g.el.setAttribute("style", `grid-column: ${g.row.point === null ? `${bar.from + 2} / ${bar.to + 2}` : bar.from + 2}`);
+  });
+  root.addEventListener("pointerup", (e) => {
+    const g = tlDrag;
+    if (!g || e.pointerId !== g.pointerId) return;
+    if (!g.moved) return void endTlDrag(g); // a click: it opens the node
+    swallowClick = true;
+    if (g.delta === 0) return void endTlDrag(g);
+    tlDrag = null;
+    g.el.removeAttribute("data-tl-dragging");
+    drawOwed = false; // the edit draws now
+    void editDates(g.row, g.mode, g.delta, perDayOf(g.range));
+  });
+  root.addEventListener("pointercancel", (e) => {
+    if (tlDrag && e.pointerId === tlDrag.pointerId) endTlDrag(tlDrag);
+  });
 
   /** Calendar controls: the layout is view config (saved with a view); the anchor is session state. */
   function calendar(a: NonNullable<ReturnType<typeof calendarAction>>, shift: boolean) {
@@ -1043,6 +1175,22 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   root.addEventListener("keydown", (e) => {
     const t = e.target as HTMLElement;
+    // N06c: Alt+Left / Right moves a focused bar or point one track; with Shift its End changes (its Start when only
+    // that end can change). Handled (prevented) on any bar or point while Edit dates is on, so the host never gets them.
+    const span = s.editDates && e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") ? t.closest<HTMLElement>("[data-tl-bar], [data-tl-point]") : null;
+    if (span) {
+      e.preventDefault();
+      if (tlDrag) return;
+      const layout = timelineNow();
+      const row = editableRow(layout, span);
+      if (!row) return;
+      const edit = row.edit!;
+      const mode: EditMode | null = !e.shiftKey ? (edit.move ? "move" : null) : edit.resizeEnd ? "end" : edit.resizeStart ? "start" : null;
+      if (mode === null) return;
+      const delta = clampDelta(layout.range, row, mode, e.key === "ArrowLeft" ? -1 : 1);
+      if (delta !== 0) void editDates(row, mode, delta, perDayOf(layout.range), spanSelector(row));
+      return;
+    }
     if (e.key === "Enter" && t.dataset.field === "view-name") {
       e.preventDefault();
       void save();
@@ -1103,6 +1251,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   return {
     open,
     escape() {
+      if (tlDrag) {
+        swallowClick = true; // the release that follows opens nothing
+        endTlDrag(tlDrag);
+        return true;
+      }
       if (s.popover) {
         const p = s.popover;
         s.popover = null;

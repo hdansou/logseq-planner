@@ -400,6 +400,29 @@ that saved view is #Milestone + #Task, Timeline, nested). M9 also in the web app
 | M9 | In a block, type `/Planner view`, Enter, then the name of a saved view | `{{renderer :planner, }}` is inserted (the caret lands after `}}`); with the name typed, the view shows | not run |  |  |  |
 | M10 | With a block on screen, look at the rest of the page, the sidebar and the header | Nothing outside the block changed (fonts, buttons, lists, colours) | not run |  |  |  |
 
+## N. Edit dates in the Timeline (N06c)
+
+Desktop app. `planner-project`: DateTime Start / End on #Task and #Milestone. `planner-desktop-2`: Date Start / End on
+#Project. Check every written value with the CLI (`logseq` show / query) after the step. None run live yet.
+
+| Id | Steps | Expected | Result | Build | Date | Notes |
+|---|---|---|---|---|---|---|
+| N1 | Open a Timeline with **Edit dates** off (its default after a start) | No handles; bars keep the pointer cursor; a click opens the node; dragging a bar does nothing | not run |  |  |  |
+| N2 | `planner-project`, #Milestone, Week zoom, Edit dates on: drag a DateTime bar two days right | The bar follows in whole days and lands two days later; Start and End both +2 days with the same time of day (CLI); connectors redraw after the drop | not run |  |  |  |
+| N3 | Same, Day zoom on the bar's day: drag a DateTime bar right by 2 quarter hours | Moves by 15-minute steps; Start and End +30 min (CLI) | not run |  |  |  |
+| N4 | Drag a bar's first 6 px, then its last 6 px (ew-resize cursor there) | Only Start, then only End changes (CLI); the bar cannot get shorter than one track or pass its other end | not run |  |  |  |
+| N5 | `planner-desktop-2`, #Project (Date Start / End), Month zoom: move a bar to a day that has no journal page yet | That journal page now exists, on the right local day; the property points at it (CLI); the bar shows on that day | not run |  |  |  |
+| N6 | Drag a diamond (a node with one date) | Its one date moves; no resize handles on a diamond | not run |  |  |  |
+| N7 | Locked items with Edit dates on: a dashed bar (dates from its tasks), task markers (expand a row), a Date bar in Day zoom, the cut-off edge of a bar running past the range | Default cursor, no handle there, a drag writes nothing; the bar's visible edge still resizes and the bar still moves | not run |  |  |  |
+| N8 | Start a drag, press Escape before releasing; then press and release with less than 4 px of movement | Escape: the bar goes back, nothing is written, the release does not open the node, Planner stays open. The short press opens the node | not run |  |  |  |
+| N9 | Tab to a bar; Alt+Right, Alt+Left, Alt+Shift+Right, Alt+Shift+Left (VoiceOver on once) | One track per key: move, then End only; focus stays on the bar; Logseq's own shortcuts do not fire; VoiceOver reads the bar's description naming the keys | not run |  |  |  |
+| N10 | Make a write fail (for example remove the property from the tag in another window while dragging, or edit a node in Recycle) | The bar returns to where the graph has it; the error bar names the property and the date; with two dates, it says whether the first was put back | not run |  |  |  |
+| N11 | Nested (#Milestone + #Task): move a child task's bar | The parent milestone's own dates do not change (CLI); its row and rollup follow the data | not run |  |  |  |
+| N12 | With a Depends on property, move a dependency's bar | The connectors follow the bars after the drop | not run |  |  |  |
+| N13 | Sidebar surface: one move and one resize | Works as in the workspace | not run |  |  |  |
+| N14 | A page with the in-page block (section M) while Edit dates is on in the workspace | The block has no handles and no toggle; nothing in it can be dragged | not run |  |  |  |
+| N15 | Logseq's own Undo (Cmd+Z) right after a date edit | Record what happens (README makes no claim) | not run |  |  |  |
+
 ## Desktop pass (2026-10-03, build e849107)
 
 Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over
