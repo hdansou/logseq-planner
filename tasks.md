@@ -116,7 +116,7 @@ Live-check method (web app):
       `indexOn`), then TDD. Acceptance on the tracker graph (N09), whose work all falls on
       one day: milestones and tasks show as bars across the hours they took. Start after
       N09 lands.
-- [ ] **N11 Tracker: planned schedule, 2 hours per task** — owner request 2026-10-03 for the
+- [x] **N11 Tracker: planned schedule, 2 hours per task** — owner request 2026-10-03 for the
       demo graph: every task gets 2 hours and starts after the task it depends on. Owner
       decisions: working hours (weekdays 09:00–17:00; a task that would pass 17:00
       continues the next working day at 09:00); back-dated start so the finished work ends
@@ -699,3 +699,19 @@ Total: about 10 hours.
   Start–End bar (a task's own span shows only in the #Task view). Candidate follow-up.
   Working rule from the owner: keep the desktop test instance running between checks
   (reload the plugin with `LSPluginCore.reload`), do not relaunch it each time.
+- 2026-10-03 N11 done (9db0489 plus the N07 / N11 dependency entries). 606 unit tests. The
+  tracker writes a planned schedule: 2 working hours per task, weekdays 09:00–17:00,
+  start = latest End among its dependencies (`after` in `scripts/tracker-meta.json`;
+  real dependencies recorded, so independent tasks overlap), fixed `scheduleStart`
+  2026-09-29T15:00 so the started work ends Fri 2 Oct 17:00; a many-valued node property
+  `depends_on` on each task. The graph was recreated for the new property. Live in
+  Logseq-DB (`planner-project`): 26 tasks, all with references after a run with the app
+  open, a second run plans nothing; #Task Timeline Week shows the bars from Tue 29 Sep to
+  Mon 5 Oct with T08–T11 in parallel; Day zoom on Thu 1 Oct shows nine two-hour bars
+  (T06 09:00, T07 11:00, T08–T11 13:00, N08 / N10 / T12 15:00); Agenda marks N03 (Doing,
+  planned Fri 2 Oct) late.
+  Seen on the data, not changed: (1) Planner counts any reference as a task link, so in
+  the #Task view a task's dependents show as its sub-tasks ("T07 Workspace shell, 4 of 4
+  done" = T08–T11 via `depends_on`); (2) after switching graphs in one app session Planner
+  showed "Invalid view config: unknown tag …Meeting…" once (the last view of the previous
+  graph); it falls back to the default view.
