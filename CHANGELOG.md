@@ -16,6 +16,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   "sidebar" (class `pl-panel`, `data-region="panel"`, token `--pl-panel`), so "sidebar" only means Logseq's right
   sidebar. The unused generic `.pl-panel` fill rule in theme.css is gone (Agenda groups and Kanban cells have their own).
   The no-matches empty state now says "Change the filters in the panel."
+- A **Panel** toggle, last in the settings bar (`data-action="toggle-panel"`, `aria-expanded`, `aria-controls="pl-panel"`),
+  hides and shows the panel (N13); hidden, the view takes the full width (`.pl-body.is-panel-closed`, the panel gets
+  `hidden`). With filters ticked and the panel hidden it reads "Panel · 2" (accessible name "Panel · 2 filters
+  active"). Focus stays on it. Session state only: nothing is persisted.
 - The workspace starts under the app header instead of covering the whole window (N15): the frame's top and height
   come from the host's `--ls-headbar-height` (fallback 3rem), so the window moves by the host header, zooms on a
   header double-click and resizes by its edges as usual. The toolbar button now toggles Planner (opens, and hides

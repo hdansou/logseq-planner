@@ -440,6 +440,59 @@ describe("panel (N13)", () => {
     for (const css of [workspaceCss, themeCss]) expect(css).not.toMatch(/sidebar/i);
   });
 
+  it("a Panel toggle, last in the settings bar, hides and shows the panel; the view then takes the full width; focus stays on it", async () => {
+    const { ws } = await setup();
+    const btn = () => $("[data-action=toggle-panel]")!;
+    expect(btn().tagName).toBe("BUTTON");
+    expect($("[data-region=settings]")!.lastElementChild).toBe(btn());
+    expect(btn().getAttribute("aria-controls")).toBe("pl-panel");
+    expect(btn().getAttribute("aria-expanded")).toBe("true");
+    expect(text("[data-action=toggle-panel]")).toBe("Panel");
+    expect($("[data-region=panel]")!.hidden).toBe(false);
+    expect($(".pl-body")!.classList.contains("is-panel-closed")).toBe(false);
+
+    btn().focus();
+    await click(ws, "[data-action=toggle-panel]");
+    expect(btn().getAttribute("aria-expanded")).toBe("false");
+    expect($("[data-region=panel]")!.hidden).toBe(true);
+    expect($(".pl-body")!.classList.contains("is-panel-closed")).toBe(true);
+    expect(document.activeElement).toBe(btn());
+
+    await click(ws, "[data-action=toggle-panel]");
+    expect(btn().getAttribute("aria-expanded")).toBe("true");
+    expect($("[data-region=panel]")!.hidden).toBe(false);
+    expect(document.activeElement).toBe(btn());
+  });
+
+  it("is kept for the session: a view switch, a tag change and a reopen leave it hidden", async () => {
+    const { ws } = await setup();
+    await click(ws, "[data-action=toggle-panel]");
+    await click(ws, "[data-view-kind=kanban]");
+    await click(ws, "[data-control=tag]");
+    await click(ws, `[data-popover=tag] [data-option="${tag("Meeting").ident}"]`);
+    await ws.open();
+    expect($("[data-region=panel]")!.hidden).toBe(true);
+    expect($("[data-action=toggle-panel]")!.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("with filters ticked and the panel hidden, the toggle shows how many values are ticked and says so", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    const status = choice(tag("Project"), "Status");
+    const owner = choice(tag("Project"), "Owner");
+    await click(ws, `input[data-filter-prop="${status.ident}"][data-filter-value="${status.values[0]!.uuid}"]`);
+    await click(ws, `input[data-filter-prop="${owner.ident}"][data-filter-value=""]`);
+    expect(text("[data-action=toggle-panel]")).toBe("Panel"); // the panel shows them
+    expect($("[data-action=toggle-panel]")!.hasAttribute("aria-label")).toBe(false);
+    await click(ws, "[data-action=toggle-panel]");
+    expect(text("[data-action=toggle-panel]")).toBe("Panel · 2");
+    expect($("[data-action=toggle-panel]")!.getAttribute("aria-label")).toBe("Panel · 2 filters active");
+  });
+
+  it("hidden panel (stylesheet): the body has one column", () => {
+    expect(workspaceCss).toMatch(/\.pl-body\.is-panel-closed\s*\{[^}]*grid-template-columns:\s*1fr\s*;/);
+  });
+
   it("the empty filter state points at the panel, not a left column", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");

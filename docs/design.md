@@ -58,7 +58,8 @@ key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
   (tint-soft alone is too faint on borderless controls).
 - **Popovers and menus** (done values, saved views): `float`, radius 14, `shadow-float`,
   no border; rows radius 9, hover `hover` with label text.
-- **Panel** (tag tree, filters; right of the view, N13): `panel` background, 1px `line-soft` left edge;
+- **Panel** (tag tree, filters; right of the view, N13; hidden by the settings bar's Panel toggle,
+  a `pl-menu-btn` without caret): `panel` background, 1px `line-soft` left edge;
   rows radius 8, 14px; hover `fill`; active `tint-soft` at 600 with the `#` in tint;
   group headers 11.5px/600 in label-2, not uppercase.
 - **Tags:** 22px pill on `fill-strong`, 12.5px/500, label text. **Category chips:** same

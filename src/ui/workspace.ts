@@ -121,6 +121,8 @@ interface State {
   agendaGroups: number;
   /** Kanban: cards rendered per cell by `cellKey`, for cells whose "Show more" was used. Session state. */
   kbShown: Map<string, number>;
+  /** The panel (tag tree, filters) is shown (N13). Session state: kept in memory only, nothing is persisted. */
+  panelOpen: boolean;
 }
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -269,7 +271,18 @@ function renderSettings(s: State, tag: TagInfo): string {
     }).join("") + `<p class="pl-hint">${primary.values.some((v) => v.ident !== null) && !c.doneValues[primary.ident] ? "Built-in values use their Done and Canceled flags." : "Saved with the view."}</p>`;
     html += menu("done", s, "Done when", `${esc(primary.title)} is ${esc(titles.join(", ") || "nothing")}`, popover, "done-values");
   }
-  return `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${html}</div>`;
+  return html;
+}
+
+/** How many filter values are ticked in the view. */
+const tickedFilters = (c: ViewConfig) => Object.values(c.filters).reduce((n, values) => n + values.length, 0);
+
+/** The settings bar's last control (N13): hides and shows the panel; while it is hidden, it counts the ticked filter values. */
+function renderPanelToggle(s: State): string {
+  const ticked = s.panelOpen || !s.config ? 0 : tickedFilters(s.config);
+  const text = ticked ? `Panel · ${ticked}` : "Panel";
+  const label = ticked ? ` aria-label="${text} filter${ticked === 1 ? "" : "s"} active"` : "";
+  return `<button type="button" class="pl-menu-btn" data-action="toggle-panel" aria-expanded="${s.panelOpen}" aria-controls="pl-panel"${label}>${text}</button>`;
 }
 
 function renderTagTree(s: State, selected: string | undefined): string {
@@ -412,10 +425,10 @@ function renderWorkspace(s: State, now: () => Now): string {
   const kind = s.config?.kind ?? "";
   const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
-    + (tag ? renderSettings(s, tag) : `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings"></div>`)
-    + `<div class="pl-body"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
+    + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${tag ? renderSettings(s, tag) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
+    + `<div class="pl-body${s.panelOpen ? "" : " is-panel-closed"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
-    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters">${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${s.panelOpen ? "" : " hidden"}>${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -429,7 +442,7 @@ function selectorOf(el: Element): string {
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
-    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map() };
+    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: true };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -783,6 +796,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         s.popover = null;
         render();
         return deps.onClose();
+      case "toggle-panel":
+        return void run(() => void (s.panelOpen = !s.panelOpen), () => "[data-action=toggle-panel]");
       case "toggle-built-in":
         return void run(() => void (s.builtInOpen = !s.builtInOpen));
       case "retry":

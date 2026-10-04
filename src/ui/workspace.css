@@ -57,6 +57,8 @@ html, body, #app { height: 100%; }
 /* Body: main | panel (tag tree and filters, N13: on the right, so the view comes first in reading and Tab order) */
 .pl-ws > :not(.pl-body) { flex: none; }
 .pl-body { display: grid; grid-template-columns: 1fr 220px; flex: 1 1 0; min-height: 0; }
+/* The Panel toggle hid the panel: the view takes the full width. */
+.pl-body.is-panel-closed { grid-template-columns: 1fr; }
 .pl-panel { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
 .pl-panel .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
 .pl-tree + .pl-group-header { margin-top: 16px; }
