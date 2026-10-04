@@ -3,7 +3,9 @@
    rule the block uses comes from theme.css and the four view stylesheets, scoped under .planner-block. */
 /* Never wider than the page's block column, whatever the Timeline inside is (width: max-content): the root is a block box
    that takes the column's width; only .pl-block-view scrolls, so the header stays whole. */
-.planner-block { display: block; position: relative; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; margin: 4px 0; padding: 0 12px 12px;
+/* contain: inline-size: the block's content (the Timeline's max-content) must not size the host's flex column next to the
+   bullet, which then overflowed the page's clip edge (verified 2026-10-04 on Logseq-DB). */
+.planner-block { display: block; position: relative; contain: inline-size; width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; margin: 4px 0; padding: 0 12px 12px;
   border: 1px solid var(--pl-line-soft); border-radius: 12px; text-align: left; white-space: normal; }
 .planner-block *, .planner-block *::before, .planner-block *::after { box-sizing: border-box; }
 

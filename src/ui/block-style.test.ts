@@ -125,6 +125,7 @@ describe("blockStyle", () => {
     expect(root["max-width"]).toBe("100%");
     expect(root["min-width"]).toBe("0");
     expect(root["box-sizing"]).toBe("border-box");
+    expect(root.contain).toBe("inline-size"); // its content must not size the host's flex column
     expect(root.overflow).not.toBe("auto"); // the header never scrolls away: only the view area scrolls
   });
 
