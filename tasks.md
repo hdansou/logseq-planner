@@ -294,6 +294,40 @@ Live-check method (web app):
       forwarding possible, do nothing. Acceptance: unit tests for the rule; live: the three
       reported shortcuts with Planner open, typing a view name still works, Escape still
       closes a popover and then Planner.
+- [ ] **N17 Upstream report: CLI writes leave `:block/refs` empty** — to draft for the owner's
+      review, then file (Logseq DB / CLI builds go to logseq/db-test). Seen 2026-10-03 on
+      CLI and worker 8ffbb22-dirty (Logseq-DB 2.0.1 nightly): blocks created or updated with
+      `logseq upsert task` / `upsert block --update-properties` through the CLI's own worker
+      (`server list`: owner-source cli) have no `:block/refs` at all (no tag, property or
+      node-value refs), so linked references and any `[?b :block/refs ?x]` query miss them;
+      the same write while a desktop app owns the worker (owner-source electron), even a
+      same-value one, builds the full refs; `graph import --type edn` builds them too.
+      Repro to write up: create a graph, `upsert task` with a node property, query the
+      block's refs; open the graph in the app, repeat the write, query again. Before
+      filing: re-run on the current build, search for duplicates, description only.
+- [ ] **N18 Upstream report: `createJournalPage("YYYY-MM-DD")` lands a day early** — to draft
+      for the owner's review, then file. Seen 2026-10-04 on Logseq-DB 2.0.1 nightly
+      (8ffbb22), @logseq/libs 0.3.x, time zone UTC−5: `logseq.Editor.createJournalPage
+      ("2026-12-01")` returned the page "Nov 30th, 2026"; `"2026-12-03T12:00:00"`, a local
+      `Date` and local-midnight ms gave the intended day. Likely the bare date is parsed as
+      UTC and then read in local time. Planner passes local noon, so it is not affected.
+      Before filing: re-run on the current build, check east of UTC by reasoning or a
+      second zone, search for duplicates.
+- [ ] **N19 Validate in the owner's app, with real mouse input** — the stable Logseq.app
+      (b09316a) was never tested; every desktop check ran on Logseq-DB.app. With the owner
+      present: confirm which app they use, run the top-bar, sidebar-handle and Edit-dates
+      rows with a real mouse (L2, N6, N10, N13, N15 and the A rows of N15), and re-check
+      the owner's unreproduced "cannot resize" report. Also to look at while there:
+      `logseq.api.add_tag_property` rejecting a valid tag from the host page ("Not a valid
+      tag") — report upstream only if it also fails from a plugin.
+- [ ] **N20 Connector routing when bars touch** — in Week zoom two-hour bars touch end to
+      start, so every connector takes the elbow route and the lines pile into a ladder;
+      route straight down from the dependency's end when the gap is small.
+- [ ] **N21 Remember panel, surface and Edit dates per graph** — they last for the session
+      only; the plugin has no per-graph UI store (last view and tag are in memory too).
+      Needs an owner decision on what should persist (see N03c).
+- [ ] **N22 Tracker test derives its task list from tasks.md** — `scripts/tracker-lib.test.mjs`
+      pins the ids and the dependency map, so every new task needs a test edit.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
