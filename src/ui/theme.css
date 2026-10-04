@@ -3,6 +3,8 @@
 :root {
   --pl-surface: #ffffff; --pl-sidebar: #f2f2f5; --pl-float: #ffffff;
   --pl-label: #1d1d1f; --pl-label-2: #6e6e73; --pl-label-3: #aeaeb2;
+  /* done / canceled titles: the host's muted text is too faint on its default themes (3.33 / 2.98); html.dark inherits this, it resolves on the same element */
+  --pl-label-done: color-mix(in srgb, var(--pl-label) 72%, var(--pl-surface));
   --pl-line: #d2d2d7; --pl-line-soft: #e8e8ed;
   --pl-fill: #78788014; --pl-fill-strong: #7878801f; --pl-hover: #dcdee1;
   /* tint-soft is derived from the tint, never taken from the host (T07 D2): 13% of Inkwell's tint on white ≈ #dfe8e8 */

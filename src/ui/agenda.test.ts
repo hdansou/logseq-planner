@@ -323,7 +323,7 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
   it("late entries in red, done ones struck through for canceled and greyed, today in the accent colour", () => {
     expect(agendaCss).toMatch(/\[data-late\][^{]*\{[^}]*var\(--pl-red-text\)/);
     expect(agendaCss).toMatch(/\[data-status="canceled"\][^{]*\{[^}]*line-through/);
-    expect(agendaCss).toMatch(/\[data-done\][^{]*\{[^}]*var\(--pl-label-2\)/);
+    expect(agendaCss).toMatch(/\[data-done\][^{]*\{[^}]*var\(--pl-label-done\)/);
     expect(agendaCss).toMatch(/\[data-ag-bucket="today"\][^{]*\{[^}]*var\(--pl-today\)/);
   });
 

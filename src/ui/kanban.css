@@ -10,7 +10,8 @@
 .pl-kb-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 4px 8px;
   background: var(--pl-surface); font-size: 13px; font-weight: 600; color: var(--pl-label); }
 .pl-kb-head-title { min-width: 0; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-kb-head[data-none], .pl-kb-head[data-done] .pl-kb-head-title { color: var(--pl-label-2); }
+.pl-kb-head[data-none] { color: var(--pl-label-2); }
+.pl-kb-head[data-done] .pl-kb-head-title { color: var(--pl-label-done); }
 .pl-kb-count { margin-left: auto; padding: 0 7px; border-radius: 980px; background: var(--pl-fill-strong); color: var(--pl-label-2);
   font-size: 12px; font-weight: 500; line-height: 18px; font-variant-numeric: tabular-nums; }
 
@@ -46,7 +47,7 @@
 .pl-kb-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .pl-kb-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--pl-node-hue); }
 .pl-kb-title { min-width: 0; font-size: 14px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-kb-card[data-done] .pl-kb-title { color: var(--pl-label-2); text-decoration: line-through; }
+.pl-kb-card[data-done] .pl-kb-title { color: var(--pl-label-done); text-decoration: line-through; }
 .pl-kb-meter { display: block; height: 4px; border-radius: 2px; background: var(--pl-fill-strong); overflow: hidden; }
 .pl-kb-meter i { display: block; height: 100%; background: var(--pl-node-hue); }
 .pl-kb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: 18px; font-size: 12px; line-height: 18px; color: var(--pl-label-2); }

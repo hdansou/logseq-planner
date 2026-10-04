@@ -33,7 +33,7 @@
 .pl-ag-node { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; height: 20px; font-size: 12px; }
 .pl-ag-when { flex: none; margin-left: auto; padding-left: 8px; font-size: 12.5px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pl-ag-entry[data-late] .pl-ag-when { color: var(--pl-red-text); font-weight: 600; }
-.pl-ag-entry[data-done] .pl-ag-title { color: var(--pl-label-2); }
+.pl-ag-entry[data-done] .pl-ag-title { color: var(--pl-label-done); }
 .pl-ag-entry[data-status="canceled"] .pl-ag-title { text-decoration: line-through; }
 
 /* Icons: a dot in the node's hue for a node; the status icon for a task (design.md status icons) */

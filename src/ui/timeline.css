@@ -44,7 +44,7 @@
 .pl-tl-name:hover { background: var(--pl-fill); }
 .pl-tl-toggle:focus-visible, .pl-tl-name:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-tl-count, .pl-tl-nodate { margin-left: auto; flex: none; font-size: 12px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
-.pl-tl-task[data-done] .pl-tl-name { color: var(--pl-label-2); }
+.pl-tl-task[data-done] .pl-tl-name { color: var(--pl-label-done); }
 .pl-tl-task[data-status="canceled"] .pl-tl-name { text-decoration: line-through; }
 
 /* Bars: fill + 1px inset stroke; progress is a 3px strip along the bottom; derived = dashed outline */

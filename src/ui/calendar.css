@@ -46,7 +46,7 @@
 .pl-cal-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--pl-node-hue); }
 .pl-cal-time { flex: none; font-size: 11px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
 .pl-cal-chip[data-late] { background: var(--pl-red-soft); color: var(--pl-red-text); font-weight: 600; }
-.pl-cal-chip[data-done] .pl-cal-title { color: var(--pl-label-2); text-decoration: line-through; }
+.pl-cal-chip[data-done] .pl-cal-title { color: var(--pl-label-done); text-decoration: line-through; }
 /* Week: roomier chips on a panel fill, title on its own line, the node underneath */
 .pl-cal[data-layout="week"] .pl-cal-chip { flex-wrap: wrap; align-items: center; gap: 2px 6px; margin: 1px 4px; padding: 5px 8px; border-radius: 10px;
   white-space: normal; font-size: 12.5px; line-height: 17px; }

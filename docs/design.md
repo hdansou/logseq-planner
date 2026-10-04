@@ -29,6 +29,7 @@ Read with `logseq.UI.resolveThemeCssPropsVals`, re-resolved on `onThemeModeChang
 | `--pl-float` | `--popover` | #ffffff / #2c2c2e |
 | `--pl-label` | `--foreground`, `--ls-primary-text-color` | #1d1d1f / #f5f5f7 |
 | `--pl-label-2` | `--muted-foreground`, `--ls-secondary-text-color` | #6e6e73 / #98989d |
+| `--pl-label-done` | none: `color-mix(in srgb, var(--pl-label) 72%, var(--pl-surface))`, derived from the two tokens above (N04) | done / canceled titles in all four views; `--pl-label-2` stays for dates, hints and counts |
 | `--pl-line` | `--input`, `--ls-border-color` | #d2d2d7 / #38383a |
 | `--pl-line-soft` | `--border` | #e8e8ed / #2c2c2e |
 | `--pl-fill` | `--lx-gray-03-alpha`, `--lx-gray-03` | #78788014 / #7878802e |
