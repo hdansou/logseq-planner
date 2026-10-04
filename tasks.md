@@ -215,6 +215,35 @@ Live-check method (web app):
       Open questions for the owner: is nesting (step 2) the main goal, with the flat union
       only a means; how many tags at most (the scope assumes any number, tested with two to
       four); should colour follow the tag in a multi-tag view.
+- [ ] **N15 Window move / resize while the workspace is open** — owner report 2026-10-03:
+      "we cannot resize the application until we escape or click on close". Logged and
+      investigated, not fixed.
+      Measured on the desktop test instance (Logseq-DB 2.0.1 nightly, build 94327e9, real
+      mouse drags posted with CGEvent, window bounds read from the OS):
+      - Resizing works with Planner open: bottom-right corner, right edge (1 to 3 px
+        inside and outside the border), bottom edge and top edge all changed the window
+        size, the same as with Planner closed. The blocked resize was not reproduced here.
+      - Moving does not work with Planner open: a drag on an empty part of Planner's top
+        bar leaves the window where it is; with Planner closed the same drag on the host
+        header moves it. Cause: the `-webkit-app-region: no-drag` put on the frame in
+        de90392 (needed so clicks on the top bar land) removes the host's drag strip.
+        Double-click on the top strip to zoom the window is lost the same way (not tested).
+      - A drag region declared inside the plugin frame (`[data-region=topbar]`) is ignored
+        by the app: tried live, the window did not move.
+      Not known: which app and which gesture the owner used (the stable Logseq.app b09316a
+      was not tested; edge drag, the green button and a title-bar double-click are
+      different paths).
+      Options:
+      (a) Start the frame below the host header (top 48 px): the host's own strip stays
+          visible and draggable, nothing to maintain; Planner is no longer edge to edge and
+          the host toolbar shows above it.
+      (b) Keep the frame full height and add drag strips from the host side
+          (`logseq.provideStyle`): the top few pixels across the window and the
+          window-button area, leaving the controls clickable. Needs a live check that a
+          drag region inside the no-drag container is honoured; the strip is thin.
+      (c) Leave as is and document it.
+      Acceptance (a or b): real-mouse checks that the window moves by the strip, resizes by
+      every edge, zooms on double-click, and that every top-bar control still takes a click.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
