@@ -330,8 +330,11 @@ Live-check method (web app):
 - [ ] **N21 Remember panel, surface and Edit dates per graph** — they last for the session
       only; the plugin has no per-graph UI store (last view and tag are in memory too).
       Needs an owner decision on what should persist (see N03c).
-- [ ] **N22 Tracker test derives its task list from tasks.md** — `scripts/tracker-lib.test.mjs`
-      pins the ids and the dependency map, so every new task needs a test edit.
+- [x] **N22 Tracker test derives its task list from tasks.md** — done 2026-10-04:
+      `scripts/tracker-lib.test.mjs` reads the ids from tasks.md and the dependency map from
+      `tracker-meta.json` (every task in exactly one milestone, each start at the latest End
+      of its dependencies). A new task needs a milestone in the meta and no test edit. Was:
+      the test pinned the ids and the dependency map.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

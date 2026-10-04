@@ -149,23 +149,30 @@ describe("schedule", () => {
   });
 });
 
-// The real ids on 2026-10-03 and the dependency map of scripts/tracker-meta.json (N11 itself is open and
-// has no `after` entry: it takes the default, the previous task in the order).
-const REAL_COMMITTED = ["T00", "T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12", "T13", "T14", "N03", "N02", "N01", "N08", "N09", "N10"];
-const REAL_OPEN = ["N04", "N05", "N06", "N07", "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18", "N19", "N20", "N21", "N22"];
-const REAL_AFTER = {"T00": [], "T01": ["T00"], "T02": ["T00"], "T03": ["T01"], "T04": ["T03"], "T05": ["T04"], "T06": ["T05"], "T07": ["T02", "T06"], "T08": ["T07"], "T09": ["T07"], "T10": ["T07"], "T11": ["T07"], "T12": ["T08", "T09", "T10", "T11"], "T13": ["T12"], "T14": ["T13"], "N02": ["T14"], "N01": ["N02"], "N03": ["T14"], "N08": ["T11"], "N09": ["T14"], "N10": ["T08"], "N04": ["N01"], "N05": ["N01", "N03", "N04", "N19"], "N06": ["N05", "N13"], "N07": ["N06"], "N11": ["N09"], "N12": ["N10", "N11"], "N13": ["N12"], "N14": ["N13"], "N15": ["N12"], "N16": ["N15"], "N17": ["N16"], "N18": ["N16"], "N19": ["N16"], "N20": ["N12"], "N21": ["N13"], "N22": ["N11"]};
-describe("the real schedule (anchor 2026-09-29T15:00)", () => {
-  const ids = [...REAL_OPEN, ...[...REAL_COMMITTED].reverse()]; // scrambled input order
-  const commits = Object.fromEntries(REAL_COMMITTED.map((id, i) => [id, { first: new Date(Date.UTC(2026, 9, 3, 12, i)).toISOString() }]));
-  const meta = JSON.parse(readFileSync(new URL("./tracker-meta.json", import.meta.url), "utf8"));
-  const s = schedule(orderTasks(ids, commits), { ...meta, after: REAL_AFTER });
-  it("ships the same map in tracker-meta.json", () => {
-    expect(meta.after).toEqual(REAL_AFTER);
-    expect(meta.scheduleStart).toBe("2026-09-29T15:00");
+// The real data: the ids come from tasks.md and the dependency map from scripts/tracker-meta.json, so a new task
+// needs no edit here. The dated checks name old tasks only, and every task above them has an `after` entry.
+describe("the real tasks.md and tracker-meta.json", () => {
+  const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const tasks = parseTasks(read("../tasks.md"));
+  const meta = JSON.parse(read("./tracker-meta.json"));
+  const ids = tasks.map((t) => t.id);
+  const s = schedule(orderTasks(ids, {}), meta);
+  it("reads every task once", () => {
+    expect(ids.length).toBeGreaterThan(30);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(expect.arrayContaining(["T00", "T14", "N01", "N05"]));
   });
-  it("ends the committed tasks by Fri 2 Oct 17:00", () => {
-    expect(Math.max(...REAL_COMMITTED.map((id) => s[id].end))).toBe(L(2026, 10, 2, 17));
-    expect(s.N01.end).toBe(L(2026, 10, 2, 17));
+  it("has every task in exactly one milestone, and no unknown id in the meta", () => {
+    expect(meta.milestones.flatMap((m) => m.tasks).sort()).toEqual([...ids].sort());
+    expect(() => buildDesired(tasks, {}, meta)).not.toThrow();
+  });
+  it("starts every task with dependencies at their latest End, the others at the anchor", () => {
+    expect(meta.scheduleStart).toBe("2026-09-29T15:00");
+    for (const [id, deps] of Object.entries(meta.after)) {
+      const from = deps.length ? Math.max(...deps.map((d) => s[d].end)) : L(2026, 9, 29, 15);
+      expect([id, s[id].start]).toEqual([id, toWorkingTime(new Date(from)).getTime()]);
+      expect(s[id].after).toEqual(deps);
+    }
   });
   it("lets independent tasks overlap", () => {
     expect(s.T00.start).toBe(L(2026, 9, 29, 15));
@@ -173,9 +180,9 @@ describe("the real schedule (anchor 2026-09-29T15:00)", () => {
     expect(s.T08.start).toBe(s.T09.start);
     expect(s.T12.start).toBe(Math.max(s.T08.end, s.T09.end, s.T10.end, s.T11.end));
   });
-  it("starts N04 (after N01) Mon 5 Oct 09:00 and N05 after its latest dependency", () => {
+  it("ends N01 Fri 2 Oct 17:00 and starts N04 (after N01) Mon 5 Oct 09:00", () => {
+    expect(s.N01.end).toBe(L(2026, 10, 2, 17));
     expect(s.N04.start).toBe(L(2026, 10, 5, 9));
-    expect(s.N05.start).toBeGreaterThanOrEqual(Math.max(...REAL_AFTER.N05.map((id) => s[id].end)));
   });
 });
 
