@@ -138,10 +138,23 @@ export function hostTokenCss(themeCss: string): string {
 }
 
 /**
+ * Host wrappers around a block, seen live on the desktop app 2026-10-04. The chain is `span.block-title-wrap` (display
+ * inline) > `div.lsp-hook-ui-slot#slot__…` (inline-flex, shrink-to-fit) > `div#logseq-planner` (flex; the plugin's
+ * injected-UI wrapper, id = plugin id) > `div.planner-block`. A `width: 100%` on the block resolved against shrink-to-fit
+ * parents, so the block took its content's width. These three rules are not scoped under `.planner-block`: they target
+ * the host's wrappers, limited by `:has(.planner-block)`, and make them fill the page's block column.
+ */
+export const HOST_WRAP_CSS = [
+  ".block-title-wrap:has(.planner-block) { display: block; width: 100%; min-width: 0; }",
+  ".lsp-hook-ui-slot:has(.planner-block) { display: block; width: 100%; min-width: 0; }",
+  ".lsp-hook-ui-slot:has(.planner-block) > div { display: block; width: 100%; min-width: 0; }",
+].join("\n");
+
+/**
  * Everything the in-page blocks need, for one `provideStyle`: theme.css (tokens, base components) and the four view
  * stylesheets, plus block.css, scoped; then the host token declarations last, so at equal specificity they win over
  * the defaults. The workspace chrome (workspace.css) is not included.
  */
 export function blockStyle(): string {
-  return scopeCss([themeCss, timelineCss, calendarCss, agendaCss, kanbanCss, blockCss].join("\n")) + hostTokenCss(themeCss);
+  return HOST_WRAP_CSS + "\n" + scopeCss([themeCss, timelineCss, calendarCss, agendaCss, kanbanCss, blockCss].join("\n")) + hostTokenCss(themeCss);
 }

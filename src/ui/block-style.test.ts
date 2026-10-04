@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BLOCK_ROOT, blockStyle, hostTokenCss, scopeCss } from "./block-style";
+import { BLOCK_ROOT, blockStyle, HOST_WRAP_CSS, hostTokenCss, scopeCss } from "./block-style";
 import { PL_MAP } from "./theme";
 import themeCss from "./theme.css?inline";
 
@@ -81,8 +81,19 @@ describe("hostTokenCss: the --pl-* tokens from the host's own variables (PL_MAP)
 describe("blockStyle", () => {
   const css = blockStyle();
 
-  it("puts every rule under the block root (or the host's html.dark above it)", () => {
+  it("holds the three host wrapper rules verbatim", () => {
+    expect(HOST_WRAP_CSS.split("\n")).toEqual([
+      ".block-title-wrap:has(.planner-block) { display: block; width: 100%; min-width: 0; }",
+      ".lsp-hook-ui-slot:has(.planner-block) { display: block; width: 100%; min-width: 0; }",
+      ".lsp-hook-ui-slot:has(.planner-block) > div { display: block; width: 100%; min-width: 0; }",
+    ]);
+    for (const rule of HOST_WRAP_CSS.split("\n")) expect(css).toContain(rule);
+  });
+
+  it("puts every rule under the block root (or the host's html.dark above it), except the three host wrappers", () => {
+    const hostWrap = new Set(selectors(HOST_WRAP_CSS));
     for (const list of selectors(css)) {
+      if (hostWrap.has(list)) continue;
       for (const sel of list.split(/,(?![^(]*\))/).map((x) => x.trim())) {
         if (/^(from|to|\d+%)$/.test(sel)) continue; // keyframe steps
         expect(sel, list).toMatch(/^(html\.dark )?\.planner-block(?![\w-])/);
