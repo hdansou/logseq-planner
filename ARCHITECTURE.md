@@ -44,7 +44,7 @@ Rules that hold across the tree:
 |---|---|
 | `src/index.ts` | Entry. Imports the SDK and CSS, calls `registerApp(appDeps(), #app, timing)` inside `logseq.ready`. Installs the dev-only timings and probe hook behind `import.meta.env.DEV`. |
 | `src/__sdk_guard__.ts` | Compile-time SDK floor (references `logseq.App.getCurrentRoute`). Never imported at runtime. |
-| `src/app.ts` | `registerApp`: creates the workspace and the saved-view store; open and close with focus retries (50, 300, 800 ms); Escape order; `g shift+p` binding (non-editing); deferred toolbar button and command palette registration; `nodeOpener` (click opens the page and hides Planner, Shift+click opens the sidebar); creates `createChanges`. |
+| `src/app.ts` | `registerApp`: creates the workspace and the saved-view store; open and close with focus retries (50, 300, 800 ms); Escape order; `g shift+p` binding (non-editing); deferred toolbar button and command palette registration; `nodeOpener` (click opens the page and hides Planner, Shift+click opens the right sidebar); creates `createChanges`. |
 | `src/sdk.ts` | The real SDK behind every deps object: `appDeps`, `changesSdk`, `storageDeps`, `kanbanWriteDeps`, `datascriptQuery`, `hostWeekStart`, `pageQuery`, `choiceReadQuery`. Full-screen container style. |
 | `src/types.ts` | Shared types and the deps interfaces. No runtime code. |
 | `src/storage.ts` | `createViewStore`: cache-first saved views on the "Planner views" page; config in the hidden string property `planner-view-config`; every write read back. |
@@ -61,7 +61,7 @@ Rules that hold across the tree:
 | `src/core/agenda.ts` | `layoutAgenda`: buckets or node groups, done and late logic, sort. |
 | `src/core/kanban.ts` | `layoutKanban`, `findCell`, `cardCell`, `moveDescriptor`, `movedNode`, `writeMove` (write and read back). |
 | `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, versioned JSON, `toChoiceFilters`. |
-| `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar, tag tree, filters, empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
+| `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
 | `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`. |
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
 | `src/ui/agenda.ts`, `agenda.css` | Agenda layout to HTML; `agendaAction`; `AGENDA_GROUP_PAGE` (100). |

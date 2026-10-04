@@ -38,7 +38,7 @@ Open Planner in one of three ways:
 - Press `g`, then `Shift+P`, while you are not editing a block.
 
 Close it with the **Close** button or Escape. If a menu is open, Escape closes the menu
-first.
+first; then, in a narrow window, an open panel drawer (see **Panel** below).
 
 Logseq's own shortcuts (Cmd+K search, Cmd+Shift+P command palette, `t t` theme, and the rest) keep
 working while Planner is open on the desktop app. Planner passes on the keys it does not use, but
@@ -62,7 +62,7 @@ of your own root tags that has date properties.
 | **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
 | **Depends on** | Shown when the tag has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
-| **Panel** | The last control in the settings bar. Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, it shows how many values are ticked, for example **Panel · 2**. Planner keeps the choice until Logseq restarts. |
+| **Panel** | The last control in the settings bar. Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, it shows how many values are ticked, for example **Panel · 2**. Planner keeps the choice until Logseq restarts. When Planner is narrower than 640 px, the panel starts closed and opens as a drawer over the view; Escape or a click on the view closes it. |
 | Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
 
 How a node gets its dates:

@@ -20,6 +20,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   hides and shows the panel (N13); hidden, the view takes the full width (`.pl-body.is-panel-closed`, the panel gets
   `hidden`). With filters ticked and the panel hidden it reads "Panel · 2" (accessible name "Panel · 2 filters
   active"). Focus stays on it. Session state only: nothing is persisted.
+- Narrow frames (N13): under 640 px (`@media (max-width: 639px)`, `NARROW_MEDIA`) the panel is a drawer over the view
+  from the right edge (`.pl-body[data-panel-mode="drawer"]`, `min(260px, 85%)`, shadow, under popovers), closed by
+  default. Escape closes an open menu, then the drawer, then Planner (each prevented, so never forwarded to the host);
+  a click on the view closes it too. Wide and narrow keep their own open state; the width listener is removed on
+  unload (`stop()`).
 - The workspace starts under the app header instead of covering the whole window (N15): the frame's top and height
   come from the host's `--ls-headbar-height` (fallback 3rem), so the window moves by the host header, zooms on a
   header double-click and resizes by its edges as usual. The toolbar button now toggles Planner (opens, and hides
@@ -169,7 +174,7 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   the last event of a burst, plus a 30 s poll while Planner is visible; hidden, it only marks the data stale and
   refreshes once on the next show. `Workspace.refresh()` re-reads week start, tags (so new tags, properties and closed
   values appear) and the view's data; redraws only when a signature of tags/nodes/tasks/titles/today differs; keeps
-  anchor, expanded rows, scroll of the view and sidebar, unfolded `details`, focus; waits while a popover is open or
+  anchor, expanded rows, scroll of the view and panel, unfolded `details`, focus; waits while a popover is open or
   a card is dragged, and after a pending Kanban write.
 - Large seed (T13): `scripts/seed-large.edn.mjs` builds a deterministic load-test seed (tag `#Load item`, N nodes,
   linked tasks, its own page "Planner load test"); `npm run probe -- --seed-large [N]` imports it in chunks (docs/probes.md).

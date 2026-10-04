@@ -59,6 +59,12 @@ html, body, #app { height: 100%; }
 .pl-body { display: grid; grid-template-columns: 1fr 220px; flex: 1 1 0; min-height: 0; }
 /* The Panel toggle hid the panel: the view takes the full width. */
 .pl-body.is-panel-closed { grid-template-columns: 1fr; }
+/* Narrow frame (N13; NARROW_MEDIA in workspace.ts): the panel is a drawer over the view from the right edge, above the
+   views' sticky heads, under popovers (z-index 10). Closed by default; Escape or a click on the view closes it. */
+@media (max-width: 639px) {
+  .pl-body { position: relative; grid-template-columns: 1fr; }
+  .pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(260px, 85%); z-index: 5; box-shadow: var(--pl-shadow-float); }
+}
 .pl-panel { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
 .pl-panel .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
 .pl-tree + .pl-group-header { margin-top: 16px; }

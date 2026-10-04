@@ -75,13 +75,13 @@ export interface Workspace {
    * added or deleted on another device show (T14). Queued; an error shows in the error bar.
    */
   showViews(): Promise<void>;
-  /** Closes an open popover and returns true; false when there is nothing to close (the app then closes Planner). */
+  /** Closes an open popover, else the open panel drawer (N13), and returns true; false when there is nothing to close (the app then closes Planner). */
   escape(): boolean;
   /** Resolves when every queued action has finished (tests, focus after open). */
   idle(): Promise<void>;
   /** The current view config (null until a tag exists). */
   config(): ViewConfig | null;
-  /** Removes the listeners the workspace put outside its root (the window resize that redraws the Timeline connectors); call on unload. */
+  /** Removes the listeners the workspace put outside its root (the window resize that redraws the Timeline connectors, the narrow-width media query); call on unload. */
   stop(): void;
 }
 
@@ -121,8 +121,14 @@ interface State {
   agendaGroups: number;
   /** Kanban: cards rendered per cell by `cellKey`, for cells whose "Show more" was used. Session state. */
   kbShown: Map<string, number>;
-  /** The panel (tag tree, filters) is shown (N13). Session state: kept in memory only, nothing is persisted. */
-  panelOpen: boolean;
+  /**
+   * The panel (tag tree, filters) is shown, per width mode (N13): docked beside the view in a wide frame (open by
+   * default), a drawer over it in a narrow one (closed by default). The toggle sets the current mode's value only, so
+   * crossing the breakpoint without a toggle follows the defaults. Session state: in memory only, nothing is persisted.
+   */
+  panelOpen: { wide: boolean; narrow: boolean };
+  /** The frame is narrower than 640 px (`NARROW_MEDIA`): the panel is a drawer. */
+  narrow: boolean;
 }
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -132,6 +138,12 @@ interface Now {
   time: string;
   weekStart: number;
 }
+
+/** Below this width the panel is a drawer over the view (N13); workspace.css has the same media query. */
+export const NARROW_MEDIA = "(max-width: 639px)";
+const panelShown = (s: State) => s.panelOpen[s.narrow ? "narrow" : "wide"];
+/** The panel is open over the view as a drawer: Escape and a click outside close it. */
+const drawerOpen = (s: State) => s.narrow && s.panelOpen.narrow;
 
 const KIND_LABEL: Record<ViewKind, string> = { timeline: "Timeline", calendar: "Calendar", agenda: "Agenda", kanban: "Kanban" };
 /** The elements that scroll inside the workspace: the view area (both axes: the Kanban board and the Timeline scroll sideways) and the panel. */
@@ -279,10 +291,10 @@ const tickedFilters = (c: ViewConfig) => Object.values(c.filters).reduce((n, val
 
 /** The settings bar's last control (N13): hides and shows the panel; while it is hidden, it counts the ticked filter values. */
 function renderPanelToggle(s: State): string {
-  const ticked = s.panelOpen || !s.config ? 0 : tickedFilters(s.config);
+  const ticked = panelShown(s) || !s.config ? 0 : tickedFilters(s.config);
   const text = ticked ? `Panel · ${ticked}` : "Panel";
   const label = ticked ? ` aria-label="${text} filter${ticked === 1 ? "" : "s"} active"` : "";
-  return `<button type="button" class="pl-menu-btn" data-action="toggle-panel" aria-expanded="${s.panelOpen}" aria-controls="pl-panel"${label}>${text}</button>`;
+  return `<button type="button" class="pl-menu-btn" data-action="toggle-panel" aria-expanded="${panelShown(s)}" aria-controls="pl-panel"${label}>${text}</button>`;
 }
 
 function renderTagTree(s: State, selected: string | undefined): string {
@@ -426,9 +438,9 @@ function renderWorkspace(s: State, now: () => Now): string {
   const main = renderView(s, tag, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
     + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${tag ? renderSettings(s, tag) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
-    + `<div class="pl-body${s.panelOpen ? "" : " is-panel-closed"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
+    + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
-    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${s.panelOpen ? "" : " hidden"}>${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -442,7 +454,7 @@ function selectorOf(el: Element): string {
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
-    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: true };
+    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -539,6 +551,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   };
   const win = root.ownerDocument.defaultView;
   win?.addEventListener("resize", drawTimelineLinks);
+  /** The frame is its own viewport: its width decides between the docked panel and the drawer (N13). */
+  const narrowQuery = win?.matchMedia(NARROW_MEDIA) ?? null;
+  s.narrow = narrowQuery?.matches ?? false;
+  const onWidth = () => void run(() => void (s.narrow = narrowQuery!.matches));
+  narrowQuery?.addEventListener("change", onWidth);
 
   const tagOf = (config: ViewConfig, tags: TagInfo[] = s.tags) => validateViewConfig(config, tags);
 
@@ -733,10 +750,15 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   root.addEventListener("click", (e) => {
     const t = e.target as HTMLElement;
-    // A click outside the open popover's anchor closes it (and still does what it was meant to do).
-    if (s.popover && !t.closest(".pl-anchor")) {
-      s.popover = null;
-      if (!t.closest("button, input, label")) return void run(() => {});
+    // A click outside the open popover's anchor closes it, and a click on the view beside or under the open drawer closes
+    // the drawer (N13; the bars above stay usable with it open); either click still does what it was meant to do.
+    const outsidePopover = s.popover !== null && !t.closest(".pl-anchor");
+    const outsideDrawer = drawerOpen(s) && !!t.closest("[data-region=main]");
+    if (outsidePopover) s.popover = null;
+    if (outsideDrawer) s.panelOpen.narrow = false;
+    if (outsidePopover || outsideDrawer) {
+      void run(() => {}); // drawn closed even when the click's own action draws nothing (opening a node)
+      if (!t.closest("button, input, label")) return;
     }
     const tl = timelineAction(t);
     if (tl) return void timeline(tl, (e as MouseEvent).shiftKey);
@@ -797,7 +819,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         render();
         return deps.onClose();
       case "toggle-panel":
-        return void run(() => void (s.panelOpen = !s.panelOpen), () => "[data-action=toggle-panel]");
+        return void run(() => void (s.panelOpen[s.narrow ? "narrow" : "wide"] = !panelShown(s)), () => "[data-action=toggle-panel]");
       case "toggle-built-in":
         return void run(() => void (s.builtInOpen = !s.builtInOpen));
       case "retry":
@@ -1088,16 +1110,24 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   return {
     open,
     escape() {
-      if (!s.popover) return false;
-      const p = s.popover;
-      s.popover = null;
-      render(trigger(p));
+      if (s.popover) {
+        const p = s.popover;
+        s.popover = null;
+        render(trigger(p));
+        return true;
+      }
+      if (!drawerOpen(s)) return false;
+      s.panelOpen.narrow = false;
+      render("[data-action=toggle-panel]");
       return true;
     },
     refresh,
     showViews: () => run(listViews),
     idle: () => queue,
     config: () => s.config,
-    stop: () => win?.removeEventListener("resize", drawTimelineLinks),
+    stop() {
+      win?.removeEventListener("resize", drawTimelineLinks);
+      narrowQuery?.removeEventListener("change", onWidth);
+    },
   };
 }

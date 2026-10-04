@@ -61,7 +61,10 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   order. "Sidebar" means Logseq's right sidebar only. A **Panel** toggle, last in the settings
   bar, hides and shows the panel (the view then takes the full width); while the panel is hidden
   and filters are ticked, the toggle shows how many values are ticked ("Panel · 2"). The choice is
-  kept for the session (in memory; not saved with a view, not persisted).
+  kept for the session (in memory; not saved with a view, not persisted). In a frame narrower than
+  640 px the panel is a **drawer** over the view from the right edge, closed by default; Escape
+  (after an open menu, before Planner) or a click on the view closes it. Wide and narrow keep their
+  own open state, so crossing the width without a toggle follows the defaults.
 - **Click** opens the node in the main area and hides Planner; **Shift+click** opens it in
   the right sidebar and keeps Planner open.
 - **Theme.** Follows the active Logseq theme and light/dark mode; Inkwell values are the

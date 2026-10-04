@@ -83,6 +83,12 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | A14 | With Planner open, double-click an empty part of the host header | The window zooms (maximizes or restores) (N15) | not run |  |  |  |
 | A15 | Click the toolbar button twice | The first click opens Planner, the second hides it; a third opens it again (N15) | pass | a066651 | 2026-10-03 | real clicks on the host toolbar button: Planner hides, then shows again on the same view |
 | A16 | With real mouse clicks (not CDP), use Planner's top bar: view switch, Saved views, Close | Every control takes the click (N15) | pass | a066651 | 2026-10-03 | real clicks: Calendar, Saved views open and close, Timeline all respond |
+| A17 | Open each view (Timeline, Calendar, Agenda, Kanban) at a wide window | The tag tree and filters are in the panel on the right of the view, with a hairline on the panel's left edge; the Timeline's label column stays at the left of the grid (N13) | not run |  |  |  |
+| A18 | Tick two filter values, then click **Panel** (last in the settings bar); click it again | Hidden: the view takes the full width, the button reads "Panel · 2" and keeps focus; shown again: the button reads "Panel"; VoiceOver reads the count ("Panel · 2 filters active") (N13) | not run |  |  |  |
+| A19 | Tab from the top of the workspace | Order: view switch, Saved views, Close, settings bar controls ending with Panel, the view toolbar, the view's items, then the panel (tag tree, filters) (N13) | not run |  |  |  |
+| A20 | Narrow the window until the frame is under 640 px wide (or zoom in), open Planner | The panel is closed; Panel opens it as a drawer over the view from the right edge (shadow, at most 260 px); Escape closes the drawer and Planner stays open; a second Escape closes Planner; with a menu open, Escape closes the menu first (N13) | not run |  |  |  |
+| A21 | At a narrow width, open the drawer and click the view beside it | The drawer closes; clicks inside the drawer (tag, filter) and on the bars above keep it open; widening the window shows the panel docked again (N13) | not run |  |  |  |
+| A22 | Open popovers near the right edge: Saved views, the Kanban Move menu of a card in the last column, Kanban Show, Depends on; wide and narrow | Each popover is fully inside the frame and above the panel or drawer (N13) | not run |  |  |  |
 
 ## B. Workspace shell
 

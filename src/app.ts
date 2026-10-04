@@ -63,7 +63,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   /** The toolbar button: hides Planner while it is shown (the host header stays usable under it), else opens it. The palette command only opens. */
   const toggle = () => (visible ? close() : open());
 
-  // Escape is always Planner's (a popover, else the workspace), so it never reaches the host. Registered before the
+  // Escape is always Planner's (a popover, then the panel drawer at narrow widths, else the workspace), so it never reaches the host. Registered before the
   // host-key forwarder so `defaultPrevented` is set when that one looks.
   doc.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;

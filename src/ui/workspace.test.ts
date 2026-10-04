@@ -4,7 +4,7 @@ import { loadTagInfos, TAGS_QUERY, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
-import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
+import { createWorkspace, initialTag, NARROW_MEDIA, visibleData, type Workspace } from "./workspace";
 import { DEPENDS_ON, fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import { DAY_TRACK_PX } from "./timeline";
 import { loadNodes, loadNodesAndTasks, tasksQuery, TITLES_QUERY } from "../core/queries";
@@ -48,7 +48,11 @@ async function pickTag(ws: Workspace, title: string) {
   await click(ws, `[data-tag-id="${tag(title).id}"]`);
 }
 
+/** Sets the frame's width (happy-dom evaluates `matchMedia` against it and fires its change events). */
+const viewport = (width: number) => (window as unknown as { happyDOM: { setViewport(v: { width: number }): void } }).happyDOM.setViewport({ width });
+
 beforeEach(async () => {
+  viewport(1024);
   tags = await loadTagInfos(fixtureDq());
   document.body.innerHTML = "";
   root = document.createElement("div");
@@ -500,6 +504,124 @@ describe("panel (N13)", () => {
     const unused = status.values.find((v) => $(`input[data-filter-value="${v.uuid}"]`)!.closest("label")!.querySelector(".pl-count")!.textContent === "0")!;
     await click(ws, `input[data-filter-prop="${status.ident}"][data-filter-value="${unused.uuid}"]`);
     expect(text("[data-empty=no-matches]")).toContain("Change the filters in the panel.");
+  });
+  it("a wide frame opens with the panel docked and shown", async () => {
+    await setup();
+    expect($(".pl-body")!.getAttribute("data-panel-mode")).toBe("docked");
+    expect($("[data-region=panel]")!.hidden).toBe(false);
+  });
+});
+
+describe("panel drawer at narrow widths (N13)", () => {
+  const btn = () => $("[data-action=toggle-panel]")!;
+  const panelHidden = () => $("[data-region=panel]")!.hidden;
+
+  it("a frame narrower than 640 px starts with the panel closed, as a drawer; the toggle opens it", async () => {
+    viewport(500);
+    const { ws } = await setup();
+    expect($(".pl-body")!.getAttribute("data-panel-mode")).toBe("drawer");
+    expect(panelHidden()).toBe(true);
+    expect(btn().getAttribute("aria-expanded")).toBe("false");
+    await click(ws, "[data-action=toggle-panel]");
+    expect(panelHidden()).toBe(false);
+    expect(btn().getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(btn());
+  });
+
+  it("Escape closes an open popover first, then the drawer (focus back on the toggle), then reports nothing left", async () => {
+    viewport(500);
+    const { ws } = await setup();
+    await click(ws, "[data-action=toggle-panel]");
+    await click(ws, "[data-control=tag]");
+    expect(ws.escape()).toBe(true);
+    expect($("[data-popover=tag]")).toBeNull();
+    expect(panelHidden()).toBe(false);
+    expect(ws.escape()).toBe(true);
+    expect(panelHidden()).toBe(true);
+    expect(document.activeElement).toBe(btn());
+    expect(ws.escape()).toBe(false);
+  });
+
+  it("Escape leaves a docked panel alone", async () => {
+    const { ws } = await setup();
+    expect(ws.escape()).toBe(false);
+    expect(panelHidden()).toBe(false);
+  });
+
+  it("a click on the view closes the drawer; a click inside it or on the bars above keeps it; the toggle closes it once", async () => {
+    viewport(500);
+    const { ws } = await setup();
+    await click(ws, "[data-action=toggle-panel]");
+    await click(ws, "[data-action=toggle-built-in]");
+    expect(panelHidden()).toBe(false);
+    await click(ws, "[data-view-kind=calendar]");
+    expect(panelHidden()).toBe(false);
+    await click(ws, "[data-region=view]");
+    expect(panelHidden()).toBe(true);
+    await click(ws, "[data-action=toggle-panel]");
+    await click(ws, "[data-action=toggle-panel]");
+    expect(panelHidden()).toBe(true);
+  });
+
+  it("a click on a node in the view opens it and the drawer is drawn closed", async () => {
+    viewport(500);
+    const store = createViewStore(fakeStorage());
+    const openNode = vi.fn();
+    const ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode, zone: () => -300, today: () => "2026-10-03", time: () => "13:30", kanban: noWrites, weekStart: async () => 0 });
+    await ws.open();
+    await click(ws, "[data-action=toggle-panel]");
+    await click(ws, "[data-tl-open]");
+    expect(openNode).toHaveBeenCalledTimes(1);
+    expect(panelHidden()).toBe(true);
+    expect(btn().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("crossing the breakpoint follows the defaults until the user chooses; a choice is kept per width", async () => {
+    const { ws } = await setup();
+    viewport(500);
+    await ws.idle();
+    expect($(".pl-body")!.getAttribute("data-panel-mode")).toBe("drawer");
+    expect(panelHidden()).toBe(true);
+    viewport(1024);
+    await ws.idle();
+    expect($(".pl-body")!.getAttribute("data-panel-mode")).toBe("docked");
+    expect(panelHidden()).toBe(false);
+
+    await click(ws, "[data-action=toggle-panel]"); // wide: hidden by choice
+    viewport(500);
+    await ws.idle();
+    await click(ws, "[data-action=toggle-panel]"); // narrow: drawer opened by choice
+    viewport(1024);
+    await ws.idle();
+    expect(panelHidden()).toBe(true);
+    viewport(500);
+    await ws.idle();
+    expect(panelHidden()).toBe(false);
+  });
+
+  it("stop() removes the width listener", async () => {
+    const { ws } = await setup();
+    ws.stop();
+    viewport(500);
+    await ws.idle();
+    await click(ws, "[data-action=toggle-panel]"); // any redraw: the width change was not seen
+    expect($(".pl-body")!.getAttribute("data-panel-mode")).toBe("docked");
+  });
+
+  it("the drawer overlays the view from the right edge, under popovers (stylesheet; same breakpoint as the code)", () => {
+    expect(NARROW_MEDIA).toBe("(max-width: 639px)");
+    const media = workspaceCss.slice(workspaceCss.indexOf(`@media ${NARROW_MEDIA}`));
+    expect(media).not.toBe(workspaceCss);
+    expect(media).toMatch(/\.pl-body\s*\{[^}]*position:\s*relative;[^}]*grid-template-columns:\s*1fr/);
+    const panel = media.match(/\.pl-panel\s*\{([^}]*)\}/)![1]!;
+    expect(panel).toMatch(/position:\s*absolute/);
+    expect(panel).toMatch(/right:\s*0/);
+    expect(panel).toMatch(/width:\s*min\(260px,\s*85%\)/);
+    expect(panel).toMatch(/box-shadow:\s*var\(--pl-shadow-float\)/);
+    const z = Number(panel.match(/z-index:\s*(\d+)/)![1]);
+    const popoverZ = Number(workspaceCss.match(/\.pl-popover\s*\{[^}]*z-index:\s*(\d+)/)![1]);
+    expect(z).toBeGreaterThan(4); // above the views' sticky heads and labels (2 to 4)
+    expect(z).toBeLessThan(popoverZ);
   });
 });
 

@@ -175,6 +175,37 @@ describe("registerApp", () => {
     expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
   });
 
+  it("narrow frame (N13): Escape closes a popover, then the panel drawer, then Planner; each Escape is prevented", async () => {
+    const setViewport = (width: number) => (window as unknown as { happyDOM: { setViewport(v: { width: number }): void } }).happyDOM.setViewport({ width });
+    setViewport(500);
+    try {
+      const { deps, flush } = fakeDeps();
+      registerApp(deps, root);
+      flush();
+      modelHandler(deps)();
+      await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")).not.toBeNull());
+      root.querySelector<HTMLButtonElement>("[data-action=toggle-panel]")!.click();
+      await vi.waitFor(() => expect(root.querySelector<HTMLElement>("[data-region=panel]")!.hidden).toBe(false));
+      root.querySelector<HTMLButtonElement>("[data-control=tag]")!.click();
+      await vi.waitFor(() => expect(root.querySelector("[data-popover=tag]")).not.toBeNull());
+      const escape = () => {
+        const e = new KeyboardEvent("keydown", { key: "Escape", cancelable: true });
+        document.dispatchEvent(e);
+        return e.defaultPrevented;
+      };
+      expect(escape()).toBe(true);
+      expect(root.querySelector("[data-popover=tag]")).toBeNull();
+      expect(root.querySelector<HTMLElement>("[data-region=panel]")!.hidden).toBe(false);
+      expect(escape()).toBe(true);
+      expect(root.querySelector<HTMLElement>("[data-region=panel]")!.hidden).toBe(true);
+      expect(deps.hideMainUI).not.toHaveBeenCalled();
+      expect(escape()).toBe(true);
+      expect(deps.hideMainUI).toHaveBeenCalledTimes(1);
+    } finally {
+      setViewport(1024);
+    }
+  });
+
   it("opens the main UI from the toolbar button and the command palette", () => {
     const { deps, flush } = fakeDeps();
     registerApp(deps, root);
