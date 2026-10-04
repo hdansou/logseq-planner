@@ -89,6 +89,13 @@ export interface ChoiceProp {
   values: ClosedValue[];
 }
 
+/** A node-typed property available on a tag (own or inherited), any cardinality: its values point at other nodes (N12). */
+export interface NodeProp {
+  id: number;
+  ident: string;
+  title: string;
+}
+
 /** One tag with the properties Planner can map, inherited ones included. */
 export interface TagInfo {
   id: number;
@@ -104,6 +111,8 @@ export interface TagInfo {
   /** Own properties first, then inherited ones, each ident once. */
   dateProps: DateProp[];
   choiceProps: ChoiceProp[];
+  /** Node-typed properties: the choices of the "Depends on" setting (N12). */
+  nodeProps: NodeProp[];
 }
 
 /** A local calendar day, with the wall-clock time for DateTime values (`time` is null for Date values). */

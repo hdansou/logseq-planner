@@ -1,6 +1,6 @@
-// Schema discovery: tags, their date and choice properties (inherited included), closed values.
+// Schema discovery: tags, their date, choice and node properties (inherited included), closed values.
 // Pure: no DOM, no SDK. The datascript call is injected (see `Dq`).
-import type { ChoiceProp, ClosedValue, DateProp, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, DateProp, NodeProp, TagInfo } from "../types";
 
 /** `logseq.DB.datascriptQuery`-shaped call; `src/sdk.ts` supplies the real one. */
 export type Dq = (query: string, ...inputs: unknown[]) => Promise<unknown[]>;
@@ -82,12 +82,14 @@ const toClosedValue = (v: RawClosedValue): ClosedValue => ({
 const byOrder = (a: ClosedValue, b: ClosedValue) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0);
 
 /**
- * Date/DateTime and choice properties of a tag, own first then inherited (parents walked depth-first). A choice
+ * Date/DateTime, choice and node properties of a tag, own first then inherited (parents walked depth-first). A choice
  * property counts only with cardinality one (T14): a many-valued one is not offered for filters, Kanban or done values.
+ * A node property counts with any cardinality (N12: `depends_on` is many-valued).
  */
 function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map<number, RawProp>) {
   const dateProps: DateProp[] = [];
   const choiceProps: ChoiceProp[] = [];
+  const nodeProps: NodeProp[] = [];
   const seenTags = new Set<number>();
   const seenProps = new Set<number>();
   const visit = (t: RawTag) => {
@@ -101,6 +103,8 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
       const closed = p["_closed-value-property"] ?? [];
       if (type === "date" || type === "datetime") {
         dateProps.push({ id: p.id, ident: p.ident, title: p.title, type });
+      } else if (type === "node") {
+        nodeProps.push({ id: p.id, ident: p.ident, title: p.title });
       } else if (type === "default" && closed.length > 0 && p.cardinality === ONE) {
         choiceProps.push({
           id: p.id,
@@ -116,7 +120,7 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
     }
   };
   visit(tag);
-  return { dateProps, choiceProps };
+  return { dateProps, choiceProps, nodeProps };
 }
 
 /** Raw `TAGS_QUERY` and `TAG_PROPERTIES_QUERY` results → tags with inherited properties resolved. */

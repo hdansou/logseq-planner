@@ -25,6 +25,12 @@ interface CommonConfig {
   doneValues: Record<string, string[]>;
   /** Per choice property: selected value uuids, `null` = "No value". Absent or empty = no filter. */
   filters: ValueSelection;
+  /**
+   * Node property whose values are the nodes a node depends on (N12): Timeline connectors, and those nodes' tasks no
+   * longer count the node. Null = None. Absent only in a config stored before N12: the default rule applies
+   * (`dependsOnOf`). An ident the tag no longer has behaves as null.
+   */
+  dependsOn?: string | null;
 }
 
 export type ViewConfig = CommonConfig &
@@ -53,9 +59,23 @@ function defaultDates(tag: TagInfo): { start: string | null; end: string | null 
   return { start: tag.dateProps[0]?.ident ?? null, end: null };
 }
 
-/** The view a user gets when they pick `tag`: mapped dates by the default rule, nothing filtered. */
+/** The node property titled like "depends on" (lowercased, non-alphanumerics removed: `depends_on`, "Depends on", "depends-on"), else null. */
+function defaultDependsOn(tag: TagInfo): string | null {
+  return tag.nodeProps.find((p) => p.title.toLowerCase().replace(/[^a-z0-9]/g, "") === "dependson")?.ident ?? null;
+}
+
+/**
+ * The dependency property the view uses on `tag` now: the chosen one, or by the default rule when the config predates
+ * the setting; null for None and for an ident the tag no longer has (no error: the view just draws no dependencies).
+ */
+export function dependsOnOf(config: ViewConfig, tag: TagInfo): string | null {
+  const ident = config.dependsOn === undefined ? defaultDependsOn(tag) : config.dependsOn;
+  return tag.nodeProps.some((p) => p.ident === ident) ? ident : null;
+}
+
+/** The view a user gets when they pick `tag`: mapped dates and the dependency property by the default rules, nothing filtered. */
 export function defaultViewConfig(tag: TagInfo, kind: ViewKind = "timeline"): ViewConfig {
-  const common: CommonConfig = { tag: tag.ident, childTags: true, ...defaultDates(tag), doneValues: {}, filters: {} };
+  const common: CommonConfig = { tag: tag.ident, childTags: true, ...defaultDates(tag), doneValues: {}, filters: {}, dependsOn: defaultDependsOn(tag) };
   switch (kind) {
     case "timeline":
       return { ...common, kind, zoom: "month" };
@@ -122,6 +142,7 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
   stringOrNull("end", config.end);
   selection("doneValues", config.doneValues, false);
   selection("filters", config.filters, true);
+  if ("dependsOn" in config) stringOrNull("dependsOn", config.dependsOn);
   switch (config.kind) {
     case "timeline":
       return oneOf("timeline zoom", ZOOMS, config.zoom);
@@ -185,7 +206,9 @@ export const serializeViewConfig = (config: ViewConfig): string => JSON.stringif
 /**
  * Throws on invalid JSON, another version or a config of the wrong shape (`checkViewConfigShape`); idents are checked by
  * `validateViewConfig`. A stored Kanban config without `hiddenColumns` loads with nothing hidden: the key was added (N08)
- * after views were first saved, and this is the one place stored configs come in.
+ * after views were first saved, and this is the one place stored configs come in. A stored config without `dependsOn`
+ * (added in N12) loads with the key absent, which means the default rule: the parse has no tag to apply it to, so
+ * `dependsOnOf` applies it against the view's tag wherever the setting is used.
  */
 export function parseViewConfig(text: string): ViewConfig {
   let parsed: { v?: unknown; config?: unknown };

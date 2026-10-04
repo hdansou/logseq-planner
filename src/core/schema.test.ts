@@ -121,3 +121,39 @@ describe("multi-value choice properties (T14 review)", () => {
     expect(titles(byTitle("Project").choiceProps)).toEqual(["Status", "Owner"]);
   });
 });
+
+describe("node properties (N12)", () => {
+  // The T01 fixtures have no node-typed property: these rows are the fixture rows plus one hand-written node property
+  // on Project (many-valued, like `depends_on` on #Task in planner-project) and one on Meeting (cardinality one), each
+  // listed in its tag's class properties. Shapes as the probe saw them (`:logseq.property/type` "node", bare cardinality key).
+  const DEPENDS = { id: 9901, ident: ":user.property/depends_on-Ab12Cd34", title: "depends_on", ":logseq.property/type": "node", cardinality: ":db.cardinality/many" };
+  const HOST = { id: 9902, ident: ":user.property/host-Ef56Gh78", title: "Host", ":logseq.property/type": "node", cardinality: ":db.cardinality/one" };
+  const withNodeProps = () => {
+    const rows = (rawTags as [Record<string, unknown>][]).map(([t]) => {
+      const extra = t.title === "Project" ? [DEPENDS] : t.title === "Meeting" ? [HOST] : [];
+      const own = (t[":logseq.property.class/properties"] as unknown[] | undefined) ?? [];
+      return [extra.length ? { ...t, ":logseq.property.class/properties": [...own, ...extra.map((p) => ({ id: p.id, ident: p.ident, title: p.title }))] } : t];
+    });
+    const props = [...(rawProps as unknown[]), ["Project", DEPENDS], ["Meeting", HOST]];
+    return buildTagInfos(rows, props);
+  };
+  const of = (infos: TagInfo[], title: string) => infos.find((t) => t.title === title)!;
+
+  it("lists a tag's node-typed properties, any cardinality, with id, ident and title", () => {
+    const infos = withNodeProps();
+    expect(of(infos, "Project").nodeProps).toEqual([{ id: DEPENDS.id, ident: DEPENDS.ident, title: "depends_on" }]);
+    expect(of(infos, "Meeting").nodeProps).toEqual([{ id: HOST.id, ident: HOST.ident, title: "Host" }]);
+  });
+
+  it("a child tag inherits its parent's node properties", () => {
+    expect(titles(of(withNodeProps(), "Client project").nodeProps)).toEqual(["depends_on"]);
+  });
+
+  it("a node property is neither a date nor a choice property, and a tag without one has nodeProps: []", () => {
+    const infos = withNodeProps();
+    expect(titles(of(infos, "Project").dateProps)).not.toContain("depends_on");
+    expect(titles(of(infos, "Project").choiceProps)).not.toContain("depends_on");
+    expect(of(infos, "Task").nodeProps).toEqual([]);
+    expect(byTitle("Project").nodeProps).toEqual([]); // the plain fixture has none
+  });
+});

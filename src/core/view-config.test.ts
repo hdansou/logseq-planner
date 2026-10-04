@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos } from "./schema";
-import { defaultViewConfig, parseViewConfig, serializeViewConfig, toChoiceFilters, validateViewConfig, type ViewConfig } from "./view-config";
+import { defaultViewConfig, dependsOnOf, parseViewConfig, serializeViewConfig, toChoiceFilters, validateViewConfig, type ViewConfig } from "./view-config";
 import type { TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -205,6 +205,59 @@ describe("strict shapes (T14 review)", () => {
   it("still parses every default config", () => {
     for (const kind of ["timeline", "calendar", "agenda", "kanban"] as const) {
       const c = defaultViewConfig(p, kind);
+      expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+    }
+  });
+});
+
+describe("Depends on (N12)", () => {
+  const p = tag("Project");
+  const prop = (title: string, id = 9901) => ({ id, ident: `:user.property/${title.toLowerCase().replace(/[^a-z0-9]/g, "")}-${id}`, title });
+  const withNodeProps = (...titles: string[]): TagInfo => ({ ...p, nodeProps: titles.map((t, i) => prop(t, 9901 + i)) });
+
+  it("defaults to the node property titled like depends on: depends_on, Depends on, depends-on", () => {
+    for (const title of ["depends_on", "Depends on", "depends-on", "DependsOn"]) {
+      const t = withNodeProps("Owner page", title);
+      expect(defaultViewConfig(t).dependsOn).toBe(t.nodeProps[1].ident);
+    }
+  });
+
+  it("defaults to null when no node property is titled like depends on, or the tag has none", () => {
+    expect(defaultViewConfig(withNodeProps("Blocked by", "Parent")).dependsOn).toBeNull();
+    expect(defaultViewConfig(p).dependsOn).toBeNull();
+    for (const kind of ["calendar", "agenda", "kanban"] as const) expect(defaultViewConfig(withNodeProps("depends_on"), kind).dependsOn).toBe(withNodeProps("depends_on").nodeProps[0].ident);
+  });
+
+  it("dependsOnOf: the chosen ident when the tag has it; null for None and for an ident the tag no longer has (no error)", () => {
+    const t = withNodeProps("depends_on", "Blocked by");
+    const c = defaultViewConfig(t);
+    expect(dependsOnOf({ ...c, dependsOn: t.nodeProps[1].ident }, t)).toBe(t.nodeProps[1].ident);
+    expect(dependsOnOf({ ...c, dependsOn: null }, t)).toBeNull();
+    expect(dependsOnOf({ ...c, dependsOn: ":user.property/gone-x" }, t)).toBeNull();
+    expect(validateViewConfig({ ...defaultViewConfig(p), dependsOn: ":user.property/gone-x" }, tags)).toBe(p);
+  });
+
+  it("a stored config without dependsOn (saved before N12) loads with the default rule applied", () => {
+    const t = withNodeProps("Depends on");
+    const { dependsOn: _, ...old } = defaultViewConfig(t) as unknown as Record<string, unknown>;
+    const loaded = parseViewConfig(JSON.stringify({ v: 1, config: old }));
+    expect(dependsOnOf(loaded, t)).toBe(t.nodeProps[0].ident);
+    expect(dependsOnOf(loaded, p)).toBeNull();
+    expect(validateViewConfig(loaded, tags)).toBe(p);
+  });
+
+  it("validation: dependsOn is a string or null", () => {
+    const c = defaultViewConfig(p) as unknown as Record<string, unknown>;
+    for (const dependsOn of [1, true, [], {}]) {
+      expect(() => parseViewConfig(JSON.stringify({ v: 1, config: { ...c, dependsOn } }))).toThrow(/dependsOn must be a string or null/);
+      expect(() => validateViewConfig({ ...c, dependsOn } as never, tags)).toThrow(/dependsOn must be a string or null/);
+    }
+  });
+
+  it("round trips a chosen property and None", () => {
+    const t = withNodeProps("depends_on");
+    for (const dependsOn of [t.nodeProps[0].ident, null]) {
+      const c = { ...defaultViewConfig(t), dependsOn };
       expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
     }
   });

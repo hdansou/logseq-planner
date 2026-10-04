@@ -9,7 +9,7 @@ import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos } from "../core/schema";
-import { defaultViewConfig, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, type ViewConfig, type ViewKind } from "../core/view-config";
+import { defaultViewConfig, dependsOnOf, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, type ViewConfig, type ViewKind } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
@@ -162,10 +162,10 @@ export function visibleData(config: ViewConfig, tag: TagInfo, nodes: PlannerNode
   return { nodes: shown, tasks: tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))) };
 }
 
-/** Keeps the shared fields (tag, dates, filters, done values) and takes the new kind's defaults for the rest. */
+/** Keeps the shared fields (tag, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
 export function switchKind(config: ViewConfig, tag: TagInfo, kind: ViewKind): ViewConfig {
   const { tag: t, childTags, start, end, doneValues, filters } = config;
-  return { ...defaultViewConfig(tag, kind), tag: t, childTags, start, end, doneValues, filters };
+  return { ...defaultViewConfig(tag, kind), tag: t, childTags, start, end, doneValues, filters, dependsOn: dependsOnOf(config, tag) };
 }
 
 /** The choice property the done-values control is labelled with: Status, else the first one. */
