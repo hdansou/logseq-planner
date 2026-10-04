@@ -296,8 +296,24 @@ Live-check method (web app):
       closes a popover and then Planner.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
-- [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
-      (REQUIREMENTS.md).
+- [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block,
+      drag-to-edit dates (REQUIREMENTS.md). Split on 2026-10-04:
+      **N06a Sidebar surface** (next). Prototype checked live on the desktop app: with
+      Logseq's right sidebar open (`#right-sidebar.open`, 40% wide, a 3 px `.resizer` at
+      its left edge, the main content shrinks beside it), setting the frame's `left` /
+      `width` to the sidebar's rectangle minus the resizer shows Planner next to the page
+      at 705 px, no overflow, panel docked. Build: a Workspace / Sidebar switch in
+      Planner's top bar; in Sidebar mode Planner opens the host's right sidebar
+      (`set_right_sidebar_visible`), lays its frame over it (from the header's lower edge,
+      leaving the resizer free) and follows its size with a ResizeObserver; when the host
+      closes the sidebar Planner goes back to the workspace mode hidden state (closes);
+      the mode is remembered for the session. Desktop app only (the web app's frame cannot
+      read the host document): the switch is not shown there. The sidebar's own content is
+      covered while Planner is docked. Acceptance: unit tests for the geometry and the
+      mode switch; live with real mouse input: page and Planner side by side, drag the
+      host's resizer and Planner follows, all four views usable at the sidebar's width
+      (panel as a drawer under 640 px), close and reopen.
+      **N06b In-page block** and **N06c Drag to edit dates**: not scoped yet.
       Decision note (2026-10-03, owner asked whether Planner should be resizable
       independently of the app): yes, through the right-sidebar surface. Logseq's sidebar
       has its own width handle, so a Planner rendered there is sized by the host and shows
