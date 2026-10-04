@@ -334,6 +334,7 @@ CLI (`graph create`, `graph import --type edn` of the small and the large seed w
 | Dark mode (Inkwell Slate, the profile's theme) | pass: tokens flip (`--pl-label`, `--pl-red`, body background) with no reload |
 | Click a Timeline name; Shift+click | pass: click opens the node and hides Planner; Shift+click adds it to the right sidebar, Planner stays |
 | macOS window-button padding (A9) | pass by measurement (84 px); buttons not visible to CDP |
+| Real mouse clicks on the top bar (view switch, Saved views, Close) | **failed on e849107**, reported by the owner: the host header under the frame (`#head`, top 48 px) is a window-drag region and swallowed the clicks; CDP clicks do not go through it, so the pass above missed it. Fixed in de90392 (`-webkit-app-region: no-drag` on the frame); re-run with real clicks (CGEvent): Calendar, Kanban, Saved views open and close, Close all land |
 
 Not run on the desktop: sync from another device; the rest of sections A–J (run in the web app only); VoiceOver; a
 drag by hand. `logseq graph import` is refused while the app has the graph open ("Server is owned by another process"):

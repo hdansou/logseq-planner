@@ -589,3 +589,13 @@ Total: about 10 hours.
   `window.apis.doAction(["openNewWindow", repo])`. The production build has no
   `__plannerTimings`: times were taken from the click or API call to the first DOM
   mutation in the frame.
+- 2026-10-03 defect reported by the owner after the desktop pass: "unable to switch from
+  timeline to calendar". Cause: the full-screen frame covers the host header, whose top
+  48 px is a window-drag region; real clicks on Planner's top bar never arrived. The
+  desktop pass used CDP clicks, which bypass drag regions, so it passed wrongly. Fixed in
+  de90392 (`WebkitAppRegion: no-drag` in `FULL_SCREEN`, 506 tests). Verified with real
+  mouse events posted by a small CGEvent tool (skill `test-logseq-desktop`,
+  `scripts/click.swift`): before the fix a click on Calendar left Timeline; after it
+  Calendar, Kanban, Saved views (open, close) and Close all respond. Rule from now on:
+  anything in the top 48 px of the desktop window is checked with real clicks. Side
+  effect: the window cannot be dragged by its top strip while Planner is open.
