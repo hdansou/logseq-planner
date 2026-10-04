@@ -6,13 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Version 0.1.0 is in progress: the workspace and the four views are built and were checked in the Logseq web app
+(see the limits in README.md). It has not been released.
+
 ### Changed
 
 - New icon: three staggered bars (a small Gantt) in the toolbar and the plugin list. The calendar glyph looked like the
   Journals calendar plugin's button.
-
-Version 0.1.0 is in progress: the workspace and the four views are built and were checked in the Logseq web app
-(see the limits in README.md). It has not been released.
 
 ### Added
 - Lateness counts the Scheduled date (N03b): a task's due date is its Deadline, or its Scheduled date when it
