@@ -79,7 +79,7 @@ Live-check method (web app):
       the saved-views and Done-when popovers have no arrow-key navigation (Tab works); a task linked to two nodes is listed under the first one in the Agenda by
       node; saved-view writes are not serialised; no auto-restore of a views page in
       Recycle; a band continuing on both sides shows its title mid-row; no CSP.
-- [ ] **N08 Kanban: choose which columns show** — owner request 2026-10-03 ("we may only
+- [x] **N08 Kanban: choose which columns show** — owner request 2026-10-03 ("we may only
       want to show TODO, Doing and Done"). A "Show" control in the Kanban toolbar, after
       Columns: a checkbox per value of the column property, in order, plus "No <prop>"; the
       button reads "All" or "3 of 7". Unticked columns and their cards leave the board. At
@@ -613,3 +613,16 @@ Total: about 10 hours.
   Calendar, Kanban, Saved views (open, close) and Close all respond. Rule from now on:
   anything in the top 48 px of the desktop window is checked with real clicks. Side
   effect: the window cannot be dragged by its top strip while Planner is open.
+- 2026-10-03 icon (dd072f8): three staggered bars in the toolbar (inline SVG, `currentColor`)
+  and in icon.svg; the calendar glyph matched the Journals calendar plugin. Seen in the
+  desktop toolbar; the plugin-list icon was rendered from the file only.
+- 2026-10-03 N08 done (0001f26, 25b9f3a). 529 unit tests. Live on the desktop app (graph
+  `planner-desktop-2`; the owner's own app had `planner-desktop` open), rows D16–D20 in
+  docs/manual-test.md: hide four columns with real mouse clicks, last-column guard,
+  per-property memory, save / reopen (stored JSON read with the CLI), Move to a hidden
+  column. Decisions taken (change if wrong): only columns are selectable, not swimlanes;
+  the Move menu lists hidden values; a list that would hide every column hides none;
+  Show resets to "All" on a view-kind switch, as Sort and Swimlanes do (kept only in a
+  saved view). Not verified: disabled-checkbox look in dark mode; focus after moving a
+  card to a hidden column falls to the document. Note: the owner tests in the stable
+  Logseq.app (b09316a); every desktop check here ran on Logseq-DB.app (8ffbb22).
