@@ -5,27 +5,25 @@
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
-import { buildData, loadTitles, readRaw, type RawData } from "../core/queries";
-import { filterNodes, isDone } from "../core/nodes";
+import { readRaw } from "../core/queries";
+import { isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos, tagsTitle, TAG_KEY, type ViewTags } from "../core/schema";
 import {
-  defaultViewConfig, dependsOnOf, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
+  defaultViewConfig, dependsOnOf, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
 } from "../core/view-config";
-import { refUuids, titlesByUuid } from "../core/display-title";
-import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
-import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
-import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
-import { layoutAgenda, type AgendaLayout } from "../core/agenda";
-import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, tagLaneProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
+import { shiftAnchor } from "../core/timeline-layout";
+import { shiftCalendarAnchor } from "../core/calendar-layout";
+import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
-import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
+import type { ChoiceProp, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, esc, flag, menu as menuHtml, options } from "./html";
-import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
-import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
-import { KANBAN_CELL_PAGE, kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
-import { drawLinks, renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
+import { calendarAction } from "./calendar";
+import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
+import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
+import { drawLinks, timelineAction } from "./timeline";
+import { empty, kanbanLayout, readViewData, renderViewArea, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -146,14 +144,6 @@ interface State {
   surface: Surface;
 }
 
-/** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
-interface Now {
-  today: string;
-  /** `HH:MM`. */
-  time: string;
-  weekStart: number;
-}
-
 /** Below this width the panel is a drawer over the view (N13); workspace.css has the same media query. */
 export const NARROW_MEDIA = "(max-width: 639px)";
 const panelShown = (s: State) => s.panelOpen[s.narrow ? "narrow" : "wide"];
@@ -183,19 +173,6 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
   return rootsOf(tags).find(hasDates) ?? ordered.find(hasDates) ?? ordered[0] ?? null;
 }
 
-/** The loaded nodes with the pending Kanban moves applied: where their cards show while the writes run. */
-const shownNodes = (s: State): PlannerNode[] =>
-  s.pending.size ? s.nodes.map((n) => (s.pending.has(n.uuid) ? movedNode(n, s.pending.get(n.uuid)!) : n)) : s.nodes;
-
-/** The nodes that pass the view's filters (the Tag filter by node tag, N14) and the tasks linked to them: what a view is handed (T07 D4). */
-export function visibleData(config: ViewConfig, view: ViewTags, nodes: PlannerNode[], tasks: PlannerTask[]) {
-  const byTag = config.filters[TAG_KEY] ?? [];
-  const byChoice = filterNodes(nodes, toChoiceFilters(config, view));
-  const shown = byTag.length ? byChoice.filter((n) => byTag.includes(n.tag)) : byChoice;
-  const ids = new Set(shown.map((n) => n.id));
-  return { nodes: shown, tasks: tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))) };
-}
-
 /** Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
 export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): ViewConfig {
   const { tags, childTags, dates, doneValues, filters } = config;
@@ -209,10 +186,6 @@ const primaryChoice = (view: ViewTags): ChoiceProp | undefined => view.choicePro
 const doneUuids = (config: ViewConfig, prop: ChoiceProp) => prop.values.filter((v) => isDone(v, config.doneValues[prop.ident])).map((v) => v.uuid);
 
 const toggle = <T>(list: T[], x: T) => (list.includes(x) ? list.filter((y) => y !== x) : [...list, x]);
-
-/** The built-in Task Status values (their flags decide done); none in a graph without the Task tag, then every task is open. */
-const taskStatusValues = (tags: TagInfo[]): ClosedValue[] =>
-  tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")?.values ?? [];
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
 /** The machine's local day as `YYYY-MM-DD` (the default `today`). */
@@ -390,77 +363,12 @@ function renderFilters(s: State, view: ViewTags): string {
   }).join("");
 }
 
-const empty = (key: string, title: string, body: string, action = "") =>
-  `<div class="pl-empty" data-empty="${key}"><b>${title}</b><span>${body}</span>${action}</div>`;
-
-/** Each node's Start / End: its tag's mapping in the view (N14). */
-const datesOf = (c: ViewConfig) => (n: PlannerNode) => c.dates[n.tag];
-
-/**
- * The items nested (N14 step 2: children under their parent, progress over children and tasks) for a view over two or
- * more tags, the items as they are for one tag (whose nodes carry no links).
- */
-const nested = (s: State, view: ViewTags, items: ViewItem[]) =>
-  view.tags.length > 1 ? nestItems(items, taskStatusValues(s.tags), s.config!.doneValues) : { items, parentOf: new Map<number, number>() };
-
-/** The Timeline layout for the visible nodes; with two or more tags arranged as the view says (N14). */
-function timelineLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): TimelineLayout {
-  const c = s.config!;
-  if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
-  const statusValues = taskStatusValues(s.tags);
-  const multi = view.tags.length > 1;
-  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
-  const base = { zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues, titles: s.titles };
-  if (multi && c.arrange === "nested") {
-    const nest = nested(s, view, items);
-    return layoutTimeline({ ...base, items: nest.items, nest: nest.parentOf, collapsed: s.collapsed });
-  }
-  return layoutTimeline({ ...base, items, ...(multi && c.arrange === "tag" ? { groups: view.tags.map((t) => ({ tag: t.ident, title: `#${t.title}` })) } : {}) });
-}
-
-/** The Calendar layout for the visible nodes. */
-function calendarLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): CalendarLayout {
-  const c = s.config!;
-  if (c.kind !== "calendar") throw new Error(`calendarLayout called for a ${c.kind} view`);
-  const statusValues = taskStatusValues(s.tags);
-  return layoutCalendar({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    layout: c.layout, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
-    titles: s.titles,
-  });
-}
-
-/** The Agenda layout for the visible nodes. */
-function agendaLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): AgendaLayout {
-  const c = s.config!;
-  if (c.kind !== "agenda") throw new Error(`agendaLayout called for a ${c.kind} view`);
-  const statusValues = taskStatusValues(s.tags);
-  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
-  // By node, a parent's group lists its children (N14 step 2); by date every node is its own entry.
-  const nest = c.groupBy === "node" ? nested(s, view, items) : null;
-  return layoutAgenda({
-    items: nest?.items ?? items, ...(nest ? { nest: nest.parentOf } : {}),
-    groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: view.choiceProps, doneValues: c.doneValues,
-    titles: s.titles,
-  });
-}
-
-/** A Kanban view's column or lane property: one of the view's shared choice properties, or the Tag lanes (N14); null for none. */
-const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | null =>
-  ident === null ? null : ident === TAG_KEY ? tagLaneProp(view.tags) : view.choiceProps.find((p) => p.ident === ident)!;
-
-/** The Kanban layout for the visible nodes (the view has a column property). */
-function kanbanLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): KanbanLayout {
-  const c = s.config!;
-  if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
-  const statusValues = taskStatusValues(s.tags);
-  return layoutKanban({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), sort: c.sort, today: now.today,
-    choiceProps: view.choiceProps, doneValues: c.doneValues, titles: s.titles, pending: new Set(s.pending.keys()),
-    hidden: c.hiddenColumns[c.columnProp] ?? [],
-  });
-}
+/** The view area's input from the workspace state: the session state it reads (N06b: shared with the in-page block). */
+const areaOf = (s: State, view: ViewTags): ViewAreaInput => ({
+  tags: s.tags, config: s.config!, view, nodes: s.nodes, tasks: s.tasks, titles: s.titles,
+  session: { anchor: s.anchor, expanded: s.expanded, collapsed: s.collapsed, agendaOpen: s.agendaOpen, agendaGroups: s.agendaGroups,
+    agendaOverdue: s.agendaOverdue, kbShown: s.kbShown, pending: s.pending, moveOpen: s.popover === "kb-move" ? s.moveCard : null, popover: s.popover },
+});
 
 /** The main area (loading, an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar. */
 function renderView(s: State, view: ViewTags | undefined, now: () => Now): { view: string; toolbar: string } {
@@ -469,44 +377,7 @@ function renderView(s: State, view: ViewTags | undefined, now: () => Now): { vie
   if (s.loadFailed) return only(`<div class="pl-empty" data-region="load-failed"><button type="button" class="pl-btn" data-action="retry">Retry</button></div>`);
   if (!s.tags.length) return only(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
   if (!view || !s.config) return only("");
-  const heading = tagsTitle(view.tags);
-  const name = esc(heading);
-  const multi = view.tags.length > 1;
-  if (s.config.kind === "kanban" && s.config.columnProp === null) {
-    return only(multi
-      ? empty("no-choice", `${name} share no choice property`, "Kanban columns come from a choice property every selected tag has, like Status. Add one to the tags in Logseq, or choose other tags.")
-      : empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
-  }
-  if (s.config.kind !== "kanban" && !view.tags.some((t) => t.dateProps.length)) {
-    return only(multi
-      ? empty("no-dates", `${name} have no date properties`, "Add a Date or DateTime property to one of the tags in Logseq and pick it under Dates, or choose other tags.")
-      : empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
-  }
-  if (!s.nodes.length) return only(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${multi ? "one of these tags" : name} and it shows up here.`));
-  const shown = visibleData(s.config, view, shownNodes(s), s.tasks);
-  if (!shown.nodes.length) {
-    return only(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
-      `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
-  }
-  if (s.config.kind === "timeline") {
-    const layout = timelineLayout(s, now(), view, shown);
-    return { view: renderTimeline(layout, heading, { expanded: s.expanded, collapsed: s.collapsed }), toolbar: renderTimelineToolbar(layout, multi ? s.config.arrange : null) };
-  }
-  if (s.config.kind === "calendar") {
-    const layout = calendarLayout(s, now(), shown);
-    return { view: renderCalendar(layout, heading), toolbar: renderCalendarToolbar(layout) };
-  }
-  if (s.config.kind === "agenda") {
-    const layout = agendaLayout(s, now(), view, shown);
-    return { view: renderAgenda(layout, heading, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups, overdue: s.agendaOverdue }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
-  }
-  const c = s.config;
-  const layout = kanbanLayout(s, now(), view, shown);
-  return {
-    view: renderKanban(layout, heading, s.popover === "kb-move" ? s.moveCard : null, s.kbShown),
-    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
-      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: s.popover }),
-  };
+  return renderViewArea(areaOf(s, view), now);
 }
 
 const errorBar = (error: string) =>
@@ -658,19 +529,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   };
 
   /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
-  async function readData(config: ViewConfig, tags: TagInfo[]) {
-    const view = validateViewConfig(config, tags);
-    return fromRaw(config, tags, await readRaw(deps.dq, tags, view.tags, dependsOnOf(config, view)));
-  }
+  const readData = (config: ViewConfig, tags: TagInfo[]) => readViewData(deps.dq, config, tags, deps.zone);
 
   /** Nodes, tasks and titles from rows already read (`tags` maps them; the titles lookup runs here). */
-  async function fromRaw(config: ViewConfig, tags: TagInfo[], raw: RawData) {
-    const { nodes, tasks } = buildData(raw, tags, validateViewConfig(config, tags).tags, { childTags: config.childTags, zone: deps.zone });
-    // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
-    const known = titlesByUuid(nodes);
-    const missing = refUuids([...nodes, ...tasks].map((x) => x.title)).filter((u) => !known.has(u));
-    return { nodes, tasks, titles: new Map([...known, ...(await loadTitles(deps.dq, missing))]) as ReadonlyMap<string, string> };
-  }
+  const fromRaw = (config: ViewConfig, tags: TagInfo[], raw: Awaited<ReturnType<typeof readRaw>>) => viewData(deps.dq, config, tags, raw, deps.zone);
 
   /** Re-reads the current view's nodes and tasks from the graph, without the loading state (a Kanban move reloads this way). */
   async function fetchData() {
@@ -1042,8 +904,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** The Kanban layout on screen now. */
   const board = (): KanbanLayout => {
-    const view = tagOf(s.config!);
-    return kanbanLayout(s, now(), view, visibleData(s.config!, view, shownNodes(s), s.tasks));
+    return kanbanLayout(areaOf(s, tagOf(s.config!)), now());
   };
 
   /**

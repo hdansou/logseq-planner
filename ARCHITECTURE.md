@@ -62,6 +62,7 @@ Rules that hold across the tree:
 | `src/core/kanban.ts` | `layoutKanban`, `findCell`, `cardCell`, `moveDescriptor`, `movedNode`, `writeMove` (write and read back), `tagLaneProp` (read-only Tag swimlanes, N14). |
 | `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, `withTags`, `withKnownTags`, `withDefaults`, versioned JSON (with the pre-N14 migration), `toChoiceFilters`. |
 | `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
+| `src/ui/view-area.ts` | `renderViewArea`: a view config, its loaded data and the clock to the view's HTML and toolbar HTML, empty states included; `ViewSession`; `readViewData` / `viewData`, the loader. Shared by the workspace and the in-page block (N06b), so the two cannot drift. |
 | `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`. |
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
 | `src/ui/agenda.ts`, `agenda.css` | Agenda layout to HTML; `agendaAction`; `AGENDA_GROUP_PAGE` (100). |
@@ -108,7 +109,7 @@ Each module has a co-located `*.test.ts`, except `src/index.ts`, `src/types.ts`,
  layoutTimeline | layoutCalendar | layoutAgenda | layoutKanban     pure, `today` injected
   |
   v
- renderTimeline | ... -> HTML string -> root.innerHTML
+ renderTimeline | ... -> HTML string -> root.innerHTML      (src/ui/view-area.ts renderViewArea: the layout and render steps)
 ```
 
 Steps, with the module that does each:
