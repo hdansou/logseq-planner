@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 export const STATUSES = ["Backlog", "Todo", "Doing", "Done"];
 export const TEAMS = ["Product", "Dev", "QA", "Security", "Docs"];
 export const OWNERS = ["Danzu", "Claude"];
-export const TASK_PROPS = ["Team", "Owner", "Milestone", "Start", "End"];
+export const TASK_PROPS = ["Team", "Owner", "Milestone", "Start", "End", "depends_on"];
 
 /** `- [x] **T13a Title** — …` lines -> {id, title, done}. */
 export function parseTasks(md) {
@@ -41,18 +41,108 @@ export function parseGitLog(lines, known) {
   return out;
 }
 
-const ms = (iso) => Date.parse(iso); // commit time: epoch ms, the value of a :datetime property
+const ms = (iso) => Date.parse(iso); // commit time: epoch ms, only used to order tasks
 const min = (xs) => xs.reduce((a, b) => (a === undefined || b < a ? b : a), undefined);
 const max = (xs) => xs.reduce((a, b) => (a === undefined || b > a ? b : a), undefined);
 const pick = (obj) => Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
+// ---- planned schedule (N11) -------------------------------------------------------------------
+// Working time is weekdays 09:00-17:00 in the machine's local zone. Dates are built from local
+// components, so the rules hold in any zone.
+const DAY_START = 9 * 60;
+const DAY_END = 17 * 60;
+const at = (d, minutes) => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, minutes);
+const minutesOf = (d) => d.getHours() * 60 + d.getMinutes();
+
+/** The first working moment at or after `d`: a time before 09:00 -> 09:00, at or after 17:00 or on a weekend -> next working day 09:00. */
+export function toWorkingTime(d) {
+  let cur = d;
+  for (;;) {
+    const weekend = cur.getDay() === 0 || cur.getDay() === 6;
+    const m = minutesOf(cur);
+    if (!weekend && m < DAY_END) return m < DAY_START ? at(cur, DAY_START) : cur;
+    cur = at(new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1), DAY_START);
+  }
+}
+
+/** `hours` working hours after `start` (already working time); a task past 17:00 goes on the next working day at 09:00. */
+export function addWorkingHours(start, hours) {
+  let left = Math.round(hours * 60);
+  let cur = start;
+  for (;;) {
+    const room = DAY_END - minutesOf(cur);
+    if (left <= room) return at(cur, minutesOf(cur) + left);
+    left -= room;
+    cur = toWorkingTime(at(cur, DAY_END));
+  }
+}
+
+/** "2026-09-25T15:00" (no zone) -> a local Date. */
+export function parseLocal(text) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(text ?? "");
+  if (!m) throw new Error(`tracker-meta.json: scheduleStart "${text}" must look like 2026-09-25T15:00 (local time, no zone)`);
+  return new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+}
+
+const idKey = (id) => {
+  const m = /^([TN])(\d+)([a-z]?)$/.exec(id);
+  return [m[1] === "T" ? 0 : 1, Number(m[2]), m[3]];
+};
+const byId = (a, b) => {
+  const [x, y] = [idKey(a), idKey(b)];
+  return x[0] - y[0] || x[1] - y[1] || (x[2] < y[2] ? -1 : x[2] > y[2] ? 1 : 0);
+};
+
+/** Task ids: those with commits by first commit (ties by id), then the rest by id (T before N, numeric). */
+export function orderTasks(ids, commits) {
+  const withC = ids.filter((id) => commits[id]).sort((a, b) => ms(commits[a].first) - ms(commits[b].first) || byId(a, b));
+  const without = ids.filter((id) => !commits[id]).sort(byId);
+  return [...withC, ...without];
+}
+
+/**
+ * order + meta -> {id: {start, end, after}} (epoch ms; `after` = dependency ids). A task depends on the
+ * previous one in `order` unless meta.after has an entry for it; `"after": {"X": []}` means no dependency
+ * (X starts at meta.scheduleStart). A task starts at the latest End of its dependencies, moved into working
+ * time, and lasts meta.taskHours (per task: meta.hours). Dependencies only set the earliest start: tasks
+ * with no dependency between them overlap. Throws on an unknown id in `after` / `hours` or a dependency cycle.
+ */
+export function schedule(order, meta) {
+  const known = new Set(order);
+  for (const id of Object.keys(meta.hours ?? {})) {
+    if (!known.has(id)) throw new Error(`tracker-meta.json: hours names ${id}, which is not a task`);
+  }
+  for (const [id, deps] of Object.entries(meta.after ?? {})) {
+    if (!known.has(id)) throw new Error(`tracker-meta.json: after names ${id}, which is not a task`);
+    for (const d of deps) if (!known.has(d)) throw new Error(`tracker-meta.json: ${id} runs after ${d}, which is not a task`);
+  }
+  const anchor = parseLocal(meta.scheduleStart);
+  const afterOf = (id) => meta.after?.[id] ?? (order[0] === id ? [] : [order[order.indexOf(id) - 1]]);
+  const out = {};
+  const visiting = [];
+  const place = (id) => {
+    if (out[id]) return out[id];
+    if (visiting.includes(id)) throw new Error(`tracker-meta.json: dependency cycle ${[...visiting.slice(visiting.indexOf(id)), id].join(" -> ")}`);
+    visiting.push(id);
+    const after = afterOf(id);
+    const hours = meta.hours?.[id] ?? meta.taskHours;
+    if (!(hours > 0)) throw new Error(`tracker-meta.json: taskHours / hours of ${id} must be a positive number`);
+    const from = after.length ? new Date(Math.max(...after.map((d) => place(d).end))) : anchor;
+    const start = toWorkingTime(from);
+    visiting.pop();
+    return (out[id] = { start: start.getTime(), end: addWorkingHours(start, hours).getTime(), after });
+  };
+  order.forEach(place);
+  return out;
+}
+
 /** tasks + commits + meta -> {page, project, milestones, tasks}; throws on a task in no milestone. */
 export function buildDesired(tasks, commits, meta) {
-  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const byTaskId = new Map(tasks.map((t) => [t.id, t]));
   const milestoneOf = new Map();
   for (const m of meta.milestones) {
     for (const id of m.tasks) {
-      if (!byId.has(id)) throw new Error(`tracker-meta.json: milestone "${m.title}" names ${id}, which is not in tasks.md`);
+      if (!byTaskId.has(id)) throw new Error(`tracker-meta.json: milestone "${m.title}" names ${id}, which is not in tasks.md`);
       milestoneOf.set(id, m.title);
     }
   }
@@ -63,34 +153,38 @@ export function buildDesired(tasks, commits, meta) {
     if (!allowed.includes(v)) throw new Error(`tracker-meta.json: ${what} "${v}" of ${id} is not one of ${allowed.join(", ")}`);
     return v;
   };
+  const order = orderTasks(tasks.map((t) => t.id), commits);
+  const plan_ = schedule(order, meta);
+  const titleOf = (id) => `${id} ${byTaskId.get(id).title}`;
   const dTasks = tasks.map((t) => {
     const o = meta.tasks?.[t.id] ?? {};
     const c = commits[t.id];
     const status = t.done ? "Done" : check("status", o.status ?? (c ? "Doing" : "Todo"), STATUSES, t.id);
-    return pick({
+    const s = plan_[t.id];
+    return {
       id: t.id,
-      title: `${t.id} ${t.title}`,
+      title: titleOf(t.id),
       status,
-      scheduled: c ? ms(c.first) : undefined,
-      start: c ? ms(c.first) : undefined,
-      end: c ? ms(c.last) : undefined,
+      scheduled: s.start,
+      start: s.start,
+      end: s.end,
+      dependsOn: s.after.map(titleOf).sort(),
       team: check("team", o.team ?? meta.defaultTeam, TEAMS, t.id),
       owner: check("owner", o.owner ?? meta.defaultOwner, OWNERS, t.id),
       milestone: milestoneOf.get(t.id),
-    });
+    };
   });
   const milestones = meta.milestones.map((m) => {
     const own = dTasks.filter((t) => m.tasks.includes(t.id));
-    const cs = m.tasks.map((id) => commits[id]).filter(Boolean);
-    const status = own.every((t) => t.status === "Done") ? "Done" : cs.length ? "Doing" : "Todo";
+    const status = own.every((t) => t.status === "Done") ? "Done" : m.tasks.some((id) => commits[id]) ? "Doing" : "Todo";
     return pick({
       key: m.key, title: m.title, status, owner: meta.defaultOwner, project: meta.project,
-      start: min(cs.map((c) => ms(c.first))), end: max(cs.map((c) => ms(c.last))),
+      start: min(own.map((t) => t.start)), end: max(own.map((t) => t.end)),
     });
   });
   const project = pick({
     title: meta.project, status: "Doing", owner: meta.projectOwner ?? meta.defaultOwner,
-    start: min(milestones.map((m) => m.start).filter(Boolean)),
+    start: min(dTasks.map((t) => t.start)),
   });
   return { page: meta.page, project, milestones, tasks: dTasks };
 }
@@ -120,7 +214,8 @@ export function genEdn(d) {
   :owner {:block/title "Owner" :logseq.property/type :default :build/closed-values ${closed("owner", OWNERS)}}
   :team {:block/title "Team" :logseq.property/type :default :build/closed-values ${closed("team", TEAMS)}}
   :milestone {:block/title "Milestone" :logseq.property/type :node}
-  :project {:block/title "Project" :logseq.property/type :node}}
+  :project {:block/title "Project" :logseq.property/type :node}
+  :depends-on {:block/title "depends_on" :logseq.property/type :node :db/cardinality :db.cardinality/many}}
  :classes
  {:Project {:block/title "Project" :build/class-properties [:start :end :logseq.property/status :owner]}
   :Milestone {:block/title "Milestone" :build/class-properties [:start :end :logseq.property/status :owner :project]}}
@@ -157,8 +252,9 @@ export function plan(desired, current, graph) {
   const writeProps = (have, want, label, fields) => {
     const set = [], clear = [];
     for (const [name, key, value] of fields) {
-      if (have[key] === want[key]) continue;
-      if (want[key] === undefined) clear.push(name);
+      const same = Array.isArray(want[key]) ? JSON.stringify(have[key] ?? []) === JSON.stringify(want[key]) : have[key] === want[key];
+      if (same) continue;
+      if (want[key] === undefined || (Array.isArray(want[key]) && want[key].length === 0)) clear.push(name);
       else if (value !== undefined) set.push([name, value]);
     }
     if (clear.length) add(A("upsert", "block", "--id", String(have.id), "--remove-properties", `[${clear.map(edn).join(" ")}]`), `clear ${clear.join(", ")} of ${label}`);
@@ -183,6 +279,11 @@ export function plan(desired, current, graph) {
     container(m, "Milestone", find("Milestone", (i) => i.title === m.title), [["Project", "project", pid === undefined ? undefined : String(pid)]]);
   }
 
+  // depends_on: a vector of the dependency blocks' db ids; undefined until every one exists (next round)
+  const depIds = (t) => {
+    const ids = t.dependsOn.map((title) => find("Task", (i) => i.title === title)?.id);
+    return ids.length && ids.every((x) => x !== undefined) ? `[${ids.join(" ")}]` : undefined;
+  };
   for (const t of desired.tasks) {
     const have = find("Task", (i) => i.title.startsWith(`${t.id} `));
     if (!have) {
@@ -199,6 +300,7 @@ export function plan(desired, current, graph) {
       ["Team", "team", str(t.team)], ["Owner", "owner", str(t.owner)],
       ["Milestone", "milestone", mid === undefined ? undefined : String(mid)],
       ["Start", "start", num(t.start)], ["End", "end", num(t.end)],
+      ["depends_on", "dependsOn", depIds(t)],
     ]);
   }
   return steps;

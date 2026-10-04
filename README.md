@@ -305,12 +305,40 @@ Further reading:
 `npm run tracker` mirrors this repository's task list into a Logseq DB graph, so Planner has
 real project data: one `#Project` (Planner), one `#Milestone` per group of tasks, and one
 `#Task` per item of [tasks.md](tasks.md) (id in the title, Status from the checkbox, Team,
-Owner, Milestone). **tasks.md is the source of truth; the graph is a copy.** Run it after each
-task; it only writes differences, so a second run changes nothing. Scheduled, Start and End are
-exact commit times (the first and last commit whose subject names `(ID)`); milestones and the
-project take the earliest start and latest end of their tasks. Groups, team and owner
-overrides live in `scripts/tracker-meta.json`; a task in tasks.md that is in no milestone stops
-the run.
+Owner, Milestone, depends_on). **tasks.md is the source of truth; the graph is a copy.** Run it
+after each task; it only writes differences, so a second run changes nothing. Groups, team and
+owner overrides live in `scripts/tracker-meta.json`; a task in tasks.md that is in no milestone
+stops the run.
+
+**Start, End and Scheduled are a planned schedule, not history.** Every task gets 2 hours and
+starts after the tasks it depends on, so dates before today are planned values, not the time the
+work happened. The rule:
+
+- Order: tasks with at least one commit naming `(ID)` come first, by first-commit time (ties by
+  id), then the others by id (T before N, numeric). Commit times only order the tasks and set
+  Doing; they are never written as dates.
+- Dependency: a task without an entry in `after` depends on the previous one in that order (the
+  first has none). A task starts at the latest End of its dependencies, so dependencies only set
+  the earliest start: tasks with no dependency between them overlap (no resource limit).
+  "depends_on" holds all of a task's dependency blocks (node property, cardinality many).
+- Working time: weekdays 09:00-17:00 local time. A start outside it (before 09:00, at or after
+  17:00, a weekend) moves to the next working moment; a task that would pass 17:00 continues the
+  next working day at 09:00.
+- Graph values: task Start = scheduled start, End = scheduled end, Scheduled = Start (epoch ms of
+  the local time). A milestone's Start / End = earliest Start / latest End of its tasks; the
+  project's Start = the first task's Start (no End). Backlog tasks are scheduled like any other.
+
+Meta keys (`scripts/tracker-meta.json`): `scheduleStart` (`"2026-09-25T15:00"`, local time without
+zone; a fixed constant, never taken from the clock, so a rerun gives the same dates), `taskHours`
+(2), optional `"hours": {"N05": 4}` per task and `"after": {"N05": ["N04", "N03"]}` (ids) to
+replace the default dependency; `"after": {"T00": []}` means no dependency (starts at
+`scheduleStart`). Every current task has an entry. An `after` naming an unknown id, or a
+dependency cycle, stops the run. `scheduleStart` is chosen so the last committed task ends Fri
+2 Oct 2026 17:00.
+
+The CLI cannot create a node-typed property, so "depends_on" comes from the EDN the graph is
+created with: a graph made before N11 lacks it and the run says so; remove it
+(`logseq graph remove -g planner-project`, with no app holding it) and run again.
 
 ```bash
 npm run tracker                       # graph planner-project (created on the first run)

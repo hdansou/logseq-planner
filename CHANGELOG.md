@@ -15,6 +15,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Tracker (N11): `npm run tracker` writes a planned schedule instead of commit times. Every task gets 2 hours
+  (weekdays 09:00-17:00 local) and starts after the tasks it depends on (`after` map in the meta file; default: the previous task, tasks with
+  commits first by first commit, then the rest by id; independent tasks overlap). Start / End / Scheduled are the plan, so dates before today are
+  planned values. New "depends_on" node property (many) on the Task tag. `scripts/tracker-meta.json` gains
+  `scheduleStart`, `taskHours`, and optional `hours` / `after` overrides.
 - Timeline **Day** zoom (N10), first in the zoom control (Day | Week | Month | Quarter): one day on 96 tracks of 15
   minutes under 24 hour columns ("00" … "23"). Spans are placed by their DateTime times (start rounded down, end rounded
   up, at least one quarter hour); a Date-only start is 00:00 and a Date-only end runs to the end of the day, so a

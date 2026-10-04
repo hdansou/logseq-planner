@@ -11,7 +11,10 @@
 //   upsert block --id <dbid> --remove-properties '["End"]'
 //   upsert task --target-page <page> --content <t> --status doing --scheduled <ISO>   (create)
 //   upsert task --id <dbid> --status done --scheduled <ISO> | --no-scheduled          (update)
-//   upsert tag --name Task --add-properties '["Team" "Owner" "Milestone"]'             (built-in tag: allowed)
+//   upsert tag --name Task --add-properties '["Team" "Owner" "Milestone" "Start" "End" "depends_on"]'  (built-in tag: allowed)
+//   "depends_on" (node, cardinality many; the CLI cannot create node properties, so it comes from the
+//   import EDN): {"depends_on" [12 15]} = a vector of the dependency tasks' db ids.
+// Schedule (N11): Start / End / Scheduled are a planned schedule, not commit times (tracker-lib.mjs).
 // The CLI can exit 0 and write nothing, so the loop re-reads the graph after every round and
 // stops only when the plan is empty. `graph import` is used once, at creation.
 import { spawnSync } from "node:child_process";
@@ -60,11 +63,11 @@ function readCurrent(graph, page) {
   const idents = Object.fromEntries(
     queryJson(graph, '[:find ?t ?i :where [?e :db/ident ?i] [?e :block/title ?t] [(namespace ?i) ?n] [(= ?n "user.property")]]'),
   );
-  const need = ["Start", "End", "Owner", "Team", "Milestone", "Project"];
+  const need = ["Start", "End", "Owner", "Team", "Milestone", "Project", "depends_on"];
   const miss = need.filter((t) => !idents[t]);
   if (miss.length) throw new Error(`graph "${graph}" lacks the property ${miss.join(", ")}: it was not created by this script`);
   const kw = (t) => `:${idents[t]}`;
-  const pull = `[:db/id :block/title {:block/tags [:block/title]} {:logseq.property/status [:block/title]} :logseq.property/scheduled ${kw("Start")} ${kw("End")} ${["Owner", "Team", "Milestone", "Project"]
+  const pull = `[:db/id :block/title {:block/tags [:block/title]} {:logseq.property/status [:block/title]} :logseq.property/scheduled ${kw("Start")} ${kw("End")} ${["Owner", "Team", "Milestone", "Project", "depends_on"]
     .map((t) => `{${kw(t)} [:block/title]}`).join(" ")}]`;
   const rows = queryJson(graph,
     `[:find (pull ?b ${pull}) :where [?p :block/title ${edn(page)}] [?b :block/page ?p] [(missing? $ ?b :logseq.property/deleted-at)]]`);
@@ -73,13 +76,14 @@ function readCurrent(graph, page) {
     const tag = (b["block/tags"] ?? []).map((t) => t["block/title"]).find((t) => ["Project", "Milestone", "Task"].includes(t));
     if (!tag) continue;
     const val = (t) => b[idents[t]]?.["block/title"];
+    const many = (t) => [b[idents[t]] ?? []].flat().map((x) => x["block/title"]).sort(); // cardinality many: array (one value may read back as a map)
     const time = (t) => (typeof b[idents[t]] === "number" ? b[idents[t]] : undefined); // :datetime = epoch ms
     items.push({
       id: b["db/id"], tag, title: b["block/title"],
       status: b["logseq.property/status"]?.["block/title"],
       scheduled: typeof b["logseq.property/scheduled"] === "number" ? b["logseq.property/scheduled"] : undefined,
       start: time("Start"), end: time("End"), team: val("Team"), owner: val("Owner"),
-      milestone: val("Milestone"), project: val("Project"),
+      milestone: val("Milestone"), project: val("Project"), dependsOn: many("depends_on"),
     });
   }
   const taskClassProps = queryJson(graph,
@@ -87,7 +91,7 @@ function readCurrent(graph, page) {
   return { taskClassProps, items };
 }
 
-/** Tasks whose Milestone, milestones whose Project, is not in their :block/refs (see refsRepair). */
+/** Tasks whose Milestone or any depends_on block, milestones whose Project, is not in their :block/refs (see refsRepair). */
 function readMissingRefs(graph, page) {
   const idents = Object.fromEntries(
     queryJson(graph, '[:find ?t ?i :where [?e :db/ident ?i] [?e :block/title ?t] [(namespace ?i) ?n] [(= ?n "user.property")]]'),
@@ -97,8 +101,10 @@ function readMissingRefs(graph, page) {
       [?b :block/tags ?c] [?c :block/title ${edn(tag)}] [?b :block/title ?title]
       [?b :${idents[link]} ?l] (not [?b :block/refs ?l])
       [?b :${idents[who]} ?w] [?w :block/title ?v]]`);
+  const tasks = new Map(); // a task missing both links counts once
+  for (const [id, title, team] of [...rows("Task", "Milestone", "Team"), ...rows("Task", "depends_on", "Team")]) tasks.set(id, { id, tag: "Task", title, team });
   return [
-    ...rows("Task", "Milestone", "Team").map(([id, title, team]) => ({ id, tag: "Task", title, team })),
+    ...tasks.values(),
     ...rows("Milestone", "Project", "Owner").map(([id, title, owner]) => ({ id, tag: "Milestone", title, owner })),
   ];
 }
