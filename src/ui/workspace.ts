@@ -122,6 +122,8 @@ interface State {
   views: ListedView[];
   /** The saved view the current config came from or was saved as. */
   viewId: string | null;
+  /** The saved view whose row asks "Delete?" (N23); session state, dropped when a menu is opened or closed. */
+  viewDeleting: string | null;
   popover: Popover | null;
   error: string | null;
   /** The built-in tags group of the tag tree is open (collapsed by default; opened when a built-in tag is selected). */
@@ -257,7 +259,11 @@ function renderTopBar(s: State): string {
   const viewsPopover = () => {
     const rows = s.views.length
       ? `<ul class="pl-view-list" aria-label="Saved views">${s.views
-          .map((v) => `<li>${"invalid" in v
+          .map((v) => v.id === s.viewDeleting
+            ? `<li class="pl-view-confirm" data-view-deleting="${esc(v.id)}"><span class="pl-row">Delete "${esc(v.name)}"?</span>`
+              + `<button type="button" class="pl-btn" data-view-delete-cancel="${esc(v.id)}">Cancel</button>`
+              + `<button type="button" class="pl-btn pl-btn-danger" data-view-delete-confirm="${esc(v.id)}">Delete</button></li>`
+            : `<li>${"invalid" in v
               ? `<span class="pl-row pl-view-invalid" data-view-invalid="${esc(v.id)}" aria-disabled="true">${esc(v.name)}<small class="pl-hint">Cannot be opened: ${esc(v.invalid)}</small></span>`
               : `<button type="button" class="pl-row" data-view-open="${esc(v.id)}"${v.id === s.viewId ? ' aria-current="true"' : ""}>${esc(v.name)}</button>`}`
             + `<button type="button" class="pl-icon-btn" data-view-delete="${esc(v.id)}" aria-label="Delete saved view ${esc(v.name)}">×</button></li>`)
@@ -271,7 +277,10 @@ function renderTopBar(s: State): string {
       ? `<div class="pl-save"><label for="pl-view-name">Name</label><input id="pl-view-name" class="pl-input" data-field="view-name" value="${esc(suggestion)}" autocomplete="off">`
         + `<button type="button" class="pl-btn pl-btn-primary" data-action="save-view">Save current view</button></div>`
       : "";
-    return rows + save;
+    const update = current && "config" in current && s.config
+      ? `<div class="pl-update"><button type="button" class="pl-btn" data-action="update-view">Update "${esc(current.name)}"</button></div>`
+      : "";
+    return rows + update + save;
   };
   return `<header class="pl-top" data-region="topbar"><h1 class="pl-title">Planner</h1>`
     + `<div class="pl-seg" role="group" aria-label="View">${seg}</div><span class="pl-spacer"></span>`
@@ -447,7 +456,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
+  const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
     canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, datePending: new Map() };
@@ -764,7 +773,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return queue;
   }
   const reset = () => run(() => {
-    Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null,
+    Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null,
       popover: null, error: null, builtInOpen: false, anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
       moveCard: null, agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), datePending: new Map() });
     wantRefresh = false;
@@ -803,6 +812,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
+        s.viewDeleting = null;
         return void run(() => {}, () => (s.popover ? firstInPopover(s.popover) : trigger(p)));
       }
     }
@@ -838,7 +848,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
     }
-    const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-surface], [data-action]");
+    const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-view-delete-cancel], [data-view-delete-confirm], [data-surface], [data-action]");
     if (!el) return;
     const d = el.dataset;
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
@@ -851,8 +861,12 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       render(`[data-surface="${next}"]`);
       return deps.setSurface!(next);
     }
-    if (d.viewDelete) {
-      return void run(() => viewsWrite(() => deps.views.remove(d.viewDelete!)), () => "[data-field=view-name]");
+    // Deleting asks first (N23): × turns the row into the question, Cancel has the focus.
+    if (d.viewDelete) return void run(() => void (s.viewDeleting = d.viewDelete!), () => "[data-view-delete-cancel]");
+    if (d.viewDeleteCancel) return void run(() => void (s.viewDeleting = null), () => `[data-view-delete="${d.viewDeleteCancel}"]`);
+    if (d.viewDeleteConfirm) {
+      s.viewDeleting = null;
+      return void run(() => viewsWrite(() => deps.views.remove(d.viewDeleteConfirm!)), () => "[data-field=view-name]");
     }
     switch (d.action) {
       case "close":
@@ -874,6 +888,11 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => setConfig({ ...s.config!, filters: {} }));
       case "save-view":
         return void save();
+      case "update-view":
+        return void run(() => viewsWrite(async () => {
+          await deps.views.update(s.viewId!, s.config!);
+          s.popover = null;
+        }), () => trigger("views"));
     }
   });
 

@@ -728,9 +728,78 @@ describe("saved views", () => {
 
     await click(ws, "[data-control=saved-views]");
     await click(ws, `[data-view-delete="${id}"]`);
+    await click(ws, `[data-view-delete-confirm="${id}"]`);
     expect(remove).toHaveBeenCalledWith(id);
     expect($(`[data-view-open="${id}"]`)).toBeNull();
     expect(text("[data-popover=views]")).toContain("No saved views");
+  });
+
+  it("deleting asks first: × shows Delete / Cancel in the row, and only Delete removes the view (N23)", async () => {
+    const { ws, store } = await setup();
+    const remove = vi.spyOn(store, "remove");
+    await pickTag(ws, "Project");
+    await save(ws, "Roadmap");
+    const id = (await store.list())[0].id;
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-delete="${id}"]`);
+    expect(remove).not.toHaveBeenCalled();
+    expect(text(`[data-view-deleting="${id}"]`)).toContain('Delete "Roadmap"?');
+    expect($(`[data-view-open="${id}"]`)).toBeNull(); // the row is the question now
+    expect(document.activeElement).toBe($("[data-view-delete-cancel]")); // the safe choice has the focus
+
+    await click(ws, "[data-view-delete-cancel]");
+    expect(remove).not.toHaveBeenCalled();
+    expect($("[data-view-deleting]")).toBeNull();
+    expect(text(`[data-view-open="${id}"]`)).toBe("Roadmap");
+    expect(document.activeElement).toBe($(`[data-view-delete="${id}"]`));
+
+    await click(ws, `[data-view-delete="${id}"]`);
+    await click(ws, "[data-control=saved-views]"); // closing the menu drops the question
+    await click(ws, "[data-control=saved-views]");
+    expect($("[data-view-deleting]")).toBeNull();
+    expect(remove).not.toHaveBeenCalled();
+
+    await click(ws, `[data-view-delete="${id}"]`);
+    await click(ws, `[data-view-delete-confirm="${id}"]`);
+    expect(remove).toHaveBeenCalledWith(id);
+    expect(await store.list()).toEqual([]);
+  });
+
+  it("Update replaces the open saved view's settings in place, name kept (N23)", async () => {
+    const { ws, store } = await setup();
+    const update = vi.spyOn(store, "update");
+    const create = vi.spyOn(store, "create");
+    await pickTag(ws, "Project");
+    await click(ws, "[data-control=saved-views]");
+    expect($("[data-action=update-view]")).toBeNull(); // no saved view is open
+    await click(ws, "[data-control=saved-views]");
+    await save(ws, "Roadmap");
+    const id = (await store.list())[0].id;
+
+    await click(ws, "[data-view-kind=kanban]");
+    await click(ws, "[data-control=saved-views]");
+    expect(text("[data-action=update-view]")).toBe('Update "Roadmap"');
+    await click(ws, "[data-action=update-view]");
+    expect(update).toHaveBeenCalledWith(id, ws.config());
+    expect(create).toHaveBeenCalledTimes(1);
+    expect($("[data-popover=views]")).toBeNull(); // closed, as after Save
+    expect(text("[data-control=saved-views]")).toContain("Roadmap");
+    const stored = await store.list();
+    expect(stored.map((v) => v.name)).toEqual(["Roadmap"]);
+    expect("config" in stored[0] && stored[0].config.kind).toBe("kanban");
+  });
+
+  it("a failed Update shows the store's error and keeps the menu open", async () => {
+    const storage = fakeStorage();
+    const { ws } = await setup({ storage });
+    await pickTag(ws, "Project");
+    await save(ws, "Roadmap");
+    await click(ws, "[data-view-kind=kanban]");
+    await click(ws, "[data-control=saved-views]");
+    storage.findPage = async () => null; // the page went to Recycle
+    await click(ws, "[data-action=update-view]");
+    expect($("[data-region=error]")).not.toBeNull();
+    expect($("[data-popover=views]")).not.toBeNull();
   });
 
   it("suggests a name without markup and shows the sanitised name after saving (T14, F3)", async () => {
@@ -782,6 +851,7 @@ describe("saved views", () => {
     expect(broken.textContent).toContain("Broken");
     expect(broken.closest("li")!.textContent).toContain("not valid JSON");
     await click(ws, "[data-view-delete=v2]");
+    await click(ws, "[data-view-delete-confirm=v2]");
     expect($("[data-view-invalid=v2]")).toBeNull();
     expect($("[data-view-open=v1]")).not.toBeNull();
   });

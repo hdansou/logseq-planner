@@ -66,7 +66,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   a red marker in the Timeline (the due date's marker), a red chip in the Calendar (which
   shows Deadlines only), the Agenda's Overdue bucket, filed and counted from the due date.
 - **Saved views** stored in the graph on a plugin-owned page (one block per view, config as
-  a hidden string property holding JSON). Sync with the graph; reused by the in-page block
+  a hidden string property holding JSON). Save current view creates a view; with a saved view
+  open, Update stores the current settings in it, name kept; deleting asks first, in the row
+  (Cancel / Delete), without a browser dialog (N23). Sync with the graph; reused by the in-page block
   (N06b). A view saved before N14 (one `tag`, `start`, `end`) opens as that
   one tag; a saved view naming a tag that is gone opens with the tags that are left (none left:
   the default view and an error).

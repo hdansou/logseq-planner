@@ -283,10 +283,12 @@ edit has not been checked.
 ### Saved views
 
 **Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
-under the name in the Name field. A saved view stores the tags, child tags, each tag's Start and End,
+a new view under the name in the Name field. With a saved view open, **Update "name"** stores the
+current settings in that view, under the same name. **×** asks first: the row turns into
+**Delete "name"?** with **Cancel** and **Delete**. A saved view stores the tags, child tags, each tag's Start and End,
 done values, filters and the view settings: Timeline zoom and arrangement, Calendar layout, Agenda Group by
 and Show done, Kanban columns, shown columns, swimlanes and sort. It does not store the period you are
-looking at. Saving always creates a new view. Deleting asks for no confirmation.
+looking at.
 A name loses the characters `#`, `[`, `]`, `{` and `}`, and runs of `(` or `)` become one, so
 Logseq cannot turn it into a tag, a link, a macro or a block ref ("#Project kanban" is saved as
 "Project kanban"). A saved view whose stored settings cannot be read is listed greyed with the

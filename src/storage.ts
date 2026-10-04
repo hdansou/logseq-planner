@@ -175,8 +175,7 @@ export function createViewStore(deps: StorageDeps) {
     }),
 
     /**
-     * Replaces the config of a saved view (the name stays). Not used by the workspace yet (saving always creates a new
-     * view, T07); kept for the side panel and covered by tests.
+     * Replaces the config of a saved view (the name stays): the workspace's Update button (N23).
      */
     update: (id: string, config: ViewConfig): Promise<SavedView> => serial(async () => {
       const views = await load();

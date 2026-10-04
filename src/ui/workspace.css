@@ -50,6 +50,9 @@ html, body, #app { height: 100%; }
 .pl-save { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px 8px; padding: 8px 6px 4px;
   border-top: 1px solid var(--pl-line-soft); margin-top: 4px; }
 .pl-save label { color: var(--pl-label-2); }
+.pl-update { display: flex; justify-content: flex-end; padding: 8px 6px 0; }
+.pl-view-confirm .pl-row { cursor: default; }
+.pl-btn-danger, .pl-btn-danger:hover { background: var(--pl-red-soft); color: var(--pl-red-text); }
 .pl-save .pl-btn { grid-column: 1 / -1; justify-self: end; }
 
 /* Error message */

@@ -63,15 +63,15 @@ Live-check method (web app):
 - [x] **N02 Checklist rows not run** — done 2026-10-03 for every row the web app can cover (see
       the Progress log). Left: A9, E12 and D11 (desktop app or a real mouse: fold into N01), D12
       (Firefox), I9 (VoiceOver); partial E8, E11 (tag deletion, N04), F9, H6, H10.
-- [ ] **N03 Owner decisions** —
+- [x] **N03 Owner decisions** —
       (a) done: MIT LICENSE added (6a89ccc).
       (b) done: one lateness rule (771140f). The owner chose "Scheduled or Deadline"; built as:
           due date = Deadline, else Scheduled; an open task is late when its due day is past.
           A past Scheduled date with a future Deadline is not late. Confirm or change.
-      (c) open: the "Decisions taken (change if wrong)" lists in the Progress log for T05, T07,
-          T08, T09, T10, T11 and T13a (e.g. tick-to-narrow filters, saving always creates a
-          new view, no delete confirmation, Month = 8-week window, caps of 50 cards and 100
-          groups, Timeline rows only in range).
+      (c) done 2026-10-04: the owner confirmed the lateness rule (b) and every "Decisions
+          taken" list in the Progress log for T05, T07, T08, T09, T10, T11 and T13a, except
+          two from T07: saving always creating a new view, and deleting without a
+          confirmation. Both changed in N23.
 - [ ] **N04 Known limitations to fix or accept** — deleting a tag triggers no refresh (next
       change or 30 s poll); reopening after a stale hide reloads twice; the Agenda's
       Overdue bucket is capped at 100 per page (done 20a8892); refresh at 2,000 nodes ran
@@ -340,6 +340,14 @@ Live-check method (web app):
       `tracker-meta.json` (every task in exactly one milestone, each start at the latest End
       of its dependencies). A new task needs a milestone in the meta and no test edit. Was:
       the test pinned the ids and the dependency map.
+- [x] **N23 Saved views: Update and a delete confirmation** — owner request 2026-10-04
+      (N03c). With a saved view open, the Saved views menu has **Update "name"**
+      (`data-action=update-view`): `views.update(id, config)`, name kept, the menu closes; a
+      failed write shows the error and leaves the menu open. **×** no longer deletes at
+      once: the row becomes **Delete "name"?** (`data-view-deleting`) with Cancel
+      (`data-view-delete-cancel`, focused) and Delete (`data-view-delete-confirm`);
+      opening or closing a menu drops the question (`State.viewDeleting`, session state).
+      No browser dialog. Unit tests only; manual-test rows B12 and B12a are not run.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

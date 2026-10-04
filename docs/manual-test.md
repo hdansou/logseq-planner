@@ -105,7 +105,8 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | B9 | Filter to something that matches nothing (Backlog + Alice) | "No #Project nodes match the filters" with a Clear filters button; the button restores the list | pass | 9af8e98 | 2026-10-03 |  |
 | B10 | Switch the view kind (Timeline, Calendar, Agenda, Kanban) | Tag, dates, filters and done values stay | pass | 9af8e98 | 2026-10-03 |  |
 | B11 | Save a view (name it), switch tag and kind, open the saved view | Tag, kind, filters, done values (by value uuid), zoom / layout / group-by / board config restored; the period on screen is kept (the anchor is session state) | pass | 4d44aac | 2026-10-03 | checked per view kind in T08–T11 |
-| B12 | Delete the saved view | Gone immediately (no confirmation by design); the "Planner views" page has no block for it | pass | 4d44aac | 2026-10-03 |  |
+| B12 | Delete the saved view: ×, then Cancel; ×, then Delete (N23) | × turns the row into **Delete "name"?** with Cancel (focused) and Delete; Cancel restores the row; Delete removes it and the "Planner views" page has no block for it | not run |  |  | changed by N23 on 2026-10-04 (was: gone immediately, pass on 4d44aac); unit tests only |
+| B12a | Open a saved view, change the kind or a filter, **Saved views** → **Update "name"** (N23) | The menu closes; reopening the view from the list shows the changed settings; no second view is created | not run |  |  | new with N23; unit tests only |
 | B13 | Read the stored view back: open page "Planner views", the block's hidden property `planner-view-config` | JSON with a version and the ids of the saved config | pass | 9af8e98 | 2026-10-03 | JSON read back from the graph |
 | B14 | Recycle case 1: move the "Planner views" page to Recycle, then try to save a view | An error says to restore or delete the page in Recycle; nothing is written into the bin; the saved-view list is empty | pass | 3c50069 | 2026-10-03 |  |
 | B15 | Recycle case 2: from B14, Restore the page in More → Recycle, reopen Planner | The old views list again and saving works | pass | 3c50069 | 2026-10-03 |  |
@@ -469,8 +470,8 @@ Copied from the progress log (tasks.md). Re-check each when the environment allo
   page session `open_in_right_sidebar` once returned without showing anything ("Unexpected webworker error"), fine after a
   reload. If either shows up, reload the page and note it; do not file it against Planner without a clean repro.
 - The in-memory `plugin-test` graph can lose its seed on a page reload: verify the seed before every area.
-- Decisions taken and not yet confirmed by the owner (tasks.md T05-T11): filters are tick-to-narrow; saving a view always
-  creates a new one; deleting a saved view has no confirmation; Week = 3 weeks, Month = an 8-week window, Quarter = 17
+- Decisions taken, confirmed by the owner on 2026-10-04 (tasks.md N03; saved views got Update and a delete confirmation
+  instead, N23): filters are tick-to-narrow; Week = 3 weeks, Month = an 8-week window, Quarter = 17
   week columns in the Timeline; the Timeline and Calendar share one session anchor; "+N more" switches the layout to Week;
   a running span is filed under Today in the Agenda; the last closed value of Priority ranks highest; Kanban columns and
   lanes ignore filters.
