@@ -125,7 +125,7 @@ Live-check method (web app):
       `scripts/tracker-meta.json` (2026-09-25T15:00 local: 21 started tasks end Fri 2 Oct
       17:00, open tasks follow from Mon 5 Oct 09:00); `after` overrides per task. Graph:
       Start / End / Scheduled from the schedule (commit times only order the tasks and set
-      Doing), a "Depends on" node property, milestone Start / End from their tasks.
+      Doing), a `depends_on` node property (the owner chose this exact title), milestone Start / End from their tasks.
       Clarified by the owner the same day: dependencies must not force sequential
       execution. Real dependencies are recorded per task (`after`); tasks with none between
       them overlap; `scheduleStart` is set so the started work ends Fri 2 Oct 17:00.
