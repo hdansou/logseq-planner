@@ -19,7 +19,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildDesired, genEdn, parseGitLog, parseTasks, plan } from "./tracker-lib.mjs";
+import { buildDesired, genEdn, parseGitLog, parseTasks, plan, refsRepair } from "./tracker-lib.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MAX_ROUNDS = 5;
@@ -87,6 +87,42 @@ function readCurrent(graph, page) {
   return { taskClassProps, items };
 }
 
+/** Tasks whose Milestone, milestones whose Project, is not in their :block/refs (see refsRepair). */
+function readMissingRefs(graph, page) {
+  const idents = Object.fromEntries(
+    queryJson(graph, '[:find ?t ?i :where [?e :db/ident ?i] [?e :block/title ?t] [(namespace ?i) ?n] [(= ?n "user.property")]]'),
+  );
+  const rows = (tag, link, who) => queryJson(graph,
+    `[:find ?b ?title ?v :where [?p :block/title ${edn(page)}] [?b :block/page ?p] [(missing? $ ?b :logseq.property/deleted-at)]
+      [?b :block/tags ?c] [?c :block/title ${edn(tag)}] [?b :block/title ?title]
+      [?b :${idents[link]} ?l] (not [?b :block/refs ?l])
+      [?b :${idents[who]} ?w] [?w :block/title ?v]]`);
+  return [
+    ...rows("Task", "Milestone", "Team").map(([id, title, team]) => ({ id, tag: "Task", title, team })),
+    ...rows("Milestone", "Project", "Owner").map(([id, title, owner]) => ({ id, tag: "Milestone", title, owner })),
+  ];
+}
+
+const ownerSourceOf = (graph) => {
+  for (const line of logseq(["server", "list"], { allowFail: true }).split("\n")) {
+    const c = line.trim().split(/\s+/);
+    if (c[1] === graph) return c[7];
+  }
+  return undefined;
+};
+
+function checkRefs(graph, page, dryRun) {
+  const missing = readMissingRefs(graph, page);
+  const { steps, notice } = refsRepair(missing, ownerSourceOf(graph), graph);
+  if (notice) { console.log(notice); return; }
+  if (steps.length === 0) return;
+  if (dryRun) { console.log(`[dry-run] ${steps.length} block(s) have no references yet; would rebuild them`); return; }
+  console.log(`rebuilding references of ${steps.length} block(s)`);
+  for (const s of steps) { console.log(`  ${s.why}`); logseq(s.argv); }
+  const left = readMissingRefs(graph, page);
+  if (left.length) throw new Error(`${left.length} block(s) still have no references after the rewrite:\n${left.map((b) => `  ${b.title}`).join("\n")}`);
+}
+
 function stopOwnServer(graph) {
   for (const line of logseq(["server", "list"], { allowFail: true }).split("\n")) {
     const c = line.trim().split(/\s+/);
@@ -133,7 +169,11 @@ function main() {
     }
     for (let round = 1; round <= MAX_ROUNDS + 1; round++) {
       const steps = plan(desired, readCurrent(g, desired.page), g);
-      if (steps.length === 0) { console.log(round === 1 ? "graph is up to date: nothing to do" : `converged after ${round - 1} round(s)`); return; }
+      if (steps.length === 0) {
+        console.log(round === 1 ? "graph is up to date: nothing to do" : `converged after ${round - 1} round(s)`);
+        checkRefs(g, desired.page, opt.dryRun);
+        return;
+      }
       if (opt.dryRun) { for (const s of steps) console.log(`[dry-run] ${s.why}: logseq ${s.argv.join(" ")}`); return; }
       if (round > MAX_ROUNDS) throw new Error(`plan not empty after ${MAX_ROUNDS} rounds:\n${steps.map((s) => `  ${s.why}`).join("\n")}`);
       console.log(`round ${round}: ${steps.length} change(s)`);

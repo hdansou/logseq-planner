@@ -203,3 +203,28 @@ export function plan(desired, current, graph) {
   }
   return steps;
 }
+
+/**
+ * References check. Planner finds a milestone's tasks with `[?task :block/refs ?milestone]`, but a
+ * block written through a CLI-owned db-worker (`logseq server list` -> owner-source cli) gets no
+ * `:block/refs` at all. Verified 2026-10-03, CLI revision 8ffbb22-dirty: EDN import fills refs; with
+ * an app holding the graph (owner-source electron) any CLI write to a block, even the same value,
+ * rebuilds that block's refs (11 for a task); with a CLI-owned worker the same write leaves them empty.
+ * So: `missing` = blocks (tasks: Milestone not in refs, milestones: Project not in refs) with
+ * {id, tag, title, team | owner}; electron -> same-value rewrite of Team (task) / Owner (milestone);
+ * otherwise no repair, only a notice. -> {steps, notice}.
+ */
+export function refsRepair(missing, ownerSource, graph) {
+  if (missing.length === 0) return { steps: [], notice: undefined };
+  if (ownerSource !== "electron") {
+    return {
+      steps: [],
+      notice: `${missing.length} block(s) have no references yet (the CLI's own worker does not write them): open ${graph} in Logseq-DB and run "npm run tracker" again`,
+    };
+  }
+  const steps = missing.map((b) => {
+    const [name, value] = b.tag === "Task" ? ["Team", b.team] : ["Owner", b.owner];
+    return { argv: argvOf(graph, "upsert", "block", "--id", String(b.id), "--update-properties", `{${edn(name)} ${edn(value)}}`), why: `rebuild references of ${b.title}` };
+  });
+  return { steps, notice: undefined };
+}

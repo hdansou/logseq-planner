@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildDesired, genEdn, parseGitLog, parseTasks, plan, stableUuid,
+  buildDesired, genEdn, parseGitLog, parseTasks, plan, refsRepair, stableUuid,
 } from "./tracker-lib.mjs";
 
 const MD = `# x
@@ -192,5 +192,31 @@ describe("plan", () => {
   });
   it("adds missing Task tag properties", () => {
     expect(p({ ...full, taskClassProps: ["Team"] })[0].argv).toEqual(base("upsert", "tag", "--name", "Task", "--add-properties", '["Owner" "Milestone" "Start" "End"]'));
+  });
+});
+
+describe("refsRepair", () => {
+  const missing = [
+    { id: 7, tag: "Task", title: "T01 A", team: "Dev" },
+    { id: 8, tag: "Milestone", title: "Alpha", owner: "Claude" },
+  ];
+  it("says nothing when no block lacks references", () => {
+    expect(refsRepair([], "electron", "g")).toEqual({ steps: [], notice: undefined });
+    expect(refsRepair([], "cli", "g")).toEqual({ steps: [], notice: undefined });
+  });
+  it("re-writes a task's Team and a milestone's Owner (same value) when an app owns the graph", () => {
+    const { steps, notice } = refsRepair(missing, "electron", "g");
+    expect(notice).toBeUndefined();
+    expect(steps.map((s) => s.argv)).toEqual([
+      ["upsert", "block", "-g", "g", "-o", "json", "--id", "7", "--update-properties", '{"Team" "Dev"}'],
+      ["upsert", "block", "-g", "g", "-o", "json", "--id", "8", "--update-properties", '{"Owner" "Claude"}'],
+    ]);
+  });
+  it("does not repair with a CLI-owned or absent server: one notice with the count", () => {
+    for (const owner of ["cli", undefined]) {
+      const r = refsRepair(missing, owner, "g");
+      expect(r.steps).toEqual([]);
+      expect(r.notice).toBe('2 block(s) have no references yet (the CLI\'s own worker does not write them): open g in Logseq-DB and run "npm run tracker" again');
+    }
   });
 });
