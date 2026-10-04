@@ -114,6 +114,18 @@ Live-check method (web app):
       `indexOn`), then TDD. Acceptance on the tracker graph (N09), whose work all falls on
       one day: milestones and tasks show as bars across the hours they took. Start after
       N09 lands.
+- [ ] **N11 Tracker: planned schedule, 2 hours per task** — owner request 2026-10-03 for the
+      demo graph: every task gets 2 hours and starts after the task it depends on. Owner
+      decisions: working hours (weekdays 09:00–17:00; a task that would pass 17:00
+      continues the next working day at 09:00); back-dated start so the finished work ends
+      about now; default dependency = the previous task. Order: tasks with commits by their
+      first commit, then the rest by id. Fixed `scheduleStart` in
+      `scripts/tracker-meta.json` (2026-09-25T15:00 local: 21 started tasks end Fri 2 Oct
+      17:00, open tasks follow from Mon 5 Oct 09:00); `after` overrides per task. Graph:
+      Start / End / Scheduled from the schedule (commit times only order the tasks and set
+      Doing), a "Depends on" node property, milestone Start / End from their tasks.
+      Acceptance: unit tests for the scheduler; live: Timeline Week and Day on #Milestone
+      and #Task show the chain across working days, a second run plans nothing.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
