@@ -294,7 +294,9 @@ Live-check method (web app):
       forwarding possible, do nothing. Acceptance: unit tests for the rule; live: the three
       reported shortcuts with Planner open, typing a view name still works, Escape still
       closes a popover and then Planner.
-- [ ] **N17 Upstream report: CLI writes leave `:block/refs` empty** — to draft for the owner's
+- [x] **N17 Upstream report: CLI writes leave `:block/refs` empty** — filed 2026-10-04 as
+      logseq/db-test#1399 (re-run on 8ffbb22-dirty: tag and property refs missing, inline
+      `[[page]]` refs present, EDN import builds them all). Was: to draft for the owner's
       review, then file (Logseq DB / CLI builds go to logseq/db-test). Seen 2026-10-03 on
       CLI and worker 8ffbb22-dirty (Logseq-DB 2.0.1 nightly): blocks created or updated with
       `logseq upsert task` / `upsert block --update-properties` through the CLI's own worker
@@ -305,7 +307,9 @@ Live-check method (web app):
       Repro to write up: create a graph, `upsert task` with a node property, query the
       block's refs; open the graph in the app, repeat the write, query again. Before
       filing: re-run on the current build, search for duplicates, description only.
-- [ ] **N18 Upstream report: `createJournalPage("YYYY-MM-DD")` lands a day early** — to draft
+- [x] **N18 Upstream report: `createJournalPage("YYYY-MM-DD")` lands a day early** — filed
+      2026-10-04 as logseq/db-test#1400 (only west of UTC; `create_journal_page` unchanged on
+      master). Was: to draft
       for the owner's review, then file. Seen 2026-10-04 on Logseq-DB 2.0.1 nightly
       (8ffbb22), @logseq/libs 0.3.x, time zone UTC−5: `logseq.Editor.createJournalPage
       ("2026-12-01")` returned the page "Nov 30th, 2026"; `"2026-12-03T12:00:00"`, a local
