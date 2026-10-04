@@ -131,7 +131,7 @@ Live-check method (web app):
       them overlap; `scheduleStart` is set so the started work ends Fri 2 Oct 17:00.
       Acceptance: unit tests for the scheduler; live: Timeline Week and Day on #Milestone
       and #Task show parallel bars across working days, a second run plans nothing.
-- [ ] **N12 Dependency connectors in the Timeline** — owner request 2026-10-03: use
+- [x] **N12 Dependency connectors in the Timeline** — owner request 2026-10-03: use
       `depends_on` to draw a line from a task to the task that depends on it (T07 → T09).
       A "Depends on" setting in the Timeline picks one of the tag's node properties (default:
       the one titled like "depends on" / `depends_on`, else None), saved with the view. For
@@ -726,3 +726,15 @@ Total: about 10 hours.
   done" = T08–T11 via `depends_on`); (2) after switching graphs in one app session Planner
   showed "Invalid view config: unknown tag …Meeting…" once (the last view of the previous
   graph); it falls back to the default view.
+- 2026-10-03 N12 done (27b841d, 65ccad2, 94327e9). 653 unit tests. Tags carry their node
+  properties; a "Depends on" setting (default: the property titled like `depends_on`)
+  is saved with the view; a node that points to another through it is a dependent, not a
+  task of it; the Timeline draws an SVG connector per dependency whose two ends are on
+  screen, measured from the bars after each render. Live on the desktop app,
+  `planner-project` (rows C1.20–C1.22): 33 connectors in Week zoom, 11 on Thu 1 Oct in Day
+  zoom, None removes them and brings the old rollup back, #Milestone unchanged.
+  Not verified: C1.23 (saved view round trip of the setting), connectors into a rotated
+  point (diamond), a redraw after a theme or font change, cost at 2,000 nodes with links.
+  Seen: in Week zoom bars that touch end to start make every connector take the elbow
+  route, and the lines crowd; Day zoom reads well. The "Depends on" menu lists every
+  node property of the tag (Milestone too).
