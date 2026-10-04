@@ -135,6 +135,9 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Clicks on the top bar (view switch, Saved views, Close) land on the desktop app: the host header under the
+  full-screen frame is a window-drag region, so the frame now sets `-webkit-app-region: no-drag` (`FULL_SCREEN` in
+  `sdk.ts`, on both the container and the `setMainUIInlineStyle` fallback).
 - A one-point span reads as one date (N02): when a span's start and end are the same day and time (a node derived
   from one task), its label reads "Mobile app, 9 Oct 09:00 from its tasks, 0 of 1 done", not "9 Oct 09:00 – 9 Oct
   09:00". One shared `formatSpan` in `layout-common.ts` serves the Timeline and Calendar labels (`nodeLabel`) and

@@ -5,9 +5,14 @@ import { weekStartFromHost } from "./core/layout-common";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
 import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
-/** Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI. */
+/**
+ * Full-screen recipe (skill ui-positioning, recipe 3): the frame covers the whole window above the host UI.
+ * `WebkitAppRegion: no-drag`: the host header under the frame (`#head`, top 48 px) is a window-drag region on the
+ * desktop app; without no-drag it swallows mouse clicks on the top 48 px of the frame.
+ */
 const FULL_SCREEN: Record<string, string> = {
   position: "fixed", zIndex: "999", top: "0", left: "0", right: "auto", width: "100vw", height: "100vh",
+  WebkitAppRegion: "no-drag",
 };
 
 /**

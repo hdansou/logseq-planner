@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BLOCK_TAGS_QUERY, choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -98,5 +98,27 @@ describe("Kanban writes (T11; T01 observed shapes, docs/probes.md)", () => {
     await expect(kanbanWriteDeps().readChoice(UUID, OWNER)).rejects.toThrow(/not found/);
     expect(() => choiceReadQuery("user.property/owner")).toThrow(/ident/);
     await expect(kanbanWriteDeps().readChoice("not-a-uuid", OWNER)).rejects.toThrow(/uuid/);
+  });
+});
+
+describe("full-screen frame is not a window-drag region", () => {
+  const host = (el: unknown) => {
+    const setMainUIInlineStyle = vi.fn();
+    vi.stubGlobal("parent", { document: { querySelector: () => el } });
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, setMainUIInlineStyle, showMainUI: vi.fn() });
+    return setMainUIInlineStyle;
+  };
+
+  it("sets -webkit-app-region: no-drag, important, on the container (same-origin)", () => {
+    const setProperty = vi.fn();
+    host({ dataset: {}, style: { setProperty } });
+    appDeps().showMainUI();
+    expect(setProperty).toHaveBeenCalledWith("-webkit-app-region", "no-drag", "important");
+  });
+
+  it("passes WebkitAppRegion to setMainUIInlineStyle on the cross-origin fallback", () => {
+    const inline = host(null);
+    appDeps().showMainUI();
+    expect(inline).toHaveBeenCalledWith(expect.objectContaining({ WebkitAppRegion: "no-drag" }));
   });
 });
