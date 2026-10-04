@@ -4,7 +4,14 @@
   "description": "Timeline, Calendar, Agenda and Kanban views over any tag in a Logseq DB graph",
   "author": "Danzu",
   "license": "MIT",
-  "private": true,
+  "homepage": "https://github.com/hdansou/logseq-planner#readme",
+  "bugs": {
+    "url": "https://github.com/hdansou/logseq-planner/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hdansou/logseq-planner.git"
+  },
   "keywords": [
     "logseq",
     "logseq-plugin",
