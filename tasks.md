@@ -329,7 +329,7 @@ Live-check method (web app):
       edge middle, control points half the distance out and in, at least 24 px; no stub
       route, no elbow. The owner asked for a curve ("to avoid the overlapping perception")
       after a first fix (4d957f3) that dropped a straight line from under the dependency's
-      end. Unit tests only: not looked at in the app yet (Week zoom on `planner-project`).
+      end. Accepted by the owner on 2026-10-04 ("much better").
       Was: in Week zoom two-hour bars touch end to start, so every connector took the elbow
       route and the lines piled into a ladder.
 - [ ] **N21 Remember panel, surface and Edit dates per graph** — they last for the session
