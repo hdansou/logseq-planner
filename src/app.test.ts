@@ -6,7 +6,7 @@ import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY } from "./core/schema";
 import { DEBOUNCE_MS } from "./ui/changes";
-import { fakeChangeFeed, fakeClock, fakeStorage } from "./ui/test-fakes";
+import { fakeChangeFeed, fakeClock, fakeStorage, fixtureDq } from "./ui/test-fakes";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewBlock } from "./types";
@@ -301,6 +301,28 @@ describe("live updates (T12)", () => {
     expect(tagQueries(f.deps)).toBe(1);
     modelHandler(f.deps)();
     await vi.waitFor(() => expect(tagQueries(f.deps)).toBe(2));
+  });
+
+  it("reopening after a stale hide reloads once: the queries of one load, no second reload (N04)", async () => {
+    const f = fakeDeps();
+    f.deps.dq.mockImplementation(fixtureDq() as never);
+    registerApp(f.deps, root);
+    f.flush();
+    modelHandler(f.deps)();
+    await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 0));
+    const since = f.deps.dq.mock.calls.length;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    f.visibility.forEach((cb) => cb(false)); // the host's own visibility events follow the hide and the show
+    f.feed.fire(); // a change while hidden: stale
+    f.feed.fire();
+    modelHandler(f.deps)();
+    f.visibility.forEach((cb) => cb(true));
+    for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); // let any further reload run
+    const queries = f.deps.dq.mock.calls.slice(since).map(([q]) => q);
+    expect(queries.filter((q) => q === TAGS_QUERY)).toHaveLength(1);
+    // Exactly one load's worth: the tags and their properties are asked once each.
+    expect(queries.filter((q) => q === TAG_PROPERTIES_QUERY)).toHaveLength(1);
   });
 
   it("the host's visibility event drives it too (hidden by the host, then shown)", async () => {
