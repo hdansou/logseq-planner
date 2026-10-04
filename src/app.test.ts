@@ -91,6 +91,10 @@ describe("registerApp", () => {
     flush();
     expect(deps.provideModel).toHaveBeenCalledTimes(1);
     expect(deps.registerUIItem).toHaveBeenCalledWith("toolbar", expect.objectContaining({ key: "planner-open" }));
+    // The button draws Planner's own glyph (staggered bars), not a calendar: other plugins use the calendar icons.
+    const [, item] = deps.registerUIItem.mock.calls[0];
+    expect(item.template).toContain("<svg");
+    expect(item.template).not.toMatch(/ti-calendar/);
     expect(deps.registerCommandPalette).toHaveBeenCalledWith(
       expect.objectContaining({ key: "planner-open", label: "Planner: open" }),
       expect.any(Function),

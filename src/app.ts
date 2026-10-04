@@ -6,6 +6,8 @@ import { createWorkspace, type Timing } from "./ui/workspace";
 
 const OPEN = "planner-open";
 const OPEN_HANDLER = "openPlanner";
+/** Planner's glyph: three staggered bars (a small Gantt), the same shape as icon.svg; the calendar icons are taken by other plugins. */
+const TOOLBAR_ICON = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h8M9 12h11M6 18h7"/></svg>';
 /**
  * Free in the host keymap (src/main/frontend/modules/shortcut/config.cljs on upstream master 2026-10-03 and on
  * d2ab7726ab; gotcha §33): the "g …" chords are navigation (g a/f/g/h/j/n/p/s/t, g shift+g) and nothing binds
@@ -71,7 +73,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     deps.provideModel({ [OPEN_HANDLER]: open });
     deps.registerUIItem("toolbar", {
       key: OPEN,
-      template: `<a class="button" data-on-click="${OPEN_HANDLER}" title="Planner"><i class="ti ti-calendar-event"></i></a>`,
+      template: `<a class="button" data-on-click="${OPEN_HANDLER}" title="Planner">${TOOLBAR_ICON}</a>`,
     });
     deps.registerCommandPalette({ key: OPEN, label: "Planner: open", keybinding: OPEN_KEYBINDING }, open);
   });
