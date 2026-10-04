@@ -979,3 +979,15 @@ Total: about 10 hours.
   stays None; it should take the default property (`depends_on`) unless the user chose.
   Not verified: K8 (a view saved before N14; unit-tested), K10 (collapse kept across a view
   switch), a drag across Tag lanes, cost at 2,000 nodes, real mouse clicks.
+- 2026-10-04 follow-ups (f3ff6b8, 1dcf23d, 9b46e05, 7f7f8f4). 812 unit tests.
+  "Depends on" is left unset until the user picks, so the default rule follows the tags:
+  live, #Milestone shows None, ticking #Task gives depends_on with 38 connectors, and an
+  explicit None survives tag changes. Saved-view writes go through one queue: live, two
+  saves clicked back to back both persisted (read back with the CLI). Calendar band title:
+  the `margin-left: auto` rule matched the "‹" marker too; fixed, not re-run live (the
+  demo graph has no span over three weeks). The double reload after a stale hide was not
+  reproduced in unit tests (one load); a regression test was added and no code changed —
+  the README and the checklist still list it; the likely cause is host change events that
+  arrive after the frame is shown, which are real changes.
+  N04 still open: tag deletion triggers no refresh; refresh time at 2,000 nodes; the
+  double reload (unconfirmed cause); auto-restore of a recycled views page; CSP.
