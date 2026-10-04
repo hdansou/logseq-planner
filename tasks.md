@@ -276,6 +276,16 @@ Live-check method (web app):
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
       (REQUIREMENTS.md).
+      Decision note (2026-10-03, owner asked whether Planner should be resizable
+      independently of the app): yes, through the right-sidebar surface. Logseq's sidebar
+      has its own width handle, so a Planner rendered there is sized by the host and shows
+      next to the page; the workspace stays the maximised mode. Not building a floating,
+      resizable window: it covers the page, and the host's draggable / resizable main-UI
+      mode keeps its own layout and ignores the position Planner sets (the reason
+      `draggable` was never turned on). Fallback if the sidebar proves too narrow: a docked
+      split in the workspace with a draggable divider. Revisit after the sidebar surface
+      exists. Consequence: N13 (panel on the right, narrow-width drawer) comes before this
+      and matters more.
 - [ ] **N07 Query Builder follow-up (other repo)** — its theme code has the same
       theme-switch race fixed here in 2c90798; not checked there.
 
