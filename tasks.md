@@ -93,6 +93,16 @@ Live-check method (web app):
       In Review, Canceled and No Status on #Project → three columns, cards of hidden
       columns gone, counts right; save, reopen the view; switch the column property and
       back; real mouse clicks on the desktop app.
+- [ ] **N09 Project tracker graph** — owner request 2026-10-03: replicate this task list in
+      a Logseq graph (`planner-project`) as real example data for Planner. tasks.md stays
+      the source of truth; the graph is a copy, refreshed by `npm run tracker` after each
+      task. One #Project (Planner), #Milestone nodes, one #Task per item here (id in the
+      title, Status from the checkbox, Scheduled from the first commit that names the id),
+      Owner (Danzu, Claude) and Team (Product, Dev, QA, Security, Docs) choice properties;
+      sub-agents are recorded by team, not as named people. Acceptance: script tests
+      (parse, mapping, plan of CLI calls); live: the graph shows in Planner's four views on
+      #Milestone and #Task, a second run changes nothing, a status change here shows after
+      a re-run with the app open.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
