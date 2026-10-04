@@ -313,7 +313,23 @@ Live-check method (web app):
       mode switch; live with real mouse input: page and Planner side by side, drag the
       host's resizer and Planner follows, all four views usable at the sidebar's width
       (panel as a drawer under 640 px), close and reopen.
-      **N06b In-page block** and **N06c Drag to edit dates**: not scoped yet.
+      **N06b In-page block** (scoped 2026-10-04, building). Probe on the desktop app: a block
+      `{{renderer :planner, <saved view name>}}` fires `onMacroRendererSlotted` in a DB
+      graph (slot id, arguments, block uuid) and `provideUI({slot, template})` renders the
+      HTML in the page; `data-on-click` reaches the plugin's model. Build: the block shows a
+      read-only picture of the named saved view (same layouts and markup as the
+      workspace's view area: Timeline, Calendar, Agenda or Kanban), a header with the view
+      name and an "Open in Planner" button; a click on an item opens the node; no menus,
+      no drag, no connectors; it refreshes when the graph changes; an unknown view name
+      shows a message with the names that exist. Styles are provided to the host scoped
+      under the block's root class, with the `--pl-*` tokens mapped to the host's own
+      variables. A slash command "Planner view" inserts the block. Acceptance: unit tests
+      (argument parsing, template for each kind, scoping of the CSS, refresh, unknown
+      view); live: a saved Timeline view and a saved Kanban view shown in a page, an edit
+      refreshes them, a click opens the node, "Open in Planner" opens that view, light and
+      dark.
+      **N06c Drag to edit dates**: not scoped yet (it writes Date / DateTime values to the
+      user's nodes; v1 was read-only by the owner's decision; needs a write probe first).
       Decision note (2026-10-03, owner asked whether Planner should be resizable
       independently of the app): yes, through the right-sidebar surface. Logseq's sidebar
       has its own width handle, so a Planner rendered there is sized by the host and shows
