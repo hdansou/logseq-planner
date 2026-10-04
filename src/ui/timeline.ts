@@ -167,6 +167,8 @@ function renderLinks(links: TimelineLink[]): string {
 /** Horizontal run out of the dependency's bar and into the dependent's (px), and the elbow's distance from a bar (half the space between the bars of two rows). */
 const LINK_STUB = 8;
 const LINK_GAP = 6;
+/** An overlap up to this still counts as touching (sub-pixel layout). */
+const LINK_TOUCH = 1;
 /** The sides of a box, as `getBoundingClientRect` gives them. */
 export interface LinkRect {
   left: number;
@@ -178,9 +180,11 @@ export interface LinkRect {
 /**
  * The `d` of a connector from the dependency's box to the dependent's, in the coordinates of `origin` (the timeline's
  * top left, where the svg sits). Out of the dependency's right edge middle, a stub to the right, vertical to the
- * dependent's middle, then into its left edge middle. When the dependent starts before that stub has room (it overlaps
- * or starts earlier), an elbow: out, vertical to just above (or below) the dependent, back left past its start, vertical
- * to its middle, then in. Straight lines only; numbers to one decimal.
+ * dependent's middle, then into its left edge middle. When the bars touch or the gap has no room for that stub (N20):
+ * out of the dependency's bottom (or top) edge one stub before its end (its middle when it is narrower), vertical to
+ * the dependent's middle, then in. When the dependent overlaps or starts earlier, an elbow: out, vertical to just above
+ * (or below) the dependent, back left past its start, vertical to its middle, then in. Straight lines only; numbers to
+ * one decimal.
  */
 export function linkPath(from: LinkRect, to: LinkRect, origin: { left: number; top: number }): string {
   const n = (v: number) => String(Math.round(v * 10) / 10);
@@ -190,6 +194,10 @@ export function linkPath(from: LinkRect, to: LinkRect, origin: { left: number; t
   const y2 = (to.top + to.bottom) / 2 - origin.top;
   const out = `M${n(x1)} ${n(y1)} H${n(x1 + LINK_STUB)}`;
   if (x2 - x1 >= 2 * LINK_STUB) return `${out} V${n(y2)} H${n(x2)}`;
+  if (x2 - x1 >= -LINK_TOUCH) {
+    const x = Math.max(Math.min(x1, x2) - LINK_STUB, (from.left + from.right) / 2 - origin.left);
+    return `M${n(x)} ${n((y2 > y1 ? from.bottom : from.top) - origin.top)} V${n(y2)} H${n(x2)}`;
+  }
   const elbow = y2 > y1 ? to.top - origin.top - LINK_GAP : to.bottom - origin.top + LINK_GAP;
   return `${out} V${n(elbow)} H${n(x2 - LINK_STUB)} V${n(y2)} H${n(x2)}`;
 }

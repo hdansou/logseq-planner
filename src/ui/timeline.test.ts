@@ -399,8 +399,27 @@ describe("dependency connectors (N12)", () => {
       expect(linkPath(rect(200, 124, 300, 144), rect(120, 92, 180, 112), origin)).toBe("M200 84 H208 V68 H12 V52 H20");
     });
 
-    it("too little room for a straight route (less than two stubs) takes the elbow", () => {
-      expect(linkPath(rect(200, 60, 300, 80), rect(310, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H202 V52 H210");
+    it("bars touch end to start (N20): straight down from the dependency's end, then in; no elbow", () => {
+      // from ends at 300, to starts at 300: out of the bottom edge one stub before the end (292 → 192), down to 52, in
+      expect(linkPath(rect(200, 60, 300, 80), rect(300, 92, 400, 112), origin)).toBe("M192 30 V52 H200");
+    });
+
+    it("a gap of less than two stubs takes the same short route", () => {
+      expect(linkPath(rect(200, 60, 300, 80), rect(310, 92, 400, 112), origin)).toBe("M192 30 V52 H210");
+      expect(linkPath(rect(200, 60, 300, 80), rect(315.9, 92, 400, 112), origin)).toBe("M192 30 V52 H215.9");
+    });
+
+    it("the short route goes up from the top edge when the dependent sits above", () => {
+      expect(linkPath(rect(200, 124, 300, 144), rect(300, 92, 400, 112), origin)).toBe("M192 74 V52 H200");
+    });
+
+    it("a dependency narrower than two stubs (a point) drops from its middle", () => {
+      expect(linkPath(rect(290, 60, 300, 80), rect(300, 92, 400, 112), origin)).toBe("M195 30 V52 H200");
+    });
+
+    it("a sub-pixel overlap still counts as touching; a real overlap takes the elbow", () => {
+      expect(linkPath(rect(200, 60, 300, 80), rect(299.5, 92, 400, 112), origin)).toBe("M191.5 30 V52 H199.5");
+      expect(linkPath(rect(200, 60, 300, 80), rect(298, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H190 V52 H198");
     });
 
     it("keeps fractions to one decimal", () => {
