@@ -272,6 +272,22 @@ Live-check method (web app):
       instance runs at 144%); light and dark. Web app: frame under the header, no overlap.
       Order: independent of N13 (panel) and N14; can run in parallel with them, but it
       touches `src/sdk.ts` and `src/app.ts`, which N13 does not.
+- [ ] **N16 Host shortcuts while Planner is open** — owner report 2026-10-03: with Planner
+      open no Logseq shortcut works (Cmd+Shift+P, Cmd+K, `t t`). Reproduced on the desktop
+      test instance: keyboard focus is inside the plugin frame, so key events never reach
+      the host; with Planner closed the same keys work. Prototype checked live: a listener
+      in the frame that re-dispatches the key event on the host document's body (the frame
+      is same-origin on the desktop app) makes `t t` switch the theme (Planner follows),
+      Cmd+K open search above Planner with focus in its field, Escape close it with Planner
+      still open, and Cmd+Shift+P open the command palette.
+      Build: forward `keydown` / `keyup` that Planner did not handle to the host. Not
+      forwarded: events Planner prevented; Escape, Tab, Enter, Space, arrows, Home / End /
+      Page keys without Cmd / Ctrl; keys typed in a text field, except Cmd / Ctrl combos
+      that are not editing keys (A, C, V, X, Z, Y). When the host prevents the forwarded
+      event, prevent the original too. Cross-origin frame (web app, dev server): no
+      forwarding possible, do nothing. Acceptance: unit tests for the rule; live: the three
+      reported shortcuts with Planner open, typing a view name still works, Escape still
+      closes a popover and then Planner.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
