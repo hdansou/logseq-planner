@@ -224,14 +224,20 @@ describe("Depends on (N12)", () => {
   it("defaults to the node property titled like depends on: depends_on, Depends on, depends-on", () => {
     for (const title of ["depends_on", "Depends on", "depends-on", "DependsOn"]) {
       const t = withNodeProps("Owner page", title);
-      expect(defaultViewConfig(t).dependsOn).toBe(t.nodeProps[1].ident);
+      const c = defaultViewConfig(t);
+      expect(c).not.toHaveProperty("dependsOn"); // not chosen
+      expect(dependsOnOf(c, t)).toBe(t.nodeProps[1].ident);
     }
   });
 
   it("defaults to null when no node property is titled like depends on, or the tag has none", () => {
-    expect(defaultViewConfig(withNodeProps("Blocked by", "Parent")).dependsOn).toBeNull();
-    expect(defaultViewConfig(p).dependsOn).toBeNull();
-    for (const kind of ["calendar", "agenda", "kanban"] as const) expect(defaultViewConfig(withNodeProps("depends_on"), kind).dependsOn).toBe(withNodeProps("depends_on").nodeProps[0].ident);
+    const blocked = withNodeProps("Blocked by", "Parent");
+    expect(dependsOnOf(defaultViewConfig(blocked), blocked)).toBeNull();
+    expect(dependsOnOf(defaultViewConfig(p), p)).toBeNull();
+    for (const kind of ["calendar", "agenda", "kanban"] as const) {
+      const t = withNodeProps("depends_on");
+      expect(dependsOnOf(defaultViewConfig(t, kind), t)).toBe(t.nodeProps[0].ident);
+    }
   });
 
   it("dependsOnOf: the chosen ident when the tag has it; null for None and for an ident the tag no longer has (no error)", () => {
@@ -385,18 +391,20 @@ describe("views over several tags (N14)", () => {
       expect(withTags(pri, [t, { ...t, id: 1, ident: ":user.class/T2" }])).toMatchObject({ sort: "priority" });
     });
 
-    it("the dependency property: kept while a tag has it, else the default rule over the tags' node properties; absent stays absent", () => {
+    it("the dependency property: a choice is kept while a tag of the view has it, else (and when absent) back to not chosen", () => {
       const n = (ident: string, title: string) => ({ id: 1, ident, title });
       const a = { ...p, nodeProps: [n(":u/dep-a", "depends_on")] };
       const b = { ...t, nodeProps: [n(":u/dep-b", "Depends on")] };
       const plain = { ...m, nodeProps: [n(":u/parent", "Parent")] };
-      expect(withTags(defaultViewConfig(a), [a, b]).dependsOn).toBe(":u/dep-a"); // #Task's own does not replace it
-      expect(withTags(defaultViewConfig([a, b]), [b]).dependsOn).toBe(":u/dep-b"); // gone with #Project: the default rule
-      expect(withTags(defaultViewConfig(a), [plain]).dependsOn).toBeNull();
-      expect(withTags({ ...defaultViewConfig(a), dependsOn: null }, [a, b]).dependsOn).toBeNull();
-      expect(defaultViewConfig([plain, b]).dependsOn).toBe(":u/dep-b"); // only #Task has one: offered and the default
-      const { dependsOn: _, ...old } = defaultViewConfig(a);
-      expect(withTags(old as ViewConfig, [a, b])).not.toHaveProperty("dependsOn");
+      const chosen = { ...defaultViewConfig(a), dependsOn: ":u/dep-a" };
+      expect(withTags(chosen, [a, b]).dependsOn).toBe(":u/dep-a"); // #Task's own does not replace it
+      expect(withTags({ ...defaultViewConfig([a, b]), dependsOn: ":u/dep-b" }, [a])).not.toHaveProperty("dependsOn"); // gone with #Task
+      expect(withTags(chosen, [plain])).not.toHaveProperty("dependsOn");
+      expect(withTags({ ...defaultViewConfig(a), dependsOn: null }, [a, b]).dependsOn).toBeNull(); // None is kept
+      // Not chosen stays not chosen, so the default rule follows the tags: #Milestone alone has none, + #Task it has.
+      const one = withTags(defaultViewConfig(plain), [plain, b]);
+      expect(one).not.toHaveProperty("dependsOn");
+      expect(dependsOnOf(one, { nodeProps: [...plain.nodeProps, ...b.nodeProps] })).toBe(":u/dep-b");
     });
 
     it("throws on no tags", () => {

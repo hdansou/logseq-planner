@@ -1052,7 +1052,7 @@ describe("Depends on (N12)", () => {
     expect(controls().slice(controls().indexOf("end"), controls().indexOf("end") + 2)).toEqual(["end", "depends"]);
     expect(text("[data-control=depends]")).toContain("depends_on");
     expect($("#pl-depends-label")!.textContent).toBe("Depends on");
-    expect(ws.config()!.dependsOn).toBe(DEPENDS_ON.ident);
+    expect(ws.config()).not.toHaveProperty("dependsOn"); // not chosen: the default rule shows depends_on
     await click(ws, "[data-control=depends]");
     expect($$("[data-popover=depends] [data-option]").map((o) => [o.dataset.option, o.textContent, o.getAttribute("aria-selected")]))
       .toEqual([["", "None", "false"], [DEPENDS_ON.ident, "depends_on", "true"]]);
@@ -1061,11 +1061,25 @@ describe("Depends on (N12)", () => {
     expect($("[data-control=depends]")).toBeNull(); // no node property on Meeting
   });
 
+  it("a second tag ticked: Depends on takes the default property of the new tags until the user chooses (N14)", async () => {
+    const { ws } = await setup({ dq: recorded().dq });
+    await pickTag(ws, "Meeting"); // no node property
+    expect($("[data-control=depends]")).toBeNull();
+    await click(ws, `[data-tag-check="${tag("Task").id}"]`);
+    expect(text("[data-control=depends]")).toContain("depends_on");
+    expect(ws.config()).not.toHaveProperty("dependsOn");
+    expect($$("[data-tl-links] [data-tl-link]").length).toBeGreaterThan(0);
+    await click(ws, "[data-control=depends]");
+    await click(ws, '[data-popover=depends] [data-option=""]'); // None is a choice and stays through a tag change
+    await click(ws, `[data-tag-check="${tag("Project").id}"]`);
+    expect(ws.config()).toMatchObject({ dependsOn: null });
+  });
+
   it("is not shown for a tag without node properties", async () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
     expect($("[data-control=depends]")).toBeNull();
-    expect(ws.config()!.dependsOn).toBeNull();
+    expect(ws.config()).not.toHaveProperty("dependsOn");
   });
 
   it("dependents are not tasks: Draft brief has no task rows; None reloads with them back as its tasks, and back again", async () => {
@@ -1408,7 +1422,8 @@ describe("nested: parents and children (N14 step 2)", () => {
 
   it("Nested is the default with two tags: each parent with its children as full rows under it, open by default", async () => {
     const ws = await nested();
-    expect(ws.config()).toMatchObject({ arrange: "nested", dependsOn: DEPENDS_ON.ident });
+    expect(ws.config()).toMatchObject({ arrange: "nested" });
+    expect(ws.config()).not.toHaveProperty("dependsOn");
     expect(rowList()).toEqual(["Website relaunch", "  Draft brief Website relaunch", "Acme rollout", "  Acme contract", "Mobile app", "  Wireframes"]);
     const child = $$("[data-tl-child-of]").find((li) => nameOf(li) === "Wireframes")!;
     expect(child.dataset.tlChildOf).toBe(uuidOf("Mobile app"));

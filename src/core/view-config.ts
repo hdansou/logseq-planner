@@ -43,8 +43,8 @@ interface CommonConfig {
   filters: ValueSelection;
   /**
    * Node property whose values are the nodes a node depends on (N12): Timeline connectors, and those nodes' tasks no
-   * longer count the node. Null = None. Absent only in a config stored before N12: the default rule applies
-   * (`dependsOnOf`). An ident the tag no longer has behaves as null.
+   * longer count the node. Null = None. Absent = not chosen: the default rule applies to the view's tags now
+   * (`dependsOnOf`), until the user picks a value in the menu. An ident the tag no longer has behaves as null.
    */
   dependsOn?: string | null;
 }
@@ -98,14 +98,14 @@ const defaultColumn = (choiceProps: ChoiceProp[]): string | null => (choiceProps
 const defaultArrange = (count: number): Arrange => (count > 1 ? "nested" : "date");
 
 /**
- * The view a user gets when they pick `tag` (or several tags, in selection order): each tag's dates and the dependency
- * property by the default rules, nothing filtered.
+ * The view a user gets when they pick `tag` (or several tags, in selection order): each tag's dates by the default rule, the
+ * dependency property not chosen (the default rule applies, `dependsOnOf`), nothing filtered.
  */
 export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "timeline"): ViewConfig {
   const view = mergeTags([tag].flat());
   const common: CommonConfig = {
     tags: view.tags.map((t) => t.ident), childTags: true, dates: Object.fromEntries(view.tags.map((t) => [t.ident, defaultDates(t)])),
-    doneValues: {}, filters: {}, dependsOn: defaultDependsOn(view),
+    doneValues: {}, filters: {},
   };
   switch (kind) {
     case "timeline":
@@ -122,7 +122,7 @@ export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "ti
 /**
  * `config` over the tags `tags` (N14: a tag ticked or unticked, or a gone tag dropped): kept tags keep their dates, a
  * new one gets its default dates; filters, done values, the Kanban column and lane and the dependency property are kept
- * where the new tags share them, else dropped (column: the default; dependency: the default rule); the Tag filter keeps
+ * where the new tags share them, else dropped (column: the default; dependency: back to not chosen, the default rule); the Tag filter keeps
  * the tags still selected and goes, like a Tag swimlane, below two tags. The Timeline arrangement takes the default of
  * the new tag count when the view crosses between one tag and several. Throws on an empty list.
  */
@@ -139,12 +139,14 @@ export function withTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
     } else if (shared.has(key)) filters[key] = values;
   }
   const doneValues = Object.fromEntries(Object.entries(config.doneValues).filter(([ident]) => shared.has(ident)));
-  // Absent (stored before N12) stays absent: the default rule applies wherever it is used (`dependsOnOf`).
-  const kept = config.dependsOn === undefined || config.dependsOn === null || view.nodeProps.some((p) => p.ident === config.dependsOn);
+  // A choice (an ident, or null = None) stays only while the view's tags still have the property; else, like absent, back to
+  // "not chosen": the default rule applies wherever it is used (`dependsOnOf`).
+  const { dependsOn, ...rest } = config;
+  const kept = dependsOn === null || (dependsOn !== undefined && view.nodeProps.some((p) => p.ident === dependsOn));
   const common = {
-    ...config, tags: idents, dates: Object.fromEntries(view.tags.map((t) => [t.ident, config.dates[t.ident] ?? defaultDates(t)])),
-    filters, doneValues, ...(kept ? {} : { dependsOn: defaultDependsOn(view) }),
-  };
+    ...rest, tags: idents, dates: Object.fromEntries(view.tags.map((t) => [t.ident, config.dates[t.ident] ?? defaultDates(t)])),
+    filters, doneValues, ...(kept ? { dependsOn } : {}),
+  } as ViewConfig;
   if (common.kind === "timeline") {
     return (config.tags.length > 1) === multi ? common : { ...common, arrange: defaultArrange(idents.length) };
   }

@@ -190,7 +190,7 @@ export function visibleData(config: ViewConfig, view: ViewTags, nodes: PlannerNo
 /** Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
 export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): ViewConfig {
   const { tags, childTags, dates, doneValues, filters } = config;
-  return { ...defaultViewConfig(view.tags, kind), tags, childTags, dates, doneValues, filters, dependsOn: dependsOnOf(config, view) };
+  return { ...defaultViewConfig(view.tags, kind), tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
 }
 
 /** The choice property the done-values control is labelled with: Status, else the first one. */

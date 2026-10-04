@@ -218,6 +218,11 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- **Depends on** follows the default rule when the view's tags change (N14): a new view left the setting explicitly
+  None when its first tag had no dependency property, so ticking a second tag that has `depends_on` still showed None
+  and drew no links. The setting is now "not chosen" (key absent, `dependsOnOf` applies the default rule to the
+  current tags) until you pick a value in the menu, and a tag change keeps a choice only while a tag of the view has
+  the property (None always stays).
 - Done and canceled titles keep a readable contrast (N04): they used `--pl-label-2`, the host's `--muted-foreground`,
   which measured 3.33 (light) and 2.98 (dark) on Logseq's default themes. A new token `--pl-label-done`, a 72% mix of
   the primary label and the surface, colours them in the Agenda, Timeline, Kanban (cards and done column heads) and
