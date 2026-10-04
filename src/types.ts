@@ -143,6 +143,12 @@ export interface PlannerNode {
   choices: Record<string, ClosedValue>;
   /** Entity ids of the nodes it depends on through the view's dependency property (N12); [] without one. */
   dependsOn: number[];
+  /**
+   * Entity ids of the other loaded nodes it references (`:block/refs`: inline links and node-property values), except
+   * the nodes it depends on through the view's dependency property (N12 rule): its candidate parents for nesting (N14).
+   * Pulled only for a view over two or more tags; [] otherwise.
+   */
+  links: number[];
 }
 
 /** The Status of a #Task block, as the query returns it. */

@@ -359,10 +359,12 @@ On `planner-project` (6 #Milestone blocks, 28 #Task blocks; both tags have Start
 | K3 | Open **Dates** | "Dates: 2 tags"; a row per tag with that tag's Start and End lists; picking one tag's Start changes only that tag's bars; the popover stays open | not run |  |  |  |
 | K4 | Panel filters | Only properties both tags have (Status, Owner if they are the same property); a **Tag** group first with #Milestone and #Task and their counts; ticking #Task shows only the tasks | not run |  |  |  |
 | K5 | Kanban over both tags, Columns = Status; Swimlanes = Tag | Every milestone and task is a card in its Status column; lanes #Milestone and #Task; a drag into the other tag's lane is refused, a drag to another column in the same lane is written and read back; the ⋯ menu lists columns only; the hint says Tag lanes are read-only | not run |  |  |  |
-| K6 | Timeline: Arrange By date, then By tag | By date: one list by start; By tag: a heading row #Milestone, its rows by start, then #Task and its rows; connectors still drawn between tasks | not run |  |  |  |
+| K6 | Timeline: Arrange By date, then By tag, then Nested (the default with two tags) | By date: one list by start; By tag: a heading row #Milestone, its rows by start, then #Task and its rows; Nested: each milestone with its tasks as bars (or points) under it, indented, no marker-only task rows for them; each milestone's count is done / all of its tasks (canceled left out); connectors drawn between tasks in every arrangement (Depends on = depends_on, offered although only #Task has it) | not run |  |  |  |
 | K7 | Save the two-tag view, open another tag, open the saved view | Tags, per-tag dates, filters (Tag filter included) and arrangement come back; the name suggested was "Milestone +1 timeline" | not run |  |  |  |
 | K8 | Open a view saved before N14 (one tag) | It opens as that tag with its Start and End, no error | not run |  |  |  |
 | K9 | With only one tag ticked, try to untick it | Its checkbox is disabled; the view keeps the tag | not run |  |  |  |
+| K10 | Nested: click a milestone's toggle, switch to the Agenda and back, click it again | Its tasks (and their connectors) disappear and the toggle reads "Show rows under …"; still collapsed after the view switch; shown again after the second click | not run |  |  |  |
+| K11 | Agenda, Group by Node, over #Milestone + #Task | One group per milestone listing its tasks as entries with their own dates and late marks; no task has a group of its own (a task linking no milestone does); Show done adds the done tasks | not run |  |  |  |
 
 ## Desktop pass (2026-10-03, build e849107)
 

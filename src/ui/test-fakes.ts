@@ -5,7 +5,7 @@ import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodesQuery, notRecycled, tasksQuery, TITLES_QUERY } from "../core/queries";
+import { NODE_REFS, nodesQuery, notRecycled, tasksQuery, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -33,10 +33,11 @@ const pullKey = (attr: string) => (attr.startsWith(":block/") ? attr.slice(7) : 
 /** Journal page id → journal day, from the fixture's journal-day rows (dates.json). */
 const journalDays = new Map((datesFixture.date.detail as { raw: number; "journal-day": number }[]).map((r) => [r.raw, r["journal-day"]]));
 
-/** What a node query pulls: its attributes, and the Date idents pulled with their page's journal day. */
+/** What a node query pulls: its attributes, the Date idents pulled with their page's journal day, and whether refs are (N14). */
 interface NodePull {
   attrs: string[];
   dates: Set<string>;
+  refs: boolean;
 }
 
 /**
@@ -48,10 +49,12 @@ function nodePullOf(query: string): NodePull | null {
   const head = "[:find (pull ?b [";
   const template = nodesQuery([]);
   if (!query.startsWith(head) || query.slice(query.indexOf("])\n")) !== template.slice(template.indexOf("])\n"))) return null;
-  const pull = query.slice(head.length, query.indexOf("])\n"));
+  const full = query.slice(head.length, query.indexOf("])\n"));
+  const refs = full.includes(NODE_REFS);
+  const pull = full.replace(NODE_REFS, "");
   const dates = new Set([...pull.matchAll(/\{(\S+) \[:db\/id :block\/journal-day\]\}/g)].map((m) => m[1]));
   const attrs = pull.replace(/\{(\S+) \[:db\/id :block\/journal-day\]\}/g, "$1").split(/\s+/).filter(Boolean);
-  return { attrs, dates };
+  return { attrs, dates, refs };
 }
 
 /**
@@ -59,11 +62,13 @@ function nodePullOf(query: string): NodePull | null {
  * pull); a pulled Date value `{id}` gets its page's `journal-day` from dates.json, as the nested pull returns it.
  */
 function narrowNode(row: Row, pull: NodePull): Row {
-  return Object.fromEntries(pull.attrs.filter((a) => pullKey(a) in row).map((a) => {
+  const out = Object.fromEntries(pull.attrs.filter((a) => pullKey(a) in row).map((a) => {
     const k = pullKey(a);
     const v = row[k] as { id: number };
     return [k, pull.dates.has(a) && journalDays.has(v.id) ? { id: v.id, "journal-day": journalDays.get(v.id) } : row[k]];
   }));
+  if (pull.refs && row.refs) out.refs = (row.refs as Row[]).map((r) => ({ id: r.id }));
+  return out;
 }
 
 /**
@@ -105,7 +110,10 @@ function taskNodeRows(): [Row][] {
   const statusValues = props.map(([, p]) => p).find((p) => p.ident === ":logseq.property/status")!["_closed-value-property"]!;
   return taskRows().map((t) => {
     const status = t[":logseq.property/status"] as { ident: string } | undefined;
-    const row: Row = { id: t.id, uuid: t.uuid, title: t.title, tags: (t.tags as { ident: string }[]).map((x) => ({ id: tags.find((g) => g.ident === x.ident)!.id })) };
+    const row: Row = {
+      id: t.id, uuid: t.uuid, title: t.title, tags: (t.tags as { ident: string }[]).map((x) => ({ id: tags.find((g) => g.ident === x.ident)!.id })),
+      ...(t.refs ? { refs: (t.refs as Row[]).map((r) => ({ id: r.id })) } : {}),
+    };
     if (status) row[":logseq.property/status"] = { id: statusValues.find((v) => v.ident === status.ident)!.id };
     // DateTime values are epoch ms in both pulls: copied as they are (N12: the Task Timeline needs dated #Task nodes).
     for (const k of [":logseq.property/deadline", ":logseq.property/scheduled"]) if (k in t) row[k] = t[k];

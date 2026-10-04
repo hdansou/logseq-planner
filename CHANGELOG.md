@@ -35,6 +35,16 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Parents and children in views over several tags (N14, step 2). A node of the view that references another node of
+  the view (not through the Depends on property) is its child; the node query pulls the refs as ids for views over two
+  or more tags only (`PlannerNode.links`). Pure `nestItems` (layout-common.ts) decides in row order: the first
+  candidate that is not itself a child, a node with children is never a child, the later of two nodes referencing each
+  other is the child, one level deep (grandchildren are top-level rows), and recomputes each item's progress over its
+  children (view done values, canceled left out) and its tasks that are not nodes. The Timeline's Arrange gets
+  **Nested** (the default with two or more tags): child rows under their parent (`data-tl-child-of="<parent uuid>"`,
+  `.pl-tl-child`), parents open by default with a toggle (`data-tl-nested`) whose collapsed state is kept for the
+  session; a collapsed parent's children get no row and no connector. The Agenda by node lists a child as an entry of
+  its parent's group, never as a group of its own. Calendar and Kanban do not nest.
 - Views over several tags (N14, step 1). A checkbox before each tag in the panel's tag tree (`data-tag-check`,
   "Include #Title") adds the tag to the view or removes it; the last one is disabled; a click on the tag's name still
   shows it alone, and the Tag menu still picks one tag. Every selected tag is pressed; the Tag control reads

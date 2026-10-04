@@ -116,6 +116,15 @@ export interface TimelineRow {
   label: string;
   /** Display titles of the shown nodes it depends on (N12), on screen or not, in the property's order; [] for none. */
   dependsOn: string[];
+  /**
+   * Nested (N14): its child rows (in range, by date) while it is not collapsed; [] when collapsed, for a child row and
+   * outside the nested arrangement.
+   */
+  children: TimelineRow[];
+  /** Nested: how many of its children have a row in the range, collapsed or not (the toggle shows when > 0). */
+  childCount: number;
+  /** Nested: the parent row's node uuid for a child row; null for a top-level row. */
+  parent: string | null;
 }
 
 /** A dependency connector (N12): from the dependency's row to its dependent's row, both by node uuid. */
@@ -145,7 +154,7 @@ export interface TimelineLayout {
   columns: TimelineColumn[];
   /**
    * Nodes that touch the range only (T13a: a node wholly outside gets no row), sorted by start, then end, then title;
-   * arranged by tag (`groups`), by the group first.
+   * arranged by tag (`groups`), by the group first; nested (`nest`), the top-level rows only, each with its children.
    */
   rows: TimelineRow[];
   /** Arranged by tag (N14): the view's tags in selection order, each heading its rows; null = rows by date only. */
@@ -156,7 +165,10 @@ export interface TimelineLayout {
   later: OutsideCount;
   /** Nodes without any date, by title. */
   undated: { node: PlannerNode; title: string }[];
-  /** Dependency connectors (N12) between rows: both nodes have a row (bar or point) in the range; in row order of the dependents. */
+  /**
+   * Dependency connectors (N12) between rows on screen: both nodes have a row (bar or point) in the range, and a child
+   * row of a collapsed parent has none; in row order of the dependents.
+   */
   links: TimelineLink[];
   /**
    * The today line: today's track (Week, Month, Quarter), or in Day the current time as a fractional track (13:30 → 54);
@@ -181,6 +193,13 @@ export interface TimelineInput {
   titles: ReadonlyMap<string, string>;
   /** Arrange by tag (N14): the view's tags in selection order; absent = by date (one tag, or Arrange "By date"). */
   groups?: TimelineGroup[];
+  /**
+   * Arrange nested (N14 step 2): the parent node id by child node id (`nestItems`). A child whose parent has a row is
+   * listed under it; one whose parent has none (out of range, undated) is a top-level row. Absent = no nesting.
+   */
+  nest?: ReadonlyMap<number, number>;
+  /** Nested: parents whose children are hidden (session state); their children have no row. */
+  collapsed?: ReadonlySet<number>;
 }
 
 // ---------------------------------------------------------------- range and columns
@@ -305,7 +324,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
       point: isPoint ? bar.from : null,
       tasks: [...tasks].sort((a, b) => byTaskOrder(a, b, input.titles)).map((t) => taskRow(t, input, range)),
       label: nodeLabel(title, span, progress),
-      dependsOn: [],
+      dependsOn: [], children: [], childCount: 0, parent: null,
     });
   }
   rows.sort((a, b) => compareDates(a.start, b.start) || compareDates(a.end, b.end) || a.title.localeCompare(b.title));
@@ -315,12 +334,34 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     rows.sort((a, b) => order.get(a.node.tag)! - order.get(b.node.tag)!); // stable: by date inside a group
   }
   undated.sort((a, b) => a.title.localeCompare(b.title));
+  const top = input.nest ? nestRows(rows, input.nest, input.collapsed ?? new Set()) : rows;
   return {
-    zoom: input.zoom, range, rows, groups, undated, earlier, later, links: linkRows(rows, input),
+    zoom: input.zoom, range, rows: top, groups, undated, earlier, later, links: linkRows(shownRows(top), input),
     columns: columnsOf(input.zoom, range, input.today, input.now, input.weekStart),
     todayAt: todayAt(input.zoom, range, input.today, input.now),
   };
 }
+
+/** Nested: each row whose parent has a row goes under it (in date order); the rest are the top-level rows. */
+function nestRows(rows: TimelineRow[], nest: ReadonlyMap<number, number>, collapsed: ReadonlySet<number>): TimelineRow[] {
+  const byId = new Map(rows.map((r) => [r.node.id, r]));
+  const top: TimelineRow[] = [];
+  for (const r of rows) {
+    const pid = nest.get(r.node.id);
+    const parent = pid === undefined ? undefined : byId.get(pid);
+    if (!parent) {
+      top.push(r);
+      continue;
+    }
+    r.parent = parent.node.uuid;
+    parent.childCount++;
+    if (!collapsed.has(parent.node.id)) parent.children.push(r);
+  }
+  return top;
+}
+
+/** The rows on screen in order: each top-level row, then its shown children. */
+export const shownRows = (rows: TimelineRow[]): TimelineRow[] => rows.flatMap((r) => [r, ...r.children]);
 
 /**
  * Fills each row's `dependsOn` titles (the shown nodes it depends on) and returns the links whose both ends have a row
@@ -358,7 +399,7 @@ export function dayFocus(layout: TimelineLayout, expanded: ReadonlySet<number>):
   if (layout.zoom !== "day") return null;
   const timed: number[] = [];
   let untimed = false;
-  for (const r of layout.rows) {
+  for (const r of shownRows(layout.rows)) {
     if (r.point !== null) {
       if (r.start.time === null) untimed = true;
       else timed.push(r.point);

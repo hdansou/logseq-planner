@@ -416,7 +416,7 @@ describe("views over several tags (N14)", () => {
     const project = await loadNodes(fixtureDq(), tags, [tag("Project")], { childTags: true, zone: west5 });
     const meeting = await loadNodes(fixtureDq(), tags, [tag("Meeting")], { childTags: true, zone: west5 });
     expect(ids(nodes)).toEqual(ids([...project, ...meeting]));
-    expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(tags), tasksQuery(null)].sort());
+    expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(tags, null, true), tasksQuery(null)].sort());
     for (const c of calls) expect(c.inputs).toEqual([[tag("Project").id, tag("Meeting").id], CLASS_EXTENDS_RULES]);
   });
 
@@ -466,5 +466,29 @@ describe("views over several tags (N14)", () => {
     expect(same.tagIds).toEqual([tag("Meeting").id, tag("Project").id]);
     await readRaw(dq, tags, [tag("Meeting")], null, prev);
     expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(tags), tasksQuery(null)].sort());
+  });
+
+  it("pulls the node refs (as ids) only for two or more tags; one tag's pull is unchanged", () => {
+    expect(nodesQuery(tags, null, true)).toContain("[:db/id :block/uuid :block/title :block/tags {:block/refs [:db/id]} ");
+    expect(nodesQuery(tags, null, true).replace(" {:block/refs [:db/id]}", "")).toBe(nodesQuery(tags));
+    expect(nodesQuery(tags)).not.toContain(":block/refs");
+  });
+
+  it("links: the other nodes of the view a node references, not itself, not other blocks, not through the dependency property", async () => {
+    const dq = fixtureDq({ taskNodes: true, depends: { Wireframes: ["Website relaunch"], "Draft brief": ["Survey users"] } });
+    const infos = await loadTagInfos(dq);
+    const of = (title: string) => infos.find((t) => t.title === title)!;
+    const load = (dependsOn: string | null) => loadNodes(dq, infos, [of("Project"), of("Task")], { childTags: true, zone: west5, dependsOn });
+    const plain = await load(null);
+    const id = (title: string) => byTitle(plain, title).id;
+    expect(byTitle(plain, "Draft brief [[6a000000-0000-4000-8000-000000000001]]").links.sort()).toEqual([id("Survey users [[6a000000-0000-4000-8000-000000000001]]"), id("Website relaunch")].sort());
+    expect(byTitle(plain, "Wireframes").links.sort()).toEqual([id("Mobile app"), id("Website relaunch")].sort());
+    expect(byTitle(plain, "Loose task (edited)").links).toEqual([]);
+    expect(byTitle(plain, "Website relaunch").links).toEqual([]); // its refs are other blocks
+    const deps = await load(DEPENDS_ON.ident);
+    expect(byTitle(deps, "Wireframes").links).toEqual([id("Mobile app")]);
+    expect(byTitle(deps, "Draft brief [[6a000000-0000-4000-8000-000000000001]]").links).toEqual([id("Website relaunch")]);
+    const one = await loadNodes(dq, infos, [of("Task")], { childTags: true, zone: west5 });
+    expect(one.every((n) => n.links.length === 0)).toBe(true); // one tag: refs not pulled
   });
 });

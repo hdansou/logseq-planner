@@ -31,6 +31,8 @@ interface RawNode {
   uuid: string;
   title: string;
   tags?: { id: number }[];
+  /** Pulled for a view over two or more tags only (N14, `NODE_REFS`). */
+  refs?: { id: number }[];
   [propIdent: string]: unknown;
 }
 interface RawTask {
@@ -116,7 +118,8 @@ const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
  * Raw `nodesQuery` rows → the nodes of the view's tags `selected` (N14: their union, each node once, with the view tag
  * it belongs to, `viewTagOf`) with mapped dates and choices. A Date value is the journal page ref pulled with its
  * `journal-day` (`{id, "journal-day"}`); a ref without one (the empty placeholder, T14) is no value. `dependsOn`: the
- * dependency property the rows were pulled with (N12), read into each node's `dependsOn` ids; null = none.
+ * dependency property the rows were pulled with (N12), read into each node's `dependsOn` ids; null = none. `links`: the
+ * other nodes of the view among its pulled refs, less the ones it depends on (N14).
  */
 export function buildNodes(
   raw: unknown[],
@@ -130,6 +133,7 @@ export function buildNodes(
   const rows = rawNodes(raw);
   const viewTag = viewTagOf(rows, tags, selected, childTags);
   return rows.filter((n) => viewTag.has(n.id)).map((node) => {
+    const deps = dependsOn === null ? [] : refIds(node[dependsOn]);
     const { dateProps, choiceProps } = propsOf(node, tagsById);
     const dates: Record<string, LocalDate> = {};
     for (const p of dateProps) {
@@ -155,7 +159,8 @@ export function buildNodes(
       tag: viewTag.get(node.id)!,
       dates,
       choices,
-      dependsOn: dependsOn === null ? [] : refIds(node[dependsOn]),
+      dependsOn: deps,
+      links: [...new Set((node.refs ?? []).map((r) => r.id))].filter((id) => id !== node.id && viewTag.has(id) && !deps.includes(id)),
     };
   });
 }

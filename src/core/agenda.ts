@@ -15,6 +15,8 @@
 //   unless Show done is on. Show done reveals those filed under Today, a day, Earlier (at most 14 days back) or No
 //   date; a done entry never goes under Later.
 // - A node whose span is derived from its tasks is not listed by date (its tasks are); by node it keeps its group.
+// - Nested by node (N14 step 2, `nest`): a child node is an entry of its parent's group (with its own dates, late and
+//   done state, and followed by its own task entries), never a group of its own.
 import type { ChoiceProp, ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
@@ -65,10 +67,10 @@ export interface AgendaBucket {
 export interface AgendaGroup {
   /** The node's own dated line. */
   node: AgendaEntry;
-  /** Its visible tasks: overdue first, then by date, then title. */
+  /** Its visible tasks (nested, N14: and its child nodes and their tasks): overdue first, then by date, then title. */
   tasks: AgendaEntry[];
   progress: Rollup;
-  /** Linked tasks that are not done (hidden or not). */
+  /** Linked tasks (nested: and children) that are not done (hidden or not). */
   open: number;
   /** Choice values for the header, in the tag's property order (Status, Owner). */
   meta: string[];
@@ -97,6 +99,8 @@ export interface AgendaInput {
   doneValues: Record<string, string[]>;
   /** Titles of the loaded nodes by uuid (`titlesByUuid`), for inline refs in titles. */
   titles: ReadonlyMap<string, string>;
+  /** By node, nested (N14 step 2): the parent node id by child node id (`nestItems`); absent = every node its own group. */
+  nest?: ReadonlyMap<number, number>;
 }
 
 // ---------------------------------------------------------------- filing
@@ -210,7 +214,20 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     return { groupBy: "date", buckets: list, groups: [], empty: list.length === 0 };
   }
 
+  // Nested: each child's line and its tasks join its parent's entries (the parent is one of the items: `nestItems` ran
+  // over the same ones); a child has no group of its own.
+  const nest = input.nest ?? new Map<number, number>();
+  const under = new Map<number, AgendaEntry[]>();
+  for (const b of built) {
+    const pid = nest.get(b.item.node.id);
+    if (pid === undefined) continue;
+    const list = under.get(pid);
+    if (list) list.push(b.node, ...b.tasks);
+    else under.set(pid, [b.node, ...b.tasks]);
+  }
   const groups: AgendaGroup[] = built
+    .filter((b) => !nest.has(b.item.node.id))
+    .map((b) => ({ ...b, tasks: [...b.tasks, ...(under.get(b.item.node.id) ?? [])] }))
     .map((b) => ({ b, tasks: b.tasks.filter(shown).sort(byAt) }))
     .filter(({ b, tasks }) => shown(b.node) || tasks.length > 0)
     .map(({ b, tasks }) => ({

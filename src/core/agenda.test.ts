@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { loadTagInfos } from "./schema";
 import { loadNodesAndTasks } from "./queries";
 import { titlesByUuid } from "./display-title";
-import { viewItems } from "./layout-common";
+import { nestItems, viewItems } from "./layout-common";
 import { HORIZON_DAYS, layoutAgenda, type AgendaInput, type AgendaLayout } from "./agenda";
 import { fixtureDq } from "../ui/test-fakes";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
@@ -46,7 +46,7 @@ function synthetic(spec: [string, string | null, string | null, string?][], over
   const e = dateIdent(p, "End");
   const status = choiceProp(p, "Status");
   const nodes: PlannerNode[] = spec.map(([title, start, end, st], i) => ({
-    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], tag: "", dependsOn: [],
+    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], tag: "", links: [], dependsOn: [],
     dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) },
     choices: st ? { [status.ident]: statusOf(st) } : {},
   }));
@@ -245,7 +245,7 @@ describe("overdue and late", () => {
   it("a node of a tag with no done notion (meetings) is never overdue: past ones are filed under Earlier", () => {
     const type = tag("Meeting").choiceProps.find((p) => p.title === "Type")!;
     const dateIdentM = dateIdent(tag("Meeting"), "Date");
-    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], tag: "", dependsOn: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
+    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], tag: "", links: [], dependsOn: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
     const l = layoutAgenda({
       items: viewItems(nodes, [], () => ({ start: dateIdentM, end: null }), statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
       choiceProps: tag("Meeting").choiceProps, doneValues: {}, titles: titlesByUuid(nodes),
@@ -354,5 +354,45 @@ describe("group by node", () => {
     expect(l.groups.map((g) => g.node.title)).toEqual(["Acme rollout", "Website relaunch", "Mobile app", "Archive cleanup"]);
     expect(l.groups[0].node.done).toBe(true);
     expect(l.groups[2].node.done).toBe(false);
+  });
+});
+
+describe("by node, nested (N14 step 2)", () => {
+  /** #Project + #Task (fixture tasks as nodes), by node, nested; each tag by its default dates. */
+  async function nestedAgenda(over: Partial<AgendaInput> = {}) {
+    const sel = [tag("Project"), tag("Task")];
+    const { nodes, tasks } = await loadNodesAndTasks(fixtureDq({ taskNodes: true }), tags, sel, { childTags: true, zone: west5 });
+    const dates = { [tag("Project").ident]: { start: dateIdent(tag("Project"), "Start"), end: dateIdent(tag("Project"), "End") }, [tag("Task").ident]: { start: dateIdent(tag("Task"), "Scheduled"), end: dateIdent(tag("Task"), "Deadline") } };
+    const nest = nestItems(viewItems(nodes, tasks, (n) => dates[n.tag], statusValues), statusValues, {});
+    return layoutAgenda({
+      items: nest.items, nest: nest.parentOf, groupBy: "node", showDone: false, today: TODAY, statusValues,
+      choiceProps: [choiceProp(tag("Project"), "Status")], doneValues: {}, titles: titlesByUuid(nodes), ...over,
+    });
+  }
+
+  it("a parent's group lists its children as node entries with their own dates and late state; children get no group", async () => {
+    const l = await nestedAgenda();
+    const groups = l.groups.map((g) => [g.node.title, g.tasks.map((t) => [t.kind, t.title, t.when, t.late])]);
+    expect(groups).toEqual([
+      ["Acme rollout", [["node", "Acme contract", "2 Oct 12:00, 1 day late", true]]], // overdue first
+      ["Website relaunch", [["node", "Draft brief Website relaunch", "5 Oct 17:00", false]]], // Ship homepage is done: hidden
+      ["Mobile app", [["node", "Wireframes", "9 Oct 09:00", false]]],
+      ["Archive cleanup", []],
+      ["Loose task (edited)", []],
+    ]);
+    const site = l.groups.find((g) => g.node.title === "Website relaunch")!;
+    expect(site.progress).toEqual({ done: 1, total: 2 }); // Draft brief open, Ship homepage done, Survey users canceled
+    expect(site.open).toBe(1);
+    const titles = l.groups.map((g) => g.node.title);
+    for (const child of ["Acme contract", "Wireframes", "Draft brief Website relaunch"]) expect(titles).not.toContain(child);
+    expect(titles).toContain("Loose task (edited)"); // links no node: its own group
+  });
+
+  it("Show done hides and shows children like tasks; without nest every node has its group", async () => {
+    const site = (l: AgendaLayout) => l.groups.find((g) => g.node.title === "Website relaunch")!.tasks.map((t) => t.title);
+    expect(site(await nestedAgenda({ showDone: true }))).toEqual(["Draft brief Website relaunch", "Ship homepage Website relaunch", "Survey users Website relaunch"]);
+    const flat = await nestedAgenda({ nest: undefined });
+    expect(flat.groups.map((g) => g.node.title)).toContain("Acme contract");
+    expect(flat.groups.find((g) => g.node.title === "Website relaunch")!.tasks).toEqual([]); // node tasks are not task entries
   });
 });

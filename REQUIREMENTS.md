@@ -101,9 +101,21 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 - One row per node sorted by start; progress strip on each bar; derived spans dashed;
   one-date nodes as diamonds; nodes with tasks expand to task sub-rows; today line; bars
   clipped at the range edge are marked; undated nodes in a footnote. Prev / next / today.
-- **Arrange** (N14), shown with two or more tags: **By date** (one list by start) or **By tag**
-  (a heading row per tag in selection order, then that tag's rows by start). The setting is
-  saved with the view (`arrange`).
+- **Arrange** (N14), shown with two or more tags: **By date** (one list by start), **By tag**
+  (a heading row per tag in selection order, then that tag's rows by start) or **Nested** (the
+  default with two or more tags). The setting is saved with the view (`arrange`).
+- **Nested** (N14): a node C of the view is a child of node P of the view when C references P
+  (inline link or node property, not through the Depends on property). Children are full rows
+  (own bar or point, own task rows) under their parent, indented, in date order, in place of
+  the marker-only task rows for those blocks; top-level rows are by date. With several
+  candidate parents a node goes under the first in row order (start, end, title; undated
+  last) that is not itself a child; of two nodes that reference each other the later one in
+  row order is the child. One level only: a node that has children is never a child, and a
+  grandchild is a top-level row. A child whose parent has no row in the range is a top-level
+  row. Parents start open; collapsing one (its toggle) is kept for the session, and its
+  children then have no row and no connector. A parent's count and progress are its children
+  (done by the view's done values, canceled ones left out) plus its linked tasks that are not
+  nodes of the view, each block once. The Calendar and the Kanban do not nest.
 - **Dependency connectors** (N12): with a Depends on property, a line runs from the right end of each dependency's bar
   (or point) to the left end of its dependent's, with an arrow at the dependent, in every zoom; when the dependent starts
   before the dependency ends, the line takes a right-angle detour between the rows. Only pairs whose both nodes have a
@@ -125,7 +137,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 ### Agenda
 - **Overdue**, then each of the **next 14 days**, then collapsed **Later** and **No date**
   (and **Earlier** for tags without a done notion, e.g. meetings).
-- Group by **node** (progress, open tasks, overdue first) or by **date**.
+- Group by **node** (progress, open tasks, overdue first) or by **date**. By node over two or
+  more tags (N14), a child node (see Timeline, Nested) is an entry of its parent's group, with
+  its own dates and late state, followed by its own tasks; it gets no group of its own.
 - Done and canceled hidden; **Show done** reveals those in the range.
 - Folded buckets render their entries only once opened (the heading always shows the count);
   by node, the first 100 groups render, then "Show 100 more of N" (T13a).

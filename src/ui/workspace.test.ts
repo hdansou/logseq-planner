@@ -1337,7 +1337,7 @@ describe("views over several tags (N14)", () => {
     expect($("[data-tl-arrange]")).toBeNull();
     await tick(ws, "Meeting");
     expect(ws.config()).toMatchObject({ arrange: "nested" });
-    expect($$("[data-tl-arrange]").map((b) => [b.textContent, b.getAttribute("aria-pressed")])).toEqual([["By date", "true"], ["By tag", "false"]]);
+    expect($$("[data-tl-arrange]").map((b) => [b.textContent, b.getAttribute("aria-pressed")])).toEqual([["By date", "false"], ["By tag", "false"], ["Nested", "true"]]);
     expect($("[data-tl-group]")).toBeNull();
     await click(ws, "[data-tl-arrange=tag]");
     expect(ws.config()).toMatchObject({ arrange: "tag" });
@@ -1390,3 +1390,76 @@ describe("views over several tags (N14)", () => {
 });
 
 const choiceIdents = (t: TagInfo) => t.choiceProps.map((p) => p.ident);
+
+describe("nested: parents and children (N14 step 2)", () => {
+  const DEPS = { Wireframes: ["Draft brief"] };
+  const nameOf = (li: HTMLElement) => li.querySelector(".pl-tl-name")!.textContent!;
+  const rowList = () => $$(".pl-tl-rows > li").map((li) => (li.dataset.tlChildOf ? `  ${nameOf(li)}` : li.dataset.tlTask ? `  - ${nameOf(li)}` : nameOf(li)));
+  const uuidOf = (title: string) => $$("[data-tl-row] .pl-tl-name").find((e) => e.textContent!.startsWith(title))!.dataset.tlOpen!;
+  const links = () => $$("[data-tl-links] [data-tl-link]").map((p) => p.getAttribute("data-tl-link"));
+
+  /** #Project + #Task (fixture tasks as nodes, Wireframes depends on Draft brief), Timeline. */
+  async function nested() {
+    const { ws } = await setup({ dq: fixtureDq({ taskNodes: true, depends: DEPS }) });
+    await pickTag(ws, "Project");
+    await click(ws, `[data-tag-check="${tag("Task").id}"]`);
+    return ws;
+  }
+
+  it("Nested is the default with two tags: each parent with its children as full rows under it, open by default", async () => {
+    const ws = await nested();
+    expect(ws.config()).toMatchObject({ arrange: "nested", dependsOn: DEPENDS_ON.ident });
+    expect(rowList()).toEqual(["Website relaunch", "  Draft brief Website relaunch", "Acme rollout", "  Acme contract", "Mobile app", "  Wireframes"]);
+    const child = $$("[data-tl-child-of]").find((li) => nameOf(li) === "Wireframes")!;
+    expect(child.dataset.tlChildOf).toBe(uuidOf("Mobile app"));
+    expect(child.querySelector("[data-tl-point], [data-tl-bar]")).not.toBeNull(); // its own bar or point
+    expect(child.classList.contains("pl-tl-child")).toBe(true);
+    const toggle = $(`[data-tl-toggle="${$$("[data-tl-row]").find((li) => nameOf(li) === "Mobile app")!.dataset.tlRow}"]`)!;
+    expect([toggle.hasAttribute("data-tl-nested"), toggle.getAttribute("aria-expanded"), toggle.getAttribute("aria-label")]).toEqual([true, "true", "Hide rows under Mobile app"]);
+    expect($("[data-tl-task]")).toBeNull(); // no marker rows for blocks that are rows themselves
+  });
+
+  it("a parent's count is its children; collapsing it hides them (and their connector) and is kept for the session", async () => {
+    const ws = await nested();
+    const site = $$("[data-tl-row]").find((li) => nameOf(li) === "Website relaunch")!;
+    expect(site.querySelector(".pl-tl-count")!.textContent).toBe("1/2");
+    expect(links()).toEqual([`${uuidOf("Draft brief")}:${uuidOf("Wireframes")}`]);
+    await click(ws, `[data-tl-toggle="${site.dataset.tlRow}"]`);
+    expect(rowList()).toEqual(["Website relaunch", "Acme rollout", "  Acme contract", "Mobile app", "  Wireframes"]);
+    expect(links()).toEqual([]);
+    await click(ws, "[data-view-kind=agenda]");
+    await click(ws, "[data-view-kind=timeline]");
+    expect(rowList()).toEqual(["Website relaunch", "Acme rollout", "  Acme contract", "Mobile app", "  Wireframes"]);
+    await click(ws, `[data-tl-toggle="${site.dataset.tlRow}"]`);
+    expect(rowList()[1]).toBe("  Draft brief Website relaunch");
+  });
+
+  it("By date and By tag list every node as its own row again", async () => {
+    const ws = await nested();
+    await click(ws, "[data-tl-arrange=date]");
+    expect($("[data-tl-child-of]")).toBeNull();
+    expect(rowList()).toHaveLength(6);
+    await click(ws, "[data-tl-arrange=tag]");
+    expect($("[data-tl-child-of]")).toBeNull();
+    expect($$("[data-tl-group]")).toHaveLength(2);
+  });
+
+  it("Agenda by node: children are entries of their parent's group, not groups of their own; Kanban and Calendar do not nest", async () => {
+    const ws = await nested();
+    await click(ws, "[data-view-kind=agenda]");
+    const group = (title: string) => $$("[data-ag-group]").find((g) => g.querySelector(".pl-ag-node-line .pl-ag-title")!.textContent === title);
+    expect([...group("Mobile app")!.querySelectorAll(".pl-ag-list [data-ag-entry]")].map((e) => [e.getAttribute("data-ag-entry"), e.querySelector(".pl-ag-title")!.textContent]))
+      .toEqual([["node", "Wireframes"]]);
+    expect(group("Wireframes")).toBeUndefined();
+    await click(ws, "[data-view-kind=kanban]");
+    expect($$("[data-kb-card]")).toHaveLength(10);
+  });
+
+  it("one tag: no nesting, no refs pulled, rows as before", async () => {
+    const { ws } = await setup({ dq: fixtureDq({ taskNodes: true, depends: DEPS }) });
+    await pickTag(ws, "Task");
+    expect($("[data-tl-child-of]")).toBeNull();
+    expect($("[data-tl-nested]")).toBeNull();
+    expect(ws.config()).toMatchObject({ arrange: "date" });
+  });
+});

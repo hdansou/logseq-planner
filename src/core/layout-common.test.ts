@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, formatSpan, isLate, nodeLabel, startOfWeek, viewItems, weekdayName, weekStartFromHost,
+  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, formatSpan, isLate, nestItems, nodeLabel, startOfWeek, viewItems, weekdayName, weekStartFromHost,
+  type ViewItem,
 } from "./layout-common";
-import type { LocalDate, PlannerNode, PlannerTask } from "../types";
+import type { ClosedValue, LocalDate, PlannerNode, PlannerTask } from "../types";
 
 describe("calendar-day arithmetic", () => {
   it("adds days across month and year ends and leap days", () => {
@@ -120,7 +121,7 @@ describe("formatSpan and nodeLabel", () => {
 
 describe("viewItems over several tags (N14)", () => {
   const day = (s: string): LocalDate => ({ day: s, time: null });
-  const node = (id: number, tag: string, dates: Record<string, LocalDate>): PlannerNode => ({ id, uuid: `n${id}`, title: `N${id}`, tagIds: [], tag, dependsOn: [], dates, choices: {} });
+  const node = (id: number, tag: string, dates: Record<string, LocalDate>): PlannerNode => ({ id, uuid: `n${id}`, title: `N${id}`, tagIds: [], tag, dependsOn: [], links: [], dates, choices: {} });
   const task = (id: number, nodeIds: number[], isNode: boolean): PlannerTask => ({ id, uuid: `t${id}`, title: `T${id}`, status: null, isNode, nodeIds, scheduled: day("2026-10-02"), deadline: null });
   const mapping: Record<string, { start: string | null; end: string | null }> = { ":a/A": { start: ":p/start", end: ":p/end" }, ":a/B": { start: ":p/due", end: null } };
 
@@ -135,5 +136,55 @@ describe("viewItems over several tags (N14)", () => {
     expect(item.tasks.map((t) => t.id)).toEqual([10]);
     expect(item.progress).toEqual({ done: 0, total: 2 });
     expect(item.span.kind).toBe("derived"); // from both tasks' dates, as before
+  });
+});
+
+describe("nestItems: parents and children (N14 step 2)", () => {
+  const day = (s: string): LocalDate => ({ day: s, time: null });
+  const value = (uuid: string, title: string, ident: string | null, checkbox: boolean | null, canceled = false): ClosedValue =>
+    ({ id: uuid.length, uuid, title, ident, order: "a", checkbox, canceled });
+  const DONE = value("done-uuid", "Done", ":logseq.property/status.done", true);
+  const TODO = value("todo", "Todo", ":logseq.property/status.todo", false);
+  const CANCELED = value("canceled-uuid", "Canceled", ":logseq.property/status.canceled", null, true);
+  const STATUS = ":logseq.property/status";
+  /** An item starting on `start` (null = undated), linking `links`, with an optional Status. */
+  const item = (id: number, start: string | null, links: number[], status?: ClosedValue, tasks: PlannerTask[] = []): ViewItem => ({
+    node: { id, uuid: `n${id}`, title: `N${id}`, tagIds: [], tag: ":t/x", dependsOn: [], links, dates: {}, choices: status ? { [STATUS]: status } : {} },
+    span: start ? { kind: "point", start: day(start), end: day(start) } : { kind: "undated", start: null, end: null },
+    tasks, progress: { done: 0, total: 0 },
+  });
+  const task = (id: number, status: ClosedValue | null): PlannerTask =>
+    ({ id, uuid: `t${id}`, title: `T${id}`, status: status && { ident: status.ident!, title: status.title }, isNode: false, nodeIds: [1], scheduled: null, deadline: null });
+  const parents = (items: ViewItem[]) => Object.fromEntries(nestItems(items, [DONE, TODO, CANCELED], {}).parentOf);
+
+  it("a node linking another goes under it; with several candidates, under the first in row order", () => {
+    expect(parents([item(1, "2026-10-05", []), item(2, "2026-10-01", [1])])).toEqual({ 2: 1 });
+    expect(parents([item(1, "2026-10-05", []), item(3, "2026-10-02", []), item(2, "2026-10-09", [1, 3])])).toEqual({ 2: 3 });
+    expect(parents([item(1, null, []), item(3, "2026-10-02", []), item(2, "2026-10-09", [1, 3])])).toEqual({ 2: 3 }); // undated rows come last
+  });
+
+  it("a cycle: of two nodes linking each other, the later one in row order is the child, never both", () => {
+    expect(parents([item(1, "2026-10-01", [2]), item(2, "2026-10-05", [1])])).toEqual({ 2: 1 });
+    expect(parents([item(2, "2026-10-05", [1]), item(1, "2026-10-01", [2])])).toEqual({ 2: 1 });
+  });
+
+  it("one level: a grandchild stays top level; a node with children is never a child", () => {
+    // 3 links 2, 2 links 1: 2 goes under 1, so 3 has no parent that is not itself a child.
+    expect(parents([item(1, "2026-10-01", []), item(2, "2026-10-02", [1]), item(3, "2026-10-03", [2])])).toEqual({ 2: 1 });
+    // 1 (earlier) took 2 as its parent before 2 was looked at: 2 is a parent, so it stays top level although it links 3.
+    expect(parents([item(1, "2026-10-01", [2]), item(2, "2026-10-02", [3]), item(3, "2026-10-03", [])])).toEqual({ 1: 2 });
+    expect(parents([item(1, "2026-10-01", [9])])).toEqual({}); // a link to a node that is not shown
+  });
+
+  it("progress counts the children (done by the view's done values, canceled left out) and the tasks that are not nodes, each once", () => {
+    const items = [
+      item(1, "2026-10-01", [], undefined, [task(10, DONE), task(11, null)]),
+      item(2, "2026-10-02", [1], DONE), item(3, "2026-10-03", [1], TODO), item(4, "2026-10-04", [1], CANCELED), item(5, "2026-10-05", [1]),
+    ];
+    const { items: out } = nestItems(items, [DONE, TODO, CANCELED], {});
+    expect(out[0].progress).toEqual({ done: 2, total: 5 }); // T10 done, T11 open; N2 done, N3 and N5 open; N4 canceled
+    expect(out.map((i) => i.node.id)).toEqual([1, 2, 3, 4, 5]);
+    expect(nestItems(items, [DONE, TODO, CANCELED], { [STATUS]: [TODO.uuid] }).items[0].progress).toEqual({ done: 2, total: 5 }); // N3 done, N2 not
+    expect(out[1].progress).toEqual({ done: 0, total: 0 });
   });
 });

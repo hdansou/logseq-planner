@@ -14,6 +14,8 @@ import { layoutTimeline } from "../core/timeline-layout";
 const emptyLayout = () => layoutTimeline({ items: [], zoom: "month", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
 
 const TODAY = "2026-10-03";
+/** Nothing unfolded: no task rows expanded, no nested parent collapsed. */
+const NONE_SHOWN = { expanded: new Set<number>(), collapsed: new Set<number>() };
 const SITE = "6a000000-0000-4000-8000-000000000001";
 
 let tags: TagInfo[];
@@ -227,7 +229,7 @@ describe("rows", () => {
   });
 
   it("formats large counts and separates both sides", () => {
-    const html = renderTimeline({ ...emptyLayout(), earlier: { count: 412, nearest: "2026-01-02" }, later: { count: 1105, nearest: "2026-12-01" } }, "#Load item", new Set());
+    const html = renderTimeline({ ...emptyLayout(), earlier: { count: 412, nearest: "2026-01-02" }, later: { count: 1105, nearest: "2026-12-01" } }, "#Load item", NONE_SHOWN);
     const box = document.createElement("div");
     box.innerHTML = html;
     expect(box.querySelector("[data-tl-outside-summary]")!.textContent!.replace(/\s+/g, " ").trim()).toBe("412 earlier · 1,105 later");
@@ -338,7 +340,7 @@ describe("dependency connectors (N12)", () => {
     const s = p.dateProps.find((x) => x.title === "Start")!.ident;
     const e = p.dateProps.find((x) => x.title === "End")!.ident;
     const node = (id: number, start: string, end: string | null, deps: number[] = []): PlannerNode =>
-      ({ id, uuid: `u${id}`, title: `N${id} <b>`, tagIds: [], tag: "", dependsOn: deps, choices: {}, dates: { [s]: { day: start, time: null }, ...(end ? { [e]: { day: end, time: null } } : {}) } });
+      ({ id, uuid: `u${id}`, title: `N${id} <b>`, tagIds: [], tag: "", links: [], dependsOn: deps, choices: {}, dates: { [s]: { day: start, time: null }, ...(end ? { [e]: { day: end, time: null } } : {}) } });
     const nodes = [node(1, "2026-09-28", "2026-10-01"), node(2, "2026-10-02", "2026-10-05", [1]), node(3, "2026-10-02", "2026-10-06", [1]), node(4, "2026-10-08", null, [2, 3])];
     return layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), []), zoom: "week", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
   };
@@ -349,7 +351,7 @@ describe("dependency connectors (N12)", () => {
   };
 
   it("one hidden, non-interactive svg inside the timeline, between the head and the rows, with a path per link", () => {
-    const el = host(renderTimeline(linked(), "#Project", new Set()));
+    const el = host(renderTimeline(linked(), "#Project", NONE_SHOWN));
     const svg = el.querySelector("[data-timeline] > svg.pl-tl-links[data-tl-links]")!;
     expect(svg.getAttribute("aria-hidden")).toBe("true");
     expect(svg.previousElementSibling!.classList.contains("pl-tl-head")).toBe(true);
@@ -360,12 +362,12 @@ describe("dependency connectors (N12)", () => {
   });
 
   it("no svg without links", () => {
-    expect(host(renderTimeline(emptyLayout(), "#Project", new Set())).querySelector("[data-tl-links]")).toBeNull();
+    expect(host(renderTimeline(emptyLayout(), "#Project", NONE_SHOWN)).querySelector("[data-tl-links]")).toBeNull();
     expect($("[data-tl-links]")).toBeNull(); // the fixture Project view: no dependency property
   });
 
   it("a bar or point with dependencies says so in its label (titles, escaped); others are unchanged", () => {
-    const el = host(renderTimeline(linked(), "#Project", new Set()));
+    const el = host(renderTimeline(linked(), "#Project", NONE_SHOWN));
     const span = (uuid: string) => el.querySelector(`[data-tl-open="${uuid}"]:is([data-tl-bar], [data-tl-point])`)!;
     expect(span("u1").getAttribute("aria-label")).toBe("N1 <b>, 28 Sep – 1 Oct");
     expect(span("u2").getAttribute("aria-label")).toBe("N2 <b>, 2 Oct – 5 Oct, depends on N1 <b>");
@@ -416,7 +418,7 @@ describe("dependency connectors (N12)", () => {
       });
 
     it("sets every path's d from the measured spans", () => {
-      const el = host(renderTimeline(linked(), "#Project", new Set()));
+      const el = host(renderTimeline(linked(), "#Project", NONE_SHOWN));
       const spy = boxes(el, { u1: [300, 40, 400, 60], u2: [420, 72, 480, 92], u3: [420, 104, 500, 124], u4: [560, 140, 571, 151] });
       drawLinks(el.querySelector<HTMLElement>("[data-timeline]")!);
       spy.mockRestore();
@@ -426,11 +428,11 @@ describe("dependency connectors (N12)", () => {
     });
 
     it("does nothing while the timeline has no size (Planner hidden) or has no links", () => {
-      const el = host(renderTimeline(linked(), "#Project", new Set()));
+      const el = host(renderTimeline(linked(), "#Project", NONE_SHOWN));
       const spy = boxes(el, { u1: [300, 40, 400, 60], u2: [420, 72, 480, 92], u3: [420, 104, 500, 124], u4: [560, 140, 571, 151] }, 0);
       drawLinks(el.querySelector<HTMLElement>("[data-timeline]")!);
       expect(el.querySelector("[data-tl-link]")!.hasAttribute("d")).toBe(false);
-      const none = host(renderTimeline(emptyLayout(), "#Project", new Set()));
+      const none = host(renderTimeline(emptyLayout(), "#Project", NONE_SHOWN));
       const calls = spy.mock.calls.length;
       drawLinks(none.querySelector<HTMLElement>("[data-timeline]")!);
       expect(spy.mock.calls.length).toBe(calls); // returns before measuring anything

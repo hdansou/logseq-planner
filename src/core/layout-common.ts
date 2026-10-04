@@ -3,7 +3,7 @@
 // Pure: no DOM, no SDK, no clock. Days are `YYYY-MM-DD` calendar days; all arithmetic runs on UTC midnights, which have
 // no DST, so a day is always one day.
 import type { ClosedValue, LocalDate, NodeSpan, PlannerNode, PlannerTask, Rollup } from "../types";
-import { compareDates, isDone, resolveSpan, rollup } from "./nodes";
+import { compareDates, isCanceled, isDone, isNodeDone, resolveSpan, rollup } from "./nodes";
 
 // ---------------------------------------------------------------- calendar days
 
@@ -101,6 +101,76 @@ export function viewItems(nodes: PlannerNode[], tasks: PlannerTask[], datesOf: D
     const { start, end } = datesOf(node);
     return { node, span: resolveSpan(node, own, start, end), tasks: own.filter((t) => !t.isNode), progress: rollup(own, statusValues) };
   });
+}
+
+// ---------------------------------------------------------------- nesting (N14 step 2)
+
+/** Row order: dated items by start, then end, then title; undated ones after, by title. The order nesting decides in. */
+const byRowOrder = (a: ViewItem, b: ViewItem): number => {
+  const sa = a.span.start;
+  const sb = b.span.start;
+  if (sa && sb) return compareDates(sa, sb) || compareDates(a.span.end!, b.span.end!) || a.node.title.localeCompare(b.node.title);
+  if (sa || sb) return sa ? -1 : 1;
+  return a.node.title.localeCompare(b.node.title);
+};
+
+/** Children of a parent and its own nested progress (see `nestItems`). */
+export interface Nesting {
+  /** The parent's node id, by child node id. Items without an entry are top level. */
+  parentOf: Map<number, number>;
+  /** The input items in the same order, each with its progress over its children and its linked tasks that are not nodes. */
+  items: ViewItem[];
+}
+
+/**
+ * Parents and children among the view's items (N14 step 2), linear in items + links (plus sorting each node's few
+ * candidates). A node C is a child of node P when C links P (`PlannerNode.links`: a reference that is not through the
+ * dependency property). Nesting is one level deep and decided in row order (`byRowOrder`):
+ * - a node that already has a child stays top level (it is a parent);
+ * - otherwise it goes under the first of its candidates, in row order, that is not itself a child; with none, it stays
+ *   top level (a grandchild is a top-level row, never nested two deep);
+ * - two nodes that link each other (a cycle): the later one in row order is the child, never both.
+ * Each item's progress then counts its children (done by the view's done values, `isNodeDone`; a child with a
+ * canceled value leaves the total, as a canceled task does) and its linked tasks that are not nodes, each block once.
+ */
+export function nestItems(items: ViewItem[], statusValues: ClosedValue[], doneValues: Record<string, string[]>): Nesting {
+  const order = [...items].sort(byRowOrder);
+  const rank = new Map(order.map((it, i) => [it.node.id, i]));
+  const linksOf = new Map(order.map((it) => [it.node.id, new Set(it.node.links)]));
+  const parentOf = new Map<number, number>();
+  const parents = new Set<number>();
+  for (const it of order) {
+    const id = it.node.id;
+    if (parents.has(id)) continue;
+    const mine = rank.get(id)!;
+    const candidates = it.node.links
+      .filter((p) => rank.has(p) && !(linksOf.get(p)!.has(id) && rank.get(p)! > mine)) // a cycle: only the later one is a child
+      .sort((a, b) => rank.get(a)! - rank.get(b)!);
+    const parent = candidates.find((p) => !parentOf.has(p));
+    if (parent === undefined) continue;
+    parentOf.set(id, parent);
+    parents.add(parent);
+  }
+  const children = new Map<number, ViewItem[]>();
+  for (const it of order) {
+    const p = parentOf.get(it.node.id);
+    if (p === undefined) continue;
+    const list = children.get(p);
+    if (list) list.push(it);
+    else children.set(p, [it]);
+  }
+  return {
+    parentOf,
+    items: items.map((it) => {
+      const own = rollup(it.tasks, statusValues);
+      for (const c of children.get(it.node.id) ?? []) {
+        if (Object.values(c.node.choices).some(isCanceled)) continue;
+        own.total++;
+        if (isNodeDone(c.node, doneValues)) own.done++;
+      }
+      return { ...it, progress: own };
+    }),
+  };
 }
 
 /** A task's status key (last segment of the Status ident: `todo`, `doing`, `done`, `canceled`, …; null without one) and done flag. */

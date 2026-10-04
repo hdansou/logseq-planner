@@ -104,3 +104,8 @@
 .pl-tl-group { min-height: 28px; }
 .pl-tl-group .pl-tl-label { padding-left: 10px; }
 .pl-tl-group-title { font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--pl-label-2); }
+
+/* N14 step 2: nested child rows, one indent under their parent; their task rows one more. */
+.pl-tl-child .pl-tl-label { padding-left: 24px; }
+.pl-tl-row.pl-tl-child .pl-tl-name { font-weight: 500; }
+.pl-tl-task.pl-tl-deep .pl-tl-label { padding-left: 52px; }

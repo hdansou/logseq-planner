@@ -55,7 +55,7 @@ Rules that hold across the tree:
 | `src/core/normalize.ts` | Raw rows to `PlannerNode` and `PlannerTask`: Date and DateTime to local day and `HH:MM`; `choiceValueOf`; `isEmptyPlaceholder`; each node's view tag (N14); `isNode` tasks. |
 | `src/core/nodes.ts` | `resolveSpan`, `rollup`, `isDone`, `isCanceled`, `filterNodes`, `tasksOf`. |
 | `src/core/display-title.ts` | `displayTitle`: inline `[[uuid]]` references shown as the node's title, `(link)` when unknown. |
-| `src/core/layout-common.ts` | Shared by the layouts: day arithmetic on UTC midnights, formatting, `weekStartFromHost`, `categoryOf`, `viewItems`, task and node labels. |
+| `src/core/layout-common.ts` | Shared by the layouts: day arithmetic on UTC midnights, formatting, `weekStartFromHost`, `categoryOf`, `viewItems`, `nestItems` (parents and children, N14), task and node labels. |
 | `src/core/timeline-layout.ts` | `timelineRange`, `shiftAnchor`, `layoutTimeline`: columns, rows for nodes in range, `earlier` and `later` counts, undated list. |
 | `src/core/calendar-layout.ts` | `calendarRange`, `shiftCalendarAnchor`, `layoutCalendar`: week rows, bands on stable lanes, chips, `MONTH_SLOTS`. |
 | `src/core/agenda.ts` | `layoutAgenda`: buckets or node groups, done and late logic, sort. |
@@ -129,13 +129,17 @@ Steps, with the module that does each:
    value is pulled with its journal day (`{ident [:db/id :block/journal-day]}`); one without a
    journal day is no value.
 5. **Normalise.** `buildData` maps raw rows. Each node gets its view tag: the first selected tag
-   it carries, directly or through a child tag; its Start / End come from that tag's mapping. A Date becomes a local `YYYY-MM-DD`. A DateTime
+   it carries, directly or through a child tag; its Start / End come from that tag's mapping.
+   With two or more tags the node pull includes the refs as ids, and each node gets its
+   `links`: the other loaded nodes it references, less the ones it depends on. A Date becomes a local `YYYY-MM-DD`. A DateTime
    (epoch ms) becomes a local day and `HH:MM` through an injected zone offset. A choice value
    counts only when it is a closed value of that property. The empty placeholder is no value.
 6. **Titles.** Titles with `[[uuid]]` are resolved from the loaded nodes; `loadTitles` looks up
    the rest in one query.
 7. **Layout.** The view's pure layout function receives the nodes, tasks, config, week start
-   and `today`, and returns data only.
+   and `today`, and returns data only. For the Timeline arranged Nested and the Agenda by node
+   over two or more tags, `nestItems` first decides each node's parent (in row order, one
+   level) and recomputes progress over children; the layouts list children under their parent.
 8. **Render.** The view's render function turns the layout into HTML. The workspace writes it
    into the view area and the toolbar slot, then restores focus.
 
@@ -216,7 +220,7 @@ deleted on another device appear.
 | Kept in | What |
 |---|---|
 | `ViewConfig` (saved with a view) | tags (selection order), child tags on or off, Start and End per tag, done values, filters (the Tag filter under `"@tag"`); Timeline zoom and arrangement; Calendar layout; Agenda group by and show done; Kanban column property, swimlane property (or Tag), sort. Tags and properties by ident, closed values by uuid (entity ids differ per device). Versioned JSON (`v: 1`). |
-| Workspace `State`, session only | loaded tags, nodes, tasks and titles; saved views; the open popover and error; anchor day (shared by Timeline and Calendar, kept when a saved view opens); expanded Timeline rows; unfolded Agenda buckets and the Agenda group count; Kanban cards shown per cell; pending moves; the card whose Move menu is open; week start; whether the built-in tag group is open. |
+| Workspace `State`, session only | loaded tags, nodes, tasks and titles; saved views; the open popover and error; anchor day (shared by Timeline and Calendar, kept when a saved view opens); expanded Timeline rows; collapsed nested parents (N14); unfolded Agenda buckets and the Agenda group count; Kanban cards shown per cell; pending moves; the card whose Move menu is open; week start; whether the built-in tag group is open. |
 | `src/storage.ts` cache | the saved-view list. |
 
 ## Dependency-injection seams

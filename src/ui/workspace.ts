@@ -14,7 +14,7 @@ import {
   defaultViewConfig, dependsOnOf, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
 } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
-import { viewItems } from "../core/layout-common";
+import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
@@ -111,6 +111,8 @@ interface State {
   anchor: string | null;
   /** Node ids whose task rows are expanded (Timeline). Session state. */
   expanded: Set<number>;
+  /** Timeline nested (N14): parent node ids whose children (and task rows) are hidden; parents start open. Session state. */
+  collapsed: Set<number>;
   /** The host's week start, read on every open; null before the first. */
   weekStart: number | null;
   /** Kanban moves being written, by node uuid: the card shows where the writes put it (optimistic). Session state. */
@@ -375,17 +377,26 @@ const empty = (key: string, title: string, body: string, action = "") =>
 /** Each node's Start / End: its tag's mapping in the view (N14). */
 const datesOf = (c: ViewConfig) => (n: PlannerNode) => c.dates[n.tag];
 
+/**
+ * The items nested (N14 step 2: children under their parent, progress over children and tasks) for a view over two or
+ * more tags, the items as they are for one tag (whose nodes carry no links).
+ */
+const nested = (s: State, view: ViewTags, items: ViewItem[]) =>
+  view.tags.length > 1 ? nestItems(items, taskStatusValues(s.tags), s.config!.doneValues) : { items, parentOf: new Map<number, number>() };
+
 /** The Timeline layout for the visible nodes; with two or more tags arranged as the view says (N14). */
 function timelineLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): TimelineLayout {
   const c = s.config!;
   if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
-  const byTag = view.tags.length > 1 && c.arrange === "tag";
-  return layoutTimeline({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues,
-    titles: s.titles, ...(byTag ? { groups: view.tags.map((t) => ({ tag: t.ident, title: `#${t.title}` })) } : {}),
-  });
+  const multi = view.tags.length > 1;
+  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
+  const base = { zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues, titles: s.titles };
+  if (multi && c.arrange === "nested") {
+    const nest = nested(s, view, items);
+    return layoutTimeline({ ...base, items: nest.items, nest: nest.parentOf, collapsed: s.collapsed });
+  }
+  return layoutTimeline({ ...base, items, ...(multi && c.arrange === "tag" ? { groups: view.tags.map((t) => ({ tag: t.ident, title: `#${t.title}` })) } : {}) });
 }
 
 /** The Calendar layout for the visible nodes. */
@@ -405,8 +416,11 @@ function agendaLayout(s: State, now: Now, view: ViewTags, shown: { nodes: Planne
   const c = s.config!;
   if (c.kind !== "agenda") throw new Error(`agendaLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
+  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
+  // By node, a parent's group lists its children (N14 step 2); by date every node is its own entry.
+  const nest = c.groupBy === "node" ? nested(s, view, items) : null;
   return layoutAgenda({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
+    items: nest?.items ?? items, ...(nest ? { nest: nest.parentOf } : {}),
     groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: view.choiceProps, doneValues: c.doneValues,
     titles: s.titles,
   });
@@ -457,7 +471,7 @@ function renderView(s: State, view: ViewTags | undefined, now: () => Now): { vie
   }
   if (s.config.kind === "timeline") {
     const layout = timelineLayout(s, now(), view, shown);
-    return { view: renderTimeline(layout, heading, s.expanded), toolbar: renderTimelineToolbar(layout, multi ? s.config.arrange : null) };
+    return { view: renderTimeline(layout, heading, { expanded: s.expanded, collapsed: s.collapsed }), toolbar: renderTimelineToolbar(layout, multi ? s.config.arrange : null) };
   }
   if (s.config.kind === "calendar") {
     const layout = calendarLayout(s, now(), shown);
@@ -501,7 +515,7 @@ function selectorOf(el: Element): string {
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
-    anchor: null, expanded: new Set(), weekStart: null, pending: new Map(), moveCard: null,
+    anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
@@ -927,8 +941,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => void (s.anchor = shiftAnchor(s.anchor ?? now().today, c.zoom, a.dir)));
       case "today":
         return void run(() => void (s.anchor = null));
-      case "toggle":
-        return void run(() => void (s.expanded.has(a.nodeId) ? s.expanded.delete(a.nodeId) : s.expanded.add(a.nodeId)));
+      case "toggle": {
+        const set = a.nested ? s.collapsed : s.expanded; // a nested parent starts open: its set holds the collapsed ones
+        return void run(() => void (set.has(a.nodeId) ? set.delete(a.nodeId) : set.add(a.nodeId)));
+      }
       case "jump":
         return void run(() => void (s.anchor = a.day));
     }

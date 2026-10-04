@@ -40,7 +40,7 @@ function synthetic(spec: [string, string, string | null][], view: CalendarView, 
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
   const nodes: PlannerNode[] = spec.map(([title, start, end], i) => ({
-    id: i + 1, uuid: `u${i + 1}`, title, tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {},
+    id: i + 1, uuid: `u${i + 1}`, title, tagIds: [], tag: "", links: [], dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {},
   }));
   return layoutCalendar({
     items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), layout: view, anchor: TODAY, today: TODAY, weekStart: 0, statusValues,
@@ -235,7 +235,7 @@ describe("chips", () => {
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const node = (id: number, title: string, start: LocalDate, end?: LocalDate): PlannerNode =>
-      ({ id, uuid: `u${id}`, title, tagIds: [], tag: "", dependsOn: [], dates: { [s]: start, ...(end ? { [e]: end } : {}) }, choices: {} });
+      ({ id, uuid: `u${id}`, title, tagIds: [], tag: "", links: [], dependsOn: [], dates: { [s]: start, ...(end ? { [e]: end } : {}) }, choices: {} });
     const nodes = [
       node(1, "Span", d("2026-09-28"), d("2026-10-02")),
       node(2, "Late one", d("2026-09-30", "16:00")), node(3, "Early one", d("2026-09-30", "08:15")),

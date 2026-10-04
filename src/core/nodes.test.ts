@@ -35,7 +35,7 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 const project = tag("Project");
 const startId = prop(project, "Start");
 const endId = prop(project, "End");
-const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], tag: "", dependsOn: [], dates, choices: {} });
+const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], tag: "", links: [], dependsOn: [], dates, choices: {} });
 const task = (over: Partial<PlannerTask> & { isNode: false, nodeIds: number[] }): PlannerTask => ({
   id: 100, uuid: "t", title: "t", status: null, deadline: null, scheduled: null, ...over,
 });

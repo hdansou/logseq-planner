@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
-import { buildTagInfos } from "./schema";
+import { buildTagInfos, loadTagInfos } from "./schema";
 import { loadNodesAndTasks } from "./queries";
 import { fixtureDq } from "../ui/test-fakes";
 import { titlesByUuid } from "./display-title";
-import { viewItems } from "./layout-common";
-import { dayFocus, layoutTimeline, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
+import { nestItems, viewItems } from "./layout-common";
+import { dayFocus, layoutTimeline, shownRows, shiftAnchor, timelineRange, type TimelineInput, type TimelineLayout, type Zoom } from "./timeline-layout";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
@@ -50,7 +50,7 @@ function synthetic(start: string, end: string | null, zoom: Zoom, anchor = TODAY
   const p = tag("Project");
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
-  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
+  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], tag: "", links: [], dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
   return layoutTimeline({ items: viewItems([node], [], () => ({ start: s, end: e }), statusValues), zoom, anchor, today: TODAY, now: NOW, weekStart, statusValues, titles: new Map() });
 }
 
@@ -163,7 +163,7 @@ describe("rows", () => {
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const node = (id: number, start: string, end: string): PlannerNode =>
-      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
+      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", links: [], dependsOn: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
     const nodes = [node(1, "2026-07-01", "2026-07-10"), node(2, "2026-08-01", "2026-09-05"), node(3, "2026-09-25", "2026-09-30"),
       node(4, "2026-11-02", "2026-11-20"), node(5, "2026-10-20", "2026-12-01"), node(6, "2027-01-05", "2027-01-06")];
     const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), zoom: "week", anchor, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
@@ -243,7 +243,7 @@ describe("task rows", () => {
   it("lateness counts the Scheduled date when there is no Deadline; with both dates only the deadline marker is late", () => {
     const p = tag("Project");
     const s = dateIdent(p, "Start");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", dependsOn: [], dates: { [s]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", links: [], dependsOn: [], dates: { [s]: d("2026-10-01") }, choices: {} };
     const todo = statusValues.find((v) => v.title === "Todo")!;
     const status = { ident: todo.ident!, title: todo.title };
     const mk = (id: number, scheduled: string | null, deadline: string | null): PlannerTask => ({
@@ -269,7 +269,7 @@ describe("task rows", () => {
 
   it("sorts dated tasks first by date, then undated by title", () => {
     const p = tag("Project");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", dependsOn: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", links: [], dependsOn: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
     const t = (id: number, title: string, deadline: string | null): PlannerTask =>
       ({ id, uuid: `t${id}`, title, status: null, isNode: false, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
     const tasks = [t(1, "b undated", null), t(2, "late", "2026-10-09"), t(3, "a undated", null), t(4, "early", "2026-10-02")];
@@ -301,7 +301,7 @@ describe("Day zoom (N10): one day of 96 tracks of 15 minutes, 24 hour columns", 
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", dependsOn: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", links: [], dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
     return layoutTimeline({ items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(), ...over });
@@ -417,7 +417,7 @@ describe("dayFocus (N10): where the Day zoom opens", () => {
     const s = dateIdent(p(), "Start");
     const e = dateIdent(p(), "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", dependsOn: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", links: [], dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
     return layoutTimeline({ items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
@@ -452,7 +452,7 @@ describe("dependency links (N12)", () => {
   const e = dateIdent(p, "End");
   /** A node with a span (or no dates when `start` is null) depending on the node ids `deps`. */
   const node = (id: number, start: string | null, end: string | null, deps: number[] = []): PlannerNode =>
-    ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", dependsOn: deps, choices: {}, dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) } });
+    ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", links: [], dependsOn: deps, choices: {}, dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) } });
   const lay = (nodes: PlannerNode[], zoom: Zoom = "week") =>
     layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
 
@@ -502,5 +502,59 @@ describe("arranged by tag (N14)", () => {
     ]);
     expect(byTag.rows.map((r) => r.title)).toEqual(["Kickoff", "Late review", "Website relaunch", "Acme rollout", "Mobile app"]);
     expect(new Set(byDate.rows.map((r) => r.title))).toEqual(new Set(byTag.rows.map((r) => r.title)));
+  });
+});
+
+describe("nested (N14 step 2)", () => {
+  async function nestedLayout(over: Partial<TimelineInput> = {}, depends?: Record<string, string[]>) {
+    const graph = fixtureDq({ taskNodes: true, depends });
+    const all = depends ? await loadTagInfos(graph) : tags;
+    const of = (title: string) => all.find((t) => t.title === title)!;
+    const sel = [of("Project"), of("Task")];
+    const dependsOn = depends ? all.flatMap((t) => t.nodeProps)[0].ident : null;
+    const { nodes, tasks } = await loadNodesAndTasks(graph, all, sel, { childTags: true, zone: west5, dependsOn });
+    const dates = { [of("Project").ident]: { start: dateIdent(of("Project"), "Start"), end: dateIdent(of("Project"), "End") }, [of("Task").ident]: { start: dateIdent(of("Task"), "Scheduled"), end: dateIdent(of("Task"), "Deadline") } };
+    const nest = nestItems(viewItems(nodes, tasks, (n) => dates[n.tag], statusValues), statusValues, {});
+    return layoutTimeline({
+      items: nest.items, nest: nest.parentOf, zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: titlesByUuid(nodes), ...over,
+    });
+  }
+  const tree = (l: TimelineLayout) => l.rows.map((r) => [r.title, r.childCount, r.children.map((c) => c.title)]);
+
+  it("each node's children are full rows under it, by date; top-level rows by date; the rest stay top level", async () => {
+    const l = await nestedLayout();
+    expect(tree(l)).toEqual([
+      ["Website relaunch", 1, ["Draft brief Website relaunch"]],
+      ["Acme rollout", 1, ["Acme contract"]],
+      ["Mobile app", 1, ["Wireframes"]],
+    ]);
+    const child = l.rows[0].children[0];
+    expect([child.kind, child.parent, child.point, child.childCount]).toEqual(["point", l.rows[0].node.uuid, child.point, 0]);
+    expect(child.point).not.toBeNull();
+    expect(l.rows.every((r) => r.parent === null)).toBe(true);
+  });
+
+  it("a parent's progress counts its children (and not their task rows twice); its marker rows are only the tasks that are not nodes", async () => {
+    const l = await nestedLayout();
+    const site = l.rows[0];
+    expect(site.tasks).toEqual([]); // Draft brief, Ship homepage and Survey users are nodes of the view
+    expect(site.progress).toEqual({ done: 1, total: 2 }); // its #Task children: Draft brief (Todo), Ship homepage (Done); Survey users is canceled
+    expect(site.childCount).toBe(1); // Ship homepage and Survey users are undated: no row
+    expect(l.undated.map((u) => u.title)).toContain("Loose task (edited)");
+  });
+
+  it("a collapsed parent keeps its child count but its children get no row and no connector", async () => {
+    const open = await nestedLayout({}, { Wireframes: ["Draft brief"] });
+    expect(open.links).toEqual([{ from: open.rows[0].children[0].node.uuid, to: open.rows[2].children[0].node.uuid }]);
+    const site = open.rows[0].node.id;
+    const closed = await nestedLayout({ collapsed: new Set([site]) }, { Wireframes: ["Draft brief"] });
+    expect(closed.rows[0]).toMatchObject({ childCount: 1, children: [] });
+    expect(closed.links).toEqual([]);
+    expect(shownRows(closed.rows).map((r) => r.title)).toEqual(["Website relaunch", "Acme rollout", "Acme contract", "Mobile app", "Wireframes"]);
+  });
+
+  it("a child whose parent has no row in the range is a top-level row", async () => {
+    const l = await nestedLayout({ anchor: "2026-11-20" }); // parents end by 23 Oct: none of them in range
+    expect(l.rows.every((r) => r.childCount === 0 && r.parent === null)).toBe(true);
   });
 });

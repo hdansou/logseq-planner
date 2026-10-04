@@ -123,8 +123,16 @@ previous and next buttons and **Today** move the period.
 - Only nodes that touch the range get a row. A line above the grid counts the others, for
   example "412 earlier · 1,105 later". Each side is a button that moves to the nearest such
   node.
-- **Arrange** (with several tags): **By date**, one list sorted by start, or **By tag**, a
-  heading row per tag in the order you ticked them, then that tag's rows by start.
+- **Arrange** (with several tags): **By date**, one list sorted by start; **By tag**, a
+  heading row per tag in the order you ticked them, then that tag's rows by start; or
+  **Nested** (the default with several tags): a node that references another node of the view
+  (a task whose Milestone property points to its milestone) is a row of its own under it,
+  indented, with its own bar. The parent's count is its children plus its other tasks. A
+  parent starts open; its toggle hides its rows until you open it again (until Logseq
+  restarts). Nesting is one level deep: a grandchild is listed as a top-level row. A node
+  referencing several nodes goes under the first of them in row order; two nodes referencing
+  each other: the later one goes under the earlier. A reference through the **Depends on**
+  property does not nest.
 
 **Calendar.** All-day items only.
 
@@ -145,7 +153,8 @@ sorts at that date and shows how many days late.
   Overdue renders its first 100 entries; **Show 100 more of N** adds the next 100 (its
   heading keeps the real total).
 - By node: one panel per node with its progress and tasks, overdue first. The first 100
-  groups render; **Show 100 more of N** adds the next 100.
+  groups render; **Show 100 more of N** adds the next 100. With several tags, a child node
+  (as in the Timeline's Nested) is listed in its parent's panel, not in a panel of its own.
 - **Show done** includes done and canceled entries (within 14 days, or under No date).
 
 **Kanban.** A board of cards.

@@ -31,15 +31,20 @@ export function nodePropIdents(tags: TagInfo[]): string[] {
 /** The dependency property as a pulled attribute (N12): ` <ident>`, or "" for none or an ident that is not a valid keyword. */
 const dependsAttr = (dependsOn: string | null) => (dependsOn !== null && isPropertyIdent(dependsOn) ? ` ${dependsOn}` : "");
 
+/** The node refs as ids (N14: what nesting reads), pulled only for a view over two or more tags. */
+export const NODE_REFS = "{:block/refs [:db/id]}";
+
 /**
- * The node pull: `NODE_ATTRS` and every tag's date/choice ident; a Date ident (a journal page ref) as
- * `{<ident> [:db/id :block/journal-day]}` so the day comes with the node (T13a: no separate journal-day query, which
- * queued behind the task query live). DateTime and choice idents stay plain (epoch ms, `{id}`). The view's dependency
- * property (N12), when it has one, last and plain: its values come back as `[{id}]` (or `{id}`).
+ * The node pull: `NODE_ATTRS` (and with `links`, the refs as ids, `NODE_REFS`, N14) and every tag's date/choice ident;
+ * a Date ident (a journal page ref) as `{<ident> [:db/id :block/journal-day]}` so the day comes with the node (T13a: no
+ * separate journal-day query, which queued behind the task query live). DateTime and choice idents stay plain (epoch
+ * ms, `{id}`). The view's dependency property (N12), when it has one, last and plain: its values come back as `[{id}]`
+ * (or `{id}`).
  */
-export function nodePull(tags: TagInfo[], dependsOn: string | null = null): string {
+export function nodePull(tags: TagInfo[], dependsOn: string | null = null, links = false): string {
   const dates = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
-  return [NODE_ATTRS, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ") + dependsAttr(dependsOn);
+  const head = links ? `${NODE_ATTRS} ${NODE_REFS}` : NODE_ATTRS;
+  return [head, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ") + dependsAttr(dependsOn);
 }
 
 /**
@@ -49,7 +54,7 @@ export function nodePull(tags: TagInfo[], dependsOn: string | null = null): stri
  * live, T01/T04), and two tags with the same title no longer merge. Same join as probe query `nodesOfTagWithExtends`
  * (fixture nodes.json), with the narrow pull; blocks in Recycle (or on a recycled page) are left out (`notRecycled`).
  */
-export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null) => `[:find (pull ?b [${nodePull(tags, dependsOn)}])
+export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null, links = false) => `[:find (pull ?b [${nodePull(tags, dependsOn, links)}])
           :in $ [?tag ...] %
           :where [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
                  ${notRecycled("?b")}]`;
@@ -83,19 +88,21 @@ export interface LoadNodesOptions {
 
 /** The query input for the view's tags: their entity ids. */
 const tagIds = (selected: TagInfo[]) => selected.map((t) => t.id);
+/** Node refs are pulled for nesting (N14), which only a view over two or more tags does. */
+const withLinks = (selected: TagInfo[]) => selected.length > 1;
 
 /**
  * Nodes of the view's tags `selected` (plus extending tags when `childTags`) with their dates and choice values mapped.
  * Test-only: the workspace reads through `readRaw` + `buildData`.
  */
 export async function loadNodes(dq: Dq, tags: TagInfo[], selected: TagInfo[], opts: LoadNodesOptions): Promise<PlannerNode[]> {
-  const raw = await dq(nodesQuery(tags, opts.dependsOn ?? null), tagIds(selected), CLASS_EXTENDS_RULES);
+  const raw = await dq(nodesQuery(tags, opts.dependsOn ?? null, withLinks(selected)), tagIds(selected), CLASS_EXTENDS_RULES);
   return buildNodes(raw, tags, selected, opts.childTags, opts.zone ?? systemZone, opts.dependsOn ?? null);
 }
 
 /** The rows of the node and task queries for the view's tags, with what they were asked with (to tell when they are stale). */
 export interface RawData {
-  /** The node query string (`nodesQuery(tags, dependsOn)`): it names the pulled idents. */
+  /** The node query string (`nodesQuery(tags, dependsOn, links)`): it names the pulled idents (and whether refs are). */
   nodesQuery: string;
   /** The tag entity ids both queries were run with, in selection order. */
   tagIds: number[];
@@ -109,12 +116,12 @@ export interface RawData {
  * Runs the node and task queries for the view's tags `selected`, pulling the dependency property `dependsOn` (N12; null
  * = none). The task query does not need the nodes (it joins on the tags), so both are asked at once. With `prev` (rows
  * read earlier, e.g. with the tags shown before a refresh re-read them), only the stale part is asked again: the node
- * rows when the pull (`nodesQuery(tags, dependsOn)`) or the tag ids differ, the task rows when the tag ids or the
+ * rows when the pull (`nodesQuery(tags, dependsOn, links)`) or the tag ids differ, the task rows when the tag ids or the
  * dependency property differ (a renamed tag is the same tag; the rows do not depend on the selection order, which
  * `buildData` applies); with neither, `prev`'s rows are reused and no query is sent.
  */
 export async function readRaw(dq: Dq, tags: TagInfo[], selected: TagInfo[], dependsOn: string | null, prev?: RawData): Promise<RawData> {
-  const query = nodesQuery(tags, dependsOn);
+  const query = nodesQuery(tags, dependsOn, withLinks(selected));
   const ids = tagIds(selected);
   const key = (list: number[]) => [...list].sort((a, b) => a - b).join(" ");
   const sameTags = !!prev && key(prev.tagIds) === key(ids);
