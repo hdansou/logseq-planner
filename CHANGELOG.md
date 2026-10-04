@@ -255,6 +255,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- The in-page block stays inside its page column (N06b): it measured 1273 px in a narrower column and the header's
+  "Open in Planner" button was clipped. The root is now `display: block; width: 100%; max-width: 100%; min-width: 0;
+  box-sizing: border-box` and no longer scrolls itself; only the view (`.pl-block-view`, `overflow: auto`, `max-height:
+  70vh`) scrolls, so the header stays whole (name and tags truncate with an ellipsis, the button never shrinks). Unit-tested on the stylesheet text and the markup; the widths have not been re-measured live.
 - Planner starts fresh when the graph changes (N04): after switching graphs in one Logseq session it showed "Invalid view
   config: unknown tag/date property … Showing the default view instead." because the workspace kept the previous
   graph's view (`openBody` in `src/ui/workspace.ts` validated the old config against the new graph's tags). The app now

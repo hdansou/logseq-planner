@@ -159,6 +159,17 @@ describe("createBlocks: a saved view in a page", () => {
     expect(block.querySelector("[data-tl-edit], [data-tl-handle], [data-tl-editable], [data-tl-locked], [data-tl-pending], [data-tl-edit-help], [aria-describedby]")).toBeNull();
   });
 
+  it.each(kinds)("the %s view sits in its own wrapper beside the header, so only the view scrolls (N06b width fix)", async (kind) => {
+    const { slot } = setup({ blocks: [saved("v-1", "P", defaultViewConfig(tag("Project"), kind))] });
+    const block = (await slot("slot__a", [":planner", "P"])).querySelector<HTMLElement>(".planner-block")!;
+    const [head, view] = [...block.children] as HTMLElement[];
+    expect([head.className, view.className]).toEqual(["pl-block-head", "pl-block-view"]);
+    expect(block.children).toHaveLength(2);
+    expect(head.querySelector("[data-on-click]")).not.toBeNull();
+    expect(view.querySelector(".pl-block-head, [data-on-click=\"" + OPEN_VIEW + "\"]")).toBeNull();
+    expect(view.children.length).toBeGreaterThan(0);
+  });
+
   it("Timeline nested: children render under their open parent; no toggles, no connectors, marker task rows folded", async () => {
     const config = { ...defaultViewConfig([tag("Project"), tag("Task")], "timeline"), arrange: "nested" as const };
     const { slot } = setup({ blocks: [saved("v-1", "Nested", config)], dq: fixtureDq({ taskNodes: true, depends: { Wireframes: ["Draft brief"] } }) });

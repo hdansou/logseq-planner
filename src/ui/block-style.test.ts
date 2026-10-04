@@ -107,9 +107,35 @@ describe("blockStyle", () => {
     expect(css.endsWith(hostTokenCss(themeCss))).toBe(true);
   });
 
-  it("scrolls inside the block: overflow auto, at most 70vh tall", () => {
+  it("never exceeds its container: a block box at most 100% wide, not shrink-wrapped to the Timeline's content", () => {
     const root = decls(css, BLOCK_ROOT);
-    expect(root.overflow).toBe("auto");
-    expect(root["max-height"]).toBe("70vh");
+    expect(root.display).toBe("block");
+    expect(root.width).toBe("100%");
+    expect(root["max-width"]).toBe("100%");
+    expect(root["min-width"]).toBe("0");
+    expect(root["box-sizing"]).toBe("border-box");
+    expect(root.overflow).not.toBe("auto"); // the header never scrolls away: only the view area scrolls
+  });
+
+  it("scrolls the view area only, sideways and down, at most 70vh tall", () => {
+    const view = decls(css, ".planner-block .pl-block-view");
+    expect(view.overflow).toBe("auto");
+    expect(view["max-height"]).toBe("70vh");
+    expect(view["min-width"]).toBe("0");
+    expect(view["max-width"]).toBe("100%");
+  });
+
+  it("keeps the header whole: name and tags truncate, the button never shrinks", () => {
+    const head = decls(css, ".planner-block .pl-block-head");
+    expect(head.display).toBe("flex");
+    expect(head["min-width"]).toBe("0");
+    for (const sel of [".planner-block .pl-block-name", ".planner-block .pl-block-tags"]) {
+      const d = decls(css, sel);
+      expect(d["min-width"], sel).toBe("0");
+      expect(d["text-overflow"], sel).toBe("ellipsis");
+      expect(d["white-space"], sel).toBe("nowrap");
+      expect(d.overflow, sel).toBe("hidden");
+    }
+    expect(decls(css, ".planner-block .pl-block-head .pl-btn")["flex-shrink"]).toBe("0");
   });
 });
