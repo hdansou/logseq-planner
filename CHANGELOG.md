@@ -218,6 +218,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Saved-view writes run one at a time (N04): create, update and remove of the view store go through one promise queue
+  inside `createViewStore`, so two saves (or a save and a delete) started together no longer interleave their
+  read-modify-write and lose one. A rejected write is returned to its caller and the queue moves on. Unit-tested,
+  not re-run live.
 - **Depends on** follows the default rule when the view's tags change (N14): a new view left the setting explicitly
   None when its first tag had no dependency property, so ticking a second tag that has `depends_on` still showed None
   and drew no links. The setting is now "not chosen" (key absent, `dependsOnOf` applies the default rule to the

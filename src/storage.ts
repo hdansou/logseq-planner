@@ -54,6 +54,18 @@ export function createViewStore(deps: StorageDeps) {
   let cache: ListedView[] | null = null;
   let pageUuid: string | null = null;
   let pending = 0;
+  let tail: Promise<unknown> = Promise.resolve();
+
+  /**
+   * Runs a write after every earlier one has finished (N04): a write is a read-modify-write of the cache and the page, so
+   * two started together would interleave and lose one. A rejected write is returned to its caller only; the queue
+   * moves on (same idea as the workspace's action queue, which also shows the error).
+   */
+  const serial = <T>(write: () => Promise<T>): Promise<T> => {
+    const result = tail.then(write);
+    tail = result.catch(() => {});
+    return result;
+  };
 
   /** One block → a view, or an invalid entry carrying the parse error: one bad block must not hide the others (T14). */
   const toView = (b: ViewBlock): ListedView => {
@@ -131,11 +143,12 @@ export function createViewStore(deps: StorageDeps) {
     cached: (): ListedView[] => [...(cache ?? [])],
 
     /**
+     * Writes (create, update, remove) run one at a time, in call order.
      * Saves a new view under `sanitizeViewName(name)`. After the block is appended, any failure (the config write, its
      * read-back, a block the host tagged or whose title differs) removes that block again, so no orphan is left; when
      * the removal fails too, the error says so.
      */
-    async create(name: string, config: ViewConfig): Promise<SavedView> {
+    create: (name: string, config: ViewConfig): Promise<SavedView> => serial(async () => {
       const title = sanitizeViewName(name);
       if (!title) throw new Error("A saved view needs a name");
       const views = await load();
@@ -159,13 +172,13 @@ export function createViewStore(deps: StorageDeps) {
         views.splice(views.indexOf(entry), 1);
         throw e;
       }
-    },
+    }),
 
     /**
      * Replaces the config of a saved view (the name stays). Not used by the workspace yet (saving always creates a new
      * view, T07); kept for the side panel and covered by tests.
      */
-    async update(id: string, config: ViewConfig): Promise<SavedView> {
+    update: (id: string, config: ViewConfig): Promise<SavedView> => serial(async () => {
       const views = await load();
       const i = find(views, id);
       const before = views[i];
@@ -179,9 +192,9 @@ export function createViewStore(deps: StorageDeps) {
         views[i] = before;
         throw e;
       }
-    },
+    }),
 
-    async remove(id: string): Promise<void> {
+    remove: (id: string): Promise<void> => serial(async () => {
       const views = await load();
       const i = find(views, id);
       const [before] = views.splice(i, 1); // cache first
@@ -193,6 +206,6 @@ export function createViewStore(deps: StorageDeps) {
         views.splice(i, 0, before);
         throw e;
       }
-    },
+    }),
   };
 }

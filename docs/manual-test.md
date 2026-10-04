@@ -406,7 +406,7 @@ Copied from the progress log (tasks.md). Re-check each when the environment allo
   (target 250).
 - Open (T12): reopening after a stale hide runs two reloads instead of one (the second changes nothing).
 - Open (T09, polish): a band that continues on both sides shows its title mid-row, not at the left edge.
-- Open (T06): concurrent writes to saved views are not serialised; v1 has no auto-restore of a recycled views page.
+- T06: concurrent writes to saved views are now serialised (N04): fixed and unit-tested, not yet re-run live. Open: v1 has no auto-restore of a recycled views page.
 - Host quirks seen in the web app, not attributed to Planner: the first drag of a session once raised
   "SQLITE_ERROR cannot rollback" then "SQLITE_CORRUPT database disk image is malformed" until the graph was reset; in a long
   page session `open_in_right_sidebar` once returned without showing anything ("Unexpected webworker error"), fine after a

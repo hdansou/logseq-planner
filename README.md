@@ -276,7 +276,6 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   A created tag appears at once.
 - If the page "Planner views" is in Recycle, saving fails with a message. Restore the page or
   delete it in Recycle (More menu), then save again. Planner does not restore it for you.
-  Concurrent writes to saved views are not serialized.
 - Reopening Planner after it was hidden with stale data runs two reloads; the second changes
   nothing.
 - In Calendar Month, a band that continues on both sides shows its title in the middle of

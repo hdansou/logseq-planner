@@ -345,3 +345,58 @@ describe("remove", () => {
     expect(store.cached().map((x) => x.id)).toEqual([v.id]);
   });
 });
+
+describe("writes run one at a time (N04)", () => {
+  /** `deps` whose every call takes a turn of the event loop; `active` / `most` count the write operations in flight. */
+  function slow(deps: StorageDeps) {
+    const state = { active: 0, most: 0 };
+    const wrapped = Object.fromEntries(Object.entries(deps).map(([name, fn]) => [name, async (...args: unknown[]) => {
+      const write = !["findPage", "listBlocks", "readBlock", "blockTags"].includes(name);
+      if (write) state.most = Math.max(state.most, ++state.active);
+      try {
+        await new Promise((r) => setTimeout(r, 1));
+        return await (fn as (...a: unknown[]) => unknown)(...args);
+      } finally {
+        if (write) state.active--;
+      }
+    }])) as unknown as StorageDeps;
+    return { wrapped, state };
+  }
+
+  it("two saves started together both persist, one after the other", async () => {
+    const { g, deps } = fakeGraph();
+    const { wrapped, state } = slow(deps);
+    const store = createViewStore(wrapped);
+    const [a, b] = await Promise.all([store.create("First", timeline), store.create("Second", calendar)]);
+    expect(state.most).toBe(1);
+    expect(g.blocks.map((x) => x.name)).toEqual(["First", "Second"]);
+    expect(g.blocks.every((x) => x.config !== null)).toBe(true);
+    expect([a.id, b.id]).toEqual(g.blocks.map((x) => x.uuid));
+    expect(store.cached().map((x) => x.id)).toEqual([a.id, b.id]);
+  });
+
+  it("a save and a delete started together do not interleave", async () => {
+    const { g, deps } = fakeGraph();
+    const first = createViewStore(deps);
+    const v = await first.create("Old", timeline);
+    const { wrapped, state } = slow(deps);
+    const store = createViewStore(wrapped);
+    await store.list();
+    await Promise.all([store.create("New", calendar), store.remove(v.id)]);
+    expect(state.most).toBe(1);
+    expect(g.blocks.map((x) => x.name)).toEqual(["New"]);
+    expect(store.cached().map((x) => x.name)).toEqual(["New"]);
+  });
+
+  it("a rejected write does not block the next one", async () => {
+    const { g, deps } = fakeGraph();
+    const store = createViewStore(deps);
+    const failing = store.create("   ", timeline); // rejected: no name
+    const ok = store.create("Roadmap", timeline);
+    await expect(failing).rejects.toThrow(/needs a name/);
+    expect((await ok).name).toBe("Roadmap");
+    expect(g.blocks.map((x) => x.name)).toEqual(["Roadmap"]);
+    await expect(store.update("nope", timeline)).rejects.toThrow(/unknown saved view/i);
+    await expect(store.create("Again", timeline)).resolves.toMatchObject({ name: "Again" });
+  });
+});
