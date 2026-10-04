@@ -213,9 +213,14 @@ Live-check method (web app):
       load, grouping, nesting, rollups); live on `planner-project` with #Milestone + #Task:
       each milestone with its tasks as bars under it, connectors between the tasks, Kanban
       by Status over both tags, a view saved and reopened.
-      Open questions for the owner: is nesting (step 2) the main goal, with the flat union
-      only a means; how many tags at most (the scope assumes any number, tested with two to
-      four); should colour follow the tag in a multi-tag view.
+      Owner said "go" on 2026-10-03 with the coordinator's assumptions: build both steps
+      (the nested picture is the goal), any number of tags (tested with two to four),
+      colours stay per node. Details fixed for the build: a node carrying several selected
+      tags takes its dates from the first of them in selection order; "include child tags"
+      stays one setting for the whole view; the Timeline gets an Arrange control (By date /
+      By tag / Nested) shown only with two or more tags, Nested being the default there;
+      nested children are expanded by default and collapsible per parent; a child with
+      several parents sits under the first.
 - [x] **N15 Window move / resize while the workspace is open** — owner report 2026-10-03:
       "we cannot resize the application until we escape or click on close". Logged and
       investigated, not fixed.
