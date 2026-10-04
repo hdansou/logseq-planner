@@ -298,7 +298,7 @@ Live-check method (web app):
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block,
       drag-to-edit dates (REQUIREMENTS.md). Split on 2026-10-04:
-      **N06a Sidebar surface** (next). Prototype checked live on the desktop app: with
+      **N06a Sidebar surface** (done 58e37ae, see the Progress log). Prototype checked live on the desktop app: with
       Logseq's right sidebar open (`#right-sidebar.open`, 40% wide, a 3 px `.resizer` at
       its left edge, the main content shrinks beside it), setting the frame's `left` /
       `width` to the sidebar's rectangle minus the resizer shows Planner next to the page
@@ -991,3 +991,16 @@ Total: about 10 hours.
   arrive after the frame is shown, which are real changes.
   N04 still open: tag deletion triggers no refresh; refresh time at 2,000 nodes; the
   double reload (unconfirmed cause); auto-restore of a recycled views page; CSP.
+- 2026-10-04 N06a done (58e37ae). 832 unit tests. A Workspace | Sidebar switch in the top
+  bar (desktop app only); in Sidebar mode Planner opens the host's right sidebar and lays
+  its frame over it (`sidebarFrame`, `src/ui/dock.ts`: ResizeObserver, class observer and
+  window resize on the host), closes when the host closes the sidebar, docks again on the
+  next open. Live on the desktop app (rows L1–L3, L5–L8, in-app clicks): page and Planner
+  side by side at 705 px, the frame follows a width change, four views without overflow,
+  close / reopen / host close / back to Workspace.
+  Not verified: a real-mouse drag of the host's handle (L2) and real clicks — the test
+  window could not be brought to the front while the owner was working in another app,
+  and a click on a background window only activates it; L4 (drawer under 640 px while
+  docked); L9 (web app shows no switch).
+  Known behaviour: a click on a node still opens it and hides Planner, even when the page
+  is beside it; focus returns to Planner when it falls to the host body while docked.

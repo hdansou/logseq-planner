@@ -372,14 +372,14 @@ Desktop app only (the web app has no switch). None run live yet; check with real
 
 | Id | Steps | Expected | Result | Build | Date | Notes |
 |---|---|---|---|---|---|---|
-| L1 | Open Planner, click **Sidebar** in the top bar | Logseq's right sidebar opens; the page and Planner are side by side, Planner right of the sidebar's resize handle, under the header; **Sidebar** is pressed | not run |  |  |  |
-| L2 | Drag the host's sidebar resizer left and right | Planner follows the sidebar's width; the handle stays grabbable; no overflow | not run |  |  |  |
-| L3 | At the sidebar's width, switch through Timeline, Calendar, Agenda and Kanban | All four views are usable; the top bar wraps without overlap (title, view switch, surface switch, Saved views, Close) | not run |  |  |  |
+| L1 | Open Planner, click **Sidebar** in the top bar | Logseq's right sidebar opens; the page and Planner are side by side, Planner right of the sidebar's resize handle, under the header; **Sidebar** is pressed | pass | 58e37ae | 2026-10-03 | desktop app (Logseq-DB), in-app click on Sidebar: the host's right sidebar opens (x 1066, 711 px), Planner's frame goes to x 1072, 705 px wide under the header, the page stays visible at 820 px; no overflow, panel docked; top bar wraps to two rows (92 px) |
+| L2 | Drag the host's sidebar resizer left and right | Planner follows the sidebar's width; the handle stays grabbable; no overflow | partial | 58e37ae | 2026-10-03 | the sidebar's width set to 30% from the host: the frame followed (x 1249, 527 px). Dragging the host's handle with a real mouse was not done (the test window could not be brought to the front while the owner was working) |
+| L3 | At the sidebar's width, switch through Timeline, Calendar, Agenda and Kanban | All four views are usable; the top bar wraps without overlap (title, view switch, surface switch, Saved views, Close) | pass | 58e37ae | 2026-10-03 | Calendar, Agenda, Kanban and Timeline at 705 px: no page overflow, no error |
 | L4 | Make the sidebar narrower than 640 px | The panel becomes a drawer (closed by default); the Panel toggle opens it; Escape closes it | not run |  |  |  |
-| L5 | Close Planner (Close, Escape, toolbar button) | Planner hides; the sidebar stays open and its own content shows again | not run |  |  |  |
-| L6 | Reopen Planner (toolbar button or `g` `Shift+P`) | It opens docked in the sidebar again (the mode is kept) | not run |  |  |  |
-| L7 | With Planner docked, close Logseq's right sidebar (its own toggle or shortcut); then reopen Planner | Planner hides with the sidebar; reopening opens the sidebar again and docks | not run |  |  |  |
-| L8 | Click **Workspace** | Planner fills the window under the header again; the sidebar stays as it is | not run |  |  |  |
+| L5 | Close Planner (Close, Escape, toolbar button) | Planner hides; the sidebar stays open and its own content shows again | pass | 58e37ae | 2026-10-03 | Close hides the frame; the host sidebar stays open with its own content |
+| L6 | Reopen Planner (toolbar button or `g` `Shift+P`) | It opens docked in the sidebar again (the mode is kept) | pass | 58e37ae | 2026-10-03 | the toolbar button reopens Planner docked at the same place |
+| L7 | With Planner docked, close Logseq's right sidebar (its own toggle or shortcut); then reopen Planner | Planner hides with the sidebar; reopening opens the sidebar again and docks | pass | 58e37ae | 2026-10-03 | closing the host's sidebar hides Planner; the next open reopens the sidebar and docks |
+| L8 | Click **Workspace** | Planner fills the window under the header again; the sidebar stays as it is | pass | 58e37ae | 2026-10-03 | Workspace restores the full frame (0, 48, full width); the host sidebar is left open underneath |
 | L9 | Open Planner in the web app | The top bar has no Workspace / Sidebar switch | not run |  |  |  |
 
 ## Desktop pass (2026-10-03, build e849107)
