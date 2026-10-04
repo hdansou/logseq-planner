@@ -218,6 +218,10 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- A Calendar band that continues from the previous week and into the next keeps its title at the left edge, after the
+  "‹" marker, in every week row (N04): the rule that pushes the "›" marker right (`margin-left: auto`) also matched the
+  "‹", which moved it and the title to the middle. It now applies to the last marker only. Unit-tested on the markup
+  order and the stylesheet text, not re-run live.
 - Saved-view writes run one at a time (N04): create, update and remove of the view store go through one promise queue
   inside `createViewStore`, so two saves (or a save and a delete) started together no longer interleave their
   read-modify-write and lose one. A rejected write is returned to its caller and the queue moves on. Unit-tested,

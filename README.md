@@ -278,8 +278,6 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   delete it in Recycle (More menu), then save again. Planner does not restore it for you.
 - Reopening Planner after it was hidden with stale data runs two reloads; the second changes
   nothing.
-- In Calendar Month, a band that continues on both sides shows its title in the middle of
-  the row, not at the left edge.
 - A Date property value that points at no journal page (for example a value Logseq left as
   its empty placeholder) counts as no value.
 - Nodes and tasks in Recycle, or on a page in Recycle, are not shown.

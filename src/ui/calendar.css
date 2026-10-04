@@ -36,7 +36,8 @@
   color: var(--pl-label); font-weight: 500; text-overflow: ellipsis; }
 .pl-cal-band[data-cont-before] { margin-left: 0; padding-left: 4px; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: none; }
 .pl-cal-band[data-cont-after] { margin-right: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-.pl-cal-band[data-cont-after] .pl-cal-cont { margin-left: auto; }
+/* Only the › marker is pushed right: a bare .pl-cal-cont also moved ‹, and the title with it, to the middle */
+.pl-cal-band[data-cont-after] .pl-cal-cont:last-child { margin-left: auto; }
 .pl-cal-band[data-kind="derived"] { background: transparent; box-shadow: none; border: 1.5px dashed var(--pl-node-hue); }
 .pl-cal-cont { flex: none; color: var(--pl-label-2); }
 

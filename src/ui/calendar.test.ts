@@ -116,6 +116,13 @@ describe("Month (October 2026, Sunday start)", () => {
     expect($$("[data-cal-week]")[0].dataset.calWeek).toBe("2026-09-28");
   });
 
+  it("a band that continues on both sides lists ‹, the title, › in that order, so only › is pushed right (N04)", () => {
+    const [both] = bandsIn("2026-10-04", SITE);
+    expect(both.hasAttribute("data-cont-before") && both.hasAttribute("data-cont-after")).toBe(true);
+    expect([...both.children].map((c) => c.className)).toEqual(["pl-cal-cont", "pl-cal-title", "pl-cal-cont"]);
+    expect([both.firstElementChild!.textContent, both.lastElementChild!.textContent]).toEqual(["‹", "›"]);
+  });
+
   it("span nodes are bands on a stable lane, split per week with continuation flags", () => {
     const weeks = ["2026-09-27", "2026-10-04", "2026-10-11", "2026-10-18"];
     for (const w of weeks) {
@@ -307,5 +314,11 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(calendarCss).toMatch(/\[data-cont-after\]\s*\{[^}]*border-(?:top|bottom)-right-radius:\s*0/);
     expect(calendarCss).toMatch(/\.pl-cal-band\[data-kind="derived"\]\s*\{[^}]*dashed/);
     expect(calendarCss).toMatch(/\.pl-cal-chip\[data-late\]\s*\{[^}]*var\(--pl-red-soft\)[^}]*var\(--pl-red-text\)/);
+  });
+
+  it("a band that continues on both sides keeps its title at the left edge: only the › marker is pushed right (N04)", () => {
+    // `[data-cont-after] .pl-cal-cont` also matched the ‹ marker, so its auto margin pushed ‹ and the title to the middle.
+    const auto = [...calendarCss.matchAll(/([^{}]+)\{[^}]*margin-left:\s*auto/g)].map((m) => m[1].trim().split("*/").pop()!.trim());
+    expect(auto).toEqual([".pl-cal-band[data-cont-after] .pl-cal-cont:last-child"]);
   });
 });
