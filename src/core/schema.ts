@@ -165,19 +165,23 @@ export async function loadTagInfos(dq: Dq): Promise<TagInfo[]> {
 export const TAG_KEY = "@tag";
 
 /**
- * The tags of a view (N14) and the properties they share: what filters, Kanban columns / swimlanes / Show, Done when,
- * Depends on and the Priority sort offer. One tag shares all of its own (and inherited) properties.
+ * The tags of a view (N14) and the properties it offers: the choice properties they share (filters, Kanban columns /
+ * swimlanes / Show, Done when, the Priority sort) and the node properties any of them has (Depends on). One tag offers
+ * all of its own (and inherited) properties.
  */
 export interface ViewTags {
   /** The selected tags, in selection order (at least one). */
   tags: TagInfo[];
   /** Choice properties every selected tag has (own or inherited), matched by ident, in the first tag's order. */
   choiceProps: ChoiceProp[];
-  /** Node properties every selected tag has, same rule. */
+  /**
+   * Node properties any selected tag has (own or inherited), each ident once, in selection order: a dependency property
+   * applies to the nodes that have it (#Task's `depends_on` in a #Milestone + #Task view), so it need not be shared.
+   */
   nodeProps: NodeProp[];
 }
 
-/** The view's tags with their shared properties (`ViewTags`); linear in the tags' properties. Throws on an empty list. */
+/** The view's tags with the properties it offers (`ViewTags`); linear in the tags' properties. Throws on an empty list. */
 export function mergeTags(tags: TagInfo[]): ViewTags {
   if (tags.length === 0) throw new Error("A view needs at least one tag");
   const [first, ...rest] = tags;
@@ -185,7 +189,9 @@ export function mergeTags(tags: TagInfo[]): ViewTags {
     const others = rest.map((t) => new Set(of(t).map((p) => p.ident)));
     return of(first).filter((p) => others.every((idents) => idents.has(p.ident)));
   };
-  return { tags, choiceProps: shared((t) => t.choiceProps), nodeProps: shared((t) => t.nodeProps) };
+  const seen = new Set<string>();
+  const nodeProps = tags.flatMap((t) => t.nodeProps).filter((p) => !seen.has(p.ident) && !!seen.add(p.ident));
+  return { tags, choiceProps: shared((t) => t.choiceProps), nodeProps };
 }
 
 /** "#Milestone + #Task": the view's tags as the workspace names them (titles unescaped: escape when rendering). */

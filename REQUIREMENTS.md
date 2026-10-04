@@ -31,9 +31,11 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   included (one toggle for the whole view). Each node belongs to the first selected tag, in
   selection order, that it carries directly or through a tag extending it: that tag gives its
   Start / End, its Tag filter value and its heading in the Timeline arranged by tag.
-- **Shared properties** (N14). Filters, Kanban Columns / Swimlanes / Show, Done when, Depends
-  on and the Priority sort offer the properties every selected tag has (own or inherited), the
-  same property by ident, not by title. One tag shares all of its properties. With two or more
+- **Shared properties** (N14). Filters, Kanban Columns / Swimlanes / Show, Done when and the
+  Priority sort offer the choice properties every selected tag has (own or inherited), the
+  same property by ident, not by title. One tag shares all of its properties. Depends on
+  offers the node properties of any selected tag (a dependency property applies to the nodes
+  that have it: #Task's `depends_on` in a #Milestone + #Task view). With two or more
   tags the panel adds a **Tag** filter group (which tags to show) and the Kanban offers **Tag**
   swimlanes, read-only (a card keeps its tag; drops across lanes are refused). Ticking a tag
   drops the filters, done values and Kanban settings the tags no longer share.
@@ -50,7 +52,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   view follows (rollups, task rows, Calendar chips, Agenda, Kanban progress). With None, as above.
   A #Task block that is itself a node of the view (N14: #Task is one of its tags) is its own row
   or entry, never also a task row of another node; it still counts in that node's rollup.
-- **Depends on** (N12). A setting after End, shown when the view's tags share a node-typed property
+- **Depends on** (N12). A setting after End, shown when a tag of the view has a node-typed property
   (own or inherited, any cardinality): None or one of them. Default: the node property whose title,
   lowercased with non-alphanumerics removed, is `dependson` (`depends_on`, "Depends on",
   "depends-on"), else None. Saved with the view (`dependsOn`); a view saved before it uses the

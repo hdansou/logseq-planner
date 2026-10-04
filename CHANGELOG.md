@@ -42,8 +42,8 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   as one collection input `[?tag ...]`), each node once; each node belongs to the first selected tag it carries,
   directly or through a child tag (`PlannerNode.tag`). Start / End are per tag (`dates` in the config): with one tag
   the Start and End menus as before, with several one **Dates** menu (`data-control="dates"`, "Dates: 2 tags") with a
-  row per tag (`data-dates-tag` + `data-dates-field`). Filters, Kanban Columns / Swimlanes / Show, Done when, Depends
-  on and the Priority sort offer the properties every tag shares (`mergeTags`); with two or more tags a **Tag** filter
+  row per tag (`data-dates-tag` + `data-dates-field`). Filters, Kanban Columns / Swimlanes / Show, Done when and the
+  Priority sort offer the choice properties every tag shares, Depends on the node properties of any tag (`mergeTags`); with two or more tags a **Tag** filter
   group (`"@tag"`) and **Tag** swimlanes, read-only (drops across lanes refused, the ⋯ menu lists columns only). The
   Timeline gets an **Arrange** control (`data-tl-arrange`) with two or more tags: By date, or By tag with a heading row
   per tag (`data-tl-group`). A #Task block that is itself a node of the view is no longer also a task row of the node

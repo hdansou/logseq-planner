@@ -385,14 +385,16 @@ describe("views over several tags (N14)", () => {
       expect(withTags(pri, [t, { ...t, id: 1, ident: ":user.class/T2" }])).toMatchObject({ sort: "priority" });
     });
 
-    it("the dependency property: kept when shared, the default rule otherwise, absent stays absent", () => {
+    it("the dependency property: kept while a tag has it, else the default rule over the tags' node properties; absent stays absent", () => {
       const n = (ident: string, title: string) => ({ id: 1, ident, title });
       const a = { ...p, nodeProps: [n(":u/dep-a", "depends_on")] };
-      const b = { ...t, nodeProps: [n(":u/dep-a", "depends_on")] };
-      const c = { ...t, nodeProps: [n(":u/dep-c", "Depends on")] };
-      expect(withTags(defaultViewConfig(a), [a, b]).dependsOn).toBe(":u/dep-a");
-      expect(withTags(defaultViewConfig(a), [a, c]).dependsOn).toBeNull();
-      expect(withTags({ ...defaultViewConfig(a), dependsOn: null }, [a, c]).dependsOn).toBeNull();
+      const b = { ...t, nodeProps: [n(":u/dep-b", "Depends on")] };
+      const plain = { ...m, nodeProps: [n(":u/parent", "Parent")] };
+      expect(withTags(defaultViewConfig(a), [a, b]).dependsOn).toBe(":u/dep-a"); // #Task's own does not replace it
+      expect(withTags(defaultViewConfig([a, b]), [b]).dependsOn).toBe(":u/dep-b"); // gone with #Project: the default rule
+      expect(withTags(defaultViewConfig(a), [plain]).dependsOn).toBeNull();
+      expect(withTags({ ...defaultViewConfig(a), dependsOn: null }, [a, b]).dependsOn).toBeNull();
+      expect(defaultViewConfig([plain, b]).dependsOn).toBe(":u/dep-b"); // only #Task has one: offered and the default
       const { dependsOn: _, ...old } = defaultViewConfig(a);
       expect(withTags(old as ViewConfig, [a, b])).not.toHaveProperty("dependsOn");
     });

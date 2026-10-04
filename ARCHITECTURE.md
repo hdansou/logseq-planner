@@ -50,7 +50,7 @@ Rules that hold across the tree:
 | `src/storage.ts` | `createViewStore`: cache-first saved views on the "Planner views" page; config in the hidden string property `planner-view-config`; every write read back. |
 | `src/dev-probe.ts` | Dev-only message hook that lets `scripts/probe.mjs` call the SDK from inside the iframe. |
 | `src/dev-timings.ts` | Dev-only load and refresh timings, exposed as `window.__plannerTimings`. A test checks that the production bundle lacks it. |
-| `src/core/schema.ts` | `loadTagInfos(dq)` and pure `buildTagInfos`: tag tree, date and choice properties including inherited ones, closed values. `mergeTags`: a view's tags and the properties they all share (N14); `TAG_KEY`. |
+| `src/core/schema.ts` | `loadTagInfos(dq)` and pure `buildTagInfos`: tag tree, date and choice properties including inherited ones, closed values. `mergeTags`: a view's tags, the choice properties they all share and the node properties any has (N14); `TAG_KEY`. |
 | `src/core/queries.ts` | Narrow node and task pulls (`nodesQuery`, `nodePull`, `TASKS_QUERY`), `readRaw`, `buildData`, `loadNodesAndTasks`, `loadTitles`. |
 | `src/core/normalize.ts` | Raw rows to `PlannerNode` and `PlannerTask`: Date and DateTime to local day and `HH:MM`; `choiceValueOf`; `isEmptyPlaceholder`; each node's view tag (N14); `isNode` tasks. |
 | `src/core/nodes.ts` | `resolveSpan`, `rollup`, `isDone`, `isCanceled`, `filterNodes`, `tasksOf`. |
@@ -119,8 +119,9 @@ Steps, with the module that does each:
    builder walks `extends`. Planner reads tags by datascript, not `getTag(title)`.
 3. **Config.** The workspace keeps one `ViewConfig`. If none exists, the default for the first
    own root tag with date properties is used. A view has one or more tags (N14) in selection
-   order; `validateViewConfig` returns them with the properties they all share (`mergeTags`),
-   which filters, Done when, Depends on and the Kanban read. Start / End are per tag (`dates`).
+   order; `validateViewConfig` returns them with the choice properties they all share and the
+   node properties any of them has (`mergeTags`), which filters, Done when, the Kanban and
+   Depends on read. Start / End are per tag (`dates`).
 4. **Nodes and tasks.** `readRaw` asks for the nodes of the view's tags (their union), with the
    child tags if enabled, and for the #Task blocks that reference those nodes. Both queries take
    the tags' entity ids (numbers, one collection input `[?tag ...]`) as input, never titles, and leave out blocks in Recycle or on a recycled page. Both pulls name their attributes: id,

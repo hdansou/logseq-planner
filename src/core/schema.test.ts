@@ -180,12 +180,13 @@ describe("mergeTags: the properties a view over several tags shares (N14)", () =
     expect(idents(mergeTags([reversed, a]).choiceProps)).toEqual(idents(reversed.choiceProps));
   });
 
-  it("matches node properties the same way", () => {
+  it("offers the node properties any tag has, each once, in selection order (a dependency property need not be shared)", () => {
     const n = (ident: string) => ({ id: 1, ident, title: ident });
-    const a = { ...byTitle("Project"), nodeProps: [n(":u/dep"), n(":u/parent")] };
-    const b = { ...byTitle("Task"), nodeProps: [n(":u/parent"), n(":u/dep")] };
-    expect(idents(mergeTags([a, b]).nodeProps)).toEqual([":u/dep", ":u/parent"]);
-    expect(mergeTags([a, { ...b, nodeProps: [] }]).nodeProps).toEqual([]);
+    const a = { ...byTitle("Project"), nodeProps: [n(":u/project")] };
+    const b = { ...byTitle("Task"), nodeProps: [n(":u/depends_on"), n(":u/milestone"), n(":u/project")] };
+    expect(idents(mergeTags([a, b]).nodeProps)).toEqual([":u/project", ":u/depends_on", ":u/milestone"]);
+    expect(idents(mergeTags([b, a]).nodeProps)).toEqual([":u/depends_on", ":u/milestone", ":u/project"]);
+    expect(mergeTags([{ ...a, nodeProps: [] }, { ...b, nodeProps: [] }]).nodeProps).toEqual([]);
   });
 
   it("throws on an empty list", () => {
