@@ -328,8 +328,27 @@ Live-check method (web app):
       view); live: a saved Timeline view and a saved Kanban view shown in a page, an edit
       refreshes them, a click opens the node, "Open in Planner" opens that view, light and
       dark.
-      **N06c Drag to edit dates**: not scoped yet (it writes Date / DateTime values to the
-      user's nodes; v1 was read-only by the owner's decision; needs a write probe first).
+      **N06c Drag to edit dates** (scoped 2026-10-04, after N06b). Write probe on the desktop
+      app through the plugin SDK: a DateTime property (user Start, built-in Scheduled) takes
+      epoch ms with `upsertBlockProperty(uuid, <ident without colon>, ms)` and reads back
+      the same number; a Date property takes the db id of the day's journal page (journal
+      day number, ISO string and ms are rejected); `createJournalPage` returns the existing
+      page or creates it, but a bare "YYYY-MM-DD" lands on the previous day west of UTC
+      ("2026-12-01" gave Nov 30th at UTC−5): pass a local Date or "YYYY-MM-DDT12:00:00".
+      Build, Timeline only: an "Edit dates" toggle in the toolbar, off by default (v1 was
+      read-only by the owner's decision), not saved with the view. When on: drag a bar to
+      move it (Start and End shift together), drag its left or right edge to change one
+      end, snapped to the zoom's track (a day; 15 minutes in Day zoom); a one-date point
+      moves. Not editable: spans derived from tasks, task markers, a property that is not
+      one of the node's own mapped Start / End, Date-only values in Day zoom. DateTime
+      values keep their time of day when moved by days. Writes are optimistic, read back,
+      and rolled back with an error if the read differs (as the Kanban move does). Keyboard:
+      Alt+Left / Right on a focused bar moves it one track, Alt+Shift+Left / Right changes
+      its End. Works in the workspace and the sidebar surface, not in the in-page block.
+      Acceptance: unit tests (track delta to new dates for both types, time kept, the
+      journal-day argument, guards, rollback); live on `planner-project` (DateTime) and on
+      `planner-desktop-2` (Date): move, resize both ends, keyboard, a failed write, the
+      graph read back with the CLI, connectors and rollups follow.
       Decision note (2026-10-03, owner asked whether Planner should be resizable
       independently of the app): yes, through the right-sidebar surface. Logseq's sidebar
       has its own width handle, so a Planner rendered there is sized by the host and shows
