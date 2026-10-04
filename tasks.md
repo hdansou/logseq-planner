@@ -104,7 +104,7 @@ Live-check method (web app):
       (parse, mapping, plan of CLI calls); live: the graph shows in Planner's four views on
       #Milestone and #Task, a second run changes nothing, a status change here shows after
       a re-run with the app open.
-- [ ] **N10 Hours in the Timeline (Day zoom)** — owner note 2026-10-03: DateTime is a
+- [x] **N10 Hours in the Timeline (Day zoom)** — owner note 2026-10-03: DateTime is a
       supported property type, so work can be tracked in hours. Today the Timeline lays
       everything out on day tracks (DateTime keeps HH:MM for labels only) and REQUIREMENTS
       lists "calendar day view and hour grid" as out of scope. Add a "Day" zoom to the
@@ -664,3 +664,21 @@ Total: about 10 hours.
   Decisions taken (change if wrong): milestone grouping and team / owner defaults in
   `scripts/tracker-meta.json`; sub-agents appear as teams, not as people; the project's
   owner is Danzu, milestone owners Claude.
+- 2026-10-03 N10 done (77eab27). 581 unit tests. Timeline zoom Day | Week | Month |
+  Quarter; Day = one day on 96 tracks of 15 minutes, 24 hour columns, items placed by
+  their times, a now line, Prev / Next by a day; the track model replaced day indices in
+  every zoom (Week / Month / Quarter place as before). Live on the desktop app, graph
+  `planner-project` (rows C1.14, C1.15, C1.18, C1.19 in docs/manual-test.md): the four
+  dated milestones are bars across their hours, expanded tasks show their start ring at
+  its time, #Task with Start / End mapped shows 20 task bars, navigation and the later
+  jump work, a view saved in Day zoom reopens in Day zoom.
+  Not verified: C1.16 and C1.17 (seed graph: deadline diamond at 17:00, #Meeting times),
+  a span clipped across midnight, a Date-only span in Day zoom, the opening scroll in a
+  narrow window (the test window was wide enough for nearly all 24 hours).
+  Decisions taken (change if wrong): 15-minute tracks at 12 px; a Date-only point sits at
+  00:00; a span whose end is before its start shows as one track at its start; the
+  Calendar's day view and hour grid stay out of scope.
+  Seen on the data: tasks under a milestone show only their Scheduled ring, not their
+  Start–End bar (a task's own span shows only in the #Task view). Candidate follow-up.
+  Working rule from the owner: keep the desktop test instance running between checks
+  (reload the plugin with `LSPluginCore.reload`), do not relaunch it each time.
