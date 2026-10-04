@@ -294,8 +294,17 @@ Live-check method (web app):
       forwarding possible, do nothing. Acceptance: unit tests for the rule; live: the three
       reported shortcuts with Planner open, typing a view name still works, Escape still
       closes a popover and then Planner.
-- [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
-      (logseq-plugin-release skill). After N01 and N03(a).
+- [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
+      go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
+      `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
+      ci.yml and publish.yml (Node 24; the zip holds README, LICENSE, package.json, icon.svg,
+      dist/: 102 KB); README rewritten for the marketplace with five screenshots under
+      `docs/screenshots/` (taken on `planner-project`, Logseq's default light theme);
+      `docs/marketplace-manifest.json`; `npm audit` 0. Left, in order, each outward-facing:
+      create the public repo, `git remote add` and push, bump to 1.0.0 and cut the
+      CHANGELOG, tag v1.0.0 and push the tag (publish.yml builds the release zip), check
+      the release, fork logseq/marketplace and open the manifest PR. Before that the owner
+      should try the build in their own app (stable Logseq.app was never tested).
 - [x] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block,
       drag-to-edit dates (REQUIREMENTS.md). Split on 2026-10-04:
       **N06a Sidebar surface** (done 58e37ae, see the Progress log). Prototype checked live on the desktop app: with
@@ -1070,3 +1079,14 @@ Total: about 10 hours.
   Seen again: after a graph switch in one app session Planner shows "Invalid view config:
   unknown date property … Showing the default view instead." once — the last view of the
   previous graph is kept across graphs. To fix (N04).
+- 2026-10-04 graph switch fixed (ea0f740): on `onCurrentGraphChanged` the workspace, the
+  view store cache and the in-page block registry are reset; live, switching
+  planner-project → planner-desktop-2 → planner-project with Planner used in between
+  shows each graph's default view and no error. In-page block width fixed in three steps
+  (4e99d9f, 22fd810, d0ec6cd): Logseq wraps the slot in shrink-to-fit containers and its
+  content column cannot shrink below the block's intrinsic width; host wrapper rules
+  (`HOST_WRAP_CSS`) plus `contain: inline-size` on the block; live, the block spans
+  446..1360 inside the page's visible 1368 and "Open in Planner" is fully shown.
+  Release preparation (3dfa558, 8460665) and screenshots: see N05. 972 unit tests.
+  Known: after the plugin reloads, blocks on the page already open stay empty until the
+  page renders again.
