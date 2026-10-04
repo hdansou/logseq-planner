@@ -171,8 +171,9 @@ Live-check method (web app):
       docs/manual-test.md rows that name the left sidebar); live on the desktop app with
       real clicks: all four views, both themes, keyboard order, the panel toggle, a narrow
       window.
-      Open questions for the owner: panel collapsed or open by default; whether the tag
-      tree should stay in the panel at all, since the settings bar already has a Tag menu.
+      Owner said "go" on 2026-10-03 with the coordinator's defaults: the panel is open by
+      default in the workspace and closed by default at narrow widths (drawer); the tag
+      tree stays in the panel.
 - [ ] **N14 Views over more than one tag** — owner request 2026-10-03, logged and scoped,
       not started. Example: #Milestone and #Task in one view. Today a view has one tag (plus
       the tags that extend it); dates, filters, Kanban columns and "Depends on" all come
