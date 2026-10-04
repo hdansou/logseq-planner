@@ -152,8 +152,8 @@ describe("schedule", () => {
 // The real ids on 2026-10-03 and the dependency map of scripts/tracker-meta.json (N11 itself is open and
 // has no `after` entry: it takes the default, the previous task in the order).
 const REAL_COMMITTED = ["T00", "T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12", "T13", "T14", "N03", "N02", "N01", "N08", "N09", "N10"];
-const REAL_OPEN = ["N04", "N05", "N06", "N07", "N11"];
-const REAL_AFTER = {"T00": [], "T01": ["T00"], "T02": ["T00"], "T03": ["T01"], "T04": ["T03"], "T05": ["T04"], "T06": ["T05"], "T07": ["T02", "T06"], "T08": ["T07"], "T09": ["T07"], "T10": ["T07"], "T11": ["T07"], "T12": ["T08", "T09", "T10", "T11"], "T13": ["T12"], "T14": ["T13"], "N02": ["T14"], "N01": ["N02"], "N03": ["T14"], "N08": ["T11"], "N09": ["T14"], "N10": ["T08"], "N04": ["N01"], "N05": ["N01", "N03", "N04"], "N06": ["N05"], "N07": ["N06"], "N11": ["N09"]};
+const REAL_OPEN = ["N04", "N05", "N06", "N07", "N11", "N12"];
+const REAL_AFTER = {"T00": [], "T01": ["T00"], "T02": ["T00"], "T03": ["T01"], "T04": ["T03"], "T05": ["T04"], "T06": ["T05"], "T07": ["T02", "T06"], "T08": ["T07"], "T09": ["T07"], "T10": ["T07"], "T11": ["T07"], "T12": ["T08", "T09", "T10", "T11"], "T13": ["T12"], "T14": ["T13"], "N02": ["T14"], "N01": ["N02"], "N03": ["T14"], "N08": ["T11"], "N09": ["T14"], "N10": ["T08"], "N04": ["N01"], "N05": ["N01", "N03", "N04"], "N06": ["N05"], "N07": ["N06"], "N11": ["N09"], "N12": ["N10", "N11"]};
 describe("the real schedule (anchor 2026-09-29T15:00)", () => {
   const ids = [...REAL_OPEN, ...[...REAL_COMMITTED].reverse()]; // scrambled input order
   const commits = Object.fromEntries(REAL_COMMITTED.map((id, i) => [id, { first: new Date(Date.UTC(2026, 9, 3, 12, i)).toISOString() }]));

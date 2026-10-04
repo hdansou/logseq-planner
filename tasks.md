@@ -131,6 +131,17 @@ Live-check method (web app):
       them overlap; `scheduleStart` is set so the started work ends Fri 2 Oct 17:00.
       Acceptance: unit tests for the scheduler; live: Timeline Week and Day on #Milestone
       and #Task show parallel bars across working days, a second run plans nothing.
+- [ ] **N12 Dependency connectors in the Timeline** — owner request 2026-10-03: use
+      `depends_on` to draw a line from a task to the task that depends on it (T07 → T09).
+      A "Depends on" setting in the Timeline picks one of the tag's node properties (default:
+      the one titled like "depends on" / `depends_on`, else None), saved with the view. For
+      every node whose dependency is also on screen, a connector runs from the end of the
+      dependency's bar to the start of the node's bar, in every zoom. A node that points to
+      another through that property is its dependent, not one of its tasks: it leaves the
+      rollup ("4 of 4 done" on T07 today) and the expandable task rows. Acceptance: unit
+      tests (schema: node properties; config; links in the layout; the path geometry; the
+      rollup exclusion); live on `planner-project`: #Task Week and Day show T07 → T08–T11,
+      T08–T11 → T12, and the counts no longer include dependents.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
