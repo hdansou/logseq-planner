@@ -79,6 +79,20 @@ Live-check method (web app):
       the saved-views and Done-when popovers have no arrow-key navigation (Tab works); a task linked to two nodes is listed under the first one in the Agenda by
       node; saved-view writes are not serialised; no auto-restore of a views page in
       Recycle; a band continuing on both sides shows its title mid-row; no CSP.
+- [ ] **N08 Kanban: choose which columns show** — owner request 2026-10-03 ("we may only
+      want to show TODO, Doing and Done"). A "Show" control in the Kanban toolbar, after
+      Columns: a checkbox per value of the column property, in order, plus "No <prop>"; the
+      button reads "All" or "3 of 7". Unticked columns and their cards leave the board. At
+      least one column stays shown. Stored in the view config per column property
+      (`hiddenColumns: {propIdent: [value uuid | "none"]}`), saved with the view; a saved
+      view without the key loads with nothing hidden; unknown uuids are ignored. The Move
+      menu still lists every value (moving a card to a hidden column takes it off the
+      board). Lane counts count the cards shown. Swimlane values are not selectable (later
+      if asked). Acceptance: unit tests first (config default / validation / migration,
+      board model, toolbar markup, toggle handling, last-column guard); live: hide Backlog,
+      In Review, Canceled and No Status on #Project → three columns, cards of hidden
+      columns gone, counts right; save, reopen the view; switch the column property and
+      back; real mouse clicks on the desktop app.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel, in-page block, drag-to-edit dates
