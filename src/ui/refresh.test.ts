@@ -191,12 +191,12 @@ describe("schema on refresh: data is read with the tags on screen while the tags
       c.state.on = true;
       await setup(c.wrap);
       await click(`[data-tag-id="${tag("Project").id}"]`);
-      expect(ws.config()).toMatchObject({ tag: tag("Project").ident, start: null, end: null });
+      expect(ws.config()).toMatchObject({ tags: [tag("Project").ident], dates: { [tag("Project").ident]: { start: null, end: null } } });
       expect($("[data-empty=no-dates]")).not.toBeNull();
       c.state.on = false;
       await ws.refresh();
       const date = (title: string) => tag("Project").dateProps.find((p) => p.title === title)!.ident;
-      expect(ws.config()).toMatchObject({ start: date("Start"), end: date("End") });
+      expect(ws.config()).toMatchObject({ dates: { [tag("Project").ident]: { start: date("Start"), end: date("End") } } });
       expect($("[data-empty=no-dates]")).toBeNull();
       expect($("[data-tl-row]")).not.toBeNull();
     });

@@ -6,7 +6,7 @@ import { CLASS_EXTENDS_RULES, loadNodes, loadNodesAndTasks, nodesQuery } from ".
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import {
-  findCell, layoutKanban, moveDescriptor, movedNode, moveTarget, NO_VALUE, priorityProp, writeKey, writeMove,
+  findCell, layoutKanban, moveDescriptor, movedNode, moveTarget, NO_VALUE, priorityProp, tagLaneProp, writeKey, writeMove,
   type KanbanInput, type KanbanLayout, type PropertyWrite,
 } from "./kanban";
 import { fixtureDq } from "../ui/test-fakes";
@@ -32,11 +32,11 @@ const ARCHIVE = "6a000000-0000-4000-8000-000000000004";
 /** #Project from the fixtures (child tags included), columns by Status, optional Owner lanes. */
 async function project(over: Partial<KanbanInput> = {}): Promise<KanbanLayout> {
   const t = tag("Project");
-  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")!.ident;
   return layoutKanban({
-    items: viewItems(nodes, tasks, start, end, statusValues), columnProp: choiceProp(t, "Status"), laneProp: null, sort: "due",
+    items: viewItems(nodes, tasks, () => ({ start: start, end: end }), statusValues), columnProp: choiceProp(t, "Status"), laneProp: null, sort: "due",
     today: TODAY, choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), hidden: [], ...over,
   });
 }
@@ -52,12 +52,12 @@ function tasksBoard(spec: [string, string | null, string | null][], sort: Kanban
   const status = choiceProp(t, "Status");
   const priority = choiceProp(t, "Priority");
   const nodes: PlannerNode[] = spec.map(([title, day, pri], i) => ({
-    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], dependsOn: [],
+    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], tag: "", dependsOn: [],
     dates: day ? { [deadline]: { day, time: null } as LocalDate } : {},
     choices: { [status.ident]: value(t, "Status", "Todo"), ...(pri ? { [priority.ident]: value(t, "Priority", pri) } : {}) },
   }));
   return layoutKanban({
-    items: viewItems(nodes, [], null, deadline, statusValues), columnProp: status, laneProp: null, sort, today: TODAY,
+    items: viewItems(nodes, [], () => ({ start: null, end: deadline }), statusValues), columnProp: status, laneProp: null, sort, today: TODAY,
     choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), hidden: [],
   });
 }
@@ -145,10 +145,10 @@ describe("hidden columns (N08)", () => {
 
   it("a pending card whose target column is hidden leaves the board like any other card", async () => {
     const t = p();
-    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
     const status = choiceProp(t, "Status");
     const moved = nodes.map((n) => (n.uuid === SITE ? movedNode(n, [{ kind: "set", uuid: SITE, node: "", prop: status, value: value(t, "Status", "Canceled"), previous: null }]) : n));
-    const l = await project({ items: viewItems(moved, tasks, null, null, statusValues), pending: new Set([SITE]), hidden: hideStatus("Canceled") });
+    const l = await project({ items: viewItems(moved, tasks, () => ({ start: null, end: null }), statusValues), pending: new Set([SITE]), hidden: hideStatus("Canceled") });
     expect(onBoard(l)).not.toContain(SITE);
     expect(l.columns.find((c) => c.title === "Doing")!.count).toBe(0);
   });
@@ -300,7 +300,7 @@ describe("moveDescriptor", () => {
   });
 
   it("movedNode applies the writes to a copy (optimistic position)", async () => {
-    const nodes = await loadNodes(dq, tags, p(), { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [p()], { childTags: true, zone: west5 });
     const site = nodes.find((n) => n.uuid === SITE)!;
     const moved = movedNode(site, [
       { kind: "set", uuid: SITE, node: "", prop: { ident: status().ident, title: "Status" }, value: value(p(), "Status", "Done"), previous: null },
@@ -434,12 +434,49 @@ describe("writeMove (T01: full ident, closed value entity id, read back)", () =>
   it("a node whose value is the empty placeholder sits in No <prop> (normalised to no value)", async () => {
     const t = tag("Project");
     const status = choiceProp(t, "Status").ident;
-    const pulled = (await dq(nodesQuery(tags), t.id, CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+    const pulled = (await dq(nodesQuery(tags), [t.id], CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
     const rows = pulled.map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: PLACEHOLDER } : n]);
-    const nodes = await loadNodes(async (q, ...i) => (q === nodesQuery(tags) ? rows : dq(q, ...i)), tags, t, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(async (q, ...i) => (q === nodesQuery(tags) ? rows : dq(q, ...i)), tags, [t], { childTags: true, zone: west5 });
     expect(nodes.find((n) => n.uuid === ARCHIVE)!.choices[status]).toBeUndefined();
-    const l = await project({ items: viewItems(nodes, [], null, null, statusValues) });
+    const l = await project({ items: viewItems(nodes, [], () => ({ start: null, end: null }), statusValues) });
     expect(cardsIn(l, NO_VALUE)).toEqual(["Archive cleanup"]);
     expect(l.columns[l.columns.length - 1].count).toBe(1);
+  });
+});
+
+describe("Tag swimlanes (N14)", () => {
+  /** #Project + #Task (fixture tasks as nodes), columns by the shared Status, lanes by tag. */
+  async function byTag(): Promise<KanbanLayout> {
+    const both = [tag("Project"), tag("Task")];
+    const { nodes, tasks } = await loadNodesAndTasks(fixtureDq({ taskNodes: true }), tags, both, { childTags: true, zone: west5 });
+    return layoutKanban({
+      items: viewItems(nodes, tasks, () => ({ start: null, end: null }), statusValues), columnProp: choiceProp(tag("Project"), "Status"),
+      laneProp: tagLaneProp(both), sort: "title", today: TODAY, choiceProps: [choiceProp(tag("Project"), "Status")], doneValues: {},
+      titles: titlesByUuid(nodes), pending: new Set(), hidden: [],
+    });
+  }
+
+  it("one lane per tag in selection order, keyed by tag ident, no No-Tag lane; every card in its tag's lane", async () => {
+    const l = await byTag();
+    expect(l.lanes.map((x) => [x.key, x.title, x.prop.ident])).toEqual([[tag("Project").ident, "#Project", "@tag"], [tag("Task").ident, "#Task", "@tag"]]);
+    expect(l.lanes.map((x) => x.count)).toEqual([4, 6]);
+    expect(l.lanesReadOnly).toBe(true);
+    const inLane = (lane: string) => l.rows.find((r) => r.lane!.key === lane)!.cells.flatMap((c) => c.cards.map((x) => x.title));
+    expect(inLane(tag("Project").ident).sort()).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
+    expect(inLane(tag("Task").ident)).toHaveLength(6);
+  });
+
+  it("a move to another column in the same lane writes the column; a move to another tag's lane throws (read-only)", async () => {
+    const l = await byTag();
+    const lane = tag("Project").ident;
+    const from = l.rows.find((r) => r.lane!.key === lane)!.cells.find((c) => c.cards.length)!;
+    const card = from.cards[0];
+    const other = l.columns.find((c) => c.key !== from.column.key)!;
+    expect(moveDescriptor(card, from, moveTarget(l, other.key, lane)).map((w) => w.prop.ident)).toEqual([":logseq.property/status"]);
+    expect(() => moveDescriptor(card, from, moveTarget(l, from.column.key, tag("Task").ident))).toThrow(/Tag swimlanes are read-only/);
+  });
+
+  it("lanes by a choice property are not read-only", async () => {
+    expect((await project({ laneProp: choiceProp(tag("Project"), "Owner") })).lanesReadOnly).toBe(false);
   });
 });

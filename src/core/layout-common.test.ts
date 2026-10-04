@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, formatSpan, isLate, nodeLabel, startOfWeek, weekdayName, weekStartFromHost,
+  addDays, categoryOf, daysBetween, dueDate, formatDay, formatMonth, formatRange, formatSpan, isLate, nodeLabel, startOfWeek, viewItems, weekdayName, weekStartFromHost,
 } from "./layout-common";
-import type { LocalDate, PlannerTask } from "../types";
+import type { LocalDate, PlannerNode, PlannerTask } from "../types";
 
 describe("calendar-day arithmetic", () => {
   it("adds days across month and year ends and leap days", () => {
@@ -73,7 +73,7 @@ describe("category colour", () => {
 describe("due date and lateness", () => {
   const day = (s: string): LocalDate => ({ day: s, time: null });
   const task = (scheduled: string | null, deadline: string | null): PlannerTask => ({
-    id: 1, uuid: "t1", title: "T", status: null, nodeIds: [1], scheduled: scheduled ? day(scheduled) : null, deadline: deadline ? day(deadline) : null,
+    id: 1, uuid: "t1", title: "T", status: null, isNode: false, nodeIds: [1], scheduled: scheduled ? day(scheduled) : null, deadline: deadline ? day(deadline) : null,
   });
 
   it("the due date is the Deadline, else the Scheduled date, else none", () => {
@@ -115,5 +115,25 @@ describe("formatSpan and nodeLabel", () => {
   it("still labels a derived range as a range", () => {
     const span = { kind: "derived" as const, start: d("2026-10-09", "09:00"), end: d("2026-10-12") };
     expect(nodeLabel("Mobile app", span, { done: 1, total: 2 })).toBe("Mobile app, 9 Oct 09:00 – 12 Oct from its tasks, 1 of 2 done");
+  });
+});
+
+describe("viewItems over several tags (N14)", () => {
+  const day = (s: string): LocalDate => ({ day: s, time: null });
+  const node = (id: number, tag: string, dates: Record<string, LocalDate>): PlannerNode => ({ id, uuid: `n${id}`, title: `N${id}`, tagIds: [], tag, dependsOn: [], dates, choices: {} });
+  const task = (id: number, nodeIds: number[], isNode: boolean): PlannerTask => ({ id, uuid: `t${id}`, title: `T${id}`, status: null, isNode, nodeIds, scheduled: day("2026-10-02"), deadline: null });
+  const mapping: Record<string, { start: string | null; end: string | null }> = { ":a/A": { start: ":p/start", end: ":p/end" }, ":a/B": { start: ":p/due", end: null } };
+
+  it("each node takes its own tag's Start / End", () => {
+    const items = viewItems([node(1, ":a/A", { ":p/start": day("2026-10-01"), ":p/end": day("2026-10-05"), ":p/due": day("2026-10-09") }), node(2, ":a/B", { ":p/start": day("2026-10-01"), ":p/due": day("2026-10-09") })],
+      [], (n) => mapping[n.tag], []);
+    expect(items.map((i) => [i.span.kind, i.span.start?.day, i.span.end?.day])).toEqual([["mapped", "2026-10-01", "2026-10-05"], ["point", "2026-10-09", "2026-10-09"]]);
+  });
+
+  it("a linked task that is itself a node of the view is not one of the node's task rows, but counts in its rollup", () => {
+    const [item] = viewItems([node(1, ":a/A", {})], [task(10, [1], false), task(11, [1], true)], (n) => mapping[n.tag], []);
+    expect(item.tasks.map((t) => t.id)).toEqual([10]);
+    expect(item.progress).toEqual({ done: 0, total: 2 });
+    expect(item.span.kind).toBe("derived"); // from both tasks' dates, as before
   });
 });

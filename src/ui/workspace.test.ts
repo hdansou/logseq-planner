@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { loadTagInfos, TAGS_QUERY, type Dq } from "../core/schema";
+import { loadTagInfos, mergeTags, TAGS_QUERY, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
@@ -150,7 +150,7 @@ describe("settings bar", () => {
     expect(text("[data-control=end]")).toContain("End");
     expect(text("[data-control=done-values]")).toContain("Status");
     expect(text("[data-control=done-values]")).toContain("Done, Canceled");
-    expect(ws.config()).toMatchObject({ tag: tag("Project").ident, start: dateIdent(tag("Project"), "Start"), end: dateIdent(tag("Project"), "End") });
+    expect(ws.config()).toMatchObject({ tags: [tag("Project").ident], dates: { [tag("Project").ident]: { start: dateIdent(tag("Project"), "Start"), end: dateIdent(tag("Project"), "End") } } });
     // filters for every choice property, each with "No value"
     const legends = $$("[data-filter-group] legend").map((l) => l.textContent?.trim());
     expect(legends).toEqual(expect.arrayContaining(["Status", "Owner"]));
@@ -167,7 +167,7 @@ describe("settings bar", () => {
     expect(text("[data-control=end]")).toContain("None");
     expect(text("[data-control=done-values]")).toContain("Type");
     expect($("input[data-control=child-tags]")).toBeNull(); // Meeting has no child tags
-    expect(ws.config()).toMatchObject({ tag: tag("Meeting").ident, start: dateIdent(tag("Meeting"), "Date"), end: null, filters: {}, doneValues: {} });
+    expect(ws.config()).toMatchObject({ tags: [tag("Meeting").ident], dates: { [tag("Meeting").ident]: { start: dateIdent(tag("Meeting"), "Date"), end: null } }, filters: {}, doneValues: {} });
     expect(shownNodes()).toBe(3);
   });
 
@@ -185,11 +185,11 @@ describe("settings bar", () => {
     await pickTag(ws, "Project");
     await click(ws, "[data-control=end]");
     await click(ws, "[data-popover=end] [data-option=\"\"]");
-    expect(ws.config()!.end).toBeNull();
+    expect(ws.config()!.dates[tag("Project").ident].end).toBeNull();
     expect(text("[data-control=end]")).toContain("None");
     await click(ws, "[data-control=start]");
     await click(ws, `[data-popover=start] [data-option="${dateIdent(tag("Project"), "End")}"]`);
-    expect(ws.config()!.start).toBe(dateIdent(tag("Project"), "End"));
+    expect(ws.config()!.dates[tag("Project").ident].start).toBe(dateIdent(tag("Project"), "End"));
   });
 
   it("the child-tags toggle reloads without extending tags", async () => {
@@ -335,7 +335,7 @@ describe("Kanban Show menu (N08)", () => {
 describe("initial tag (T07 D3)", () => {
   it("opens on the first own root tag with dates in tree order: Meeting, not the child Client project", async () => {
     const { ws } = await setup();
-    expect(ws.config()!.tag).toBe(tag("Meeting").ident);
+    expect(ws.config()!.tags).toEqual([tag("Meeting").ident]);
   });
 
   it("falls back to the first own tag with dates, then the first tag", () => {
@@ -354,13 +354,13 @@ describe("tasks of the visible nodes (T07 D4)", () => {
     const alice = owner.values.find((v) => v.title === "Alice")!;
     await click(ws, `input[data-filter-prop="${owner.ident}"][data-filter-value="${alice.uuid}"]`);
     const zone = () => -300;
-    const nodes = (await loadNodes(fixtureDq(), tags, tag("Project"), { childTags: true, zone })).filter((n) => n.choices[owner.ident]?.id === alice.id);
+    const nodes = (await loadNodes(fixtureDq(), tags, [tag("Project")], { childTags: true, zone })).filter((n) => n.choices[owner.ident]?.id === alice.id);
     const ids = new Set(nodes.map((n) => n.id));
-    const loaded = await loadNodesAndTasks(fixtureDq(), tags, tag("Project"), { childTags: true, zone });
+    const loaded = await loadNodesAndTasks(fixtureDq(), tags, [tag("Project")], { childTags: true, zone });
     const expected = loaded.tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))).length;
     expect(expected).toBeLessThan(loaded.tasks.length);
     const config = { ...defaultViewConfig(tag("Project")), filters: { [owner.ident]: [alice.uuid] } };
-    const shown = visibleData(config, tag("Project"), loaded.nodes, loaded.tasks);
+    const shown = visibleData(config, mergeTags([tag("Project")]), loaded.nodes, loaded.tasks);
     expect(shown.nodes.map((n) => n.id)).toEqual(nodes.map((n) => n.id));
     expect(shown.tasks).toHaveLength(expected);
     await click(ws, "[data-view-kind=kanban]"); // the board shows only the filtered nodes
@@ -630,7 +630,7 @@ describe("view switch", () => {
     const { ws } = await setup();
     await pickTag(ws, "Project");
     await click(ws, "[data-view-kind=kanban]");
-    expect(ws.config()).toMatchObject({ kind: "kanban", tag: tag("Project").ident, start: dateIdent(tag("Project"), "Start"), columnProp: choice(tag("Project"), "Status").ident });
+    expect(ws.config()).toMatchObject({ kind: "kanban", tags: [tag("Project").ident], dates: { [tag("Project").ident]: { start: dateIdent(tag("Project"), "Start") } }, columnProp: choice(tag("Project"), "Status").ident });
     expect($("[data-view-kind=kanban]")!.getAttribute("aria-pressed")).toBe("true");
     expect($("[data-view-kind=timeline]")!.getAttribute("aria-pressed")).toBe("false");
     expect($("[data-region=view] [data-kanban]")).not.toBeNull();
@@ -677,7 +677,7 @@ describe("saved views", () => {
     const id = (await store.list())[0].id;
     expect(text(`[data-view-open="${id}"]`)).toBe("Roadmap");
     await click(ws, `[data-view-open="${id}"]`);
-    expect(ws.config()!.tag).toBe(tag("Project").ident);
+    expect(ws.config()!.tags).toEqual([tag("Project").ident]);
     expect(text("[data-control=tag]")).toContain("#Project");
 
     await click(ws, "[data-control=saved-views]");
@@ -741,13 +741,14 @@ describe("saved views", () => {
   });
 
   it("shows a validation error for a saved view that names an unknown property", async () => {
-    const bad = { ...defaultViewConfig(tags.find((t) => t.title === "Project")!), start: ":user.property/gone" };
+    const project = tags.find((t) => t.title === "Project")!;
+    const bad = { ...defaultViewConfig(project), dates: { [project.ident]: { start: ":user.property/gone", end: null } } };
     const { ws } = await setup({ storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Broken", config: serializeViewConfig(bad) }] }) });
     await pickTag(ws, "Meeting");
     await click(ws, "[data-control=saved-views]");
     await click(ws, "[data-view-open=v1]");
     expect(text("[data-region=error]")).toContain("unknown date property");
-    expect(ws.config()!.tag).toBe(tag("Meeting").ident); // the current view stays
+    expect(ws.config()!.tags).toEqual([tag("Meeting").ident]); // the current view stays
   });
 });
 
@@ -1207,3 +1208,185 @@ describe("Timeline connectors (N12)", () => {
   });
 });
 
+
+describe("views over several tags (N14)", () => {
+  const check = (title: string) => $<HTMLInputElement>(`[data-tag-check="${tag(title).id}"]`)!;
+  const tick = (ws: Workspace, title: string) => click(ws, `[data-tag-check="${tag(title).id}"]`);
+  const pressed = () => $$("[data-tag-id][aria-pressed=true]").map((b) => b.textContent);
+  const save = async (ws: Workspace, name: string) => {
+    await click(ws, "[data-control=saved-views]");
+    $<HTMLInputElement>("[data-field=view-name]")!.value = name;
+    await click(ws, "[data-action=save-view]");
+  };
+
+  it("every tag row has a checkbox before its button, named for the tag; the selected tag is ticked and cannot be unticked", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    const row = $(`[data-tag-id="${tag("Project").id}"]`)!;
+    expect(row.previousElementSibling).toBe(check("Project"));
+    expect(check("Project").getAttribute("aria-label")).toBe("Include #Project");
+    expect([check("Project").checked, check("Project").disabled]).toEqual([true, true]);
+    expect([check("Meeting").checked, check("Meeting").disabled]).toEqual([false, false]);
+  });
+
+  it("ticking a second tag shows the union, reads #Project + #Meeting, presses both rows; unticking goes back", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    const project = shownNodes();
+    await pickTag(ws, "Meeting");
+    const meeting = shownNodes();
+    await pickTag(ws, "Project");
+    await tick(ws, "Meeting");
+    expect(ws.config()!.tags).toEqual([tag("Project").ident, tag("Meeting").ident]);
+    expect(text("[data-control=tag]")).toBe("#Project + #Meeting▾");
+    expect(pressed()).toEqual(["#Meeting", "#Project"]);
+    expect([check("Project").disabled, check("Meeting").disabled]).toEqual([false, false]);
+    expect(shownNodes()).toBe(project + meeting);
+    expect($(".pl-tl-rows")!.getAttribute("aria-label")).toContain("#Project + #Meeting timeline");
+
+    await tick(ws, "Project");
+    expect(ws.config()!.tags).toEqual([tag("Meeting").ident]);
+    expect(text("[data-control=tag]")).toBe("#Meeting▾");
+    expect(shownNodes()).toBe(meeting);
+    expect(check("Meeting").disabled).toBe(true);
+  });
+
+  it("a change event on the last tag's box (disabled) changes nothing", async () => {
+    const { ws } = await setup();
+    const before = ws.config();
+    const box = check("Meeting");
+    box.checked = false;
+    box.dispatchEvent(new Event("change", { bubbles: true }));
+    await ws.idle();
+    expect(ws.config()).toBe(before);
+  });
+
+  it("a click on a tag's name still switches to that tag alone; the Tag menu still picks one tag", async () => {
+    const { ws } = await setup();
+    await tick(ws, "Project");
+    await pickTag(ws, "Project");
+    expect(ws.config()!.tags).toEqual([tag("Project").ident]);
+    await tick(ws, "Meeting");
+    await click(ws, "[data-control=tag]");
+    expect($$("[data-popover=tag] [aria-selected=true]")).toHaveLength(0);
+    await click(ws, `[data-popover=tag] [data-option="${tag("Meeting").ident}"]`);
+    expect(ws.config()!.tags).toEqual([tag("Meeting").ident]);
+  });
+
+  it("Dates: one control with a row per tag (its own Start and End); a pick changes that tag only and keeps the popover open", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    await tick(ws, "Meeting");
+    expect($("[data-control=start]")).toBeNull();
+    expect(text("[data-control=dates]")).toBe("Dates: 2 tags▾");
+    await click(ws, "[data-control=dates]");
+    expect($$("[data-popover=dates] [data-dates-row] legend").map((l) => l.textContent)).toEqual(["#Project", "#Meeting"]);
+    const field = (t: string, f: string) => `[data-dates-tag="${tag(t).ident}"][data-dates-field="${f}"]`;
+    expect($(`${field("Meeting", "start")} [aria-selected=true]`)!.textContent).toBe("Date (DateTime)");
+    expect($(`${field("Project", "end")} [role=listbox]`)!.getAttribute("aria-label")).toBe("End property of #Project");
+    await click(ws, `${field("Project", "start")} [data-option="${dateIdent(tag("Project"), "End")}"]`);
+    expect(ws.config()!.dates).toEqual({
+      [tag("Project").ident]: { start: dateIdent(tag("Project"), "End"), end: dateIdent(tag("Project"), "End") },
+      [tag("Meeting").ident]: { start: dateIdent(tag("Meeting"), "Date"), end: null },
+    });
+    expect($("[data-popover=dates]")).not.toBeNull();
+    expect(document.activeElement).toBe($(`${field("Project", "start")} [data-option="${dateIdent(tag("Project"), "End")}"]`));
+    await click(ws, `${field("Project", "end")} [data-option=""]`);
+    expect(ws.config()!.dates[tag("Project").ident].end).toBeNull();
+  });
+
+  it("filters: only the properties every tag has, and a Tag group that shows one tag", async () => {
+    const { ws } = await setup({ dq: fixtureDq({ taskNodes: true }) });
+    await pickTag(ws, "Project");
+    expect($$("[data-filter-group]").map((g) => g.dataset.filterGroup)).toEqual(choiceIdents(tag("Project")));
+    await tick(ws, "Task");
+    const status = choice(tag("Project"), "Status");
+    expect($$("[data-filter-group]").map((g) => g.dataset.filterGroup)).toEqual(["@tag", status.ident]);
+    expect(text("[data-filter-group=\"@tag\"] legend")).toBe("Tag");
+    const tagRow = (t: string) => $(`[data-filter-prop="@tag"][data-filter-value="${tag(t).ident}"]`)!.closest("label")!;
+    expect(tagRow("Project").textContent).toBe("#Project4");
+    expect(tagRow("Task").textContent).toBe("#Task6");
+    const all = shownNodes();
+    await click(ws, `[data-filter-prop="@tag"][data-filter-value="${tag("Task").ident}"]`);
+    expect(ws.config()!.filters).toEqual({ "@tag": [tag("Task").ident] });
+    expect(shownNodes()).toBe(6);
+    expect(all).toBe(10);
+    // Unticking Task drops the Tag filter (one tag left) and keeps the shared Status.
+    await click(ws, `[data-filter-prop="${status.ident}"][data-filter-value=""]`);
+    await tick(ws, "Task");
+    expect(ws.config()!.filters).toEqual({ [status.ident]: [null] });
+  });
+
+  it("Kanban over both tags by the shared Status; with no shared choice property it says so for the tags", async () => {
+    const { ws } = await setup({ dq: fixtureDq({ taskNodes: true }) });
+    await pickTag(ws, "Project");
+    await tick(ws, "Task");
+    await click(ws, "[data-view-kind=kanban]");
+    expect(ws.config()).toMatchObject({ columnProp: choice(tag("Project"), "Status").ident });
+    expect($$("[data-kb-card]")).toHaveLength(10);
+    await click(ws, "[data-control=kb-lane]");
+    expect($$("[data-popover=kb-lane] [data-option]").map((o) => o.textContent)).toEqual(["None", "Tag"]);
+    await pickTag(ws, "Project");
+    await tick(ws, "Meeting");
+    expect(text("[data-empty=no-choice]")).toContain("#Project + #Meeting share no choice property");
+  });
+
+  it("Timeline: the Arrange control shows with two tags only; By tag heads each tag's rows", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    expect($("[data-tl-arrange]")).toBeNull();
+    await tick(ws, "Meeting");
+    expect(ws.config()).toMatchObject({ arrange: "nested" });
+    expect($$("[data-tl-arrange]").map((b) => [b.textContent, b.getAttribute("aria-pressed")])).toEqual([["By date", "true"], ["By tag", "false"]]);
+    expect($("[data-tl-group]")).toBeNull();
+    await click(ws, "[data-tl-arrange=tag]");
+    expect(ws.config()).toMatchObject({ arrange: "tag" });
+    const list = $$(".pl-tl-rows > li").map((li) => li.dataset.tlGroup ? `# ${li.dataset.tlGroup}` : li.querySelector(".pl-tl-name")!.textContent);
+    expect(list[0]).toBe(`# ${tag("Project").ident}`);
+    const meetingAt = list.indexOf(`# ${tag("Meeting").ident}`);
+    expect(meetingAt).toBeGreaterThan(1);
+    expect(list.slice(meetingAt + 1)).toEqual(["Kickoff", "Late review"]);
+    expect(text(`[data-tl-group="${tag("Meeting").ident}"]`)).toBe("#Meeting");
+  });
+
+  it("a saved view over two tags round trips; the name suggestion is the first tag +N", async () => {
+    const { ws, store } = await setup();
+    await pickTag(ws, "Project");
+    await tick(ws, "Meeting");
+    await click(ws, "[data-control=saved-views]");
+    expect($<HTMLInputElement>("[data-field=view-name]")!.value).toBe("Project +1 timeline");
+    await click(ws, "[data-control=saved-views]");
+    await save(ws, "Both");
+    const saved = ws.config()!;
+    await pickTag(ws, "Meeting");
+    const id = (await store.list())[0].id;
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-open="${id}"]`);
+    expect(ws.config()).toEqual(saved);
+    expect(text("[data-control=tag]")).toBe("#Project + #Meeting▾");
+  });
+
+  it("a view saved before N14 (tag, start, end) opens as that one tag", async () => {
+    const p = tag("Project");
+    const { tags: _t, dates: _d, arrange: _a, ...rest } = defaultViewConfig(p) as unknown as Record<string, unknown>;
+    const old = JSON.stringify({ v: 1, config: { ...rest, tag: p.ident, start: dateIdent(p, "End"), end: null } });
+    const { ws } = await setup({ storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Old", config: old }] }) });
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, "[data-view-open=v1]");
+    expect(ws.config()).toMatchObject({ tags: [p.ident], dates: { [p.ident]: { start: dateIdent(p, "End"), end: null } }, arrange: "date" });
+    expect($("[data-region=error]")).toBeNull();
+    expect(text("[data-control=start]")).toContain("End");
+  });
+
+  it("a saved view naming a tag that is gone opens with the tags that are left", async () => {
+    const p = tag("Project");
+    const config = { ...defaultViewConfig([p, tag("Meeting")]), tags: [p.ident, ":user.class/Gone"], dates: { [p.ident]: defaultViewConfig(p).dates[p.ident], ":user.class/Gone": { start: null, end: null } } };
+    const { ws } = await setup({ storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Gone", config: serializeViewConfig(config) }] }) });
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, "[data-view-open=v1]");
+    expect(ws.config()).toMatchObject({ tags: [p.ident], dates: { [p.ident]: config.dates[p.ident] }, arrange: "date" });
+    expect($("[data-region=error]")).toBeNull();
+  });
+});
+
+const choiceIdents = (t: TagInfo) => t.choiceProps.map((p) => p.ident);

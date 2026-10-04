@@ -6,6 +6,7 @@
 // `data-kb-col` / `data-kb-lane`, `data-kb-card` (uuid; `draggable`, `data-kb-pending`), `data-kb-open`, `data-kb-move`
 // and, in the open Move menu, `data-kb-to-col` / `data-kb-to-lane`. A cell renders `KANBAN_CELL_PAGE` cards at first and a
 // `data-kb-more="<cellKey>"` button for the next page; the counts in the heads are the real totals.
+import { TAG_KEY } from "../core/schema";
 import { NO_VALUE, type KanbanCard, type KanbanCell, type KanbanLayout, type KanbanSlot, type KanbanSort } from "../core/kanban";
 import type { ChoiceProp } from "../types";
 import { checkList, esc, flag, menu, options, segmented } from "./html";
@@ -34,15 +35,18 @@ export interface KanbanToolbarInput {
   /** The shown ones (`KanbanLayout.columns`). */
   shown: KanbanSlot[];
   sort: KanbanSort;
-  /** The tag has a Priority choice: the Priority sort is offered. */
+  /** The view has a Priority choice: the Priority sort is offered. */
   hasPriority: boolean;
+  /** Two or more tags (N14): "Tag" is offered as swimlanes (`TAG_KEY`, read-only lanes). */
+  tagLanes: boolean;
   /** The open workspace popover. */
   popover: string | null;
 }
 
 export function renderKanbanToolbar(t: KanbanToolbarInput): string {
   const columns = () => options("Column property", t.choiceProps.map((p) => ({ value: p.ident, text: p.title })), t.columnProp.ident);
-  const lanes = () => options("Swimlane property", [{ value: "", text: "None" }, ...t.choiceProps.filter((p) => p.ident !== t.columnProp.ident).map((p) => ({ value: p.ident, text: p.title }))], t.laneProp?.ident ?? "");
+  const lanes = () => options("Swimlane property", [{ value: "", text: "None" }, ...(t.tagLanes ? [{ value: TAG_KEY, text: "Tag" }] : []),
+    ...t.choiceProps.filter((p) => p.ident !== t.columnProp.ident).map((p) => ({ value: p.ident, text: p.title }))], t.laneProp?.ident ?? "");
   const sorts: [KanbanSort, string][] = [["due", "Due"], ...(t.hasPriority ? [["priority", "Priority"] as [KanbanSort, string]] : []), ["title", "Title"]];
   const shown = new Set(t.shown.map((c) => c.key));
   // Ticked = shown; the last ticked box is disabled (at least one column stays shown).
@@ -50,7 +54,8 @@ export function renderKanbanToolbar(t: KanbanToolbarInput): string {
     attrs: `data-kb-show-value="${esc(c.key)}"`, text: c.title, checked: shown.has(c.key), disabled: shown.size === 1 && shown.has(c.key),
   }))) + `<p class="pl-hint">Saved with the view.</p>`;
   const showText = shown.size === t.columns.length ? "All" : `${shown.size} of ${t.columns.length}`;
-  const changes = esc(t.columnProp.title) + (t.laneProp ? ` or ${esc(t.laneProp.title)}` : "");
+  const byTag = t.laneProp?.ident === TAG_KEY;
+  const changes = esc(t.columnProp.title) + (t.laneProp && !byTag ? ` or ${esc(t.laneProp.title)}` : "") + (byTag ? ". Tag lanes are read-only: a card keeps its tag" : "");
   return menu("kb-column", t.popover === "kb-column", "Columns", esc(t.columnProp.title), columns)
     + menu("kb-show", t.popover === "kb-show", "Show", showText, show)
     + menu("kb-lane", t.popover === "kb-lane", "Swimlanes", esc(t.laneProp?.title ?? "None"), lanes)
@@ -83,7 +88,7 @@ function renderMoveMenu(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout
   };
   return `<div class="pl-popover pl-kb-move-menu" data-popover="kb-move">`
     + list(layout.allColumns, cell.column.key, "kb-to-col")
-    + (cell.lane ? list(layout.lanes, cell.lane.key, "kb-to-lane") : "")
+    + (cell.lane && !layout.lanesReadOnly ? list(layout.lanes, cell.lane.key, "kb-to-lane") : "")
     + `</div>`;
 }
 
@@ -130,14 +135,15 @@ function renderCell(cell: KanbanCell, layout: KanbanLayout, moveOpen: string | n
 }
 
 /**
- * The board. `heading` names the nodes (the tag, e.g. "#Project"); `moveOpen` = uuid of the card whose Move menu is open;
+ * The board. `heading` names the nodes (the tags, e.g. "#Project" or "#Milestone + #Task"); lanes by tag (N14) are
+ * read-only (`data-kb-lanes-readonly`: the workspace refuses drops into another lane); `moveOpen` = uuid of the card whose Move menu is open;
  * `limits` = cards to render per cell by `cellKey` (absent = `KANBAN_CELL_PAGE`).
  */
 export function renderKanban(layout: KanbanLayout, heading: string, moveOpen: string | null, limits: ReadonlyMap<string, number>): string {
   const columnProp = layout.columns[0].prop;
   const lanes = layout.lanes.length ? layout.lanes[0].prop.ident : "";
   return `<div class="pl-kb" data-kanban data-kb-prop="${esc(columnProp.ident)}" data-kb-lane-prop="${esc(lanes)}" role="region" aria-label="${esc(`${heading} board by ${columnProp.title}`)}"`
-    + ` style="--pl-kb-cols: ${layout.columns.length}">`
+    + `${flag("data-kb-lanes-readonly", layout.lanesReadOnly)} style="--pl-kb-cols: ${layout.columns.length}">`
     + layout.columns.map(renderHead).join("")
     + layout.rows.map((r) => (r.lane ? renderLane(r.lane) : "") + r.cells.map((c) => renderCell(c, layout, moveOpen, limits)).join("")).join("")
     + `</div>`;

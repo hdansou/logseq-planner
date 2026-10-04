@@ -25,11 +25,11 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 /** Lays the fixture nodes of `tagTitle` out with the tag's default Start/End (Meeting: Date only). */
 async function layout(tagTitle: string, view: CalendarView, over: Partial<CalendarInput> = {}): Promise<CalendarLayout> {
   const t = tag(tagTitle);
-  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutCalendar({
-    items: viewItems(nodes, tasks, start, end, statusValues), layout: view, anchor: TODAY, today: TODAY, weekStart: 0,
+    items: viewItems(nodes, tasks, () => ({ start: start, end: end }), statusValues), layout: view, anchor: TODAY, today: TODAY, weekStart: 0,
     statusValues, titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -40,10 +40,10 @@ function synthetic(spec: [string, string, string | null][], view: CalendarView, 
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
   const nodes: PlannerNode[] = spec.map(([title, start, end], i) => ({
-    id: i + 1, uuid: `u${i + 1}`, title, tagIds: [], dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {},
+    id: i + 1, uuid: `u${i + 1}`, title, tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {},
   }));
   return layoutCalendar({
-    items: viewItems(nodes, tasks, s, e, statusValues), layout: view, anchor: TODAY, today: TODAY, weekStart: 0, statusValues,
+    items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), layout: view, anchor: TODAY, today: TODAY, weekStart: 0, statusValues,
     titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -168,10 +168,10 @@ describe("bands (span nodes)", () => {
 
   it("derived spans are bands flagged derived", async () => {
     const t = tag("Project");
-    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
     const bare = nodes.map((n) => (n.title === "Mobile app" ? { ...n, dates: {} } : n));
     const l = layoutCalendar({
-      items: viewItems(bare, tasks, dateIdent(t, "Start"), dateIdent(t, "End"), statusValues), layout: "month", anchor: TODAY, today: TODAY,
+      items: viewItems(bare, tasks, () => ({ start: dateIdent(t, "Start"), end: dateIdent(t, "End") }), statusValues), layout: "month", anchor: TODAY, today: TODAY,
       weekStart: 0, statusValues, titles: titlesByUuid(nodes),
     });
     expect(band(l, "2026-10-04", "Mobile app")).toMatchObject({ kind: "derived", from: 5, to: 6 }); // Wireframes, Scheduled 9 Oct
@@ -209,13 +209,13 @@ describe("chips", () => {
   });
 
   it("a task with only a past Scheduled date has no chip (Scheduled is not shown), so lateness adds none", () => {
-    const task: PlannerTask = { id: 8, uuid: "t8", title: "Sched only", status: null, nodeIds: [1], deadline: null, scheduled: d("2026-10-01") };
+    const task: PlannerTask = { id: 8, uuid: "t8", title: "Sched only", status: null, isNode: false, nodeIds: [1], deadline: null, scheduled: d("2026-10-01") };
     const l = synthetic([["One", "2026-10-01", "2026-10-02"]], "month", {}, [task]);
     expect(chipsOn(l, "2026-10-01").filter((c) => c.kind === "deadline")).toEqual([]);
   });
 
   it("a task linked to two nodes gives one chip, in the first node's colour", () => {
-    const task: PlannerTask = { id: 9, uuid: "t9", title: "Shared", status: null, nodeIds: [1, 2], deadline: d("2026-10-14"), scheduled: null };
+    const task: PlannerTask = { id: 9, uuid: "t9", title: "Shared", status: null, isNode: false, nodeIds: [1, 2], deadline: d("2026-10-14"), scheduled: null };
     const l = synthetic([["One", "2026-10-12", "2026-10-13"], ["Two", "2026-10-20", null]], "month", {}, [task]);
     expect(chipsOn(l, "2026-10-14")).toHaveLength(1);
     expect(chipsOn(l, "2026-10-14")[0].node).toBe("One");
@@ -235,13 +235,13 @@ describe("chips", () => {
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const node = (id: number, title: string, start: LocalDate, end?: LocalDate): PlannerNode =>
-      ({ id, uuid: `u${id}`, title, tagIds: [], dependsOn: [], dates: { [s]: start, ...(end ? { [e]: end } : {}) }, choices: {} });
+      ({ id, uuid: `u${id}`, title, tagIds: [], tag: "", dependsOn: [], dates: { [s]: start, ...(end ? { [e]: end } : {}) }, choices: {} });
     const nodes = [
       node(1, "Span", d("2026-09-28"), d("2026-10-02")),
       node(2, "Late one", d("2026-09-30", "16:00")), node(3, "Early one", d("2026-09-30", "08:15")),
       node(4, "Untimed b", d("2026-09-30")), node(5, "Untimed a", d("2026-09-30")),
     ];
-    const l = layoutCalendar({ items: viewItems(nodes, [], s, e, statusValues), layout: "week", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
+    const l = layoutCalendar({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), layout: "week", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
     const chips = chipsOn(l, "2026-09-30");
     expect(chips.map((c) => [c.title, c.time, c.row])).toEqual([
       ["Untimed a", null, 1], ["Untimed b", null, 2], ["Early one", "08:15", 3], ["Late one", "16:00", 4],

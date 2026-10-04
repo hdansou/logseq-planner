@@ -30,11 +30,11 @@ const taskStatus = (title: string) => {
 /** The fixture nodes of `tagTitle` with the tag's default Start/End (Meeting: Date only), laid out for today. */
 async function layout(tagTitle: string, over: Partial<AgendaInput> = {}): Promise<AgendaLayout> {
   const t = tag(tagTitle);
-  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutAgenda({
-    items: viewItems(nodes, tasks, start, end, statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
+    items: viewItems(nodes, tasks, () => ({ start: start, end: end }), statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
     choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -46,18 +46,18 @@ function synthetic(spec: [string, string | null, string | null, string?][], over
   const e = dateIdent(p, "End");
   const status = choiceProp(p, "Status");
   const nodes: PlannerNode[] = spec.map(([title, start, end, st], i) => ({
-    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], dependsOn: [],
+    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], tag: "", dependsOn: [],
     dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) },
     choices: st ? { [status.ident]: statusOf(st) } : {},
   }));
   return layoutAgenda({
-    items: viewItems(nodes, tasks, s, e, statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
+    items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
     choiceProps: p.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), ...over,
   });
 }
 
 const task = (id: number, nodeId: number, title: string, status: string | null, deadline: LocalDate | null, scheduled: LocalDate | null = null): PlannerTask => ({
-  id, uuid: `t${id}`, title, status: status ? taskStatus(status) : null, nodeIds: [nodeId], deadline, scheduled,
+  id, uuid: `t${id}`, title, status: status ? taskStatus(status) : null, isNode: false, nodeIds: [nodeId], deadline, scheduled,
 });
 
 const keys = (l: AgendaLayout) => l.buckets.map((b) => b.key);
@@ -136,7 +136,7 @@ describe("what an entry is filed under", () => {
   });
 
   it("a task linked to two nodes appears once, under the first", () => {
-    const t = { ...task(1, 1, "Shared", "Todo", d("2026-10-06")), nodeIds: [1, 2] };
+    const t = { ...task(1, 1, "Shared", "Todo", d("2026-10-06")), isNode: false, nodeIds: [1, 2] };
     const l = synthetic([["A", "2026-10-06", "2026-10-06", "Doing"], ["B", "2026-10-06", "2026-10-06", "Doing"]], {}, [t]);
     expect(l.buckets[0].entries.filter((e) => e.title === "Shared")).toHaveLength(1);
     expect(entry(l, "2026-10-06", "Shared").node).toBe("A");
@@ -245,9 +245,9 @@ describe("overdue and late", () => {
   it("a node of a tag with no done notion (meetings) is never overdue: past ones are filed under Earlier", () => {
     const type = tag("Meeting").choiceProps.find((p) => p.title === "Type")!;
     const dateIdentM = dateIdent(tag("Meeting"), "Date");
-    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], dependsOn: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
+    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], tag: "", dependsOn: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
     const l = layoutAgenda({
-      items: viewItems(nodes, [], dateIdentM, null, statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
+      items: viewItems(nodes, [], () => ({ start: dateIdentM, end: null }), statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
       choiceProps: tag("Meeting").choiceProps, doneValues: {}, titles: titlesByUuid(nodes),
     });
     expect(keys(l)).toEqual(["earlier"]);

@@ -218,15 +218,18 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   }
 
   /**
-   * The `pull [*]` fixture rows of the nodes of the tag the input names (child tags included), with the edits applied.
-   * The node and task queries join the input as the tag's entity id: a number matches the tag with that id; anything
-   * else matches nothing (a title input, even one the host did not read as a number, a boolean or a keyword).
+   * The `pull [*]` fixture rows of the nodes of the tags the input names (child tags included), with the edits applied,
+   * each block once (`:find` returns a set; N14: a node of two of the tags comes back once). The node and task queries
+   * take the tags as a collection of entity ids (`[?tag ...]`): a number matches the tag with that id; anything else
+   * matches nothing (a title input, even one the host did not read as a number, a boolean or a keyword).
    */
   function nodeRows(input: unknown): [Row][] {
+    if (!Array.isArray(input)) throw new Error(`the tags input must be a collection of tag ids, got ${JSON.stringify(input)}`);
     const rows = tagRows().map(([t]) => t);
-    const matched = typeof input === "number" ? rows.filter((t) => t.id === input) : [];
+    const matched = rows.filter((t) => input.some((i) => typeof i === "number" && t.id === i));
     const original = (t: Row) => (tagsFixture.query.detail as unknown as [Row][]).find(([o]) => o.id === t.id)![0].title;
-    return matched.flatMap((t) => rowsOfTitle(original(t)));
+    const seen = new Set<unknown>();
+    return matched.flatMap((t) => rowsOfTitle(original(t))).filter(([n]) => !seen.has(n.id) && !!seen.add(n.id));
   }
 
   function rowsOfTitle(title: unknown): [Row][] {

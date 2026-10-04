@@ -131,12 +131,25 @@ export interface OutsideCount {
   nearest: string | null;
 }
 
+/** A tag of the view, as the Timeline arranged by tag heads its rows (N14). */
+export interface TimelineGroup {
+  /** Tag ident (`PlannerNode.tag`). */
+  tag: string;
+  /** "#Milestone". */
+  title: string;
+}
+
 export interface TimelineLayout {
   zoom: Zoom;
   range: TimelineRange;
   columns: TimelineColumn[];
-  /** Nodes that touch the range only (T13a: a node wholly outside gets no row), sorted by start, then end, then title. */
+  /**
+   * Nodes that touch the range only (T13a: a node wholly outside gets no row), sorted by start, then end, then title;
+   * arranged by tag (`groups`), by the group first.
+   */
   rows: TimelineRow[];
+  /** Arranged by tag (N14): the view's tags in selection order, each heading its rows; null = rows by date only. */
+  groups: TimelineGroup[] | null;
   /** Dated nodes that end before the range. */
   earlier: OutsideCount;
   /** Dated nodes that start after the range. */
@@ -166,6 +179,8 @@ export interface TimelineInput {
   statusValues: ClosedValue[];
   /** Titles of the loaded nodes by uuid (`titlesByUuid`), for inline refs in titles. */
   titles: ReadonlyMap<string, string>;
+  /** Arrange by tag (N14): the view's tags in selection order; absent = by date (one tag, or Arrange "By date"). */
+  groups?: TimelineGroup[];
 }
 
 // ---------------------------------------------------------------- range and columns
@@ -294,9 +309,14 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     });
   }
   rows.sort((a, b) => compareDates(a.start, b.start) || compareDates(a.end, b.end) || a.title.localeCompare(b.title));
+  const groups = input.groups ?? null;
+  if (groups) {
+    const order = new Map(groups.map((g, i) => [g.tag, i]));
+    rows.sort((a, b) => order.get(a.node.tag)! - order.get(b.node.tag)!); // stable: by date inside a group
+  }
   undated.sort((a, b) => a.title.localeCompare(b.title));
   return {
-    zoom: input.zoom, range, rows, undated, earlier, later, links: linkRows(rows, input),
+    zoom: input.zoom, range, rows, groups, undated, earlier, later, links: linkRows(rows, input),
     columns: columnsOf(input.zoom, range, input.today, input.now, input.weekStart),
     todayAt: todayAt(input.zoom, range, input.today, input.now),
   };

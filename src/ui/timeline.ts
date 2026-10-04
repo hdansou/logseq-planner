@@ -4,10 +4,13 @@
 // position is a track index from the layout (`grid-column: index + 2`). A track is a day, or 15 minutes in Day zoom (N10).
 import { formatDay } from "../core/layout-common";
 import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineLink, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
+import type { Arrange } from "../core/view-config";
 import { esc, flag, segmented, viewNav } from "./html";
 
 export type TimelineAction =
   | { type: "zoom"; zoom: Zoom }
+  /** N14: rows by date, by tag (or nested), shown with two or more tags. */
+  | { type: "arrange"; arrange: Arrange }
   | { type: "nav"; dir: -1 | 1 }
   | { type: "today" }
   | { type: "toggle"; nodeId: number }
@@ -16,6 +19,7 @@ export type TimelineAction =
   | { type: "open"; uuid: string };
 
 const ZOOMS: [Zoom, string][] = [["day", "Day"], ["week", "Week"], ["month", "Month"], ["quarter", "Quarter"]];
+const ARRANGE_ITEMS: [Arrange, string][] = [["date", "By date"], ["tag", "By tag"]];
 
 /**
  * Day zoom track width (15 minutes), set inline so the scroll the view opens at is computed from the same number (the
@@ -38,8 +42,13 @@ function dayAttrs(layout: TimelineLayout, expanded: ReadonlySet<number>): string
 /** Track → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
 
-export function renderTimelineToolbar(layout: TimelineLayout): string {
-  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
+/**
+ * Range navigation and Zoom; with two or more tags (`arrange` not null, N14) also the Arrange control
+ * (`data-tl-arrange`). "Nested" is drawn by date until nesting exists, so "By date" shows pressed for it.
+ */
+export function renderTimelineToolbar(layout: TimelineLayout, arrange: Arrange | null): string {
+  const arranged = arrange === null ? "" : segmented("Arrange", "tl-arrange", ARRANGE_ITEMS, arrange === "tag" ? "tag" : "date");
+  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + arranged + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
 }
 
 function renderSpan(r: TimelineRow): string {
@@ -170,9 +179,22 @@ export function drawLinks(tl: HTMLElement): void {
   paths.forEach((p, i) => p.setAttribute("d", ds[i]));
 }
 
-/** The timeline grid plus the undated footnote. `heading` names the rows (the tag, e.g. "#Project"). */
+/** The rows; arranged by tag (N14), a heading row (`data-tl-group="<tag ident>"`) before each tag's first row. */
+function renderRows(layout: TimelineLayout, expanded: ReadonlySet<number>): string {
+  const titles = new Map((layout.groups ?? []).map((g) => [g.tag, g.title]));
+  let group: string | null = null;
+  return layout.rows.map((r) => {
+    const head = layout.groups && r.node.tag !== group
+      ? `<li class="pl-tl-row pl-tl-group" data-tl-group="${esc(r.node.tag)}"><div class="pl-tl-label"><span class="pl-tl-group-title">${esc(titles.get(r.node.tag)!)}</span></div></li>`
+      : "";
+    group = r.node.tag;
+    return head + renderRow(r, expanded.has(r.node.id));
+  }).join("");
+}
+
+/** The timeline grid plus the undated footnote. `heading` names the rows (the tags, e.g. "#Project" or "#Milestone + #Task"). */
 export function renderTimeline(layout: TimelineLayout, heading: string, expanded: ReadonlySet<number>): string {
-  const { columns, rows, range } = layout;
+  const { columns, range } = layout;
   const head = columns.map((c) =>
     `<span class="pl-tl-col" data-tl-col="${c.key}"${flag("data-today", c.today)} style="grid-column: ${col(c.from)} / ${col(c.to)}">${esc(c.label)}</span>`).join("");
   const cells = columns.map((c) =>
@@ -188,16 +210,17 @@ export function renderTimeline(layout: TimelineLayout, heading: string, expanded
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`
     + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
     + renderLinks(layout.links)
-    + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${rows.map((r) => renderRow(r, expanded.has(r.node.id))).join("")}</ul>`
+    + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${renderRows(layout, expanded)}</ul>`
     + today + `</div>` + undated;
 }
 
 /** The action a click on `target` asks for, or null when it is not a Timeline control. */
 export function timelineAction(target: Element): TimelineAction | null {
-  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-nav], [data-tl-toggle], [data-tl-jump], [data-tl-open]");
+  const el = target.closest<HTMLElement>("[data-tl-zoom], [data-tl-arrange], [data-tl-nav], [data-tl-toggle], [data-tl-jump], [data-tl-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.tlZoom) return { type: "zoom", zoom: d.tlZoom as Zoom };
+  if (d.tlArrange) return { type: "arrange", arrange: d.tlArrange as Arrange };
   if (d.tlNav) return d.tlNav === "today" ? { type: "today" } : { type: "nav", dir: d.tlNav === "prev" ? -1 : 1 };
   if (d.tlToggle) return { type: "toggle", nodeId: Number(d.tlToggle) };
   if (d.tlJump) return { type: "jump", day: d.tlDay! };

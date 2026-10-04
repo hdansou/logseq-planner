@@ -43,14 +43,14 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
   let pulled: [Record<string, unknown>][] = [];
   // The #Project rows as the node pull returns them (fixture rows through the fixture fake).
   beforeAll(async () => {
-    pulled = (await fixtureDq()(nodesQuery(tags), tags.find((t) => t.title === "Project")!.id, CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
+    pulled = (await fixtureDq()(nodesQuery(tags), [tags.find((t) => t.title === "Project")!.id], CLASS_EXTENDS_RULES)) as [Record<string, unknown>][];
   });
   const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
   const project = tags.find((t) => t.title === "Project")!;
   const status = project.choiceProps.find((p) => p.title === "Status")!.ident;
   const ARCHIVE = "6a000000-0000-4000-8000-000000000004";
   const rowsWith = (v: unknown) => pulled.map(([n]) => [n.uuid === ARCHIVE ? { ...n, [status]: v } : n]);
-  const archive = (v: unknown) => buildNodes(rowsWith(v), tags, project, true, () => -300).find((n) => n.uuid === ARCHIVE)!;
+  const archive = (v: unknown) => buildNodes(rowsWith(v), tags, [project], true, () => -300).find((n) => n.uuid === ARCHIVE)!;
 
   it("a choice value that is the placeholder entity (by ident) is no value", () => {
     expect(isEmptyPlaceholder(PLACEHOLDER)).toBe(true);
@@ -66,7 +66,7 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
 
   it("a task whose Status is the placeholder has no status", () => {
     const rows = (tasksFixture.taskRefs.detail as unknown as [Record<string, unknown>][]).map(([t]) => [{ ...t, ":logseq.property/status": PLACEHOLDER }]);
-    const nodes = buildNodes(pulled, tags, project, true, () => -300);
+    const nodes = buildNodes(pulled, tags, [project], true, () => -300);
     const tasks = buildTasks(rows, nodes, () => -300);
     expect(tasks.length).toBeGreaterThan(0);
     for (const t of tasks) expect(t.status).toBeNull();
@@ -80,7 +80,7 @@ describe("dependency values (N12)", () => {
   const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
   const project = tags.find((t) => t.title === "Project")!;
   const row = (id: number, extra: Record<string, unknown> = {}) => [{ id, uuid: `u${id}`, title: `N${id}`, tags: [{ id: project.id }], ...extra }];
-  const nodes = buildNodes([row(1), row(2, { [D]: [{ id: 1 }] }), row(3, { [D]: { id: 2 } }), row(4, { [D]: [{ id: 1 }, { id: 2 }] })], tags, project, true, () => 0, D);
+  const nodes = buildNodes([row(1), row(2, { [D]: [{ id: 1 }] }), row(3, { [D]: { id: 2 } }), row(4, { [D]: [{ id: 1 }, { id: 2 }] })], tags, [project], true, () => 0, D);
   const task = (id: number, refs: number[], extra: Record<string, unknown> = {}) => [{ id, uuid: `t${id}`, title: `T${id}`, refs: refs.map((r) => ({ id: r })), ...extra }];
 
   it("reads many-valued ([{id}]) and single ({id}) values as node ids; no value = []", () => {
@@ -88,7 +88,7 @@ describe("dependency values (N12)", () => {
   });
 
   it("without a dependency property every node has dependsOn []", () => {
-    const plain = buildNodes([row(2, { [D]: [{ id: 1 }] })], tags, project, true, () => 0);
+    const plain = buildNodes([row(2, { [D]: [{ id: 1 }] })], tags, [project], true, () => 0);
     expect(plain[0].dependsOn).toEqual([]);
   });
 

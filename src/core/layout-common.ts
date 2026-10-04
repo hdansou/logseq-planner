@@ -76,12 +76,17 @@ export const categoryOf = (uuid: string): number => {
 export interface ViewItem {
   node: PlannerNode;
   span: NodeSpan;
+  /** Its linked tasks that are not themselves nodes of the view (N14): the task rows and entries listed under it. */
   tasks: PlannerTask[];
+  /** Over every linked task, nodes of the view included. */
   progress: Rollup;
 }
 
-/** Resolves spans, linked tasks and rollups for `nodes` (the view's Start/End idents, either may be null). */
-export function viewItems(nodes: PlannerNode[], tasks: PlannerTask[], start: string | null, end: string | null, statusValues: ClosedValue[]): ViewItem[] {
+/** A node's Start / End idents (either may be null): the view's mapping for the node's tag (`ViewConfig.dates`, N14). */
+export type DatesOf = (node: PlannerNode) => { start: string | null; end: string | null };
+
+/** Resolves spans (each node by its tag's Start / End, `datesOf`), linked tasks and rollups for `nodes`. */
+export function viewItems(nodes: PlannerNode[], tasks: PlannerTask[], datesOf: DatesOf, statusValues: ClosedValue[]): ViewItem[] {
   // Tasks by node id, in task order (what `tasksOf` returns per node), built once: 2,000 nodes × 2,000 tasks (T13a).
   const byNode = new Map<number, PlannerTask[]>();
   for (const t of tasks) {
@@ -93,7 +98,8 @@ export function viewItems(nodes: PlannerNode[], tasks: PlannerTask[], start: str
   }
   return nodes.map((node) => {
     const own = byNode.get(node.id) ?? [];
-    return { node, span: resolveSpan(node, own, start, end), tasks: own, progress: rollup(own, statusValues) };
+    const { start, end } = datesOf(node);
+    return { node, span: resolveSpan(node, own, start, end), tasks: own.filter((t) => !t.isNode), progress: rollup(own, statusValues) };
   });
 }
 

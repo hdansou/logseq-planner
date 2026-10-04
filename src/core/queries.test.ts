@@ -45,14 +45,14 @@ const dateIdent = (t: TagInfo, title: string) => {
 describe("loadNodes", () => {
   it("sends the tag's entity id (a number, not its title) and the extends rules last (T14)", async () => {
     const { dq, calls } = fakeDq();
-    await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
-    expect(calls[0].inputs).toEqual([tag("Project").id, CLASS_EXTENDS_RULES]);
+    await loadNodes(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
+    expect(calls[0].inputs).toEqual([[tag("Project").id], CLASS_EXTENDS_RULES]);
     expect(CLASS_EXTENDS_RULES.startsWith(" ")).toBe(true);
   });
 
   it("pulls only id, uuid, title, tags and the date and choice properties of every tag (T13a: no pull [*])", async () => {
     const { dq, calls } = fakeDq();
-    await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    await loadNodes(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
     const idents = nodePropIdents(tags);
     expect(calls[0].query).toBe(nodesQuery(tags));
     expect(calls[0].query).not.toContain("[*]");
@@ -85,28 +85,28 @@ describe("loadNodes", () => {
   });
 
   it("keeps the extends rule join of the node query", () => {
-    expect(nodesQuery(tags)).toContain(":in $ ?tag %");
+    expect(nodesQuery(tags)).toContain(":in $ [?tag ...] %");
     expect(nodesQuery(tags)).not.toContain(":block/title ?tag-title");
     expect(nodesQuery(tags)).toContain("(or [(= ?t ?tag)] (class-extends ?tag ?t))");
   });
 
   it("includes nodes of extending tags when child tags are on", async () => {
     const { dq } = fakeDq();
-    const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
     expect(nodeTitles(nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
     expect(byTitle(nodes, "Acme rollout").tagIds).toEqual([tag("Client project").id]);
   });
 
   it("excludes nodes only tagged with an extending tag when child tags are off", async () => {
     const { dq } = fakeDq();
-    const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: false, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [tag("Project")], { childTags: false, zone: west5 });
     expect(nodeTitles(nodes)).toEqual(["Archive cleanup", "Mobile app", "Website relaunch"]);
   });
 
   it("maps Date values (journal page refs) to local ISO days", async () => {
     const { dq } = fakeDq();
     const project = tag("Project");
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const site = byTitle(nodes, "Website relaunch");
     expect(site.dates[dateIdent(project, "Start")]).toEqual({ day: "2026-09-23", time: null });
     expect(site.dates[dateIdent(project, "End")]).toEqual({ day: "2026-10-23", time: null });
@@ -118,7 +118,7 @@ describe("loadNodes", () => {
   it("maps DateTime values (epoch ms) to the local day and HH:MM", async () => {
     const { dq } = fakeDq();
     const meeting = tag("Meeting");
-    const nodes = await loadNodes(dq, tags, meeting, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [meeting], { childTags: true, zone: west5 });
     const kickoff = byTitle(nodes, "Kickoff").dates[dateIdent(meeting, "Date")];
     expect(kickoff.time).toBe("10:30"); // seeded at 10:30 local
     expect(kickoff.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
@@ -128,24 +128,24 @@ describe("loadNodes", () => {
     // Late review: 23:45 local in UTC-5 is 04:45 the next day in UTC (instant 1791175500000).
     const meeting = tag("Meeting");
     const ident = dateIdent(meeting, "Date");
-    const inWest = byTitle(await loadNodes(fakeDq().dq, tags, meeting, { childTags: true, zone: west5 }), "Late review");
-    const inUtc = byTitle(await loadNodes(fakeDq().dq, tags, meeting, { childTags: true, zone: utc }), "Late review");
+    const inWest = byTitle(await loadNodes(fakeDq().dq, tags, [meeting], { childTags: true, zone: west5 }), "Late review");
+    const inUtc = byTitle(await loadNodes(fakeDq().dq, tags, [meeting], { childTags: true, zone: utc }), "Late review");
     expect(inWest.dates[ident]).toEqual({ day: "2026-10-04", time: "23:45" });
     expect(inUtc.dates[ident]).toEqual({ day: "2026-10-05", time: "04:45" });
   });
 
   it("gives a node with no dates an empty dates map", async () => {
     const { dq } = fakeDq();
-    const nodes = await loadNodes(dq, tags, tag("Meeting"), { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [tag("Meeting")], { childTags: true, zone: west5 });
     expect(byTitle(nodes, "Untimed meeting").dates).toEqual({});
-    const archive = byTitle(await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 }), "Archive cleanup");
+    const archive = byTitle(await loadNodes(dq, tags, [tag("Project")], { childTags: true, zone: west5 }), "Archive cleanup");
     expect(archive.dates).toEqual({});
   });
 
   it("maps choice values to the tag's closed values", async () => {
     const { dq } = fakeDq();
     const project = tag("Project");
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const status = project.choiceProps.find((p) => p.title === "Status")!;
     const owner = project.choiceProps.find((p) => p.title === "Owner")!;
     const site = byTitle(nodes, "Website relaunch");
@@ -161,7 +161,7 @@ describe("loadNodes", () => {
     expect(nodesQuery(tags)).not.toContain(`{${meetingDate} `);
     for (const title of ["Project", "Meeting"]) {
       const { dq, calls } = fakeDq();
-      await loadNodes(dq, tags, tag(title), { childTags: true, zone: west5 });
+      await loadNodes(dq, tags, [tag(title)], { childTags: true, zone: west5 });
       expect(calls.map((c) => c.query)).toEqual([nodesQuery(tags)]);
     }
   });
@@ -173,7 +173,7 @@ describe("loadNodes", () => {
     const strip = (rows: unknown[]) => (rows as [Record<string, unknown>][]).map(([n]) =>
       [n.title !== "Website relaunch" ? n : Object.fromEntries(Object.entries(n).map(([k, v]) => [k, v && typeof v === "object" && "journal-day" in v ? { id: (v as unknown as { id: number }).id } : v]))]);
     const dq = async (query: string, ...inputs: unknown[]) => (query === nodesQuery(tags) ? strip(await base(query, ...inputs)) : base(query, ...inputs));
-    const nodes = await loadNodes(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
     expect(byTitle(nodes, "Website relaunch").dates).toEqual({});
     expect(byTitle(nodes, "Acme rollout").dates[dateIdent(tag("Project"), "Start")]).toEqual({ day: "2026-09-30", time: null });
   });
@@ -182,7 +182,7 @@ describe("loadNodes", () => {
 describe("loadNodesAndTasks", () => {
   const load = async () => {
     const { dq } = fakeDq();
-    return loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    return loadNodesAndTasks(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
   };
   const task = (tasks: PlannerTask[], start: string) => tasks.find((t) => t.title.startsWith(start));
 
@@ -191,9 +191,9 @@ describe("loadNodesAndTasks", () => {
     const site = byTitle(nodes, "Website relaunch");
     const mobile = byTitle(nodes, "Mobile app");
     const acme = byTitle(nodes, "Acme rollout");
-    expect(task(tasks, "Draft brief")).toMatchObject({ nodeIds: [site.id], status: { title: "Todo" } });
-    expect(task(tasks, "Wireframes")).toMatchObject({ nodeIds: [mobile.id], status: { title: "Doing" } });
-    expect(task(tasks, "Acme contract")).toMatchObject({ nodeIds: [acme.id] });
+    expect(task(tasks, "Draft brief")).toMatchObject({ isNode: false, nodeIds: [site.id], status: { title: "Todo" } });
+    expect(task(tasks, "Wireframes")).toMatchObject({ isNode: false, nodeIds: [mobile.id], status: { title: "Doing" } });
+    expect(task(tasks, "Acme contract")).toMatchObject({ isNode: false, nodeIds: [acme.id] });
     expect(task(tasks, "Ship homepage")?.status?.ident).toBe(":logseq.property/status.done");
     expect(task(tasks, "Survey users")?.status?.ident).toBe(":logseq.property/status.canceled");
   });
@@ -219,10 +219,10 @@ describe("loadNodesAndTasks", () => {
 
   it("the task query is bound to the tag's nodes (tag id + extends rules) and pulls no nested tags or ref titles (T13a)", async () => {
     const { dq, calls } = fakeDq();
-    await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    await loadNodesAndTasks(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
     const call = calls.find((c) => c.query === tasksQuery(null))!;
-    expect(call.inputs).toEqual([tag("Project").id, CLASS_EXTENDS_RULES]);
-    expect(tasksQuery(null)).toContain(":in $ ?tag %");
+    expect(call.inputs).toEqual([[tag("Project").id], CLASS_EXTENDS_RULES]);
+    expect(tasksQuery(null)).toContain(":in $ [?tag ...] %");
     expect(tasksQuery(null)).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
     expect(tasksQuery(null)).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
     expect(tasksQuery(null)).toContain("{:block/refs [:db/id]}");
@@ -234,7 +234,7 @@ describe("loadNodesAndTasks", () => {
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const held = async (q: string, ...i: unknown[]) => (q === nodesQuery(tags) ? (await gate, dq(q, ...i)) : dq(q, ...i));
-    const done = loadNodesAndTasks(held, tags, tag("Project"), { childTags: true, zone: west5 });
+    const done = loadNodesAndTasks(held, tags, [tag("Project")], { childTags: true, zone: west5 });
     await Promise.resolve();
     await Promise.resolve();
     expect(calls.map((c) => c.query)).toContain(tasksQuery(null));
@@ -244,7 +244,7 @@ describe("loadNodesAndTasks", () => {
 
   it("an empty tag has no nodes and no tasks", async () => {
     const { dq } = fakeDq();
-    expect(await loadNodesAndTasks(dq, tags, tag("Page"), { childTags: true, zone: west5 })).toEqual({ nodes: [], tasks: [] });
+    expect(await loadNodesAndTasks(dq, tags, [tag("Page")], { childTags: true, zone: west5 })).toEqual({ nodes: [], tasks: [] });
   });
 });
 
@@ -275,7 +275,7 @@ describe("tag by entity id, not title (T14, F2)", () => {
       const dq = fixtureDq({ retitle: { Project: title } });
       const renamed = await loadTagInfos(dq);
       const t = renamed.find((x) => x.title === title)!;
-      const { nodes, tasks } = await loadNodesAndTasks(dq, renamed, t, { childTags: true, zone: west5 });
+      const { nodes, tasks } = await loadNodesAndTasks(dq, renamed, [t], { childTags: true, zone: west5 });
       expect(nodeTitles(nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
       expect(tasks).toHaveLength(5);
     });
@@ -286,19 +286,19 @@ describe("tag by entity id, not title (T14, F2)", () => {
     const twins = await loadTagInfos(dq);
     const [project, meeting] = [tag("Project").id, tag("Meeting").id].map((id) => twins.find((x) => x.id === id)!);
     expect(meeting.title).toBe("Project");
-    expect(nodeTitles((await loadNodesAndTasks(dq, twins, project, { childTags: true, zone: west5 })).nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
-    expect(nodeTitles((await loadNodesAndTasks(dq, twins, meeting, { childTags: true, zone: west5 })).nodes)).toEqual(["Kickoff", "Late review", "Untimed meeting"]);
+    expect(nodeTitles((await loadNodesAndTasks(dq, twins, [project], { childTags: true, zone: west5 })).nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
+    expect(nodeTitles((await loadNodesAndTasks(dq, twins, [meeting], { childTags: true, zone: west5 })).nodes)).toEqual(["Kickoff", "Late review", "Untimed meeting"]);
   });
 
   it("staleness is keyed on the tag id: a renamed tag re-asks neither query", async () => {
     const { dq, calls } = fakeDq();
-    const prev = await readRaw(dq, tags, tag("Project"), null);
+    const prev = await readRaw(dq, tags, [tag("Project")], null);
     const renamed = buildTagInfos(
       (tagsFixture.query.detail as unknown as [Record<string, unknown>][]).map(([t]) => [t.title === "Project" ? { ...t, title: "Projects" } : t]),
       propsFixture.query.detail as unknown[],
     );
     calls.length = 0;
-    const next = await readRaw(dq, renamed, renamed.find((t) => t.id === tag("Project").id)!, null, prev);
+    const next = await readRaw(dq, renamed, [renamed.find((t) => t.id === tag("Project").id)!], null, prev);
     expect(calls).toEqual([]);
     expect(next.nodes).toBe(prev.nodes);
     expect(next.tasks).toBe(prev.tasks);
@@ -310,7 +310,7 @@ describe("recycled content is not loaded (T14, F4)", () => {
   // :block/page → that page. Fixture rows (all seeded nodes are on page 226) plus a deleted-at on a page or a block.
   const PAGE = 226;
   const load = (recycled: Recycled, title = "Project") =>
-    loadNodesAndTasks(fixtureDq({ recycled }), tags, tag(title), { childTags: true, zone: west5 });
+    loadNodesAndTasks(fixtureDq({ recycled }), tags, [tag(title)], { childTags: true, zone: west5 });
   const byName = (title: string, rows: { title: string; id: number }[]) => rows.find((x) => x.title.startsWith(title))!.id;
   const fixtureNode = async (title: string) => byName(title, (await load({})).nodes);
   const fixtureTask = async (title: string) => byName(title, (await load({})).tasks);
@@ -367,18 +367,18 @@ describe("dependency property (N12)", () => {
 
   it("each node carries the ids of the nodes it depends on (many-valued); none without the property", async () => {
     const { dq, of } = await graph();
-    const { nodes } = await loadNodesAndTasks(dq, [...tags.filter((t) => t.title !== "Project"), of("Project")], of("Project"), { childTags: true, zone: west5, dependsOn: D });
+    const { nodes } = await loadNodesAndTasks(dq, [...tags.filter((t) => t.title !== "Project"), of("Project")], [of("Project")], { childTags: true, zone: west5, dependsOn: D });
     const id = (title: string) => byTitle(nodes, title).id;
     expect(byTitle(nodes, "Mobile app").dependsOn).toEqual([id("Website relaunch")]);
     expect(byTitle(nodes, "Acme rollout").dependsOn).toEqual([id("Website relaunch"), id("Mobile app")]);
     expect(byTitle(nodes, "Website relaunch").dependsOn).toEqual([]);
-    const plain = await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    const plain = await loadNodesAndTasks(dq, tags, [tag("Project")], { childTags: true, zone: west5 });
     expect(plain.nodes.every((n) => n.dependsOn.length === 0)).toBe(true);
   });
 
   it("a task is not a linked task of a node it depends on through the property; with the property null it still is", async () => {
     const { dq, infos, of } = await graph();
-    const load = (dependsOn: string | null) => loadNodesAndTasks(dq, infos, of("Task"), { childTags: true, zone: west5, dependsOn });
+    const load = (dependsOn: string | null) => loadNodesAndTasks(dq, infos, [of("Task")], { childTags: true, zone: west5, dependsOn });
     const withRule = await load(D);
     const draft = withRule.nodes.find((n) => n.title.startsWith("Draft brief"))!;
     const wireframes = (r: { tasks: PlannerTask[] }) => r.tasks.find((t) => t.title.startsWith("Wireframes"));
@@ -389,20 +389,82 @@ describe("dependency property (N12)", () => {
 
   it("the rule applies only to the dependency targets: other refs of the task still link it", async () => {
     const { dq, infos, of } = await graph();
-    const { nodes, tasks } = await loadNodesAndTasks(dq, infos, of("Project"), { childTags: true, zone: west5, dependsOn: D });
+    const { nodes, tasks } = await loadNodesAndTasks(dq, infos, [of("Project")], { childTags: true, zone: west5, dependsOn: D });
     // Wireframes (a #Task) links Mobile app by its Project property; its depends_on (Draft brief) is not a Project node.
-    expect(tasks.find((t) => t.title.startsWith("Wireframes"))).toMatchObject({ nodeIds: [byTitle(nodes, "Mobile app").id] });
+    expect(tasks.find((t) => t.title.startsWith("Wireframes"))).toMatchObject({ isNode: false, nodeIds: [byTitle(nodes, "Mobile app").id] });
   });
 
   it("readRaw re-asks both queries when the dependency property changes, neither when it stays", async () => {
     const { dq, calls, infos, of } = await graph();
-    const prev = await readRaw(dq, infos, of("Project"), null);
+    const prev = await readRaw(dq, infos, [of("Project")], null);
     calls.length = 0;
-    const same = await readRaw(dq, infos, of("Project"), null, prev);
+    const same = await readRaw(dq, infos, [of("Project")], null, prev);
     expect(calls).toEqual([]);
     expect(same.nodes).toBe(prev.nodes);
-    const next = await readRaw(dq, infos, of("Project"), D, prev);
+    const next = await readRaw(dq, infos, [of("Project")], D, prev);
     expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(infos, D), tasksQuery(D)].sort());
     expect(next.dependsOn).toBe(D);
+  });
+});
+
+describe("views over several tags (N14)", () => {
+  const ids = (ns: { id: number }[]) => ns.map((n) => n.id).sort((a, b) => a - b);
+
+  it("loads the union of the tags' nodes in one node query and one task query, the tags' ids as one collection input", async () => {
+    const { dq, calls } = fakeDq();
+    const { nodes } = await loadNodesAndTasks(dq, tags, [tag("Project"), tag("Meeting")], { childTags: true, zone: west5 });
+    const project = await loadNodes(fixtureDq(), tags, [tag("Project")], { childTags: true, zone: west5 });
+    const meeting = await loadNodes(fixtureDq(), tags, [tag("Meeting")], { childTags: true, zone: west5 });
+    expect(ids(nodes)).toEqual(ids([...project, ...meeting]));
+    expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(tags), tasksQuery(null)].sort());
+    for (const c of calls) expect(c.inputs).toEqual([[tag("Project").id, tag("Meeting").id], CLASS_EXTENDS_RULES]);
+  });
+
+  it("a node of two selected tags comes once, with the first of them in selection order as its tag", async () => {
+    const both = [tag("Project"), tag("Client project")];
+    const nodes = await loadNodes(fixtureDq(), tags, both, { childTags: true, zone: west5 });
+    expect(nodeTitles(nodes)).toEqual(["Acme rollout", "Archive cleanup", "Mobile app", "Website relaunch"]);
+    expect(byTitle(nodes, "Acme rollout").tag).toBe(tag("Project").ident); // through its child tag, Project comes first
+    const reversed = await loadNodes(fixtureDq(), tags, [...both].reverse(), { childTags: true, zone: west5 });
+    expect(byTitle(reversed, "Acme rollout").tag).toBe(tag("Client project").ident);
+    expect(byTitle(reversed, "Website relaunch").tag).toBe(tag("Project").ident);
+  });
+
+  it("child tags off: a node carrying only a child tag belongs to the view only when that tag is selected itself", async () => {
+    const off = await loadNodes(fixtureDq(), tags, [tag("Project")], { childTags: false, zone: west5 });
+    expect(nodeTitles(off)).not.toContain("Acme rollout");
+    const both = await loadNodes(fixtureDq(), tags, [tag("Project"), tag("Client project")], { childTags: false, zone: west5 });
+    expect(byTitle(both, "Acme rollout").tag).toBe(tag("Client project").ident);
+  });
+
+  it("every node of a one-tag view carries that tag (a child-tag node too)", async () => {
+    const nodes = await loadNodes(fixtureDq(), tags, [tag("Project")], { childTags: true, zone: west5 });
+    expect(new Set(nodes.map((n) => n.tag))).toEqual(new Set([tag("Project").ident]));
+  });
+
+  it("each node's dates come from its own tag's properties (one pull holds every tag's date idents)", async () => {
+    const { nodes } = await loadNodesAndTasks(fixtureDq({ taskNodes: true }), tags, [tag("Project"), tag("Task")], { childTags: true, zone: west5 });
+    expect(byTitle(nodes, "Website relaunch").dates[dateIdent(tag("Project"), "Start")]).toEqual({ day: "2026-09-23", time: null });
+    expect(byTitle(nodes, "Wireframes").dates[dateIdent(tag("Task"), "Scheduled")]?.day).toBe("2026-10-09");
+  });
+
+  it("a #Task block that is itself a node of the view is flagged isNode (still linked to its node, for the rollup)", async () => {
+    const both = await loadNodesAndTasks(fixtureDq({ taskNodes: true }), tags, [tag("Project"), tag("Task")], { childTags: true, zone: west5 });
+    const alone = await loadNodesAndTasks(fixtureDq({ taskNodes: true }), tags, [tag("Project")], { childTags: true, zone: west5 });
+    expect(both.tasks.map((t) => [t.title, t.isNode])).toEqual(alone.tasks.map((t) => [t.title, true]));
+    expect(alone.tasks.every((t) => !t.isNode)).toBe(true);
+    expect(both.tasks.map((t) => t.nodeIds)).toEqual(alone.tasks.map((t) => t.nodeIds));
+  });
+
+  it("readRaw asks again when the tag list changes, not when only its order does", async () => {
+    const { dq, calls } = fakeDq();
+    const prev = await readRaw(dq, tags, [tag("Project"), tag("Meeting")], null);
+    calls.length = 0;
+    const same = await readRaw(dq, tags, [tag("Meeting"), tag("Project")], null, prev);
+    expect(calls).toEqual([]);
+    expect(same.nodes).toBe(prev.nodes);
+    expect(same.tagIds).toEqual([tag("Meeting").id, tag("Project").id]);
+    await readRaw(dq, tags, [tag("Meeting")], null, prev);
+    expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(tags), tasksQuery(null)].sort());
   });
 });

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
-import { buildTagInfos, loadTagInfos, TAGS_QUERY, TAG_PROPERTIES_QUERY } from "./schema";
+import { buildTagInfos, loadTagInfos, mergeTags, tagsTitle, TAGS_QUERY, TAG_PROPERTIES_QUERY } from "./schema";
 import type { TagInfo } from "../types";
 
 const rawTags = tagsFixture.query.detail as unknown[];
@@ -155,5 +155,45 @@ describe("node properties (N12)", () => {
     expect(titles(of(infos, "Project").choiceProps)).not.toContain("depends_on");
     expect(of(infos, "Task").nodeProps).toEqual([]);
     expect(byTitle("Project").nodeProps).toEqual([]); // the plain fixture has none
+  });
+});
+
+describe("mergeTags: the properties a view over several tags shares (N14)", () => {
+  const idents = (xs: { ident: string }[]) => xs.map((x) => x.ident);
+
+  it("one tag shares all of its own and inherited properties", () => {
+    const client = byTitle("Client project");
+    expect(mergeTags([client])).toEqual({ tags: [client], choiceProps: client.choiceProps, nodeProps: client.nodeProps });
+  });
+
+  it("several tags share the properties every one of them has, by ident (built-in Status on #Project and #Task)", () => {
+    const view = mergeTags([byTitle("Project"), byTitle("Task")]);
+    expect(idents(view.choiceProps)).toEqual([":logseq.property/status"]);
+    expect(view.choiceProps[0]).toBe(byTitle("Project").choiceProps.find((p) => p.ident === ":logseq.property/status"));
+    expect(mergeTags([byTitle("Project"), byTitle("Meeting")]).choiceProps).toEqual([]);
+  });
+
+  it("keeps the first tag's property order", () => {
+    const a = byTitle("Project");
+    const reversed = { ...a, id: 1, ident: ":user.class/Rev", choiceProps: [...a.choiceProps].reverse() };
+    expect(idents(mergeTags([a, reversed]).choiceProps)).toEqual(idents(a.choiceProps));
+    expect(idents(mergeTags([reversed, a]).choiceProps)).toEqual(idents(reversed.choiceProps));
+  });
+
+  it("matches node properties the same way", () => {
+    const n = (ident: string) => ({ id: 1, ident, title: ident });
+    const a = { ...byTitle("Project"), nodeProps: [n(":u/dep"), n(":u/parent")] };
+    const b = { ...byTitle("Task"), nodeProps: [n(":u/parent"), n(":u/dep")] };
+    expect(idents(mergeTags([a, b]).nodeProps)).toEqual([":u/dep", ":u/parent"]);
+    expect(mergeTags([a, { ...b, nodeProps: [] }]).nodeProps).toEqual([]);
+  });
+
+  it("throws on an empty list", () => {
+    expect(() => mergeTags([])).toThrow(/at least one tag/);
+  });
+
+  it("tagsTitle joins the titles: #Project + #Task", () => {
+    expect(tagsTitle([byTitle("Project"), byTitle("Task")])).toBe("#Project + #Task");
+    expect(tagsTitle([byTitle("Meeting")])).toBe("#Meeting");
   });
 });

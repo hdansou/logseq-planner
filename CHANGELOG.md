@@ -35,6 +35,21 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Views over several tags (N14, step 1). A checkbox before each tag in the panel's tag tree (`data-tag-check`,
+  "Include #Title") adds the tag to the view or removes it; the last one is disabled; a click on the tag's name still
+  shows it alone, and the Tag menu still picks one tag. Every selected tag is pressed; the Tag control reads
+  "#Milestone + #Task". The view shows the union of the tags' nodes (one node query and one task query, the tags' ids
+  as one collection input `[?tag ...]`), each node once; each node belongs to the first selected tag it carries,
+  directly or through a child tag (`PlannerNode.tag`). Start / End are per tag (`dates` in the config): with one tag
+  the Start and End menus as before, with several one **Dates** menu (`data-control="dates"`, "Dates: 2 tags") with a
+  row per tag (`data-dates-tag` + `data-dates-field`). Filters, Kanban Columns / Swimlanes / Show, Done when, Depends
+  on and the Priority sort offer the properties every tag shares (`mergeTags`); with two or more tags a **Tag** filter
+  group (`"@tag"`) and **Tag** swimlanes, read-only (drops across lanes refused, the ⋯ menu lists columns only). The
+  Timeline gets an **Arrange** control (`data-tl-arrange`) with two or more tags: By date, or By tag with a heading row
+  per tag (`data-tl-group`). A #Task block that is itself a node of the view is no longer also a task row of the node
+  it references (it still counts in that node's progress). The saved-view name suggestion is the first tag plus "+N".
+  The config's `tag`, `start` and `end` became `tags` and `dates`, and a Timeline gets `arrange`; a view saved before
+  loads as one tag with its dates (by date), and a tag that is gone is dropped from a saved view.
 - Dependencies (N12): a **Depends on** setting after End, shown when the tag has a node property (own or inherited,
   any cardinality): None or one of the tag's node properties; default: the one titled like "depends on"
   (`depends_on`, "Depends on", "depends-on"), else None. Saved with the view as `dependsOn`; a view saved before it uses

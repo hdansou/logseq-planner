@@ -396,3 +396,44 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(kanbanCss).toMatch(/\[data-kb-pending\][^{]*\{[^}]*cursor:\s*progress/);
   });
 });
+
+describe("Tag swimlanes (N14)", () => {
+  /** #Client project + #Project (Acme rollout is a #Client project node; the others #Project), lanes by Tag. */
+  async function byTag() {
+    await click(`[data-tag-id="${tag("Client project").id}"]`);
+    await click(`[data-tag-check="${tag("Project").id}"]`);
+    await click("[data-control=kb-lane]");
+    await click(`[data-popover=kb-lane] [data-option="@tag"]`);
+  }
+
+  it("one lane per tag in selection order; the board and the hint say the lanes are read-only", async () => {
+    await byTag();
+    expect(ws.config()).toMatchObject({ kind: "kanban", tags: [tag("Client project").ident, tag("Project").ident], laneProp: "@tag" });
+    expect($$("[data-kb-lane-head]").map((h) => [h.dataset.kbLaneHead, h.querySelector(".pl-kb-lane-title")!.textContent]))
+      .toEqual([[tag("Client project").ident, "#Client project"], [tag("Project").ident, "#Project"]]);
+    expect($("[data-kanban]")!.hasAttribute("data-kb-lanes-readonly")).toBe(true);
+    expect(text("[data-region=view-toolbar]")).toContain("Tag lanes are read-only");
+    expect(text("[data-control=kb-lane]")).toBe("Tag▾");
+    expect(cellOf(ACME).dataset.kbLane).toBe(tag("Client project").ident);
+  });
+
+  it("a drop into another tag's lane is refused (no write); a drop into another column of the same lane writes Status", async () => {
+    await byTag();
+    const doing = val("Status", "Doing").uuid;
+    const { over, drop } = drag(card(ACME), cell(doing, tag("Project").ident));
+    await ws.idle();
+    expect([over.defaultPrevented, drop.defaultPrevented]).toEqual([false, false]);
+    expect(writeCalls()).toEqual([]);
+    expect(cellOf(ACME).dataset.kbLane).toBe(tag("Client project").ident);
+    drag(card(ACME), cell(doing, tag("Client project").ident));
+    await ws.idle();
+    expect(writeCalls()).toEqual([["upsertBlockProperty", ACME, prop("Status").ident.slice(1), val("Status", "Doing").id]]);
+  });
+
+  it("the Move menu offers columns only", async () => {
+    await byTag();
+    await click(`[data-kb-move="${ACME}"]`);
+    expect($$("[data-popover=kb-move] [data-kb-to-col]").length).toBeGreaterThan(0);
+    expect($$("[data-popover=kb-move] [data-kb-to-lane]")).toHaveLength(0);
+  });
+});

@@ -17,11 +17,12 @@
 //   <full ident without the leading colon>, <closed value entity id>)`, `removeBlockProperty(uuid, <same key>)`. Both
 //   resolve null on success and on failure, so every write is read back and a mismatch throws. A removal reads back as
 //   either no attribute (user property) or the empty placeholder entity (built-in Status, seen live in T11).
-import type { ChoiceProp, ClosedValue, KanbanWriteDeps, LocalDate, PlannerNode, Rollup } from "../types";
+import type { ChoiceProp, ClosedValue, KanbanWriteDeps, LocalDate, PlannerNode, Rollup, TagInfo } from "../types";
 import { displayTitle } from "./display-title";
 import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 import { isEmptyPlaceholder } from "./normalize";
+import { TAG_KEY } from "./schema";
 
 /** Key of the "No <prop>" column and lane (closed values are keyed by uuid, which is never this). */
 export const NO_VALUE = "none";
@@ -81,6 +82,8 @@ export interface KanbanLayout {
   /** One row per lane (a single row with `lane: null` without swimlanes), each with one cell per column. */
   rows: { lane: KanbanSlot | null; cells: KanbanCell[] }[];
   sort: KanbanSort;
+  /** Lanes by tag (N14, `tagLaneProp`): a card cannot change lanes; drops across lanes are refused. */
+  lanesReadOnly: boolean;
 }
 
 export interface KanbanInput {
@@ -116,15 +119,26 @@ const PRIORITY_IDENT = ":logseq.property/priority";
 export const priorityProp = (tag: { choiceProps: ChoiceProp[] }): ChoiceProp | null =>
   tag.choiceProps.find((p) => p.ident === PRIORITY_IDENT) ?? tag.choiceProps.find((p) => p.title.trim().toLowerCase() === "priority") ?? null;
 
+/**
+ * The Tag pseudo-property as a swimlane property (N14, `TAG_KEY`): one lane per tag of the view in selection order, keyed
+ * by tag ident (a "value" here is a tag: `uuid` = its ident, `id` = its entity id). Every node has a tag, so there is no
+ * "No Tag" lane, and the lanes are read-only: a move never changes a node's tag (`moveDescriptor`).
+ */
+export const tagLaneProp = (tags: TagInfo[]): ChoiceProp => ({
+  id: 0, ident: TAG_KEY, title: "Tag",
+  values: tags.map((t) => ({ id: t.id, uuid: t.ident, title: `#${t.title}`, ident: null, order: "", checkbox: null, canceled: false })),
+});
+
 function slots(prop: ChoiceProp, doneValues: Record<string, string[]>): KanbanSlot[] {
   const ref = { ident: prop.ident, title: prop.title };
+  if (prop.ident === TAG_KEY) return prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: false }));
   return [
     ...prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: isDone(v, doneValues[prop.ident]) })),
     { key: NO_VALUE, prop: ref, value: null, title: `No ${prop.title}`, count: 0, done: false },
   ];
 }
 
-const keyOf = (node: PlannerNode, prop: ChoiceProp) => node.choices[prop.ident]?.uuid ?? NO_VALUE;
+const keyOf = (node: PlannerNode, prop: ChoiceProp) => (prop.ident === TAG_KEY ? node.tag : node.choices[prop.ident]?.uuid ?? NO_VALUE);
 
 export function layoutKanban(input: KanbanInput): KanbanLayout {
   const { columnProp, laneProp, today } = input;
@@ -169,7 +183,7 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     if (laneProp) lanes[li].count++;
   }
   for (const r of rows) for (const c of r.cells) c.cards.sort(order);
-  return { columns, allColumns, lanes, rows, sort: input.sort };
+  return { columns, allColumns, lanes, rows, sort: input.sort, lanesReadOnly: laneProp?.ident === TAG_KEY };
 }
 
 /** The cell at column `column` and lane `lane` (null without swimlanes); throws when there is none. */
@@ -209,11 +223,16 @@ const write = (card: KanbanCard, from: KanbanSlot, slot: KanbanSlot): PropertyWr
     ? { kind: "set", uuid: card.uuid, node: card.title, prop: slot.prop, value: slot.value, previous: from.value }
     : { kind: "remove", uuid: card.uuid, node: card.title, prop: slot.prop, previous: from.value };
 
-/** The writes that move `card` from `from` to `to`: the column property when it changes, then the lane property when it does. */
+/**
+ * The writes that move `card` from `from` to `to`: the column property when it changes, then the lane property when it
+ * does. Throws for a move to another Tag lane (N14): lanes by tag are read-only.
+ */
 export function moveDescriptor(card: KanbanCard, from: KanbanCell, to: Pick<KanbanCell, "column" | "lane">): PropertyWrite[] {
   const writes: PropertyWrite[] = [];
+  const laneMove = !!from.lane && !!to.lane && from.lane.key !== to.lane.key;
+  if (laneMove && from.lane!.prop.ident === TAG_KEY) throw new Error(`"${card.title}" keeps its tag: Tag swimlanes are read-only.`);
   if (from.column.key !== to.column.key) writes.push(write(card, from.column, to.column));
-  if (from.lane && to.lane && from.lane.key !== to.lane.key) writes.push(write(card, from.lane, to.lane));
+  if (laneMove) writes.push(write(card, from.lane!, to.lane!));
   return writes;
 }
 

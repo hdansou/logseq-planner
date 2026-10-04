@@ -108,3 +108,13 @@ html, body, #app { height: 100%; }
 /* An unreadable saved view (T14): greyed, with its reason; only the delete button acts on it. */
 .pl-view-invalid { display: grid; gap: 2px; color: var(--pl-label-2); cursor: default; }
 .pl-view-invalid small { font-size: 11px; }
+
+/* N14: a checkbox before each tag row adds the tag to the view; the Dates popover has a row per tag. */
+.pl-tag-line { display: flex; align-items: center; gap: 2px; }
+.pl-tag-check { flex: none; margin: 0 2px 0 6px; accent-color: var(--pl-tint); }
+.pl-panel .pl-tag-line > button.pl-row { flex: 1; min-width: 0; width: auto; }
+.pl-popover .pl-dates-row { grid-template-columns: 1fr 1fr; gap: 4px 8px; padding-bottom: 8px; }
+.pl-popover .pl-dates-row .pl-hint { grid-column: 1 / -1; }
+.pl-dates-field { display: grid; gap: 2px; align-content: start; }
+.pl-dates-field > .pl-field-label { padding: 2px 10px 0; }
+.pl-popover[data-popover="dates"] { min-width: 360px; }

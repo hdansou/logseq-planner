@@ -25,7 +25,7 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 
 async function load(tagTitle: string) {
   const t = tag(tagTitle);
-  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, t, { childTags: true, zone: west5 });
+  const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [t], { childTags: true, zone: west5 });
   return { t, nodes, tasks };
 }
 
@@ -35,7 +35,7 @@ async function layout(tagTitle: string, zoom: Zoom, over: Partial<TimelineInput>
   const start = t.dateProps.find((p) => p.title === "Start" || p.title === "Date")!.ident;
   const end = t.dateProps.find((p) => p.title === "End")?.ident ?? null;
   return layoutTimeline({
-    items: viewItems(nodes, tasks, start, end, statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0,
+    items: viewItems(nodes, tasks, () => ({ start: start, end: end }), statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0,
     statusValues, titles: titlesByUuid(nodes), ...over,
   });
 }
@@ -50,8 +50,8 @@ function synthetic(start: string, end: string | null, zoom: Zoom, anchor = TODAY
   const p = tag("Project");
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
-  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
-  return layoutTimeline({ items: viewItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, now: NOW, weekStart, statusValues, titles: new Map() });
+  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
+  return layoutTimeline({ items: viewItems([node], [], () => ({ start: s, end: e }), statusValues), zoom, anchor, today: TODAY, now: NOW, weekStart, statusValues, titles: new Map() });
 }
 
 describe("calendar days (arithmetic itself: layout-common.test.ts)", () => {
@@ -163,10 +163,10 @@ describe("rows", () => {
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const node = (id: number, start: string, end: string): PlannerNode =>
-      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dependsOn: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
+      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", dependsOn: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
     const nodes = [node(1, "2026-07-01", "2026-07-10"), node(2, "2026-08-01", "2026-09-05"), node(3, "2026-09-25", "2026-09-30"),
       node(4, "2026-11-02", "2026-11-20"), node(5, "2026-10-20", "2026-12-01"), node(6, "2027-01-05", "2027-01-06")];
-    const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom: "week", anchor, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+    const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), zoom: "week", anchor, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
     const l = at(TODAY); // 20 Sep – 10 Oct
     expect(l.rows.map((r) => r.title)).toEqual(["N3"]);
     expect(l.earlier).toEqual({ count: 2, nearest: "2026-09-05" });
@@ -188,7 +188,7 @@ describe("rows", () => {
     const p = tag("Project");
     const bare = nodes.map((n) => (n.title === "Mobile app" ? { ...n, dates: {} } : n));
     const l = layoutTimeline({
-      items: viewItems(bare, tasks, dateIdent(p, "Start"), dateIdent(p, "End"), statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW,
+      items: viewItems(bare, tasks, () => ({ start: dateIdent(p, "Start"), end: dateIdent(p, "End") }), statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW,
       weekStart: 0, statusValues, titles: titlesByUuid(nodes),
     });
     expect(row(l, "Mobile app")).toMatchObject({ kind: "derived", bar: { from: 26, to: 27 } }); // Wireframes, Scheduled 9 Oct
@@ -243,14 +243,14 @@ describe("task rows", () => {
   it("lateness counts the Scheduled date when there is no Deadline; with both dates only the deadline marker is late", () => {
     const p = tag("Project");
     const s = dateIdent(p, "Start");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dependsOn: [], dates: { [s]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", dependsOn: [], dates: { [s]: d("2026-10-01") }, choices: {} };
     const todo = statusValues.find((v) => v.title === "Todo")!;
     const status = { ident: todo.ident!, title: todo.title };
     const mk = (id: number, scheduled: string | null, deadline: string | null): PlannerTask => ({
-      id, uuid: `t${id}`, title: `T${id}`, status, nodeIds: [1], scheduled: scheduled ? d(scheduled) : null, deadline: deadline ? d(deadline) : null,
+      id, uuid: `t${id}`, title: `T${id}`, status, isNode: false, nodeIds: [1], scheduled: scheduled ? d(scheduled) : null, deadline: deadline ? d(deadline) : null,
     });
     const l = layoutTimeline({
-      items: viewItems([node], [mk(1, "2026-10-01", null), mk(2, "2026-10-01", "2026-10-02"), mk(3, "2026-10-03", null), mk(4, "2026-10-01", "2026-10-09")], s, null, statusValues),
+      items: viewItems([node], [mk(1, "2026-10-01", null), mk(2, "2026-10-01", "2026-10-02"), mk(3, "2026-10-03", null), mk(4, "2026-10-01", "2026-10-09")], () => ({ start: s, end: null }), statusValues),
       zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(),
     });
     const lateOf = (title: string) => l.rows[0].tasks.find((t) => t.title === title)!.markers.map((m) => [m.kind, m.late]);
@@ -269,11 +269,11 @@ describe("task rows", () => {
 
   it("sorts dated tasks first by date, then undated by title", () => {
     const p = tag("Project");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dependsOn: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], tag: "", dependsOn: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
     const t = (id: number, title: string, deadline: string | null): PlannerTask =>
-      ({ id, uuid: `t${id}`, title, status: null, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
+      ({ id, uuid: `t${id}`, title, status: null, isNode: false, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
     const tasks = [t(1, "b undated", null), t(2, "late", "2026-10-09"), t(3, "a undated", null), t(4, "early", "2026-10-02")];
-    const l = layoutTimeline({ items: viewItems([node], tasks, dateIdent(p, "Start"), null, statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+    const l = layoutTimeline({ items: viewItems([node], tasks, () => ({ start: dateIdent(p, "Start"), end: null }), statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
     expect(l.rows[0].tasks.map((x) => x.title)).toEqual(["early", "late", "a undated", "b undated"]);
     expect(l.rows[0].tasks[0].status).toBeNull();
   });
@@ -301,10 +301,10 @@ describe("Day zoom (N10): one day of 96 tracks of 15 minutes, 24 hour columns", 
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], dependsOn: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
-    return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(), ...over });
+    return layoutTimeline({ items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(), ...over });
   }
   const bar = (l: TimelineLayout, i = 0) => l.rows[i].bar;
   const todo = () => {
@@ -312,7 +312,7 @@ describe("Day zoom (N10): one day of 96 tracks of 15 minutes, 24 hour columns", 
     return { ident: v.ident!, title: v.title };
   };
   const task = (id: number, scheduled: LocalDate | null, deadline: LocalDate | null): PlannerTask =>
-    ({ id, uuid: `t${id}`, title: `T${id}`, status: todo(), nodeIds: [1], scheduled, deadline });
+    ({ id, uuid: `t${id}`, title: `T${id}`, status: todo(), isNode: false, nodeIds: [1], scheduled, deadline });
 
   it("range: exactly the anchor's day, whatever the week start, labelled with its weekday", () => {
     const want = { start: TODAY, end: TODAY, days: 1, tracks: 96, label: "Sat 3 Oct 2026" };
@@ -417,12 +417,12 @@ describe("dayFocus (N10): where the Day zoom opens", () => {
     const s = dateIdent(p(), "Start");
     const e = dateIdent(p(), "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], dependsOn: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], tag: "", dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
-    return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+    return layoutTimeline({ items: viewItems(nodes, tasks, () => ({ start: s, end: e }), statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
   }
-  const task = (id: number, scheduled: LocalDate | null): PlannerTask => ({ id, uuid: `t${id}`, title: `T${id}`, status: null, nodeIds: [1], scheduled, deadline: null });
+  const task = (id: number, scheduled: LocalDate | null): PlannerTask => ({ id, uuid: `t${id}`, title: `T${id}`, status: null, isNode: false, nodeIds: [1], scheduled, deadline: null });
 
   it("the earliest bar or point that starts on the day at a time", () => {
     expect(dayFocus(day([[d(TODAY, "13:07"), d(TODAY, "14:08")], [d(TODAY, "10:00"), null]]), new Set())).toBe(40);
@@ -452,9 +452,9 @@ describe("dependency links (N12)", () => {
   const e = dateIdent(p, "End");
   /** A node with a span (or no dates when `start` is null) depending on the node ids `deps`. */
   const node = (id: number, start: string | null, end: string | null, deps: number[] = []): PlannerNode =>
-    ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dependsOn: deps, choices: {}, dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) } });
+    ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], tag: "", dependsOn: deps, choices: {}, dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) } });
   const lay = (nodes: PlannerNode[], zoom: Zoom = "week") =>
-    layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
+    layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), zoom, anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
 
   it("links each on-screen dependency to its on-screen dependent (dependency uuid → dependent uuid), bars and points alike", () => {
     // week range 20 Sep – 10 Oct; N4 is a point (Start only)
@@ -480,5 +480,27 @@ describe("dependency links (N12)", () => {
 
   it("without dependencies there are no links", async () => {
     expect((await layout("Project", "month")).links).toEqual([]);
+  });
+});
+
+describe("arranged by tag (N14)", () => {
+  it("rows grouped in the tags' selection order, by date inside each group; no groups = by date", async () => {
+    const both = [tag("Meeting"), tag("Project")];
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, both, { childTags: true, zone: west5 });
+    const dates = { [tag("Meeting").ident]: { start: dateIdent(tag("Meeting"), "Date"), end: null }, [tag("Project").ident]: { start: dateIdent(tag("Project"), "Start"), end: dateIdent(tag("Project"), "End") } };
+    const input: TimelineInput = {
+      items: viewItems(nodes, tasks, (n) => dates[n.tag], statusValues), zoom: "month", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: titlesByUuid(nodes),
+    };
+    const byDate = layoutTimeline(input);
+    expect(byDate.groups).toBeNull();
+    const groups = both.map((t) => ({ tag: t.ident, title: `#${t.title}` }));
+    const byTag = layoutTimeline({ ...input, groups });
+    expect(byTag.groups).toEqual(groups);
+    expect(byTag.rows.map((r) => r.title)).toEqual([
+      ...byDate.rows.filter((r) => r.node.tag === tag("Meeting").ident).map((r) => r.title),
+      ...byDate.rows.filter((r) => r.node.tag === tag("Project").ident).map((r) => r.title),
+    ]);
+    expect(byTag.rows.map((r) => r.title)).toEqual(["Kickoff", "Late review", "Website relaunch", "Acme rollout", "Mobile app"]);
+    expect(new Set(byDate.rows.map((r) => r.title))).toEqual(new Set(byTag.rows.map((r) => r.title)));
   });
 });

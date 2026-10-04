@@ -50,17 +50,17 @@ Rules that hold across the tree:
 | `src/storage.ts` | `createViewStore`: cache-first saved views on the "Planner views" page; config in the hidden string property `planner-view-config`; every write read back. |
 | `src/dev-probe.ts` | Dev-only message hook that lets `scripts/probe.mjs` call the SDK from inside the iframe. |
 | `src/dev-timings.ts` | Dev-only load and refresh timings, exposed as `window.__plannerTimings`. A test checks that the production bundle lacks it. |
-| `src/core/schema.ts` | `loadTagInfos(dq)` and pure `buildTagInfos`: tag tree, date and choice properties including inherited ones, closed values. |
+| `src/core/schema.ts` | `loadTagInfos(dq)` and pure `buildTagInfos`: tag tree, date and choice properties including inherited ones, closed values. `mergeTags`: a view's tags and the properties they all share (N14); `TAG_KEY`. |
 | `src/core/queries.ts` | Narrow node and task pulls (`nodesQuery`, `nodePull`, `TASKS_QUERY`), `readRaw`, `buildData`, `loadNodesAndTasks`, `loadTitles`. |
-| `src/core/normalize.ts` | Raw rows to `PlannerNode` and `PlannerTask`: Date and DateTime to local day and `HH:MM`; `choiceValueOf`; `isEmptyPlaceholder`. |
+| `src/core/normalize.ts` | Raw rows to `PlannerNode` and `PlannerTask`: Date and DateTime to local day and `HH:MM`; `choiceValueOf`; `isEmptyPlaceholder`; each node's view tag (N14); `isNode` tasks. |
 | `src/core/nodes.ts` | `resolveSpan`, `rollup`, `isDone`, `isCanceled`, `filterNodes`, `tasksOf`. |
 | `src/core/display-title.ts` | `displayTitle`: inline `[[uuid]]` references shown as the node's title, `(link)` when unknown. |
 | `src/core/layout-common.ts` | Shared by the layouts: day arithmetic on UTC midnights, formatting, `weekStartFromHost`, `categoryOf`, `viewItems`, task and node labels. |
 | `src/core/timeline-layout.ts` | `timelineRange`, `shiftAnchor`, `layoutTimeline`: columns, rows for nodes in range, `earlier` and `later` counts, undated list. |
 | `src/core/calendar-layout.ts` | `calendarRange`, `shiftCalendarAnchor`, `layoutCalendar`: week rows, bands on stable lanes, chips, `MONTH_SLOTS`. |
 | `src/core/agenda.ts` | `layoutAgenda`: buckets or node groups, done and late logic, sort. |
-| `src/core/kanban.ts` | `layoutKanban`, `findCell`, `cardCell`, `moveDescriptor`, `movedNode`, `writeMove` (write and read back). |
-| `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, versioned JSON, `toChoiceFilters`. |
+| `src/core/kanban.ts` | `layoutKanban`, `findCell`, `cardCell`, `moveDescriptor`, `movedNode`, `writeMove` (write and read back), `tagLaneProp` (read-only Tag swimlanes, N14). |
+| `src/core/view-config.ts` | `ViewConfig`, `defaultViewConfig`, `validateViewConfig`, `withTags`, `withKnownTags`, `withDefaults`, versioned JSON (with the pre-N14 migration), `toChoiceFilters`. |
 | `src/ui/workspace.ts`, `workspace.css` | `createWorkspace`: state, top bar, settings bar (Panel toggle last), view, then the panel on its right (tag tree, filters; a drawer under 640 px, N13), empty states, delegated events, actions queue, Kanban moves, `refresh()`. |
 | `src/ui/timeline.ts`, `timeline.css` | Timeline layout to HTML; `timelineAction`. |
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
@@ -89,10 +89,10 @@ Each module has a co-located `*.test.ts`, except `src/index.ts`, `src/types.ts`,
  views.list()                                saved views (cache dropped on every show)
   |
   v
- config = current or defaultViewConfig(initialTag)     validateViewConfig(config, tags)
-  |
+ config = current or defaultViewConfig(initialTag)     withKnownTags, validateViewConfig -> ViewTags
+  |                                          (the view's tags + the properties they share)
   v
- readRaw(dq, tags, tag)                      nodes (narrow pull) + #Task refs, asked together
+ readRaw(dq, tags, view.tags)                nodes of every tag of the view (narrow pull) + #Task refs, asked together
   |
   v
  buildData -> normalize                      PlannerNode[] / PlannerTask[], local days
@@ -118,14 +118,17 @@ Steps, with the module that does each:
    builds the tag tree. Inherited properties are not listed on a child tag by Logseq, so the
    builder walks `extends`. Planner reads tags by datascript, not `getTag(title)`.
 3. **Config.** The workspace keeps one `ViewConfig`. If none exists, the default for the first
-   own root tag with date properties is used.
-4. **Nodes and tasks.** `readRaw` asks for the tag's nodes, with the child tags if enabled,
-   and for the #Task blocks that reference those nodes. Both queries take the tag's entity id
-   (a number) as input, never its title, and leave out blocks in Recycle or on a recycled page. Both pulls name their attributes: id,
+   own root tag with date properties is used. A view has one or more tags (N14) in selection
+   order; `validateViewConfig` returns them with the properties they all share (`mergeTags`),
+   which filters, Done when, Depends on and the Kanban read. Start / End are per tag (`dates`).
+4. **Nodes and tasks.** `readRaw` asks for the nodes of the view's tags (their union), with the
+   child tags if enabled, and for the #Task blocks that reference those nodes. Both queries take
+   the tags' entity ids (numbers, one collection input `[?tag ...]`) as input, never titles, and leave out blocks in Recycle or on a recycled page. Both pulls name their attributes: id,
    uuid, title, tags and the Date, DateTime and choice idents of the graph's tags. A Date
    value is pulled with its journal day (`{ident [:db/id :block/journal-day]}`); one without a
    journal day is no value.
-5. **Normalise.** `buildData` maps raw rows. A Date becomes a local `YYYY-MM-DD`. A DateTime
+5. **Normalise.** `buildData` maps raw rows. Each node gets its view tag: the first selected tag
+   it carries, directly or through a child tag; its Start / End come from that tag's mapping. A Date becomes a local `YYYY-MM-DD`. A DateTime
    (epoch ms) becomes a local day and `HH:MM` through an injected zone offset. A choice value
    counts only when it is a closed value of that property. The empty placeholder is no value.
 6. **Titles.** Titles with `[[uuid]]` are resolved from the loaded nodes; `loadTitles` looks up
@@ -149,15 +152,16 @@ Steps, with the module that does each:
 - One refresh runs at a time. An event that arrives during a refresh earns exactly one more.
 - `Workspace.refresh()` queues a `reload`. It reads week start, tags and the view's rows in
   one batch, then maps the rows with the new tags. It asks a query again only when
-  `readRaw` finds the rows stale (a pulled property ident changed, or the view's tag id changed;
-  a renamed tag is the same tag).
+  `readRaw` finds the rows stale (a pulled property ident changed, or the view's tag ids changed,
+  compared as a set; a renamed tag is the same tag).
 - It compares a JSON signature of tags, nodes, tasks, titles, week start and today with what
   is shown. Equal means no redraw. Different means a redraw that keeps scroll, expanded
   rows, `details` state and focus.
 - When a menu is open, a Kanban write is pending or a card is being dragged, the result is
   dropped and asked again once the workspace is free. No render replaces the DOM during a drag;
   one asked for meanwhile runs when the drag ends (`dragend` or `drop` anywhere in the document).
-- When the view's tag or a property it uses is gone, the workspace shows the default view and
+- When a tag of the view is gone, it is dropped from the view (`withKnownTags`, N14). When none
+  is left, or a property the view uses is gone, the workspace shows the default view and
   an error message. A Start, End or Kanban column left unmapped because the tag had no such
   property takes the default once the tag has one (`withDefaults`).
 - The workspace queue runs actions in order. Errors from a refresh show in the error bar and
@@ -210,7 +214,7 @@ deleted on another device appear.
 
 | Kept in | What |
 |---|---|
-| `ViewConfig` (saved with a view) | tag, child tags on or off, Start, End, done values, filters; Timeline zoom; Calendar layout; Agenda group by and show done; Kanban column property, swimlane property, sort. Tags and properties by ident, closed values by uuid (entity ids differ per device). Versioned JSON (`v: 1`). |
+| `ViewConfig` (saved with a view) | tags (selection order), child tags on or off, Start and End per tag, done values, filters (the Tag filter under `"@tag"`); Timeline zoom and arrangement; Calendar layout; Agenda group by and show done; Kanban column property, swimlane property (or Tag), sort. Tags and properties by ident, closed values by uuid (entity ids differ per device). Versioned JSON (`v: 1`). |
 | Workspace `State`, session only | loaded tags, nodes, tasks and titles; saved views; the open popover and error; anchor day (shared by Timeline and Calendar, kept when a saved view opens); expanded Timeline rows; unfolded Agenda buckets and the Agenda group count; Kanban cards shown per cell; pending moves; the card whose Move menu is open; week start; whether the built-in tag group is open. |
 | `src/storage.ts` cache | the saved-view list. |
 
@@ -262,7 +266,7 @@ recorded in tasks.md.
 | Defer registrations with `setTimeout(…, 0)` and keep `main()` minimal. | Registrations must not delay the ready handshake (host gotcha §18, cited in CLAUDE.md and `src/index.ts`). |
 | Fail fast: a missing or invalid week start and an unknown ident in a saved view throw. | Project rule: no fallback that hides invalid state. |
 | A Date value without a journal day (the empty placeholder) is no value, not an error. | The host leaves `:logseq.property/empty-placeholder` when a value is removed (T11); throwing failed the whole tag's load (T14). |
-| The node and task queries take the tag's entity id, not its title. | The host EDN-reads a top-level string input: tags titled "2026 goals", "true" or ":kw" were not found, and same-titled tags merged (T14). A number input is passed through. |
+| The node and task queries take the tags' entity ids, not their titles, as one collection input (N14: one query for any number of tags). | The host EDN-reads a top-level string input: tags titled "2026 goals", "true" or ":kw" were not found, and same-titled tags merged (T14). A number input is passed through. |
 | The node and task queries leave out blocks with `deleted-at` and blocks whose page has it. | A block on a page in Recycle has no `deleted-at` of its own and kept showing (T14). |
 | Saved filters and done values store closed-value uuids. | Titles break on rename, and entity ids differ per device (T05, T06). |
 | Planner never creates or edits properties on a user's tags. | Users' schemas are theirs (REQUIREMENTS.md). |

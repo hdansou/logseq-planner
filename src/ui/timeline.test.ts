@@ -338,9 +338,9 @@ describe("dependency connectors (N12)", () => {
     const s = p.dateProps.find((x) => x.title === "Start")!.ident;
     const e = p.dateProps.find((x) => x.title === "End")!.ident;
     const node = (id: number, start: string, end: string | null, deps: number[] = []): PlannerNode =>
-      ({ id, uuid: `u${id}`, title: `N${id} <b>`, tagIds: [], dependsOn: deps, choices: {}, dates: { [s]: { day: start, time: null }, ...(end ? { [e]: { day: end, time: null } } : {}) } });
+      ({ id, uuid: `u${id}`, title: `N${id} <b>`, tagIds: [], tag: "", dependsOn: deps, choices: {}, dates: { [s]: { day: start, time: null }, ...(end ? { [e]: { day: end, time: null } } : {}) } });
     const nodes = [node(1, "2026-09-28", "2026-10-01"), node(2, "2026-10-02", "2026-10-05", [1]), node(3, "2026-10-02", "2026-10-06", [1]), node(4, "2026-10-08", null, [2, 3])];
-    return layoutTimeline({ items: viewItems(nodes, [], s, e, []), zoom: "week", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
+    return layoutTimeline({ items: viewItems(nodes, [], () => ({ start: s, end: e }), []), zoom: "week", anchor: TODAY, today: TODAY, now: "13:30", weekStart: 0, statusValues: [], titles: new Map() });
   };
   const host = (html: string) => {
     const el = document.createElement("div");

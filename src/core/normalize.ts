@@ -71,10 +71,31 @@ const refIds = (v: unknown): number[] => (Array.isArray(v) ? v : [v]).filter(isR
 const rawNodes = (raw: unknown[]) => (raw as [RawNode][]).map(([n]) => n);
 const isRef = (v: unknown): v is { id: number } => typeof v === "object" && v !== null && typeof (v as { id?: unknown }).id === "number";
 
-/** Raw nodes of `tag`; with child tags off, only nodes that carry `tag` itself. */
-function selectNodes(raw: unknown[], tag: TagInfo, childTags: boolean): RawNode[] {
-  const nodes = rawNodes(raw);
-  return childTags ? nodes : nodes.filter((n) => (n.tags ?? []).some((t) => t.id === tag.id));
+/**
+ * The view tag of each raw node (N14), by node id: the first of `selected` (selection order) the node carries, or with
+ * `childTags` carries through a tag extending it (any depth). A node with none of them (child tags off, only a child
+ * tag) is not one of the view's nodes and gets no entry. Linear in nodes × their tags.
+ */
+function viewTagOf(nodes: RawNode[], tags: TagInfo[], selected: TagInfo[], childTags: boolean): Map<number, string> {
+  const byId = tagMap(tags);
+  // Tag id → index of the first selected tag it is (or, with child tags, extends).
+  const rank = new Map<number, number>();
+  selected.forEach((tag, i) => {
+    const stack = [tag.id];
+    while (stack.length) {
+      const id = stack.pop()!;
+      if (rank.has(id)) continue;
+      rank.set(id, i);
+      if (childTags) stack.push(...(byId.get(id)?.childIds ?? []));
+    }
+  });
+  const out = new Map<number, string>();
+  for (const n of nodes) {
+    let best = Infinity;
+    for (const t of n.tags ?? []) best = Math.min(best, rank.get(t.id) ?? Infinity);
+    if (best !== Infinity) out.set(n.id, selected[best].ident);
+  }
+  return out;
 }
 
 /** Date and choice props that apply to a node: those of every tag it carries, each ident once. */
@@ -92,20 +113,23 @@ function propsOf(node: RawNode, tagsById: Map<number, TagInfo>) {
 const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
 
 /**
- * Raw `nodesQuery` rows → nodes with mapped dates and choices. A Date value is the journal page ref pulled with its
+ * Raw `nodesQuery` rows → the nodes of the view's tags `selected` (N14: their union, each node once, with the view tag
+ * it belongs to, `viewTagOf`) with mapped dates and choices. A Date value is the journal page ref pulled with its
  * `journal-day` (`{id, "journal-day"}`); a ref without one (the empty placeholder, T14) is no value. `dependsOn`: the
  * dependency property the rows were pulled with (N12), read into each node's `dependsOn` ids; null = none.
  */
 export function buildNodes(
   raw: unknown[],
   tags: TagInfo[],
-  tag: TagInfo,
+  selected: TagInfo[],
   childTags: boolean,
   zone: ZoneOffset,
   dependsOn: string | null = null,
 ): PlannerNode[] {
   const tagsById = tagMap(tags);
-  return selectNodes(raw, tag, childTags).map((node) => {
+  const rows = rawNodes(raw);
+  const viewTag = viewTagOf(rows, tags, selected, childTags);
+  return rows.filter((n) => viewTag.has(n.id)).map((node) => {
     const { dateProps, choiceProps } = propsOf(node, tagsById);
     const dates: Record<string, LocalDate> = {};
     for (const p of dateProps) {
@@ -128,6 +152,7 @@ export function buildNodes(
       uuid: node.uuid,
       title: node.title,
       tagIds: (node.tags ?? []).map((t) => t.id),
+      tag: viewTag.get(node.id)!,
       dates,
       choices,
       dependsOn: dependsOn === null ? [] : refIds(node[dependsOn]),
@@ -140,7 +165,8 @@ const dateTimeOrNull = (v: number | undefined, zone: ZoneOffset) => (typeof v ==
 /**
  * Raw `tasksQuery` rows (DateTime values are epoch ms, refs `{id}`) → the tasks whose `:block/refs` hit one of `nodes`.
  * With a dependency property (N12) a ref to a node the task depends on through it does not link: a dependent is not a
- * task of its dependency. Only the values on the task entity count; a task without the property links as before.
+ * task of its dependency. Only the values on the task entity count; a task without the property links as before. A task
+ * that is itself one of `nodes` (N14) is flagged `isNode`.
  */
 export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffset = systemZone, dependsOn: string | null = null): PlannerTask[] {
   const nodeIds = new Set(nodes.map((n) => n.id));
@@ -156,6 +182,7 @@ export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffse
       title: t.title,
       status: s && !isEmptyPlaceholder(s) ? { ident: s.ident, title: s.title } : null,
       nodeIds: hits,
+      isNode: nodeIds.has(t.id),
       deadline: dateTimeOrNull(t[":logseq.property/deadline"], zone),
       scheduled: dateTimeOrNull(t[":logseq.property/scheduled"], zone),
     });

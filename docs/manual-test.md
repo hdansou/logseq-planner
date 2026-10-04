@@ -348,6 +348,22 @@ Rows added with the T14 review fixes; none run live yet.
 | J14 | Make the first load fail (e.g. host `preferredStartOfWeek` set to an invalid value), open Planner, then fix it and click Retry | Only the error and a Retry button show (no "No tags in this graph"); Retry loads the workspace | pass | 771140f | 2026-10-03 | the host sanitises a bad `start-of-week` config (it stays 6), so `logseq.api.get_user_configs` was wrapped to return "banana": the workspace shows only "Logseq preferredStartOfWeek is "banana", expected 0–6" with Dismiss and Retry; after unwrapping, Retry loads the workspace |
 | J15 | A task with only a past Scheduled date (open, no Deadline): look at the Timeline (expand its node), the Calendar and the Agenda by date | Timeline: the scheduled marker is red (`[data-tl-marker="scheduled"][data-late]`); Calendar: no chip (Scheduled is not shown); Agenda: it is under Overdue, "scheduled … N days late" | pass | 771140f | 2026-10-03 | four tasks linked to Website relaunch. Scheduled D-3 only: red scheduled ring (red border, no fill), Overdue "scheduled 30 Sep 09:00, 3 days late", no Calendar chip. Same but Done: not late, under Earlier with Show done. Scheduled D-2 + Deadline D+3: not late. Deadline D-2 + Scheduled D+1: red deadline diamond, Overdue "2 days late", late Calendar chip |
 
+## K. Several tags (N14)
+
+On `planner-project` (6 #Milestone blocks, 28 #Task blocks; both tags have Start, End, Status and Owner). None run live yet.
+
+| Id | Steps | Expected | Result | Build | Date | Notes |
+|---|---|---|---|---|---|---|
+| K1 | Open #Milestone, tick the checkbox before #Task in the tag tree | The view shows the milestones and the tasks, each once; both tag rows are pressed and ticked; neither checkbox is disabled | not run |  |  |  |
+| K2 | Look at the Tag control in the settings bar | It reads "#Milestone + #Task"; its menu still picks one tag (switches to it) | not run |  |  |  |
+| K3 | Open **Dates** | "Dates: 2 tags"; a row per tag with that tag's Start and End lists; picking one tag's Start changes only that tag's bars; the popover stays open | not run |  |  |  |
+| K4 | Panel filters | Only properties both tags have (Status, Owner if they are the same property); a **Tag** group first with #Milestone and #Task and their counts; ticking #Task shows only the tasks | not run |  |  |  |
+| K5 | Kanban over both tags, Columns = Status; Swimlanes = Tag | Every milestone and task is a card in its Status column; lanes #Milestone and #Task; a drag into the other tag's lane is refused, a drag to another column in the same lane is written and read back; the ⋯ menu lists columns only; the hint says Tag lanes are read-only | not run |  |  |  |
+| K6 | Timeline: Arrange By date, then By tag | By date: one list by start; By tag: a heading row #Milestone, its rows by start, then #Task and its rows; connectors still drawn between tasks | not run |  |  |  |
+| K7 | Save the two-tag view, open another tag, open the saved view | Tags, per-tag dates, filters (Tag filter included) and arrangement come back; the name suggested was "Milestone +1 timeline" | not run |  |  |  |
+| K8 | Open a view saved before N14 (one tag) | It opens as that tag with its Start and End, no error | not run |  |  |  |
+| K9 | With only one tag ticked, try to untick it | Its checkbox is disabled; the view keeps the tag | not run |  |  |  |
+
 ## Desktop pass (2026-10-03, build e849107)
 
 Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over

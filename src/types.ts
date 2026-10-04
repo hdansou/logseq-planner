@@ -131,6 +131,12 @@ export interface PlannerNode {
   title: string;
   /** Ids of the tags the node carries. */
   tagIds: number[];
+  /**
+   * Ident of the view's tag the node belongs to (N14): the first selected tag, in selection order, that it carries
+   * directly or (with child tags on) through a tag extending it. Its Start / End mapping, its Tag filter value and its
+   * heading when the Timeline is arranged by tag.
+   */
+  tag: string;
   /** Date/DateTime values by property ident; a property the node has no value for is absent. */
   dates: Record<string, LocalDate>;
   /** Choice values by property ident; a property the node has no value for is absent. */
@@ -157,6 +163,11 @@ export interface PlannerTask {
    * depends on through the view's dependency property (N12: a dependent is not a task of its dependency).
    */
   nodeIds: number[];
+  /**
+   * The block is itself a loaded node of the view (N14: #Task is one of the view's tags): it counts in its nodes'
+   * rollups and spans like any linked task, but it is never listed as a task row or entry of another node.
+   */
+  isNode: boolean;
   /** The task's built-in Deadline (DateTime) as a local date; null when unset. */
   deadline: LocalDate | null;
   /** The task's built-in Scheduled (DateTime) as a local date; null when unset. */

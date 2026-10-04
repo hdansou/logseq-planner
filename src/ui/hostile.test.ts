@@ -108,4 +108,19 @@ describe("hostile titles render inert (T14)", () => {
     await click(`[data-kb-move="${SITE}"]`);
     expectInert("kanban move menu");
   });
+
+  it("views over two tags (N14): Tag control, tag checkboxes, Dates popover, Tag filter, Timeline by tag, Tag lanes", async () => {
+    const meeting = tags.find((t) => t.title === "Meeting")!;
+    await click(`[data-tag-check="${meeting.id}"]`);
+    expectInert("two tags");
+    expect($(`[data-tag-check="${tags.find((t) => t.title.endsWith(" Project"))!.id}"]`)!.getAttribute("aria-label")).toBe(`Include #${H} Project`);
+    expect($("[data-filter-group=\"@tag\"]")!.textContent).toContain(H);
+    await click("[data-control=dates]");
+    expectInert("dates popover");
+    await click("[data-control=dates]");
+    await click("[data-tl-arrange=tag]");
+    expectInert("timeline by tag");
+    await click("[data-view-kind=kanban]");
+    expectInert("kanban, no shared choice");
+  });
 });

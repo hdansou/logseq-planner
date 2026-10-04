@@ -24,10 +24,22 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 ## Features
 
 ### Across all views
-- **Any tag, one per view.** Built-in or user-created; tags that extend it are included
-  (toggle). Filters come from the tag's choice properties.
-- **Dates from the tag's own properties.** Start and End are picked from the tag's Date or
-  DateTime properties (own and inherited). Defaults: properties named Start/End, else
+- **Any tag, one or more per view** (N14). Built-in or user-created. A click on a tag in the
+  tree shows that tag alone; the checkbox before it adds it to the view or removes it (the
+  last tag cannot be removed). A view over several tags shows the union of their nodes, each
+  node once; the Tag control reads "#Milestone + #Task". Tags that extend a selected tag are
+  included (one toggle for the whole view). Each node belongs to the first selected tag, in
+  selection order, that it carries directly or through a tag extending it: that tag gives its
+  Start / End, its Tag filter value and its heading in the Timeline arranged by tag.
+- **Shared properties** (N14). Filters, Kanban Columns / Swimlanes / Show, Done when, Depends
+  on and the Priority sort offer the properties every selected tag has (own or inherited), the
+  same property by ident, not by title. One tag shares all of its properties. With two or more
+  tags the panel adds a **Tag** filter group (which tags to show) and the Kanban offers **Tag**
+  swimlanes, read-only (a card keeps its tag; drops across lanes are refused). Ticking a tag
+  drops the filters, done values and Kanban settings the tags no longer share.
+- **Dates from each tag's own properties.** Start and End are picked per tag from its Date or
+  DateTime properties (own and inherited): with one tag the Start and End menus, with several
+  one Dates menu with a row per tag. Defaults per tag: properties named Start/End, else
   Scheduled/Deadline, else the first date property. A node with no Start/End takes its
   span from its linked tasks (drawn dashed). One date = a point. No date = listed apart.
   Planner never creates date properties.
@@ -36,8 +48,10 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   **Dependents are not tasks** (N12): when the view has a dependency property, a #Task block T is
   not a task of N if N is among T's values of that property (only values on T itself count); every
   view follows (rollups, task rows, Calendar chips, Agenda, Kanban progress). With None, as above.
-- **Depends on** (N12). A setting after End, shown when the tag has a node-typed property (own or
-  inherited, any cardinality): None or one of them. Default: the node property whose title,
+  A #Task block that is itself a node of the view (N14: #Task is one of its tags) is its own row
+  or entry, never also a task row of another node; it still counts in that node's rollup.
+- **Depends on** (N12). A setting after End, shown when the view's tags share a node-typed property
+  (own or inherited, any cardinality): None or one of them. Default: the node property whose title,
   lowercased with non-alphanumerics removed, is `dependson` (`depends_on`, "Depends on",
   "depends-on"), else None. Saved with the view (`dependsOn`); a view saved before it uses the
   default rule; a property the tag no longer has counts as None.
@@ -51,7 +65,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   shows Deadlines only), the Agenda's Overdue bucket, filed and counted from the due date.
 - **Saved views** stored in the graph on a plugin-owned page (one block per view, config as
   a hidden string property holding JSON). Sync with the graph; reused later by the side
-  panel and in-page block.
+  panel and in-page block. A view saved before N14 (one `tag`, `start`, `end`) opens as that
+  one tag; a saved view naming a tag that is gone opens with the tags that are left (none left:
+  the default view and an error).
 - **Live updates.** The open view redraws after graph changes (debounced), keeping scroll
   and expanded rows.
 - **Host shortcuts keep working** (desktop app). Keys Planner does not use are passed to Logseq, so Cmd+K,
@@ -83,6 +99,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 - One row per node sorted by start; progress strip on each bar; derived spans dashed;
   one-date nodes as diamonds; nodes with tasks expand to task sub-rows; today line; bars
   clipped at the range edge are marked; undated nodes in a footnote. Prev / next / today.
+- **Arrange** (N14), shown with two or more tags: **By date** (one list by start) or **By tag**
+  (a heading row per tag in selection order, then that tag's rows by start). The setting is
+  saved with the view (`arrange`).
 - **Dependency connectors** (N12): with a Depends on property, a line runs from the right end of each dependency's bar
   (or point) to the left end of its dependent's, with an arrow at the dependent, in every zoom; when the dependent starts
   before the dependency ends, the line takes a right-angle detour between the rows. Only pairs whose both nodes have a
@@ -140,11 +159,12 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   `import.meta.env.DEV`; pinned dev port 8293 (preview 8294) with `--strictPort`.
 - Data access: datascript queries for tag schema (incl. `:logseq.property.class/extends`),
   tagged nodes with mapped properties, and #Task refs. Pulls name the attributes they read
-  (no `pull [*]`), and the task query is bound to tasks that reference a node of the tag. Date (journal ref) and DateTime (ms)
+  (no `pull [*]`), and the task query is bound to tasks that reference a node of the view's tags
+  (one node query and one task query per load, the tags' entity ids as one collection input). Date (journal ref) and DateTime (ms)
   both normalised to local ISO days; DateTime keeps HH:MM for labels.
 - Writes: saved views (hidden string property, schema ensured before each write) and Kanban
   moves (closed-value property write). Nothing else.
-- Performance target: up to ~2,000 nodes of the chosen tag, loaded at once and filtered in
+- Performance target: up to ~2,000 nodes of the chosen tags (their union), loaded at once and filtered in
   the plugin. First view < 1 s; redraw after a change < 300 ms.
 - Workspace frame per the skill's ui-positioning recipe, but starting at the host header's lower edge (top and
   height from `--ls-headbar-height`, fallback 3rem), so the window moves by the header, zooms on a header
@@ -155,7 +175,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 
 - Side panel and in-page block surfaces (next, in that order).
 - Dragging or resizing to change dates; a detail/edit panel.
-- More than one tag per view.
+- Views defined by a free query; different filters per tag.
 - Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.
 - Kanban manual card order; Agenda ranges other than 14 days.
 - Creating properties on the user's tags (e.g. a one-click "add Start/End").

@@ -1,6 +1,10 @@
 // Saved-view configuration: type, defaults, validation, JSON (de)serialisation. Pure: no DOM, no SDK.
 // Everything stored is graph-portable: tags and properties by ident, closed values by uuid (entity ids differ per device).
-import type { ChoiceFilters, TagInfo } from "../types";
+import type { ChoiceFilters, ChoiceProp, NodeProp, TagInfo } from "../types";
+import { priorityProp } from "./kanban";
+import { mergeTags, TAG_KEY, type ViewTags } from "./schema";
+
+export { TAG_KEY };
 
 export const VIEW_KINDS = ["timeline", "calendar", "agenda", "kanban"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
@@ -9,21 +13,33 @@ const ZOOMS = ["day", "week", "month", "quarter"] as const;
 const LAYOUTS = ["month", "week"] as const;
 const GROUPS = ["node", "date"] as const;
 const SORTS = ["due", "priority", "title"] as const;
+/** Timeline row order with two or more tags (N14): by date, a heading per tag, or children nested under their parent. */
+export const ARRANGES = ["date", "tag", "nested"] as const;
+export type Arrange = (typeof ARRANGES)[number];
+
+
+/** A tag's Start / End mapping: Date or DateTime property idents; null = not mapped (a tag without dates, or no End). */
+export interface DateMapping {
+  start: string | null;
+  end: string | null;
+}
 
 /** Saved closed-value selection by choice property ident: value uuids, `null` = "No value" (filters only). */
 export type ValueSelection = Record<string, (string | null)[]>;
 
 interface CommonConfig {
-  /** Tag ident. */
-  tag: string;
-  /** Include nodes of tags that extend it. */
+  /** Tag idents in selection order: at least one, no duplicates (N14: a view over several tags shows their union). */
+  tags: string[];
+  /** Include nodes of tags that extend a selected tag (one setting for the whole view). */
   childTags: boolean;
-  /** Date/DateTime property idents; null = not mapped (a tag without dates, or no End). */
-  start: string | null;
-  end: string | null;
+  /** Start / End per selected tag, by tag ident: exactly one entry per tag of `tags` (N14). */
+  dates: Record<string, DateMapping>;
   /** Per choice property: uuids of the closed values that count as done. Absent property = default rule (`isDone`). */
   doneValues: Record<string, string[]>;
-  /** Per choice property: selected value uuids, `null` = "No value". Absent or empty = no filter. */
+  /**
+   * Per choice property: selected value uuids, `null` = "No value". Absent or empty = no filter. Under `TAG_KEY` (two or
+   * more tags): the tag idents to show.
+   */
   filters: ValueSelection;
   /**
    * Node property whose values are the nodes a node depends on (N12): Timeline connectors, and those nodes' tasks no
@@ -35,11 +51,13 @@ interface CommonConfig {
 
 export type ViewConfig = CommonConfig &
   (
-    | { kind: "timeline"; zoom: (typeof ZOOMS)[number] }
+    /** `arrange` applies with two or more tags only (a one-tag Timeline is by date). */
+    | { kind: "timeline"; zoom: (typeof ZOOMS)[number]; arrange: Arrange }
     | { kind: "calendar"; layout: (typeof LAYOUTS)[number] }
     | { kind: "agenda"; groupBy: (typeof GROUPS)[number]; showDone: boolean }
     /**
-     * Column property (default Status); optional swimlane property; card sort. Null = the tag has no choice property.
+     * Column property (default Status); optional swimlane property (or `TAG_KEY`); card sort. Null = the view's tags
+     * share no choice property.
      * `hiddenColumns`: per column property ident, the columns not shown (closed-value uuids, `NO_VALUE` = "No <prop>"),
      * kept per property so switching the column property and back keeps each choice; unknown keys are ignored (N08).
      */
@@ -49,7 +67,7 @@ export type ViewConfig = CommonConfig &
 const VERSION = 1;
 
 /** Start/End, else Scheduled/Deadline, else the first date property (REQUIREMENTS: dates from the tag's own properties). */
-function defaultDates(tag: TagInfo): { start: string | null; end: string | null } {
+export function defaultDates(tag: TagInfo): DateMapping {
   const named = (title: string) => tag.dateProps.find((p) => p.title.toLowerCase() === title)?.ident ?? null;
   for (const [s, e] of [["start", "end"], ["scheduled", "deadline"]]) {
     const start = named(s);
@@ -60,7 +78,7 @@ function defaultDates(tag: TagInfo): { start: string | null; end: string | null 
 }
 
 /** The node property titled like "depends on" (lowercased, non-alphanumerics removed: `depends_on`, "Depends on", "depends-on"), else null. */
-function defaultDependsOn(tag: TagInfo): string | null {
+function defaultDependsOn(tag: { nodeProps: NodeProp[] }): string | null {
   return tag.nodeProps.find((p) => p.title.toLowerCase().replace(/[^a-z0-9]/g, "") === "dependson")?.ident ?? null;
 }
 
@@ -68,41 +86,103 @@ function defaultDependsOn(tag: TagInfo): string | null {
  * The dependency property the view uses on `tag` now: the chosen one, or by the default rule when the config predates
  * the setting; null for None and for an ident the tag no longer has (no error: the view just draws no dependencies).
  */
-export function dependsOnOf(config: ViewConfig, tag: TagInfo): string | null {
+export function dependsOnOf(config: ViewConfig, tag: { nodeProps: NodeProp[] }): string | null {
   const ident = config.dependsOn === undefined ? defaultDependsOn(tag) : config.dependsOn;
   return tag.nodeProps.some((p) => p.ident === ident) ? ident : null;
 }
 
-/** The view a user gets when they pick `tag`: mapped dates and the dependency property by the default rules, nothing filtered. */
-export function defaultViewConfig(tag: TagInfo, kind: ViewKind = "timeline"): ViewConfig {
-  const common: CommonConfig = { tag: tag.ident, childTags: true, ...defaultDates(tag), doneValues: {}, filters: {}, dependsOn: defaultDependsOn(tag) };
+/** The choice property a Kanban view starts on: Status, else the first one; null when there is none. */
+const defaultColumn = (choiceProps: ChoiceProp[]): string | null => (choiceProps.find((p) => p.title === "Status") ?? choiceProps[0])?.ident ?? null;
+
+/** The Timeline arrangement a view over `count` tags starts with (N14): nested with two or more, by date with one. */
+const defaultArrange = (count: number): Arrange => (count > 1 ? "nested" : "date");
+
+/**
+ * The view a user gets when they pick `tag` (or several tags, in selection order): each tag's dates and the dependency
+ * property by the default rules, nothing filtered.
+ */
+export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "timeline"): ViewConfig {
+  const view = mergeTags([tag].flat());
+  const common: CommonConfig = {
+    tags: view.tags.map((t) => t.ident), childTags: true, dates: Object.fromEntries(view.tags.map((t) => [t.ident, defaultDates(t)])),
+    doneValues: {}, filters: {}, dependsOn: defaultDependsOn(view),
+  };
   switch (kind) {
     case "timeline":
-      return { ...common, kind, zoom: "month" };
+      return { ...common, kind, zoom: "month", arrange: defaultArrange(view.tags.length) };
     case "calendar":
       return { ...common, kind, layout: "month" };
     case "agenda":
       return { ...common, kind, groupBy: "node", showDone: false };
-    case "kanban": {
-      const status = tag.choiceProps.find((p) => p.title === "Status") ?? tag.choiceProps[0];
-      return { ...common, kind, columnProp: status?.ident ?? null, laneProp: null, sort: "due", hiddenColumns: {} };
-    }
+    case "kanban":
+      return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {} };
   }
 }
 
 /**
- * `config` with its unmapped fields filled from `tag` now (T14): a null Start takes the default Start, and then a null
- * End the default End (the Start/End rule of `defaultDates`); a null Kanban column takes the default column property.
- * A field the user set stays. Returns `config` itself when nothing changes. Assumes `config` is valid for `tag`.
+ * `config` over the tags `tags` (N14: a tag ticked or unticked, or a gone tag dropped): kept tags keep their dates, a
+ * new one gets its default dates; filters, done values, the Kanban column and lane and the dependency property are kept
+ * where the new tags share them, else dropped (column: the default; dependency: the default rule); the Tag filter keeps
+ * the tags still selected and goes, like a Tag swimlane, below two tags. The Timeline arrangement takes the default of
+ * the new tag count when the view crosses between one tag and several. Throws on an empty list.
  */
-export function withDefaults(config: ViewConfig, tag: TagInfo): ViewConfig {
+export function withTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
+  const view = mergeTags(tags);
+  const idents = view.tags.map((t) => t.ident);
+  const multi = idents.length > 1;
+  const shared = new Set(view.choiceProps.map((p) => p.ident));
+  const filters: ValueSelection = {};
+  for (const [key, values] of Object.entries(config.filters)) {
+    if (key === TAG_KEY) {
+      const kept = values.filter((v) => v !== null && idents.includes(v));
+      if (multi && kept.length) filters[key] = kept;
+    } else if (shared.has(key)) filters[key] = values;
+  }
+  const doneValues = Object.fromEntries(Object.entries(config.doneValues).filter(([ident]) => shared.has(ident)));
+  // Absent (stored before N12) stays absent: the default rule applies wherever it is used (`dependsOnOf`).
+  const kept = config.dependsOn === undefined || config.dependsOn === null || view.nodeProps.some((p) => p.ident === config.dependsOn);
+  const common = {
+    ...config, tags: idents, dates: Object.fromEntries(view.tags.map((t) => [t.ident, config.dates[t.ident] ?? defaultDates(t)])),
+    filters, doneValues, ...(kept ? {} : { dependsOn: defaultDependsOn(view) }),
+  };
+  if (common.kind === "timeline") {
+    return (config.tags.length > 1) === multi ? common : { ...common, arrange: defaultArrange(idents.length) };
+  }
+  if (common.kind !== "kanban") return common;
+  const columnProp = common.columnProp !== null && shared.has(common.columnProp) ? common.columnProp : defaultColumn(view.choiceProps);
+  const lane = common.laneProp;
+  const laneProp = lane !== null && lane !== columnProp && (lane === TAG_KEY ? multi : shared.has(lane)) ? lane : null;
+  const sort = common.sort === "priority" && !priorityProp(view) ? "due" : common.sort;
+  return { ...common, columnProp, laneProp, sort };
+}
+
+/**
+ * `config` without the tags that are gone from the graph (N14, a saved view naming a deleted tag): their dates go with
+ * them (`withTags`). Returns `config` itself when every tag is known; throws "unknown tag" when none is left, so the
+ * caller's unknown-tag fallback (the default view) applies.
+ */
+export function withKnownTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
+  const known = config.tags.map((ident) => tags.find((t) => t.ident === ident)).filter((t): t is TagInfo => !!t);
+  if (known.length === 0) throw new Error(`Invalid view config: unknown tag ${config.tags.join(", ")}`);
+  return known.length === config.tags.length ? config : withTags(config, known);
+}
+
+/**
+ * `config` with its unmapped fields filled from the view's tags now (T14): per tag, a null Start takes the default Start,
+ * and then a null End the default End (the Start/End rule of `defaultDates`); a null Kanban column takes the default
+ * column property. A field the user set stays. Returns `config` itself when nothing changes. Assumes `config` is valid
+ * for `view` (`validateViewConfig`).
+ */
+export function withDefaults(config: ViewConfig, view: ViewTags): ViewConfig {
   let next = config;
-  if (config.start === null) {
+  for (const tag of view.tags) {
+    const mapped = config.dates[tag.ident];
+    if (mapped.start !== null) continue;
     const d = defaultDates(tag);
-    if (d.start !== null) next = { ...next, start: d.start, end: config.end ?? d.end };
+    if (d.start !== null) next = { ...next, dates: { ...next.dates, [tag.ident]: { start: d.start, end: mapped.end ?? d.end } } };
   }
   if (next.kind === "kanban" && next.columnProp === null) {
-    const column = (defaultViewConfig(tag, "kanban") as Extract<ViewConfig, { kind: "kanban" }>).columnProp;
+    const column = defaultColumn(view.choiceProps);
     if (column !== null) next = { ...next, columnProp: column };
   }
   return next;
@@ -136,16 +216,25 @@ const selection = (what: string, v: unknown, allowNull: boolean, kind = "value u
 export function checkViewConfigShape(config: unknown): asserts config is ViewConfig {
   if (!isObject(config)) throw invalid("missing config object");
   oneOf("unknown view kind", VIEW_KINDS, config.kind);
-  if (typeof config.tag !== "string") throw invalid("tag must be a string");
+  const tags = config.tags;
+  if (!Array.isArray(tags) || tags.length === 0 || !tags.every((t) => typeof t === "string")) throw invalid("tags must be a non-empty list of tag idents");
+  if (new Set(tags).size !== tags.length) throw invalid("tags must not repeat a tag");
   bool("childTags", config.childTags);
-  stringOrNull("start", config.start);
-  stringOrNull("end", config.end);
+  if (!isObject(config.dates)) throw invalid("dates must be an object");
+  for (const [ident, mapping] of Object.entries(config.dates)) {
+    if (!tags.includes(ident)) throw invalid(`dates names ${ident}, which is not one of the view's tags`);
+    if (!isObject(mapping)) throw invalid(`dates[${ident}] must be an object`);
+    stringOrNull(`dates[${ident}].start`, mapping.start);
+    stringOrNull(`dates[${ident}].end`, mapping.end);
+  }
+  for (const ident of tags) if (!(ident in config.dates)) throw invalid(`dates has no Start / End for ${ident}`);
   selection("doneValues", config.doneValues, false);
   selection("filters", config.filters, true);
   if ("dependsOn" in config) stringOrNull("dependsOn", config.dependsOn);
   switch (config.kind) {
     case "timeline":
-      return oneOf("timeline zoom", ZOOMS, config.zoom);
+      oneOf("timeline zoom", ZOOMS, config.zoom);
+      return oneOf("timeline arrange", ARRANGES, config.arrange);
     case "calendar":
       return oneOf("calendar layout", LAYOUTS, config.layout);
     case "agenda":
@@ -159,23 +248,36 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
   }
 }
 
-/** Throws a clear error when `config` has a wrong shape or names an unknown tag, property, value or option. Returns the tag. */
-export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): TagInfo {
+/**
+ * Throws a clear error when `config` has a wrong shape or names an unknown tag, property, value or option. Returns the
+ * view's tags with the properties they share (`mergeTags`), against which filters, done values and the Kanban column
+ * and lane are checked; Start / End are checked against each tag's own date properties.
+ */
+export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): ViewTags {
   checkViewConfigShape(config);
-  const tag = tags.find((t) => t.ident === config.tag);
-  if (!tag) throw new Error(`Invalid view config: unknown tag ${config.tag}`);
-  const date = (ident: string | null) => {
-    if (ident !== null && !tag.dateProps.some((p) => p.ident === ident)) throw new Error(`Invalid view config: unknown date property ${ident} on ${tag.title}`);
-  };
+  const view = mergeTags(config.tags.map((ident) => {
+    const tag = tags.find((t) => t.ident === ident);
+    if (!tag) throw new Error(`Invalid view config: unknown tag ${ident}`);
+    return tag;
+  }));
+  for (const tag of view.tags) {
+    for (const ident of [config.dates[tag.ident].start, config.dates[tag.ident].end]) {
+      if (ident !== null && !tag.dateProps.some((p) => p.ident === ident)) throw new Error(`Invalid view config: unknown date property ${ident} on ${tag.title}`);
+    }
+  }
+  const multi = view.tags.length > 1;
   const choice = (ident: string) => {
-    const p = tag.choiceProps.find((x) => x.ident === ident);
-    if (!p) throw new Error(`Invalid view config: unknown choice property ${ident} on ${tag.title}`);
+    const p = view.choiceProps.find((x) => x.ident === ident);
+    if (!p) throw new Error(`Invalid view config: unknown choice property ${ident} on ${view.tags.map((t) => t.title).join(" + ")}`);
     return p;
   };
-  date(config.start);
-  date(config.end);
   const values = (selection: ValueSelection | Record<string, string[]>, allowNull: boolean) => {
     for (const [ident, uuids] of Object.entries(selection)) {
+      if (ident === TAG_KEY && allowNull) {
+        if (!multi) throw new Error("Invalid view config: a Tag filter needs two or more tags");
+        for (const u of uuids) if (u === null || !config.tags.includes(u)) throw new Error(`Invalid view config: Tag filter value ${String(u)} is not one of the view's tags`);
+        continue;
+      }
       const p = choice(ident);
       for (const u of uuids) {
         if (u === null ? !allowNull : !p.values.some((v) => v.uuid === u)) throw new Error(`Invalid view config: unknown value ${String(u)} for ${p.title}`);
@@ -186,16 +288,22 @@ export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): TagInfo
   values(config.doneValues, false);
   if (config.kind === "kanban") {
     if (config.columnProp !== null) choice(config.columnProp);
-    if (config.laneProp !== null) choice(config.laneProp);
+    if (config.laneProp === TAG_KEY) {
+      if (!multi) throw new Error("Invalid view config: Tag swimlanes need two or more tags");
+    } else if (config.laneProp !== null) choice(config.laneProp);
   }
-  return tag;
+  return view;
 }
 
-/** Saved value uuids → the closed-value ids `filterNodes` takes (`null` stays "No value"). Assumes a validated config. */
-export function toChoiceFilters(config: ViewConfig, tag: TagInfo): ChoiceFilters {
+/**
+ * Saved value uuids → the closed-value ids `filterNodes` takes (`null` stays "No value"). The Tag filter (`TAG_KEY`) is
+ * not a choice and is left out (the workspace applies it by node tag). Assumes a validated config.
+ */
+export function toChoiceFilters(config: ViewConfig, view: { choiceProps: ChoiceProp[] }): ChoiceFilters {
   const out: ChoiceFilters = {};
   for (const [ident, uuids] of Object.entries(config.filters)) {
-    const p = tag.choiceProps.find((x) => x.ident === ident)!;
+    if (ident === TAG_KEY) continue;
+    const p = view.choiceProps.find((x) => x.ident === ident)!;
     out[ident] = uuids.map((u) => (u === null ? null : p.values.find((v) => v.uuid === u)!.id));
   }
   return out;
@@ -208,7 +316,9 @@ export const serializeViewConfig = (config: ViewConfig): string => JSON.stringif
  * `validateViewConfig`. A stored Kanban config without `hiddenColumns` loads with nothing hidden: the key was added (N08)
  * after views were first saved, and this is the one place stored configs come in. A stored config without `dependsOn`
  * (added in N12) loads with the key absent, which means the default rule: the parse has no tag to apply it to, so
- * `dependsOnOf` applies it against the view's tag wherever the setting is used.
+ * `dependsOnOf` applies it against the view's tag wherever the setting is used. A stored config from before N14 has one
+ * `tag` with its `start` and `end`: it loads as `tags: [tag]` with `dates: { [tag]: { start, end } }`, and a Timeline
+ * without `arrange` loads arranged by date (the one-tag default).
  */
 export function parseViewConfig(text: string): ViewConfig {
   let parsed: { v?: unknown; config?: unknown };
@@ -218,8 +328,13 @@ export function parseViewConfig(text: string): ViewConfig {
     throw new Error("Invalid view config: not valid JSON");
   }
   if (parsed?.v !== VERSION) throw new Error(`Invalid view config: unsupported version ${String(parsed?.v)}, expected ${VERSION}`);
-  const stored = parsed.config;
+  let stored = parsed.config;
   if (isObject(stored) && stored.kind === "kanban" && !("hiddenColumns" in stored)) stored.hiddenColumns = {};
+  if (isObject(stored) && !("tags" in stored) && typeof stored.tag === "string") {
+    const { tag, start, end, ...rest } = stored;
+    stored = { ...rest, tags: [tag], dates: { [tag]: { start, end } } };
+  }
+  if (isObject(stored) && stored.kind === "timeline" && !("arrange" in stored)) stored.arrange = "date";
   checkViewConfigShape(stored);
   return stored;
 }

@@ -35,14 +35,14 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 const project = tag("Project");
 const startId = prop(project, "Start");
 const endId = prop(project, "End");
-const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], dependsOn: [], dates, choices: {} });
-const task = (over: Partial<PlannerTask> & { nodeIds: number[] }): PlannerTask => ({
+const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], tag: "", dependsOn: [], dates, choices: {} });
+const task = (over: Partial<PlannerTask> & { isNode: false, nodeIds: number[] }): PlannerTask => ({
   id: 100, uuid: "t", title: "t", status: null, deadline: null, scheduled: null, ...over,
 });
 
 describe("resolveSpan", () => {
   it("uses the mapped Start and End as a span", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const site = byTitle(nodes, "Website relaunch");
     expect(resolveSpan(site, [], startId, endId)).toEqual({ kind: "mapped", start: d("2026-09-23"), end: d("2026-10-23") });
   });
@@ -50,21 +50,21 @@ describe("resolveSpan", () => {
   it("takes a span from linked tasks' Scheduled and Deadline when the node has no mapped dates", () => {
     const n = node({});
     const tasks = [
-      task({ nodeIds: [1], deadline: d("2026-10-05", "12:00") }),
-      task({ nodeIds: [1], scheduled: d("2026-10-01", "09:00"), deadline: d("2026-10-09", "17:00") }),
-      task({ nodeIds: [2], deadline: d("2027-01-01") }), // another node's task
+      task({ isNode: false, nodeIds: [1], deadline: d("2026-10-05", "12:00") }),
+      task({ isNode: false, nodeIds: [1], scheduled: d("2026-10-01", "09:00"), deadline: d("2026-10-09", "17:00") }),
+      task({ isNode: false, nodeIds: [2], deadline: d("2027-01-01") }), // another node's task
     ];
     expect(resolveSpan(n, tasks, startId, endId)).toEqual({ kind: "derived", start: d("2026-10-01", "09:00"), end: d("2026-10-09", "17:00") });
   });
 
   it("derives from the fixture's linked task for Acme-like nodes without mapped dates", async () => {
-    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, project, { childTags: true, zone: west5 });
+    const { nodes, tasks } = await loadNodesAndTasks(dq, tags, [project], { childTags: true, zone: west5 });
     const bare = { ...byTitle(nodes, "Acme rollout"), dates: {} };
     expect(resolveSpan(bare, tasks, startId, endId)).toEqual({ kind: "derived", start: d("2026-10-02", "12:00"), end: d("2026-10-02", "12:00") });
   });
 
   it("treats one mapped date as a point, whichever one it is", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const mobile = byTitle(nodes, "Mobile app"); // Start only
     expect(resolveSpan(mobile, [], startId, endId)).toEqual({ kind: "point", start: mobile.dates[startId], end: mobile.dates[startId] });
     expect(resolveSpan(node({ [endId]: d("2026-11-01") }), [], startId, endId)).toMatchObject({ kind: "point", start: d("2026-11-01") });
@@ -75,15 +75,15 @@ describe("resolveSpan", () => {
   });
 
   it("mapped dates win over task dates", () => {
-    const tasks = [task({ nodeIds: [1], deadline: d("2030-01-01") })];
+    const tasks = [task({ isNode: false, nodeIds: [1], deadline: d("2030-01-01") })];
     expect(resolveSpan(node({ [startId]: d("2026-10-01") }), tasks, startId, endId).kind).toBe("point");
   });
 
   it("is undated with no mapped dates and no dated tasks", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const archive = byTitle(nodes, "Archive cleanup");
     expect(resolveSpan(archive, [], startId, endId)).toEqual({ kind: "undated", start: null, end: null });
-    expect(resolveSpan(node({}), [task({ nodeIds: [1] })], startId, endId).kind).toBe("undated");
+    expect(resolveSpan(node({}), [task({ isNode: false, nodeIds: [1] })], startId, endId).kind).toBe("undated");
   });
 
   it("works when the view maps no End property", () => {
@@ -95,11 +95,11 @@ describe("rollup", () => {
   const status = tag("Task").choiceProps.find((p) => p.title === "Status")!.values;
   const t = (title: string) => {
     const v = status.find((x) => x.title === title)!;
-    return task({ nodeIds: [1], status: { ident: v.ident!, title: v.title } });
+    return task({ isNode: false, nodeIds: [1], status: { ident: v.ident!, title: v.title } });
   };
 
   it("counts done over all tasks minus canceled", async () => {
-    const { nodes, tasks: all } = await loadNodesAndTasks(dq, tags, project, { childTags: true, zone: west5 });
+    const { nodes, tasks: all } = await loadNodesAndTasks(dq, tags, [project], { childTags: true, zone: west5 });
     const tasks = tasksOf(byTitle(nodes, "Website relaunch"), all);
     expect(tasks).toHaveLength(3); // Todo, Done, Canceled
     expect(rollup(tasks, status)).toEqual({ done: 1, total: 2 });
@@ -111,7 +111,7 @@ describe("rollup", () => {
   });
 
   it("counts a task without a status as open", () => {
-    expect(rollup([task({ nodeIds: [1] }), t("Done")], status)).toEqual({ done: 1, total: 2 });
+    expect(rollup([task({ isNode: false, nodeIds: [1] }), t("Done")], status)).toEqual({ done: 1, total: 2 });
   });
 
   it("is 0 of 0 for no tasks", () => {
@@ -165,7 +165,7 @@ describe("done values", () => {
 
 describe("filterNodes", () => {
   it("keeps nodes whose choice value is one of the selected, ANDed across properties", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const owner = choiceProp(project, "Owner");
     const status = choiceProp(project, "Status");
     const alice = owner.values.find((v) => v.title === "Alice")!;
@@ -183,7 +183,7 @@ describe("filterNodes", () => {
   });
 
   it("matches nodes with no value through null", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const owner = choiceProp(project, "Owner");
     const none = filterNodes(nodes, { [owner.ident]: [null] });
     expect(none.map((n) => n.title)).toContain("Archive cleanup");
@@ -191,7 +191,7 @@ describe("filterNodes", () => {
   });
 
   it("does not filter on an empty selection or no filters", async () => {
-    const nodes = await loadNodes(dq, tags, project, { childTags: true, zone: west5 });
+    const nodes = await loadNodes(dq, tags, [project], { childTags: true, zone: west5 });
     const owner = choiceProp(project, "Owner");
     expect(filterNodes(nodes, {})).toEqual(nodes);
     expect(filterNodes(nodes, { [owner.ident]: [] })).toEqual(nodes);
@@ -205,7 +205,7 @@ describe("dependents are not tasks (N12)", () => {
   const rollupOfDraft = async (dependsOn: string | null) => {
     const infos = await loadTagInfos(graph);
     const taskTag = infos.find((t) => t.title === "Task")!;
-    const { nodes, tasks } = await loadNodesAndTasks(graph, infos, taskTag, { childTags: true, zone: west5, dependsOn });
+    const { nodes, tasks } = await loadNodesAndTasks(graph, infos, [taskTag], { childTags: true, zone: west5, dependsOn });
     const draft = nodes.find((n) => n.title.startsWith("Draft brief"))!;
     return { linked: tasksOf(draft, tasks).map((t) => t.title.split(" [[")[0]).sort(), progress: rollup(tasksOf(draft, tasks), choiceProp(taskTag, "Status").values) };
   };

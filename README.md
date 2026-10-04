@@ -55,15 +55,26 @@ tags are under **Built-in tags**, collapsed until you select one. When the tag h
 (tags that extend it), an **Include** checkbox adds their nodes. Planner opens on the first
 of your own root tags that has date properties.
 
+**Several tags in one view.** The checkbox before a tag in the panel adds that tag to the view
+or removes it; a click on the tag's name still shows that tag alone. The view shows the nodes
+of all its tags, each node once, and the **Tag** control reads, for example, "#Milestone +
+#Task". The last tag cannot be unticked. A node belongs to the first ticked tag (in the order
+you ticked them) that it carries, directly or through a child tag: that tag gives its dates,
+its value in the **Tag** filter and its heading when the Timeline is arranged by tag.
+Filters, Kanban columns and swimlanes, **Done when** and **Depends on** offer only the
+properties every ticked tag has (the same property, not just the same name), so ticking a tag
+can drop a filter or a Kanban setting the tags do not share.
+
 ### Settings bar and filters
 
 | Control | What it does |
 |---|---|
 | **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
-| **Depends on** | Shown when the tag has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None. See [Dependencies](#dependencies). |
+| **Dates** | With several tags, in place of Start and End: one menu ("Dates: 2 tags") with a row per tag, each with that tag's Start and End lists and the same defaults. |
+| **Depends on** | Shown when the tag (all the view's tags) has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
 | **Panel** | The last control in the settings bar. Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, it shows how many values are ticked, for example **Panel · 2**. Planner keeps the choice until Logseq restarts. When Planner is narrower than 640 px, the panel starts closed and opens as a drawer over the view; Escape or a click on the view closes it. |
-| Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
+| Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. With several tags, a **Tag** group comes first: tick tags to show only their nodes. |
 
 How a node gets its dates:
 
@@ -76,7 +87,8 @@ How a node gets its dates:
 
 A #Task block belongs to a node when it references the node, either as an inline link or in
 a node property. A node's progress is done tasks divided by all its tasks minus canceled
-ones.
+ones. When #Task is one of the view's tags, a task is its own row and is not listed again
+under the node it references; it still counts in that node's progress.
 
 ### Dependencies
 
@@ -109,6 +121,8 @@ previous and next buttons and **Today** move the period.
 - Only nodes that touch the range get a row. A line above the grid counts the others, for
   example "412 earlier · 1,105 later". Each side is a button that moves to the nearest such
   node.
+- **Arrange** (with several tags): **By date**, one list sorted by start, or **By tag**, a
+  heading row per tag in the order you ticked them, then that tag's rows by start.
 
 **Calendar.** All-day items only.
 
@@ -142,7 +156,8 @@ sorts at that date and shows how many days late.
   another property and back keeps it. The ⋯ menu still lists every value: moving a card to a
   hidden column takes it off the board.
 - **Swimlanes**: None, or a second choice property. It adds a lane per value, plus
-  "No <property>".
+  "No <property>". With several tags, **Tag** gives a lane per tag; these lanes are
+  read-only: a card cannot be dropped into another tag's lane, and its ⋯ menu lists columns only.
 - **Sort**: Due, Priority (offered only when the tag has a Priority property) or Title.
   There is no manual order.
 - Each cell shows its first 50 cards, then **Show 50 more of N**. The counts in the headers
@@ -169,8 +184,8 @@ column and an error shows in the error bar. Undo in Logseq reverted a move in th
 ### Saved views
 
 **Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
-under the name in the Name field. A saved view stores the tag, child tags, Start and End,
-done values, filters and the view settings: Timeline zoom, Calendar layout, Agenda Group by
+under the name in the Name field. A saved view stores the tags, child tags, each tag's Start and End,
+done values, filters and the view settings: Timeline zoom and arrangement, Calendar layout, Agenda Group by
 and Show done, Kanban columns, shown columns, swimlanes and sort. It does not store the period you are
 looking at. Saving always creates a new view. Deleting asks for no confirmation.
 A name loses the characters `#`, `[`, `]`, `{` and `}`, and runs of `(` or `)` become one, so
@@ -223,7 +238,7 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 - Version 1 is read-only except for Kanban moves. You cannot change dates by dragging or
   resizing.
-- One tag per view. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
+- No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
   no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - Side-panel and in-page block surfaces do not exist yet.
 

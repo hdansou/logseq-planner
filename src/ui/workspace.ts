@@ -1,6 +1,6 @@
-// The full-screen workspace shell: top bar (view switch, saved views, Close), settings bar (tag, child tags,
-// Start, End, done values), the main area with a per-view toolbar slot, and the panel on its right (tag tree and
-// choice filters, N13).
+// The full-screen workspace shell: top bar (view switch, saved views, Close), settings bar (tags, child tags,
+// Start and End, or Dates per tag with several tags (N14), done values), the main area with a per-view toolbar slot,
+// and the panel on its right (tag tree with a checkbox per tag, and filters, N13).
 // Renders the whole shell from `State` on every change (small pure render functions returning HTML) and
 // handles every event by delegation on the root. No SDK: graph access arrives as `WorkspaceDeps`.
 // The Timeline (T08), the Calendar (T09), the Agenda (T10) and the Kanban (T11) render into the view area and the toolbar slot.
@@ -9,17 +9,19 @@ import { buildData, loadTitles, readRaw, type RawData } from "../core/queries";
 import { filterNodes, isDone } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
-import { loadTagInfos } from "../core/schema";
-import { defaultViewConfig, dependsOnOf, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, type ViewConfig, type ViewKind } from "../core/view-config";
+import { loadTagInfos, tagsTitle, TAG_KEY, type ViewTags } from "../core/schema";
+import {
+  defaultViewConfig, dependsOnOf, toChoiceFilters, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
+} from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
 import { viewItems } from "../core/layout-common";
 import { layoutTimeline, shiftAnchor, type TimelineLayout } from "../core/timeline-layout";
 import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
-import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
+import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, tagLaneProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
-import { checkList, esc, menu as menuHtml, options } from "./html";
+import { checkList, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction, renderKanban, renderKanbanToolbar } from "./kanban";
@@ -85,7 +87,7 @@ export interface Workspace {
   stop(): void;
 }
 
-type Popover = "tag" | "start" | "end" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
+type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -174,21 +176,23 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
 const shownNodes = (s: State): PlannerNode[] =>
   s.pending.size ? s.nodes.map((n) => (s.pending.has(n.uuid) ? movedNode(n, s.pending.get(n.uuid)!) : n)) : s.nodes;
 
-/** The nodes that pass the view's filters and the tasks linked to them: what a view is handed (T07 D4). */
-export function visibleData(config: ViewConfig, tag: TagInfo, nodes: PlannerNode[], tasks: PlannerTask[]) {
-  const shown = filterNodes(nodes, toChoiceFilters(config, tag));
+/** The nodes that pass the view's filters (the Tag filter by node tag, N14) and the tasks linked to them: what a view is handed (T07 D4). */
+export function visibleData(config: ViewConfig, view: ViewTags, nodes: PlannerNode[], tasks: PlannerTask[]) {
+  const byTag = config.filters[TAG_KEY] ?? [];
+  const byChoice = filterNodes(nodes, toChoiceFilters(config, view));
+  const shown = byTag.length ? byChoice.filter((n) => byTag.includes(n.tag)) : byChoice;
   const ids = new Set(shown.map((n) => n.id));
   return { nodes: shown, tasks: tasks.filter((t) => t.nodeIds.some((id) => ids.has(id))) };
 }
 
-/** Keeps the shared fields (tag, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
-export function switchKind(config: ViewConfig, tag: TagInfo, kind: ViewKind): ViewConfig {
-  const { tag: t, childTags, start, end, doneValues, filters } = config;
-  return { ...defaultViewConfig(tag, kind), tag: t, childTags, start, end, doneValues, filters, dependsOn: dependsOnOf(config, tag) };
+/** Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
+export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): ViewConfig {
+  const { tags, childTags, dates, doneValues, filters } = config;
+  return { ...defaultViewConfig(view.tags, kind), tags, childTags, dates, doneValues, filters, dependsOn: dependsOnOf(config, view) };
 }
 
 /** The choice property the done-values control is labelled with: Status, else the first one. */
-const primaryChoice = (tag: TagInfo): ChoiceProp | undefined => tag.choiceProps.find((p) => p.title === "Status") ?? tag.choiceProps[0];
+const primaryChoice = (view: ViewTags): ChoiceProp | undefined => view.choiceProps.find((p) => p.title === "Status") ?? view.choiceProps[0];
 
 /** Uuids of `prop`'s values that count as done under `config` (saved override, else the default rule). */
 const doneUuids = (config: ViewConfig, prop: ChoiceProp) => prop.values.filter((v) => isDone(v, config.doneValues[prop.ident])).map((v) => v.uuid);
@@ -233,8 +237,10 @@ function renderTopBar(s: State): string {
             + `<button type="button" class="pl-icon-btn" data-view-delete="${esc(v.id)}" aria-label="Delete saved view ${esc(v.name)}">×</button></li>`)
           .join("")}</ul>`
       : `<p class="pl-hint">No saved views yet.</p>`;
-    const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
-    const suggestion = tag && s.config ? sanitizeViewName(`${tag.title} ${KIND_LABEL[s.config.kind].toLowerCase()}`) : "";
+    // The first tag, "+N" for the others (N14): "Milestone +1 timeline".
+    const first = s.config ? s.tags.find((t) => t.ident === s.config!.tags[0]) : undefined;
+    const more = s.config && s.config.tags.length > 1 ? ` +${s.config.tags.length - 1}` : "";
+    const suggestion = first && s.config ? sanitizeViewName(`${first.title}${more} ${KIND_LABEL[s.config.kind].toLowerCase()}`) : "";
     const save = s.config
       ? `<div class="pl-save"><label for="pl-view-name">Name</label><input id="pl-view-name" class="pl-input" data-field="view-name" value="${esc(suggestion)}" autocomplete="off">`
         + `<button type="button" class="pl-btn pl-btn-primary" data-action="save-view">Save current view</button></div>`
@@ -247,39 +253,57 @@ function renderTopBar(s: State): string {
     + `<button type="button" class="pl-btn" data-action="close">Close</button></header>`;
 }
 
-function renderSettings(s: State, tag: TagInfo): string {
+function renderSettings(s: State, view: ViewTags): string {
   const c = s.config!;
+  const single = view.tags.length === 1 ? view.tags[0] : null;
+  // The Tag menu picks one tag (switches to it); ticking more is done in the tag tree (N14).
   const tagOptions = () => options("Tags", [...s.tags].sort((a, b) => Number(a.builtIn) - Number(b.builtIn) || byTitle(a, b))
-    .map((t) => ({ value: t.ident, text: `#${t.title}${t.builtIn ? " (built-in)" : ""}` })), c.tag);
-  let html = menu("tag", s, "Tag", `#${esc(tag.title)}`, tagOptions);
+    .map((t) => ({ value: t.ident, text: `#${t.title}${t.builtIn ? " (built-in)" : ""}` })), single?.ident ?? "");
+  let html = menu("tag", s, "Tag", esc(tagsTitle(view.tags)), tagOptions);
 
-  const children = tag.childIds.map((id) => s.tags.find((t) => t.id === id)).filter((t): t is TagInfo => !!t);
+  const selected = new Set(view.tags.map((t) => t.id));
+  const children = [...new Set(view.tags.flatMap((t) => t.childIds))].filter((id) => !selected.has(id))
+    .map((id) => s.tags.find((t) => t.id === id)).filter((t): t is TagInfo => !!t);
   if (children.length) {
     html += `<span class="pl-check"><input type="checkbox" id="pl-child-tags" data-control="child-tags"${c.childTags ? " checked" : ""}>`
       + `<label for="pl-child-tags">Include ${children.map((t) => `#${esc(t.title)}`).join(", ")}</label></span>`;
   }
 
-  if (tag.dateProps.length) {
-    const dateTitle = (ident: string | null) => tag.dateProps.find((p) => p.ident === ident)?.title ?? "None";
-    const dateItems = tag.dateProps.map((p) => ({ value: p.ident, text: `${p.title} (${p.type === "date" ? "Date" : "DateTime"})` }));
-    html += menu("start", s, "Start", esc(dateTitle(c.start)), () => options("Start property", dateItems, c.start ?? ""));
-    html += menu("end", s, "End", esc(dateTitle(c.end)), () => options("End property", [{ value: "", text: "None" }, ...dateItems], c.end ?? ""));
+  const dateItems = (tag: TagInfo) => tag.dateProps.map((p) => ({ value: p.ident, text: `${p.title} (${p.type === "date" ? "Date" : "DateTime"})` }));
+  if (single) {
+    const mapped = c.dates[single.ident];
+    if (single.dateProps.length) {
+      const dateTitle = (ident: string | null) => single.dateProps.find((p) => p.ident === ident)?.title ?? "None";
+      html += menu("start", s, "Start", esc(dateTitle(mapped.start)), () => options("Start property", dateItems(single), mapped.start ?? ""));
+      html += menu("end", s, "End", esc(dateTitle(mapped.end)), () => options("End property", [{ value: "", text: "None" }, ...dateItems(single)], mapped.end ?? ""));
+    } else {
+      html += `<span class="pl-hint">No date properties on this tag</span>`;
+    }
   } else {
-    html += `<span class="pl-hint">No date properties on this tag</span>`;
+    // N14: Start and End per tag, one row each (`data-dates-tag` + `data-dates-field` on each listbox's wrapper).
+    const field = (tag: TagInfo, which: "start" | "end") => {
+      const label = which === "start" ? "Start" : "End";
+      const items = which === "start" ? dateItems(tag) : [{ value: "", text: "None" }, ...dateItems(tag)];
+      return `<div class="pl-dates-field" data-dates-tag="${esc(tag.ident)}" data-dates-field="${which}"><span class="pl-field-label">${label}</span>`
+        + options(`${label} property of #${tag.title}`, items, c.dates[tag.ident][which] ?? "") + `</div>`;
+    };
+    const popover = () => view.tags.map((t) => `<fieldset class="pl-dates-row" data-dates-row="${esc(t.ident)}"><legend>#${esc(t.title)}</legend>`
+      + (t.dateProps.length ? field(t, "start") + field(t, "end") : `<p class="pl-hint">No date properties</p>`) + `</fieldset>`).join("");
+    html += menu("dates", s, "Dates", `Dates: ${view.tags.length} tags`, popover);
   }
 
-  if (tag.nodeProps.length) {
+  if (view.nodeProps.length) {
     // N12: the node property whose values are the nodes a node depends on (Timeline connectors; dependents are not tasks).
-    const current = dependsOnOf(c, tag);
-    const title = tag.nodeProps.find((p) => p.ident === current)?.title ?? "None";
-    const items = [{ value: "", text: "None" }, ...tag.nodeProps.map((p) => ({ value: p.ident, text: p.title }))];
+    const current = dependsOnOf(c, view);
+    const title = view.nodeProps.find((p) => p.ident === current)?.title ?? "None";
+    const items = [{ value: "", text: "None" }, ...view.nodeProps.map((p) => ({ value: p.ident, text: p.title }))];
     html += menu("depends", s, "Depends on", esc(title), () => options("Depends on property", items, current ?? ""));
   }
 
-  const primary = primaryChoice(tag);
+  const primary = primaryChoice(view);
   if (primary) {
     const titles = primary.values.filter((v) => doneUuids(c, primary).includes(v.uuid)).map((v) => v.title);
-    const popover = () => tag.choiceProps.map((p) => {
+    const popover = () => view.choiceProps.map((p) => {
       const done = doneUuids(c, p);
       return checkList(p.title, p.values.map((v) => ({ attrs: `data-done-prop="${esc(p.ident)}" data-done-value="${esc(v.uuid)}"`, text: v.title, checked: done.includes(v.uuid) })));
     }).join("") + `<p class="pl-hint">${primary.values.some((v) => v.ident !== null) && !c.doneValues[primary.ident] ? "Built-in values use their Done and Canceled flags." : "Saved with the view."}</p>`;
@@ -299,14 +323,20 @@ function renderPanelToggle(s: State): string {
   return `<button type="button" class="pl-menu-btn" data-action="toggle-panel" aria-expanded="${panelShown(s)}" aria-controls="pl-panel"${label}>${text}</button>`;
 }
 
-function renderTagTree(s: State, selected: string | undefined): string {
+/**
+ * The tag tree: each tag's button switches the view to that tag alone; the checkbox before it (`data-tag-check`, N14)
+ * adds it to the view or removes it, except the last selected tag (disabled). Every selected tag is pressed.
+ */
+function renderTagTree(s: State, selected: readonly string[]): string {
   const byId = new Map(s.tags.map((t) => [t.id, t]));
   const seen = new Set<number>();
   const item = (t: TagInfo): string => {
     if (seen.has(t.id)) return "";
     seen.add(t.id);
     const kids = t.childIds.map((id) => byId.get(id)).filter((k): k is TagInfo => !!k && k.parentIds[0] === t.id).sort(byTitle);
-    return `<li><button type="button" class="pl-row" data-tag-id="${t.id}" aria-pressed="${t.ident === selected}"><span class="pl-hash">#</span>${esc(t.title)}</button>`
+    const on = selected.includes(t.ident);
+    return `<li><span class="pl-tag-line"><input type="checkbox" class="pl-tag-check" data-tag-check="${t.id}" aria-label="Include #${esc(t.title)}"${flag("checked", on)}${flag("disabled", on && selected.length === 1)}>`
+      + `<button type="button" class="pl-row" data-tag-id="${t.id}" aria-pressed="${on}"><span class="pl-hash">#</span>${esc(t.title)}</button></span>`
       + (kids.length ? `<ul>${kids.map(item).join("")}</ul>` : "") + `</li>`;
   };
   // A root has no parent in the list; a tag with several parents is listed under its first one.
@@ -322,31 +352,39 @@ function renderTagTree(s: State, selected: string | undefined): string {
     + `</nav>`;
 }
 
-function renderFilters(s: State, tag: TagInfo): string {
+function renderFilters(s: State, view: ViewTags): string {
   const c = s.config!;
-  return tag.choiceProps.map((p) => {
-    const selected = c.filters[p.ident] ?? [];
+  const group = (key: string, legend: string, rows: string) =>
+    `<fieldset class="pl-filter" data-filter-group="${esc(key)}"><legend class="pl-group-header">${esc(legend)}</legend>${rows}</fieldset>`;
+  const row = (key: string, value: string | null, title: string, count: number) =>
+    `<label class="pl-row"><input type="checkbox" data-filter-prop="${esc(key)}" data-filter-value="${esc(value ?? "")}"${(c.filters[key] ?? []).includes(value) ? " checked" : ""}>`
+    + `<span class="pl-filter-title">${esc(title)}</span><span class="pl-count">${count}</span></label>`;
+  // N14: with two or more tags, a Tag group first (values: the view's tags, stored under `TAG_KEY`).
+  const tagGroup = view.tags.length > 1
+    ? group(TAG_KEY, "Tag", view.tags.map((t) => row(TAG_KEY, t.ident, `#${t.title}`, s.nodes.filter((n) => n.tag === t.ident).length)).join(""))
+    : "";
+  return tagGroup + view.choiceProps.map((p) => {
     const count = (id: number | null) => s.nodes.filter((n) => (n.choices[p.ident]?.id ?? null) === id).length;
-    const row = (uuid: string | null, title: string, id: number | null) =>
-      `<label class="pl-row"><input type="checkbox" data-filter-prop="${esc(p.ident)}" data-filter-value="${esc(uuid ?? "")}"${selected.includes(uuid) ? " checked" : ""}>`
-      + `<span class="pl-filter-title">${esc(title)}</span><span class="pl-count">${count(id)}</span></label>`;
-    return `<fieldset class="pl-filter" data-filter-group="${esc(p.ident)}"><legend class="pl-group-header">${esc(p.title)}</legend>`
-      + p.values.map((v) => row(v.uuid, v.title, v.id)).join("") + row(null, "No value", null) + `</fieldset>`;
+    return group(p.ident, p.title, p.values.map((v) => row(p.ident, v.uuid, v.title, count(v.id))).join("") + row(p.ident, null, "No value", count(null)));
   }).join("");
 }
 
 const empty = (key: string, title: string, body: string, action = "") =>
   `<div class="pl-empty" data-empty="${key}"><b>${title}</b><span>${body}</span>${action}</div>`;
 
-/** The Timeline layout for the visible nodes. */
-function timelineLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): TimelineLayout {
+/** Each node's Start / End: its tag's mapping in the view (N14). */
+const datesOf = (c: ViewConfig) => (n: PlannerNode) => c.dates[n.tag];
+
+/** The Timeline layout for the visible nodes; with two or more tags arranged as the view says (N14). */
+function timelineLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): TimelineLayout {
   const c = s.config!;
   if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
+  const byTag = view.tags.length > 1 && c.arrange === "tag";
   return layoutTimeline({
-    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
     zoom: c.zoom, anchor: s.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues,
-    titles: s.titles,
+    titles: s.titles, ...(byTag ? { groups: view.tags.map((t) => ({ tag: t.ident, title: `#${t.title}` })) } : {}),
   });
 }
 
@@ -356,77 +394,85 @@ function calendarLayout(s: State, now: Now, shown: { nodes: PlannerNode[]; tasks
   if (c.kind !== "calendar") throw new Error(`calendarLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
   return layoutCalendar({
-    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
     layout: c.layout, anchor: s.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
     titles: s.titles,
   });
 }
 
 /** The Agenda layout for the visible nodes. */
-function agendaLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): AgendaLayout {
+function agendaLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): AgendaLayout {
   const c = s.config!;
   if (c.kind !== "agenda") throw new Error(`agendaLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(s.tags);
   return layoutAgenda({
-    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
-    groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: tag.choiceProps, doneValues: c.doneValues,
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
+    groupBy: c.groupBy, showDone: c.showDone, today: now.today, statusValues, choiceProps: view.choiceProps, doneValues: c.doneValues,
     titles: s.titles,
   });
 }
 
+/** A Kanban view's column or lane property: one of the view's shared choice properties, or the Tag lanes (N14); null for none. */
+const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | null =>
+  ident === null ? null : ident === TAG_KEY ? tagLaneProp(view.tags) : view.choiceProps.find((p) => p.ident === ident)!;
+
 /** The Kanban layout for the visible nodes (the view has a column property). */
-function kanbanLayout(s: State, now: Now, tag: TagInfo, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): KanbanLayout {
+function kanbanLayout(s: State, now: Now, view: ViewTags, shown: { nodes: PlannerNode[]; tasks: PlannerTask[] }): KanbanLayout {
   const c = s.config!;
   if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
-  const prop = (ident: string) => tag.choiceProps.find((p) => p.ident === ident)!;
   const statusValues = taskStatusValues(s.tags);
   return layoutKanban({
-    items: viewItems(shown.nodes, shown.tasks, c.start, c.end, statusValues),
-    columnProp: prop(c.columnProp), laneProp: c.laneProp === null ? null : prop(c.laneProp), sort: c.sort, today: now.today,
-    choiceProps: tag.choiceProps, doneValues: c.doneValues, titles: s.titles, pending: new Set(s.pending.keys()),
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
+    columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), sort: c.sort, today: now.today,
+    choiceProps: view.choiceProps, doneValues: c.doneValues, titles: s.titles, pending: new Set(s.pending.keys()),
     hidden: c.hiddenColumns[c.columnProp] ?? [],
   });
 }
 
 /** The main area (loading, an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar. */
-function renderView(s: State, tag: TagInfo | undefined, now: () => Now): { view: string; toolbar: string } {
-  const view = (html: string) => ({ view: html, toolbar: "" });
-  if (s.loading) return view(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
-  if (s.loadFailed) return view(`<div class="pl-empty" data-region="load-failed"><button type="button" class="pl-btn" data-action="retry">Retry</button></div>`);
-  if (!s.tags.length) return view(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
-  if (!tag || !s.config) return view("");
-  const name = `#${esc(tag.title)}`;
+function renderView(s: State, view: ViewTags | undefined, now: () => Now): { view: string; toolbar: string } {
+  const only = (html: string) => ({ view: html, toolbar: "" });
+  if (s.loading) return only(`<div class="pl-empty" data-region="loading"><span>Loading…</span></div>`);
+  if (s.loadFailed) return only(`<div class="pl-empty" data-region="load-failed"><button type="button" class="pl-btn" data-action="retry">Retry</button></div>`);
+  if (!s.tags.length) return only(empty("no-tags", "No tags in this graph", "Create a tag in Logseq (type #Project on a block, for example) and it shows up here."));
+  if (!view || !s.config) return only("");
+  const heading = tagsTitle(view.tags);
+  const name = esc(heading);
+  const multi = view.tags.length > 1;
   if (s.config.kind === "kanban" && s.config.columnProp === null) {
-    return view(empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
+    return only(multi
+      ? empty("no-choice", `${name} share no choice property`, "Kanban columns come from a choice property every selected tag has, like Status. Add one to the tags in Logseq, or choose other tags.")
+      : empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
   }
-  if (s.config.kind !== "kanban" && !tag.dateProps.length) {
-    return view(empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
+  if (s.config.kind !== "kanban" && !view.tags.some((t) => t.dateProps.length)) {
+    return only(multi
+      ? empty("no-dates", `${name} have no date properties`, "Add a Date or DateTime property to one of the tags in Logseq and pick it under Dates, or choose other tags.")
+      : empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
   }
-  if (!s.nodes.length) return view(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${name} and it shows up here.`));
-  const shown = visibleData(s.config, tag, shownNodes(s), s.tasks);
+  if (!s.nodes.length) return only(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${multi ? "one of these tags" : name} and it shows up here.`));
+  const shown = visibleData(s.config, view, shownNodes(s), s.tasks);
   if (!shown.nodes.length) {
-    return view(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
+    return only(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
   }
   if (s.config.kind === "timeline") {
-    const layout = timelineLayout(s, now(), shown);
-    return { view: renderTimeline(layout, `#${tag.title}`, s.expanded), toolbar: renderTimelineToolbar(layout) };
+    const layout = timelineLayout(s, now(), view, shown);
+    return { view: renderTimeline(layout, heading, s.expanded), toolbar: renderTimelineToolbar(layout, multi ? s.config.arrange : null) };
   }
   if (s.config.kind === "calendar") {
     const layout = calendarLayout(s, now(), shown);
-    return { view: renderCalendar(layout, `#${tag.title}`), toolbar: renderCalendarToolbar(layout) };
+    return { view: renderCalendar(layout, heading), toolbar: renderCalendarToolbar(layout) };
   }
   if (s.config.kind === "agenda") {
-    const layout = agendaLayout(s, now(), tag, shown);
-    return { view: renderAgenda(layout, `#${tag.title}`, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups, overdue: s.agendaOverdue }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
+    const layout = agendaLayout(s, now(), view, shown);
+    return { view: renderAgenda(layout, heading, s.config.showDone, { open: s.agendaOpen, groups: s.agendaGroups, overdue: s.agendaOverdue }), toolbar: renderAgendaToolbar(s.config.groupBy, s.config.showDone) };
   }
   const c = s.config;
-  const layout = kanbanLayout(s, now(), tag, shown);
-  const prop = (ident: string | null) => tag.choiceProps.find((p) => p.ident === ident) ?? null;
+  const layout = kanbanLayout(s, now(), view, shown);
   return {
-    view: renderKanban(layout, `#${tag.title}`, s.popover === "kb-move" ? s.moveCard : null, s.kbShown),
-    toolbar: renderKanbanToolbar({ choiceProps: tag.choiceProps, columnProp: prop(c.columnProp)!, laneProp: prop(c.laneProp), columns: layout.allColumns,
-      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(tag) !== null, popover: s.popover }),
+    view: renderKanban(layout, heading, s.popover === "kb-move" ? s.moveCard : null, s.kbShown),
+    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
+      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: s.popover }),
   };
 }
 
@@ -434,15 +480,15 @@ const errorBar = (error: string) =>
   `<div class="pl-error" role="alert" data-region="error"><span>${esc(error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`;
 
 function renderWorkspace(s: State, now: () => Now): string {
-  const tag = s.config ? s.tags.find((t) => t.ident === s.config!.tag) : undefined;
+  const view = s.config ? validateViewConfig(s.config, s.tags) : undefined;
   const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
-  const main = renderView(s, tag, now);
+  const main = renderView(s, view, now);
   return `<div class="pl-ws">${renderTopBar(s)}${error}`
-    + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${tag ? renderSettings(s, tag) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
+    + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${view ? renderSettings(s, view) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
     + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
-    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, tag?.ident)}${tag ? renderFilters(s, tag) : ""}</aside></div></div>`;
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, s.config?.tags ?? [])}${view ? renderFilters(s, view) : ""}</aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -471,6 +517,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let wantRefresh = false;
   /** The Kanban card being dragged (HTML5 drag events are delegated on the root below). */
   let dragging: string | null = null;
+  /** The lane the dragged card started in: lanes by tag (N14) take no drop from another lane. */
+  let dragLane: string | null = null;
   /** A render was asked for during a drag: it runs when the drag ends. */
   let drawOwed = false;
   /** The clock the workspace was last drawn on (`clockOf`: the Timeline's today line, the Agenda's buckets depend on it). */
@@ -577,13 +625,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
   async function readData(config: ViewConfig, tags: TagInfo[]) {
-    const tag = validateViewConfig(config, tags);
-    return fromRaw(config, tags, await readRaw(deps.dq, tags, tag, dependsOnOf(config, tag)));
+    const view = validateViewConfig(config, tags);
+    return fromRaw(config, tags, await readRaw(deps.dq, tags, view.tags, dependsOnOf(config, view)));
   }
 
   /** Nodes, tasks and titles from rows already read (`tags` maps them; the titles lookup runs here). */
   async function fromRaw(config: ViewConfig, tags: TagInfo[], raw: RawData) {
-    const { nodes, tasks } = buildData(raw, tags, validateViewConfig(config, tags), { childTags: config.childTags, zone: deps.zone });
+    const { nodes, tasks } = buildData(raw, tags, validateViewConfig(config, tags).tags, { childTags: config.childTags, zone: deps.zone });
     // Inline refs to blocks that are not loaded (a #Task linking a #Project page): one lookup, only for the missing ones.
     const known = titlesByUuid(nodes);
     const missing = refUuids([...nodes, ...tasks].map((x) => x.title)).filter((u) => !known.has(u));
@@ -596,7 +644,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   }
 
   async function loadData() {
-    if (tagOf(s.config!).builtIn) s.builtInOpen = true; // every tag change passes here
+    if (tagOf(s.config!).tags.some((t) => t.builtIn)) s.builtInOpen = true; // every tag change passes here
     s.loading = true;
     render();
     try {
@@ -619,6 +667,15 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     s.nodes = [];
     s.tasks = [];
     s.titles = new Map();
+    await loadData();
+  };
+
+  /** A tag's checkbox in the tag tree (N14): adds the tag to the view or removes it (never the last one), then reloads. */
+  const tickTag = async (tag: TagInfo, on: boolean) => {
+    const c = s.config!;
+    const idents = on ? [...c.tags.filter((i) => i !== tag.ident), tag.ident] : c.tags.filter((i) => i !== tag.ident);
+    if (idents.length === 0) return; // the last tag's box is disabled; this guards a change event that arrives anyway
+    s.config = withTags(c, idents.map((i) => s.tags.find((t) => t.ident === i)!));
     await loadData();
   };
 
@@ -647,6 +704,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     if (s.config) {
       try {
+        s.config = withKnownTags(s.config, s.tags); // a gone tag is dropped from the view (N14)
         tagOf(s.config);
       } catch (e) {
         s.error = `${(e as Error).message}. Showing the default view instead.`;
@@ -696,15 +754,17 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     // One batch (T13a): the view's rows are read with the tags on screen while the week start and the tags are re-read,
     // instead of after them (the host's worker runs queries one at a time, so waiting added the tag queries' time).
-    const shownTag = tagOf(s.config);
-    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownTag, dependsOnOf(s.config, shownTag))]);
+    const shownView = tagOf(s.config);
+    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownView.tags, dependsOnOf(s.config, shownView))]);
     let config: ViewConfig | null = s.config;
     let error: string | null = null;
     /** The view was replaced by the default one (its tag or a property it uses is gone). */
     let replaced = false;
     try {
-      // A field left unmapped (no date or choice property when it was set up) takes the default once the tag has one (T14).
-      config = withDefaults(config, validateViewConfig(config, tags));
+      // A gone tag is dropped from the view (N14); a field left unmapped (no date or choice property when it was set up)
+      // takes the default once the tag has one (T14).
+      const known = withKnownTags(config, tags);
+      config = withDefaults(known, validateViewConfig(known, tags));
     } catch (e) {
       // The tag or a property the view uses is gone from the graph: show the default view, like open() does.
       error = `${(e as Error).message}. Showing the default view instead.`;
@@ -715,7 +775,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
     // only when its rows are stale (`readRaw`: the pulled idents or the tag id changed). Another view: read afresh.
     const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
-      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), dependsOnOf(config, tagOf(config, tags)), shownRaw))
+      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags).tags, dependsOnOf(config, tagOf(config, tags)), shownRaw))
       : await readData(config, tags);
     deps.timing?.queried();
     if (busy()) {
@@ -772,20 +832,33 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         return void run(() => {}, () => (s.popover ? firstInPopover(s.popover) : trigger(p)));
       }
     }
     const opt = t.closest<HTMLElement>("[data-popover] [data-option]");
+    if (opt && s.popover === "dates") {
+      // N14: one tag's Start or End; the popover stays open for the other rows, focus on the option picked.
+      const box = opt.closest<HTMLElement>("[data-dates-field]")!;
+      const ident = box.dataset.datesTag!;
+      const which = box.dataset.datesField as "start" | "end";
+      const c = s.config!;
+      const at = `[data-dates-tag="${CSS.escape(ident)}"][data-dates-field="${which}"] [data-option="${CSS.escape(opt.dataset.option!)}"]`;
+      return void run(() => setConfig({ ...c, dates: { ...c.dates, [ident]: { ...c.dates[ident], [which]: opt.dataset.option || null } } }), () => at);
+    }
     if (opt && s.popover) {
       const p = s.popover;
       const value = opt.dataset.option!;
       s.popover = null;
       if (p === "tag") return void run(() => selectTag(s.tags.find((x) => x.ident === value)!), () => trigger("tag"));
-      if (p === "start") return void run(() => setConfig({ ...s.config!, start: value }), () => trigger("start"));
-      if (p === "end") return void run(() => setConfig({ ...s.config!, end: value || null }), () => trigger("end"));
+      if (p === "start" || p === "end") {
+        // One tag: its only Start / End mapping.
+        const c = s.config!;
+        const ident = c.tags[0];
+        return void run(() => setConfig({ ...c, dates: { ...c.dates, [ident]: { ...c.dates[ident], [p]: value || null } } }), () => trigger(p));
+      }
       // The dependency property is pulled with the nodes and tasks (N12), so a new one reads them again.
       if (p === "depends") {
         return void run(async () => {
@@ -805,9 +878,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (d.viewOpen) {
       return void run(async () => {
         const v = s.views.find((x): x is SavedView => x.id === d.viewOpen && "config" in x)!;
-        tagOf(v.config); // throws before anything changes
+        const config = withKnownTags(v.config, s.tags); // a gone tag is dropped (N14)
+        tagOf(config); // throws before anything changes
         s.popover = null;
-        s.config = v.config;
+        s.config = config;
         s.viewId = v.id;
         await loadData();
       }, () => trigger("views"));
@@ -847,6 +921,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return deps.openNode(a.uuid, { sidebar: shift });
       case "zoom":
         return void run(() => setConfig({ ...c, zoom: a.zoom }));
+      case "arrange":
+        return void run(() => setConfig({ ...c, arrange: a.arrange }));
       case "nav":
         return void run(() => void (s.anchor = shiftAnchor(s.anchor ?? now().today, c.zoom, a.dir)));
       case "today":
@@ -923,8 +999,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** The Kanban layout on screen now. */
   const board = (): KanbanLayout => {
-    const tag = tagOf(s.config!);
-    return kanbanLayout(s, now(), tag, visibleData(s.config!, tag, shownNodes(s), s.tasks));
+    const view = tagOf(s.config!);
+    return kanbanLayout(s, now(), view, visibleData(s.config!, view, shownNodes(s), s.tasks));
   };
 
   /**
@@ -961,6 +1037,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (!cardEl) return;
     if (cardEl.hasAttribute("data-kb-pending")) return void e.preventDefault();
     dragging = cardEl.dataset.kbCard!;
+    dragLane = cardEl.closest<HTMLElement>("[data-kb-cell]")?.dataset.kbLane ?? null;
     cardEl.setAttribute("data-kb-dragging", "");
     const dt = (e as DragEvent).dataTransfer;
     if (dt) {
@@ -971,6 +1048,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   root.addEventListener("dragover", (e) => {
     const cellEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-cell]");
     if (!cellEl || !dragging) return;
+    if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // Tag lanes: no drop across
     e.preventDefault(); // accept the drop
     const dt = (e as DragEvent).dataTransfer;
     if (dt) dt.dropEffect = "move";
@@ -986,6 +1064,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   root.addEventListener("drop", (e) => {
     const cellEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-cell]");
     if (!cellEl || !dragging) return;
+    if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // refused, as in dragover
     e.preventDefault();
     const uuid = dragging;
     dragging = null;
@@ -1069,6 +1148,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   root.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
     const d = t.dataset;
+    if (d.tagCheck) return void run(() => tickTag(s.tags.find((x) => x.id === Number(d.tagCheck))!, t.checked));
     if (d.control === "child-tags") {
       return void run(async () => {
         s.config = { ...s.config!, childTags: t.checked };

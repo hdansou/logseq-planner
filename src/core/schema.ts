@@ -156,3 +156,37 @@ export async function loadTagInfos(dq: Dq): Promise<TagInfo[]> {
   const rawProps = await dq(TAG_PROPERTIES_QUERY, owners);
   return buildTagInfos(rawTags, rawProps);
 }
+
+/**
+ * The reserved key of the Tag pseudo-property (N14), never a property ident (those start with ":"): in `filters` its
+ * values are tag idents (which of the view's tags to show), as a Kanban `laneProp` it lanes the cards by tag (read-only).
+ * Offered with two or more tags only.
+ */
+export const TAG_KEY = "@tag";
+
+/**
+ * The tags of a view (N14) and the properties they share: what filters, Kanban columns / swimlanes / Show, Done when,
+ * Depends on and the Priority sort offer. One tag shares all of its own (and inherited) properties.
+ */
+export interface ViewTags {
+  /** The selected tags, in selection order (at least one). */
+  tags: TagInfo[];
+  /** Choice properties every selected tag has (own or inherited), matched by ident, in the first tag's order. */
+  choiceProps: ChoiceProp[];
+  /** Node properties every selected tag has, same rule. */
+  nodeProps: NodeProp[];
+}
+
+/** The view's tags with their shared properties (`ViewTags`); linear in the tags' properties. Throws on an empty list. */
+export function mergeTags(tags: TagInfo[]): ViewTags {
+  if (tags.length === 0) throw new Error("A view needs at least one tag");
+  const [first, ...rest] = tags;
+  const shared = <P extends { ident: string }>(of: (t: TagInfo) => P[]): P[] => {
+    const others = rest.map((t) => new Set(of(t).map((p) => p.ident)));
+    return of(first).filter((p) => others.every((idents) => idents.has(p.ident)));
+  };
+  return { tags, choiceProps: shared((t) => t.choiceProps), nodeProps: shared((t) => t.nodeProps) };
+}
+
+/** "#Milestone + #Task": the view's tags as the workspace names them (titles unescaped: escape when rendering). */
+export const tagsTitle = (tags: TagInfo[]): string => tags.map((t) => `#${t.title}`).join(" + ");
