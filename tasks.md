@@ -242,8 +242,36 @@ Live-check method (web app):
           window-button area, leaving the controls clickable. Needs a live check that a
           drag region inside the no-drag container is honoured; the strip is thin.
       (c) Leave as is and document it.
-      Acceptance (a or b): real-mouse checks that the window moves by the strip, resizes by
-      every edge, zooms on double-click, and that every top-bar control still takes a click.
+      Decision (owner, 2026-10-03): option (a). Plan:
+      (1) Frame geometry: in `FULL_SCREEN` (src/sdk.ts) the container starts under the host
+          header: `top: var(--ls-headbar-height, 3rem)`, `height: calc(100vh -
+          var(--ls-headbar-height, 3rem))`. The host sets `--ls-headbar-height: 3rem` and
+          `#head` measures 48 px (read live on Logseq-DB); the style is inline on a host
+          element, so the host variable resolves. Same rule in the web app.
+      (2) Remove what the full-height frame needed: `WebkitAppRegion: no-drag` (no drag
+          region lies under the frame any more) and the macOS window-button padding
+          (`macWindowButtons`, `html.pl-mac-desktop .pl-top`, checklist row A9).
+      (3) The host header stays usable while Planner is open, so decide its behaviour: the
+          Planner toolbar button becomes a toggle (open / close); Escape and Close stay;
+          host navigation (Home, back / forward, search) happens under the frame and
+          Planner stays on top until closed. Check that the host's left sidebar, when open,
+          does not show through or steal the frame's left edge (z-index 999 today).
+      (4) Planner's own top bar keeps its place as the first row of the frame (title, view
+          switch, Saved views, Close); no height change.
+      (5) Docs: REQUIREMENTS ("full-screen workspace" becomes "workspace under the app
+          header"), README, docs/design.md, docs/manual-test.md (A rows on the frame, A9
+          retired, new rows below), CHANGELOG.
+      (6) Tests first: sdk.test.ts (top / height values on both paths, no app-region key),
+          app.test.ts (toolbar button toggles; no `pl-mac-desktop` class), CSS test for the
+          removed rule.
+      Acceptance, on the desktop app with real mouse input (`click`, `drag`, `bounds` tools
+      of the `test-logseq-desktop` skill): the window moves by the host header with Planner
+      open; resizes by every edge and the corner; double-click on the header zooms it;
+      every Planner top-bar control and the host toolbar button take a click; the frame
+      starts exactly at the header's lower edge at 100% and at a zoomed app (the test
+      instance runs at 144%); light and dark. Web app: frame under the header, no overlap.
+      Order: independent of N13 (panel) and N14; can run in parallel with them, but it
+      touches `src/sdk.ts` and `src/app.ts`, which N13 does not.
 - [ ] **N05 Release** — screenshots, public repo, v1.0.0, marketplace manifest PR
       (logseq-plugin-release skill). After N01 and N03(a).
 - [ ] **N06 Later surfaces (out of v1)** — side panel (after N13), in-page block, drag-to-edit dates
