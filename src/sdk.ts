@@ -122,6 +122,7 @@ export const changesSdk = (): ChangesSdk => ({
     logseq.on("ui:visible:changed", handler);
     return () => void logseq.off("ui:visible:changed", handler);
   },
+  onGraphChanged: (cb) => logseq.App.onCurrentGraphChanged(() => cb()),
   onUnload: (cb) => logseq.beforeunload(async () => cb()),
 });
 

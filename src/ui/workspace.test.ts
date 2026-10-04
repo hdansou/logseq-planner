@@ -924,6 +924,34 @@ describe("a throwing render never jams the action queue (T14)", () => {
   });
 });
 
+describe("reset for another graph (N04)", () => {
+  it("returns to the state of a first open: no config, no tags, no error; session UI choices stay", async () => {
+    const { ws } = await setup();
+    await click(ws, "[data-view-kind=kanban]");
+    await click(ws, "[data-action=toggle-panel]");
+    expect(ws.config()!.kind).toBe("kanban");
+    const panelBefore = $("[data-action=toggle-panel]")!.getAttribute("aria-expanded");
+    await ws.reset();
+    expect(ws.config()).toBeNull();
+    expect($$("[data-tag-id]")).toHaveLength(0);
+    expect($("[data-region=error]")).toBeNull();
+    expect($("[data-action=toggle-panel]")!.getAttribute("aria-expanded")).toBe(panelBefore);
+  });
+
+  it("open after a reset on a graph without the old tag shows that graph's default view, no error", async () => {
+    let graphB = false;
+    const dq: Dq = async (q, ...i) => (graphB && q === TAGS_QUERY ? [] : fixtureDq()(q, ...i)) as never;
+    const { ws } = await setup({ dq });
+    expect(ws.config()).not.toBeNull();
+    graphB = true;
+    await ws.reset();
+    await ws.open();
+    expect($("[data-region=error]")).toBeNull();
+    expect(ws.config()).toBeNull(); // this graph has no tags at all: the empty state
+    expect($("[data-region=main]")?.textContent ?? root.textContent).toContain("No tags");
+  });
+});
+
 describe("closing", () => {
   it("Escape closes an open popover first, then reports nothing left to close", async () => {
     const { ws } = await setup();

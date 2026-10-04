@@ -124,6 +124,8 @@ export interface Blocks {
   slotted(e: MacroSlotEvent): Promise<void>;
   /** The graph changed: every kept slot is drawn again. Never rejects. */
   refresh(): Promise<void>;
+  /** Another graph was opened: forgets every slot (they belong to the old graph's pages) and the draws still owed. */
+  reset(): void;
   /** Resolves when no draw is running or owed (tests). */
   idle(): Promise<void>;
   /** The kept slots, oldest first (tests). */
@@ -215,6 +217,10 @@ export function createBlocks(deps: BlockDeps): Blocks {
       return request([slot]);
     },
     refresh: () => request(registry.keys()),
+    reset() {
+      registry.clear();
+      owed = null;
+    },
     async idle() {
       while (running) await running;
     },

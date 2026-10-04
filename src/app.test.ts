@@ -26,7 +26,9 @@ function fakeDeps() {
   /** The macro-renderer listeners the app registered (N06b). */
   const slotted: Array<(e: MacroSlotEvent) => void> = [];
   /** The off hooks the theme and visibility subscriptions return, by name. */
-  const offs = { mode: vi.fn(), theme: vi.fn(), visible: vi.fn() };
+  const offs = { mode: vi.fn(), theme: vi.fn(), visible: vi.fn(), graph: vi.fn() };
+  /** The `onCurrentGraphChanged` listeners the app registered. */
+  const graphChanged: Array<() => void> = [];
   const deps = {
     registerUIItem: vi.fn(),
     registerCommandPalette: vi.fn(),
@@ -70,13 +72,14 @@ function fakeDeps() {
       later: clock.later,
       onVisibleChanged: (cb: (visible: boolean) => void) => (visibility.push(cb), offs.visible),
       onUnload: (cb: () => void) => void unload.push(cb),
+      onGraphChanged: (cb: () => void) => (graphChanged.push(cb), offs.graph),
     },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
     dates: { upsertBlockProperty: async () => null, createJournalPage: async () => null, readDate: async () => null },
     hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
-  return { deps, flush, clock, feed, visibility, unload, offs, slotted };
+  return { deps, flush, clock, feed, visibility, unload, offs, slotted, graphChanged };
 }
 
 /** The model handler the toolbar button's `data-on-click` names. */
@@ -384,6 +387,73 @@ describe("live updates (T12)", () => {
     blocks.splice(0, 1); // deleted on another device
     await hideAndShow();
     await vi.waitFor(async () => expect(await listed()).toEqual(["v2"]));
+  });
+
+  /** The fixture graph without its own tags: the built-in tags only, no properties (another graph in the same session). */
+  const otherGraphDq = () => async (query: string) =>
+    query === TAGS_QUERY ? (tagsFixture.query.detail as Array<Record<string, unknown>[]>).filter((row) => (row[0] as Record<string, unknown>)[":logseq.property/built-in?"]) : [];
+
+  describe("a graph change (N04)", () => {
+    /** Graph A shows the saved view "Roadmap" on #Project; the test then switches the dq and the stored views to graph B. */
+    async function onGraphA() {
+      const blocks: ViewBlock[] = [roadmapView()];
+      const f = fakeDeps();
+      f.deps.storage = fakeStorage({ blocks });
+      f.deps.dq.mockImplementation(fixtureDq() as never);
+      registerApp(f.deps, root);
+      f.flush();
+      modelOf(f.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
+      await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")!.textContent).toContain("Project"));
+      return { f, blocks };
+    }
+    const switchToB = (f: ReturnType<typeof fakeDeps>, blocks: ViewBlock[]) => {
+      f.deps.dq.mockImplementation(otherGraphDq() as never);
+      blocks.splice(0);
+    };
+
+    it("while Planner is shown: the new graph's default view, no error bar, its saved views listed", async () => {
+      const { f, blocks } = await onGraphA();
+      switchToB(f, blocks);
+      expect(f.graphChanged).toHaveLength(1);
+      f.graphChanged[0]();
+      await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")!.textContent).not.toContain("Project"));
+      expect(root.querySelector("[data-region=error]")).toBeNull();
+      expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("None");
+      (root.querySelector("[data-control=saved-views]") as HTMLElement).click();
+      await vi.waitFor(() => expect(root.querySelector("[data-popover=views]")!.textContent).toContain("No saved views yet"));
+    });
+
+    it("while Planner is hidden: the next show starts fresh, with no error bar", async () => {
+      const { f, blocks } = await onGraphA();
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })); // hide
+      switchToB(f, blocks);
+      f.graphChanged[0]();
+      modelHandler(f.deps)(); // show
+      await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")!.textContent).not.toContain("Project"));
+      expect(root.querySelector("[data-region=error]")).toBeNull();
+      expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("None");
+    });
+
+    it("the in-page blocks forget the old graph's slots", async () => {
+      const f = fakeDeps();
+      f.deps.storage = fakeStorage({ blocks: [roadmapView()] });
+      f.deps.dq.mockImplementation(fixtureDq() as never);
+      registerApp(f.deps, root);
+      f.flush();
+      f.slotted.forEach((cb) => cb({ slot: "slot__a", payload: { arguments: [":planner", "Roadmap"], uuid: "block-a" } }));
+      await vi.waitFor(() => expect(f.deps.provideUI).toHaveBeenCalledTimes(1));
+      f.graphChanged[0]();
+      f.feed.fire();
+      f.clock.advance(DEBOUNCE_MS);
+      await new Promise((r) => setTimeout(r, 20));
+      expect(f.deps.provideUI).toHaveBeenCalledTimes(1); // no slot left to draw into
+    });
+
+    it("unload unhooks the listener", async () => {
+      const { f } = await onGraphA();
+      f.unload.forEach((cb) => cb());
+      expect(f.offs.graph).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("unload also unhooks the theme and visibility listeners (T14)", async () => {

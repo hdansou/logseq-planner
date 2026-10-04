@@ -32,6 +32,8 @@ export interface ChangesDeps {
 export interface Changes {
   /** Planner shown (true) or hidden (false). Showing refreshes once when the data is stale; the first show always loads. */
   setVisible(visible: boolean): void;
+  /** What is on screen no longer matches the graph (another graph was opened): reloads now when shown, else on the next show. */
+  invalidate(): void;
   /** Unsubscribes and cancels every timer; nothing runs afterwards. */
   stop(): void;
 }
@@ -103,6 +105,13 @@ export function createChanges(deps: ChangesDeps): Changes {
       clearDebounce();
       cancelPoll?.();
       cancelPoll = null;
+    },
+    invalidate() {
+      if (stopped) return;
+      stale = true;
+      if (!visible) return;
+      clearDebounce();
+      refresh();
     },
     stop() {
       stopped = true;

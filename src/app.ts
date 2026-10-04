@@ -139,6 +139,15 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     const blockChanges = createChanges({ subscribe: feed, later: deps.changes.later, refresh: blocks.refresh });
     blockChanges.setVisible(true);
     const offVisible = deps.changes.onVisibleChanged((shown) => ((visible = shown), changes?.setVisible(shown)));
+    // N04: nothing of the old graph survives a switch: the workspace state, the views cache, the in-page slots. Shown, Planner
+    // loads the new graph at once; hidden, the next show does (`invalidate` marks the data stale, `loaded` makes it a first load).
+    const offGraph = deps.changes.onGraphChanged(() => {
+      loaded = false;
+      views.invalidate();
+      blocks.reset();
+      void workspace.reset();
+      changes?.invalidate();
+    });
     const offTheme = watchTheme(deps.theme, doc);
     deps.changes.onUnload(() => {
       changes?.stop();
@@ -146,6 +155,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
       stopDock();
       workspace.stop();
       offVisible();
+      offGraph();
       offHostKeys();
       void offTheme.then((off) => off());
     });

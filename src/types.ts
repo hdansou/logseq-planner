@@ -80,6 +80,8 @@ export interface ChangesSdk {
   later(fn: () => void, ms: number): () => void;
   /** The host's `ui:visible:changed` event: Planner shown or hidden by any means. Returns the unsubscribe. */
   onVisibleChanged(cb: (visible: boolean) => void): () => void;
+  /** `App.onCurrentGraphChanged`: the host opened another graph. Returns the unsubscribe. */
+  onGraphChanged(cb: () => void): () => void;
   /** Runs `cb` when the plugin unloads. */
   onUnload(cb: () => void): void;
 }

@@ -90,6 +90,12 @@ export interface Workspace {
    * one as the Saved views menu does; the surface switch shows the workspace. Queued; an error shows in the error bar.
    */
   openView(id: string): Promise<void>;
+  /**
+   * The host switched to another graph (N04): back to the state of a first open (no tags, config, nodes, saved views,
+   * error; no expanded or folded sets, no pending writes), kept: the surface, the panel's open state, Edit dates. Queued
+   * behind any running action; the caller then calls `open()` when Planner is shown.
+   */
+  reset(): Promise<void>;
   /** Closes an open popover, else the open panel drawer (N13), and returns true; false when there is nothing to close (the app then closes Planner). */
   escape(): boolean;
   /** Resolves when every queued action has finished (tests, focus after open). */
@@ -757,6 +763,15 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     });
     return queue;
   }
+  const reset = () => run(() => {
+    Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null,
+      popover: null, error: null, builtInOpen: false, anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
+      moveCard: null, agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), datePending: new Map() });
+    wantRefresh = false;
+    shownSig = null;
+    dayScrolled = null;
+    deps.views.invalidate();
+  });
   const refreshWhenFree = () => void (wantRefresh && !busy() && refresh());
 
   root.addEventListener("click", (e) => {
@@ -1268,6 +1283,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return true;
     },
     refresh,
+    reset,
     showViews: () => run(listViews),
     openView: (id) => run(async () => {
       s.surface = "workspace";

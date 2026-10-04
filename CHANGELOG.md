@@ -255,6 +255,13 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   write paths, state, test seams, design decisions). The marketplace release and screenshots are not part of 0.1.0 yet.
 
 ### Fixed
+- Planner starts fresh when the graph changes (N04): after switching graphs in one Logseq session it showed "Invalid view
+  config: unknown tag/date property … Showing the default view instead." because the workspace kept the previous
+  graph's view (`openBody` in `src/ui/workspace.ts` validated the old config against the new graph's tags). The app now
+  listens to `App.onCurrentGraphChanged`: the workspace is reset to a first open (tags, view, nodes, saved views, error,
+  expanded and folded sets, pending writes), the saved-view cache is dropped, the in-page block registry is cleared, and
+  a shown Planner loads the new graph at once (a hidden one on its next show). Kept: the surface, the panel's open state
+  and Edit dates. Unit-tested; the live switch has not been re-run.
 - A Calendar band that continues from the previous week and into the next keeps its title at the left edge, after the
   "‹" marker, in every week row (N04): the rule that pushes the "›" marker right (`margin-left: auto`) also matched the
   "‹", which moved it and the title to the middle. It now applies to the last marker only. Unit-tested on the markup
