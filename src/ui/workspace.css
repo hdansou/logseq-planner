@@ -7,7 +7,10 @@ html, body, #app { height: 100%; }
 .pl-ws { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
 
 /* Top bar */
-.pl-top { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--pl-line-soft); }
+/* Wraps in a narrow frame (the docked surface, N06a: ~700 px, ~450 px); wrapped rows sit at the right edge, so the
+   right-aligned Saved views popover stays inside the frame. On the first row the spacer takes the free space. */
+.pl-top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px 12px; padding: 10px 16px;
+  border-bottom: 1px solid var(--pl-line-soft); }
 .pl-title { margin: 0; font-size: 15px; font-weight: 700; }
 .pl-spacer { flex: 1; }
 .pl-seg > button:disabled { cursor: default; color: var(--pl-label-2); }

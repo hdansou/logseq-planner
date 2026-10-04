@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { loadTagInfos, mergeTags, TAGS_QUERY, type Dq } from "../core/schema";
 import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
-import type { StorageDeps, TagInfo } from "../types";
+import type { StorageDeps, Surface, TagInfo } from "../types";
 import { createWorkspace, initialTag, NARROW_MEDIA, visibleData, type Workspace } from "./workspace";
 import { DEPENDS_ON, fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import { DAY_TRACK_PX } from "./timeline";
@@ -29,10 +29,10 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const shownNodes = () => $$("[data-tl-row]").length + $$("[data-tl-undated] [data-tl-open]").length;
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
 
-async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number>; time?: () => string } = {}) {
+async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number>; time?: () => string; setSurface?: (surface: Surface) => void } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
   const onClose = vi.fn();
-  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: opts.time ?? (() => "13:30"), kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0) });
+  const ws = createWorkspace(root, { dq: opts.dq ?? fixtureDq(), views: store, onClose, openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: opts.time ?? (() => "13:30"), kanban: noWrites, weekStart: opts.weekStart ?? (async () => 0), setSurface: opts.setSurface });
   await ws.open();
   return { ws, store, onClose };
 }
@@ -622,6 +622,51 @@ describe("panel drawer at narrow widths (N13)", () => {
     const popoverZ = Number(workspaceCss.match(/\.pl-popover\s*\{[^}]*z-index:\s*(\d+)/)![1]);
     expect(z).toBeGreaterThan(4); // above the views' sticky heads and labels (2 to 4)
     expect(z).toBeLessThan(popoverZ);
+  });
+});
+
+describe("surface switch (N06a)", () => {
+  it("is not rendered when the host cannot be docked into (no setSurface: web app, dev server)", async () => {
+    await setup();
+    expect($("[data-surface]")).toBeNull();
+    expect($(".pl-ws")!.hasAttribute("data-surface-mode")).toBe(false);
+  });
+
+  it("a Workspace | Sidebar segmented control in the top bar, before Saved views, Workspace pressed", async () => {
+    await setup({ setSurface: vi.fn() });
+    const group = $("[data-region=topbar] [role=group][aria-label=Surface]")!;
+    expect(group.classList.contains("pl-seg")).toBe(true);
+    const buttons = [...group.querySelectorAll<HTMLButtonElement>("button")];
+    expect(buttons.map((b) => [b.dataset.surface, b.textContent, b.getAttribute("aria-pressed"), b.type])).toEqual([
+      ["workspace", "Workspace", "true", "button"],
+      ["sidebar", "Sidebar", "false", "button"],
+    ]);
+    const top = [...$("[data-region=topbar]")!.children];
+    expect(top.indexOf(group)).toBe(top.indexOf($("[data-control=saved-views]")!.closest(".pl-anchor")!) - 1);
+    expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
+  });
+
+  it("a click switches: the app is told, the pressed button and the root's mode follow, focus stays on it; the pressed one does nothing", async () => {
+    const setSurface = vi.fn();
+    const { ws } = await setup({ setSurface });
+    $("[data-surface=sidebar]")!.focus();
+    await click(ws, "[data-surface=sidebar]");
+    expect(setSurface).toHaveBeenCalledWith("sidebar");
+    expect($("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("false");
+    expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
+    expect(document.activeElement).toBe($("[data-surface=sidebar]"));
+    await click(ws, "[data-surface=sidebar]");
+    expect(setSurface).toHaveBeenCalledTimes(1);
+    await click(ws, "[data-surface=workspace]");
+    expect(setSurface).toHaveBeenLastCalledWith("workspace");
+    expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
+  });
+
+  it("the top bar wraps at the sidebar's widths (~700 and ~450 px), wrapped rows to the right edge (stylesheet; happy-dom does not lay out)", () => {
+    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*flex-wrap:\s*wrap/);
+    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*justify-content:\s*flex-end/);
+    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*gap:\s*8px 12px/);
   });
 });
 

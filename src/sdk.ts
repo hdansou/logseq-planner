@@ -4,7 +4,7 @@ import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
-import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
+import type { AppDeps, ChangesSdk, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /**
  * The workspace frame (skill ui-positioning, recipe 3, minus the header): fixed over the host UI, but starting at the
@@ -13,10 +13,33 @@ import type { AppDeps, ChangesSdk, KanbanWriteDeps, StorageDeps, ViewBlock } fro
  * no-drag`, blocks moving the window (tasks.md N15). Below it, the header stays draggable and double-clickable, and
  * the window edges stay free for resizing.
  */
-const HEADBAR = "var(--ls-headbar-height, 3rem)";
-const WORKSPACE_FRAME: Record<string, string> = {
+export const HEADBAR = "var(--ls-headbar-height, 3rem)";
+export const WORKSPACE_FRAME: Frame = {
   position: "fixed", zIndex: "999", top: HEADBAR, left: "0", right: "auto", width: "100vw", height: `calc(100vh - ${HEADBAR})`,
 };
+
+/** The horizontal extent of a host element (`getBoundingClientRect()`, viewport px). */
+export interface HostRect {
+  left: number;
+  right: number;
+  width: number;
+}
+
+/** The gap left free right of the sidebar's resizer, so the host's width handle stays grabbable (prototype, N06a). */
+const RESIZER_GAP = 2;
+
+/**
+ * The sidebar frame (N06a): Planner over Logseq's open right sidebar (`#right-sidebar`), from the resizer's right edge
+ * + 2 px to the sidebar's right edge, under the host header like the workspace frame (`headbar` = its height as a CSS
+ * length). Null when nothing of the sidebar is left beside its resizer (closed, zero width).
+ */
+export function sidebarFrame(sidebar: HostRect, resizer: HostRect, headbar: string): Frame | null {
+  if (sidebar.width <= 0) return null;
+  const left = resizer.right + RESIZER_GAP;
+  const width = sidebar.right - left;
+  if (width <= 0) return null;
+  return { position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, left: `${left}px`, width: `${width}px`, right: "auto" };
+}
 
 /**
  * Styles the main-UI container directly (gotcha §15: a persisted layout makes the host drop position/size keys from
@@ -24,7 +47,7 @@ const WORKSPACE_FRAME: Record<string, string> = {
  * frame (dev server, web app) falls back to `setMainUIInlineStyle`, which applies them while no layout is persisted.
  * Planner never sets `draggable`, so the host never persists one.
  */
-function setContainerStyle(style: Record<string, string>): void {
+function setContainerStyle(style: Frame): void {
   let el: HTMLElement | null = null;
   try {
     el = parent.document.querySelector<HTMLElement>(`.lsp-iframe-sandbox-container[data-pid="${logseq.baseInfo.id}"]`);
@@ -50,10 +73,9 @@ export const appDeps = (): AppDeps => ({
   registerUIItem: (type, item) => logseq.App.registerUIItem(type, item),
   registerCommandPalette: (command, action) => logseq.App.registerCommandPalette(command, action),
   provideModel: (model) => logseq.provideModel(model),
-  showMainUI: () => {
-    setContainerStyle(WORKSPACE_FRAME);
-    logseq.showMainUI({ autoFocus: true });
-  },
+  setFrame: (style) => setContainerStyle(style),
+  showMainUI: () => logseq.showMainUI({ autoFocus: true }),
+  setRightSidebarVisible: (visible) => logseq.App.setRightSidebarVisible(visible),
   hideMainUI: () => logseq.hideMainUI({ restoreEditingCursor: true }),
   // The page route takes a uuid for pages and blocks alike (Query Builder src/nav.ts, verified there live).
   openPage: (uuid) => void logseq.App.pushState("page", { name: uuid }),

@@ -67,7 +67,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   shows Deadlines only), the Agenda's Overdue bucket, filed and counted from the due date.
 - **Saved views** stored in the graph on a plugin-owned page (one block per view, config as
   a hidden string property holding JSON). Sync with the graph; reused later by the side
-  panel and in-page block. A view saved before N14 (one `tag`, `start`, `end`) opens as that
+  sidebar and in-page block. A view saved before N14 (one `tag`, `start`, `end`) opens as that
   one tag; a saved view naming a tag that is gone opens with the tags that are left (none left:
   the default view and an error).
 - **Live updates.** The open view redraws after graph changes (debounced), keeping scroll
@@ -83,6 +83,17 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   640 px the panel is a **drawer** over the view from the right edge, closed by default; Escape
   (after an open menu, before Planner) or a click on the view closes it. Wide and narrow keep their
   own open state, so crossing the width without a toggle follows the defaults.
+- **Surfaces** (N06a). Planner shows in the **workspace** (the window under the app header, the
+  default) or in the **sidebar**: laid over Logseq's right sidebar, beside the page. A
+  **Workspace | Sidebar** switch in the top bar, before Saved views, picks one; the choice is kept
+  for the session (in memory, not persisted). Sidebar opens Logseq's right sidebar, lays Planner
+  over it from the header's lower edge, leaving the sidebar's resize handle free, and follows the
+  sidebar's width (its handle, the window). The sidebar's own content is covered while Planner is
+  docked. Closing Planner leaves the sidebar open (its content shows again); the user closing the
+  sidebar hides Planner and keeps the mode, so the next open docks again and reopens it. Switching
+  back to Workspace restores the full frame and leaves the sidebar as it is. Desktop app only: the
+  web app's frame cannot read the host document, so the switch is not shown there. Inside the
+  frame nothing changes: the top bar wraps, and under 640 px the panel is a drawer.
 - **Click** opens the node in the main area and hides Planner; **Shift+click** opens it in
   the right sidebar and keeps Planner open.
 - **Theme.** Follows the active Logseq theme and light/dark mode; Inkwell values are the
@@ -189,7 +200,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 
 ## Non-goals (v1)
 
-- Side panel and in-page block surfaces (next, in that order).
+- The in-page block surface (later; the sidebar surface exists, N06a).
 - Dragging or resizing to change dates; a detail/edit panel.
 - Views defined by a free query; different filters per tag.
 - Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.

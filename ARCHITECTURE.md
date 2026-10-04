@@ -44,8 +44,8 @@ Rules that hold across the tree:
 |---|---|
 | `src/index.ts` | Entry. Imports the SDK and CSS, calls `registerApp(appDeps(), #app, timing)` inside `logseq.ready`. Installs the dev-only timings and probe hook behind `import.meta.env.DEV`. |
 | `src/__sdk_guard__.ts` | Compile-time SDK floor (references `logseq.App.getCurrentRoute`). Never imported at runtime. |
-| `src/app.ts` | `registerApp`: creates the workspace and the saved-view store; open and close with focus retries (50, 300, 800 ms); Escape order; `g shift+p` binding (non-editing); deferred toolbar button and command palette registration; `nodeOpener` (click opens the page and hides Planner, Shift+click opens the right sidebar); creates `createChanges`. |
-| `src/sdk.ts` | The real SDK behind every deps object: `appDeps`, `changesSdk`, `storageDeps`, `kanbanWriteDeps`, `datascriptQuery`, `hostWeekStart`, `pageQuery`, `choiceReadQuery`. Full-screen container style. |
+| `src/app.ts` | `registerApp`: creates the workspace and the saved-view store; open and close with focus retries (50, 300, 800 ms); Escape order; `g shift+p` binding (non-editing); deferred toolbar button and command palette registration; `nodeOpener` (click opens the page and hides Planner, Shift+click opens the right sidebar); creates `createChanges`; the surface mode (N06a): workspace frame, or docked over Logseq's right sidebar through `startDock` (desktop only). |
+| `src/sdk.ts` | The real SDK behind every deps object: `appDeps`, `changesSdk`, `storageDeps`, `kanbanWriteDeps`, `datascriptQuery`, `hostWeekStart`, `pageQuery`, `choiceReadQuery`. Container style (`setFrame`): `WORKSPACE_FRAME`, and the pure `sidebarFrame` geometry (N06a). |
 | `src/types.ts` | Shared types and the deps interfaces. No runtime code. |
 | `src/storage.ts` | `createViewStore`: cache-first saved views on the "Planner views" page; config in the hidden string property `planner-view-config`; every write read back. |
 | `src/dev-probe.ts` | Dev-only message hook that lets `scripts/probe.mjs` call the SDK from inside the iframe. |
@@ -66,6 +66,7 @@ Rules that hold across the tree:
 | `src/ui/calendar.ts`, `calendar.css` | Calendar layout to HTML; `calendarAction`. |
 | `src/ui/agenda.ts`, `agenda.css` | Agenda layout to HTML; `agendaAction`; `AGENDA_GROUP_PAGE` (100). |
 | `src/ui/kanban.ts`, `kanban.css` | Kanban layout to HTML; `kanbanAction`; `KANBAN_CELL_PAGE` (50). |
+| `src/ui/dock.ts` | `startDock` (N06a): follows Logseq's `#right-sidebar` with the host window's ResizeObserver, a MutationObserver on its `class` and the window `resize` event; places the frame, reports the user closing the sidebar; returns the stop function. |
 | `src/ui/changes.ts` | `createChanges`: debounce, poll, visibility, one refresh at a time. |
 | `src/ui/html.ts` | Shared HTML helpers: `esc`, `flag`, `viewNav`, `segmented`, `toggleButton`, `menu`, `options`. |
 | `src/ui/theme.ts`, `theme.css` | `watchTheme`: host mode to `html.dark`, host tokens to `--pl-*`; Inkwell defaults and base component CSS. |
@@ -267,7 +268,8 @@ recorded in tasks.md.
 | Timeline builds rows only for nodes in range and counts the rest. Agenda renders folded buckets when opened. Kanban cells and Agenda node groups are paged. | At 2,000 nodes the out-of-range rows and large views made most of the DOM (T13a). |
 | Debounce `DB.onChanged` and poll every 30 s while visible. | Hidden iframes throttle timers. `DB.onChanged` fires for local edits, other tabs, the plugin's own writes and undo, but its payload is unusable (T01, T12). |
 | `DB.onChanged` is a wake-up only. | `txData` is empty and payload keys are mangled (T01). |
-| Write the workspace frame style (starting under the host header, N15) directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
+| Write the workspace frame style (starting under the host header, N15) and the sidebar frame (N06a) directly, with `setMainUIInlineStyle` as the fallback. | A persisted layout makes the host ignore position and size keys. The container is reachable only when the frame is same-origin; the dev server and web app are cross-origin (CLAUDE.md, `src/sdk.ts`). |
+| The sidebar surface lays Planner's own frame over Logseq's right sidebar (left = the resizer's right edge + 2 px, width = the rest) rather than rendering into the sidebar's DOM, and only on the desktop app. | The frame keeps its own document, styles and keys unchanged; the 2 px leave the host's width handle grabbable; following the sidebar needs the host document, which a cross-origin frame (web app) cannot read (N06a prototype, tasks.md). |
 | Defer registrations with `setTimeout(…, 0)` and keep `main()` minimal. | Registrations must not delay the ready handshake (host gotcha §18, cited in CLAUDE.md and `src/index.ts`). |
 | Fail fast: a missing or invalid week start and an unknown ident in a saved view throw. | Project rule: no fallback that hides invalid state. |
 | A Date value without a journal day (the empty placeholder) is no value, not an error. | The host leaves `:logseq.property/empty-placeholder` when a value is removed (T11); throwing failed the whole tag's load (T14). |

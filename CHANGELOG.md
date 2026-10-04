@@ -35,6 +35,17 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- The sidebar surface (N06a, desktop app). A **Workspace | Sidebar** switch in the top bar, before Saved views
+  (`[data-surface="workspace|sidebar"]`, `aria-pressed`; the root `.pl-ws` carries `data-surface-mode`), rendered only
+  when the host document is reachable. Sidebar opens Logseq's right sidebar (`setRightSidebarVisible(true)`) and lays
+  the frame over it: pure `sidebarFrame(sidebarRect, resizerRect, HEADBAR)` in sdk.ts (left = the resizer's right edge
+  + 2 px, width = to the sidebar's right edge, top and height as the workspace frame; null for a closed sidebar),
+  applied with `setFrame`. `startDock` (src/ui/dock.ts) follows the sidebar with the host window's ResizeObserver, a
+  MutationObserver on its `class` and the window `resize` event, all stopped on close, on switching back and on
+  unload. The user closing the sidebar hides Planner and keeps the mode; the next open docks again. Closing Planner
+  leaves the sidebar open; switching back restores `WORKSPACE_FRAME`. Session memory only. The top bar wraps
+  (`flex-wrap`, wrapped rows to the right edge) so it fits the sidebar's widths. `AppDeps` gains `setFrame` and
+  `setRightSidebarVisible`; `showMainUI` no longer styles the container. Not checked live yet.
 - Parents and children in views over several tags (N14, step 2). A node of the view that references another node of
   the view (not through the Depends on property) is its child; the node query pulls the refs as ids for views over two
   or more tags only (`PlannerNode.links`). Pure `nestItems` (layout-common.ts) decides in row order: the first

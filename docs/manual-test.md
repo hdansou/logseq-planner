@@ -366,6 +366,22 @@ On `planner-project` (6 #Milestone blocks, 28 #Task blocks; both tags have Start
 | K10 | Nested: click a milestone's toggle, switch to the Agenda and back, click it again | Its tasks (and their connectors) disappear and the toggle reads "Show rows under …"; still collapsed after the view switch; shown again after the second click | not run |  |  |  |
 | K11 | Agenda, Group by Node, over #Milestone + #Task | One group per milestone listing its tasks as entries with their own dates and late marks; no task has a group of its own (a task linking no milestone does); Show done adds the done tasks | pass | 8eb07ab | 2026-10-03 | one group per milestone with its tasks as entries ("Views … 9/10" lists N14 and the others) |
 
+## L. Sidebar surface (N06a)
+
+Desktop app only (the web app has no switch). None run live yet; check with real mouse input.
+
+| Id | Steps | Expected | Result | Build | Date | Notes |
+|---|---|---|---|---|---|---|
+| L1 | Open Planner, click **Sidebar** in the top bar | Logseq's right sidebar opens; the page and Planner are side by side, Planner right of the sidebar's resize handle, under the header; **Sidebar** is pressed | not run |  |  |  |
+| L2 | Drag the host's sidebar resizer left and right | Planner follows the sidebar's width; the handle stays grabbable; no overflow | not run |  |  |  |
+| L3 | At the sidebar's width, switch through Timeline, Calendar, Agenda and Kanban | All four views are usable; the top bar wraps without overlap (title, view switch, surface switch, Saved views, Close) | not run |  |  |  |
+| L4 | Make the sidebar narrower than 640 px | The panel becomes a drawer (closed by default); the Panel toggle opens it; Escape closes it | not run |  |  |  |
+| L5 | Close Planner (Close, Escape, toolbar button) | Planner hides; the sidebar stays open and its own content shows again | not run |  |  |  |
+| L6 | Reopen Planner (toolbar button or `g` `Shift+P`) | It opens docked in the sidebar again (the mode is kept) | not run |  |  |  |
+| L7 | With Planner docked, close Logseq's right sidebar (its own toggle or shortcut); then reopen Planner | Planner hides with the sidebar; reopening opens the sidebar again and docks | not run |  |  |  |
+| L8 | Click **Workspace** | Planner fills the window under the header again; the sidebar stays as it is | not run |  |  |  |
+| L9 | Open Planner in the web app | The top bar has no Workspace / Sidebar switch | not run |  |  |  |
+
 ## Desktop pass (2026-10-03, build e849107)
 
 Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over

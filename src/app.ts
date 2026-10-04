@@ -1,7 +1,9 @@
+import { HEADBAR, sidebarFrame, WORKSPACE_FRAME } from "./sdk";
 import { createViewStore } from "./storage";
 import { createChanges } from "./ui/changes";
+import { startDock } from "./ui/dock";
 import { installHostKeys } from "./ui/host-keys";
-import type { AppDeps } from "./types";
+import type { AppDeps, Surface } from "./types";
 import { watchTheme } from "./ui/theme";
 import { createWorkspace, type Timing } from "./ui/workspace";
 
@@ -36,12 +38,42 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const doc = root.ownerDocument;
   let changes: ReturnType<typeof createChanges> | null = null; // created with the deferred registrations
   let visible = false; // the frame is shown: set by open / close and by the host's visibility event
+  const host = deps.hostDocument(); // null when cross-origin: no host keys, no sidebar surface
+  /** Where Planner shows (N06a); session memory only. */
+  let surface: Surface = "workspace";
+  /** Stops following the host's sidebar; null while not docked. */
+  let undock: (() => void) | null = null;
+  const stopDock = () => {
+    undock?.();
+    undock = null;
+  };
+  /** Opens the host's sidebar and keeps the frame over it until `stopDock`; the user closing the sidebar closes Planner. */
+  const dock = () => {
+    stopDock();
+    deps.setRightSidebarVisible(true);
+    undock = startDock(host!, {
+      place: (sidebar, resizer) => {
+        const frame = sidebarFrame(sidebar, resizer, HEADBAR);
+        if (frame) deps.setFrame(frame);
+      },
+      onClosed: () => close(),
+    });
+  };
+  /** Hides Planner; in the sidebar mode the host's sidebar stays as it is (its own content shows again). The mode is kept. */
   const close = () => {
     visible = false;
+    stopDock();
     deps.hideMainUI();
     changes?.setVisible(false);
   };
-  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban, timing });
+  const setSurface = (next: Surface) => {
+    if (next === surface) return;
+    surface = next;
+    if (next === "sidebar") return dock();
+    stopDock();
+    deps.setFrame(WORKSPACE_FRAME); // the host's sidebar is left as it is
+  };
+  const workspace = createWorkspace(root, { dq: deps.dq, views: createViewStore(deps.storage), onClose: close, openNode: nodeOpener({ ...deps, hideMainUI: close }), weekStart: deps.weekStart, kanban: deps.kanban, timing, setSurface: host ? setSurface : undefined });
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
   let loaded = false;
   const refresh = () => (loaded ? workspace.refresh() : ((loaded = true), workspace.open()));
@@ -53,6 +85,8 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   };
   const open = () => {
     visible = true;
+    if (surface === "sidebar") dock();
+    else deps.setFrame(WORKSPACE_FRAME);
     deps.showMainUI();
     const shownBefore = loaded;
     changes?.setVisible(true);
@@ -70,7 +104,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     e.preventDefault();
     if (!workspace.escape()) close();
   });
-  const offHostKeys = installHostKeys(doc, deps.hostDocument(), { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
+  const offHostKeys = installHostKeys(doc, host, { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
 
   deps.defer(() => {
     changes = createChanges({ subscribe: deps.changes.subscribe, later: deps.changes.later, refresh });
@@ -78,6 +112,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     const offTheme = watchTheme(deps.theme, doc);
     deps.changes.onUnload(() => {
       changes?.stop();
+      stopDock();
       workspace.stop();
       offVisible();
       offHostKeys();

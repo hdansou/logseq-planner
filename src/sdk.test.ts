@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, hostWeekStart, kanbanWriteDeps, pageQuery, storageDeps } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, HEADBAR, hostWeekStart, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -114,7 +114,7 @@ describe("workspace frame starts under the host header (N15)", () => {
   it("sets top and height from the host header variable, important, on the container (same-origin)", () => {
     const setProperty = vi.fn();
     host({ dataset: {}, style: { setProperty } });
-    appDeps().showMainUI();
+    appDeps().setFrame(WORKSPACE_FRAME);
     expect(setProperty).toHaveBeenCalledWith("top", TOP, "important");
     expect(setProperty).toHaveBeenCalledWith("height", HEIGHT, "important");
     expect(setProperty).toHaveBeenCalledWith("position", "fixed", "important");
@@ -124,7 +124,7 @@ describe("workspace frame starts under the host header (N15)", () => {
 
   it("passes the same top and height to setMainUIInlineStyle on the cross-origin fallback", () => {
     const inline = host(null);
-    appDeps().showMainUI();
+    appDeps().setFrame(WORKSPACE_FRAME);
     expect(inline).toHaveBeenCalledWith({
       position: "fixed", zIndex: "999", top: TOP, left: "0", right: "auto", width: "100vw", height: HEIGHT,
     });
@@ -134,5 +134,55 @@ describe("workspace frame starts under the host header (N15)", () => {
   it("no longer reports macWindowButtons", () => {
     host(null);
     expect(appDeps()).not.toHaveProperty("macWindowButtons");
+  });
+});
+
+describe("sidebar surface (N06a)", () => {
+  // Measured live (desktop app, 1777 px window): the sidebar at x=1066 w=711, its 3 px resizer at x=1067.
+  const SIDEBAR = { left: 1066, right: 1777, width: 711 };
+  const RESIZER = { left: 1067, right: 1070, width: 3 };
+
+  it("lays the frame over the sidebar right of its resizer (+2 px), under the header, as fixed px", () => {
+    expect(sidebarFrame(SIDEBAR, RESIZER, HEADBAR)).toEqual({
+      position: "fixed", zIndex: "999", top: "var(--ls-headbar-height, 3rem)", height: "calc(100vh - var(--ls-headbar-height, 3rem))",
+      left: "1072px", width: "705px", right: "auto",
+    });
+  });
+
+  it("follows a resized sidebar", () => {
+    expect(sidebarFrame({ left: 900, right: 1777, width: 877 }, { left: 901, right: 904, width: 3 }, HEADBAR)).toMatchObject({ left: "906px", width: "871px" });
+  });
+
+  it("a closed (zero-width) sidebar gives no frame", () => {
+    expect(sidebarFrame({ left: 1777, right: 1777, width: 0 }, { left: 1777, right: 1777, width: 0 }, HEADBAR)).toBeNull();
+    expect(sidebarFrame({ left: 1770, right: 1773, width: 3 }, { left: 1770, right: 1773, width: 3 }, HEADBAR)).toBeNull(); // only the resizer left
+  });
+
+  it("the docked frame goes on the container, important, like the workspace frame", () => {
+    const setProperty = vi.fn();
+    vi.stubGlobal("parent", { document: { querySelector: () => ({ dataset: {}, style: { setProperty } }) } });
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, setMainUIInlineStyle: vi.fn() });
+    appDeps().setFrame(sidebarFrame(SIDEBAR, RESIZER, HEADBAR)!);
+    expect(setProperty).toHaveBeenCalledWith("left", "1072px", "important");
+    expect(setProperty).toHaveBeenCalledWith("width", "705px", "important");
+    expect(setProperty).toHaveBeenCalledWith("right", "auto", "important");
+    expect(setProperty).toHaveBeenCalledWith("z-index", "999", "important");
+  });
+
+  it("showMainUI only shows: the frame is the app's choice (setFrame)", () => {
+    const setProperty = vi.fn();
+    const showMainUI = vi.fn();
+    vi.stubGlobal("parent", { document: { querySelector: () => ({ dataset: {}, style: { setProperty } }) } });
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, setMainUIInlineStyle: vi.fn(), showMainUI });
+    appDeps().showMainUI();
+    expect(showMainUI).toHaveBeenCalledWith({ autoFocus: true });
+    expect(setProperty).not.toHaveBeenCalled();
+  });
+
+  it("setRightSidebarVisible passes the flag to the host", () => {
+    const setRightSidebarVisible = vi.fn();
+    vi.stubGlobal("logseq", { App: { setRightSidebarVisible } });
+    appDeps().setRightSidebarVisible(true);
+    expect(setRightSidebarVisible).toHaveBeenCalledWith(true);
   });
 });

@@ -20,7 +20,7 @@ import { layoutCalendar, shiftCalendarAnchor, type CalendarLayout } from "../cor
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { cardCell, layoutKanban, moveDescriptor, movedNode, moveTarget, priorityProp, tagLaneProp, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
-import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction, renderAgenda, renderAgendaToolbar } from "./agenda";
@@ -60,6 +60,11 @@ export interface WorkspaceDeps {
   kanban: KanbanWriteDeps;
   /** Dev-only load / refresh timings; omitted in production. */
   timing?: Timing;
+  /**
+   * The Workspace | Sidebar switch picked a surface (N06a): the app docks the frame or restores it. Given only when the
+   * host document is reachable (desktop app); absent, the switch is not rendered (web app, dev server).
+   */
+  setSurface?(surface: Surface): void;
 }
 
 export interface Workspace {
@@ -135,6 +140,10 @@ interface State {
   panelOpen: { wide: boolean; narrow: boolean };
   /** The frame is narrower than 640 px (`NARROW_MEDIA`): the panel is a drawer. */
   narrow: boolean;
+  /** The surface switch is shown (`setSurface` given: desktop app). */
+  canDock: boolean;
+  /** The surface the switch shows pressed (N06a); session state, starts as the workspace. */
+  surface: Surface;
 }
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -251,8 +260,18 @@ function renderTopBar(s: State): string {
   };
   return `<header class="pl-top" data-region="topbar"><h1 class="pl-title">Planner</h1>`
     + `<div class="pl-seg" role="group" aria-label="View">${seg}</div><span class="pl-spacer"></span>`
+    + renderSurfaceSwitch(s)
     + menu("views", s, "Saved views", current ? esc(current.name) : "None", viewsPopover, "saved-views")
     + `<button type="button" class="pl-btn" data-action="close">Close</button></header>`;
+}
+
+const SURFACES: [Surface, string][] = [["workspace", "Workspace"], ["sidebar", "Sidebar"]];
+
+/** Workspace | Sidebar (N06a): where Planner shows; only when the app can dock it (desktop app). */
+function renderSurfaceSwitch(s: State): string {
+  if (!s.canDock) return "";
+  return `<div class="pl-seg" role="group" aria-label="Surface">${SURFACES.map(([k, label]) =>
+    `<button type="button" data-surface="${k}" aria-pressed="${k === s.surface}">${label}</button>`).join("")}</div>`;
 }
 
 function renderSettings(s: State, view: ViewTags): string {
@@ -498,7 +517,7 @@ function renderWorkspace(s: State, now: () => Now): string {
   const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
   const main = renderView(s, view, now);
-  return `<div class="pl-ws">${renderTopBar(s)}${error}`
+  return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${renderTopBar(s)}${error}`
     + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${view ? renderSettings(s, view) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
     + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
@@ -516,7 +535,8 @@ function selectorOf(el: Element): string {
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
-    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false };
+    agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
+    canDock: deps.setSurface !== undefined, surface: "workspace" };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -884,7 +904,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
     }
-    const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-action]");
+    const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-surface], [data-action]");
     if (!el) return;
     const d = el.dataset;
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
@@ -899,6 +919,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         s.viewId = v.id;
         await loadData();
       }, () => trigger("views"));
+    }
+    if (d.surface) {
+      const next = d.surface as Surface;
+      if (next === s.surface) return;
+      s.surface = next;
+      render(`[data-surface="${next}"]`);
+      return deps.setSurface!(next);
     }
     if (d.viewDelete) {
       return void run(() => viewsWrite(() => deps.views.remove(d.viewDelete!)), () => "[data-field=view-name]");

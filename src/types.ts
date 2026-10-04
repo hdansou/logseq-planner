@@ -9,8 +9,15 @@ export interface AppDeps {
     action: () => void,
   ): void;
   provideModel(model: Record<string, () => void>): void;
-  /** Shows the main UI full-screen (container styled directly, see CLAUDE.md). */
+  /**
+   * Styles the main-UI container (camelCase keys, written directly with `important` when same-origin, see CLAUDE.md):
+   * `WORKSPACE_FRAME`, or `sidebarFrame(…)` while docked (N06a).
+   */
+  setFrame(style: Frame): void;
+  /** Shows the main UI in the frame last set by `setFrame`. */
   showMainUI(): void;
+  /** Opens (true) or closes (false) Logseq's right sidebar (`logseq.App.setRightSidebarVisible`). */
+  setRightSidebarVisible(visible: boolean): void;
   hideMainUI(): void;
   /** Routes the main area to a node (page or block) by uuid. */
   openPage(uuid: string): void;
@@ -34,6 +41,12 @@ export interface AppDeps {
   /** The host's document when the frame is same-origin with it (desktop app), else null (web app, dev server): where unused keys are forwarded (N16). */
   hostDocument(): HostDocument | null;
 }
+
+/** Where Planner shows (N06a): the workspace under the header, or docked over Logseq's right sidebar. Session state. */
+export type Surface = "workspace" | "sidebar";
+
+/** A main-UI container style: CSS properties in camelCase. */
+export type Frame = Record<string, string>;
 
 /** The SDK and timer calls `createChanges` and `registerApp` need for live updates; `src/sdk.ts` supplies the real ones. */
 export interface ChangesSdk {

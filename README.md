@@ -48,6 +48,24 @@ app cannot do this: Planner's frame is a different origin there, so Logseq's sho
 Planner has focus. When a Logseq dialog opened this way closes (Cmd+K, then Escape), focus returns to Planner,
 so its own keys work again.
 
+### Workspace or sidebar
+
+On the desktop app the top bar has a **Workspace | Sidebar** switch, before **Saved views**.
+**Workspace** (the default) fills the window under the app header. **Sidebar** opens Logseq's
+right sidebar and puts Planner in it, so the page and Planner are side by side:
+
+- Drag Logseq's own handle on the sidebar's left edge to make Planner wider or narrower; it
+  follows, and it follows the window too.
+- While Planner is there it covers the sidebar's own content. Close Planner (Close, Escape or the
+  toolbar button) and the sidebar's content shows again; the sidebar stays open.
+- If you close Logseq's sidebar, Planner closes with it. The next time you open Planner it opens
+  the sidebar again and docks in it.
+- Switch back to **Workspace** for the full window; the sidebar stays as it is.
+
+The choice lasts until Logseq reloads the plugin. In a narrow sidebar the top bar wraps and,
+under 640 px, the panel is a drawer (see **Panel** below). The web app has no switch: Planner's
+frame there cannot reach the sidebar.
+
 ### Choose a tag
 
 Pick a tag in the panel on the right of the view or in the **Tag** menu. Your own tags are listed first. Built-in
@@ -251,7 +269,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   resizing.
 - No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
   no year zoom or dependency arrows in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
-- Side-panel and in-page block surfaces do not exist yet.
+- The in-page block surface does not exist yet. The sidebar surface is desktop only and has not been checked
+  live yet.
 
 **Where it was tested**
 
