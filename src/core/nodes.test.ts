@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
-import { buildTagInfos } from "./schema";
+import { buildTagInfos, loadTagInfos } from "./schema";
 import { loadNodes, loadNodesAndTasks } from "./queries";
-import { fixtureDq } from "../ui/test-fakes";
+import { DEPENDS_ON, fixtureDq } from "../ui/test-fakes";
 import { filterNodes, isCanceled, isDone, resolveSpan, rollup, tasksOf } from "./nodes";
 import type { ClosedValue, LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
@@ -35,7 +35,7 @@ const d = (day: string, time: string | null = null): LocalDate => ({ day, time }
 const project = tag("Project");
 const startId = prop(project, "Start");
 const endId = prop(project, "End");
-const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], dates, choices: {} });
+const node = (dates: Record<string, LocalDate>, id = 1): PlannerNode => ({ id, uuid: `u${id}`, title: `n${id}`, tagIds: [], dependsOn: [], dates, choices: {} });
 const task = (over: Partial<PlannerTask> & { nodeIds: number[] }): PlannerTask => ({
   id: 100, uuid: "t", title: "t", status: null, deadline: null, scheduled: null, ...over,
 });
@@ -195,5 +195,26 @@ describe("filterNodes", () => {
     const owner = choiceProp(project, "Owner");
     expect(filterNodes(nodes, {})).toEqual(nodes);
     expect(filterNodes(nodes, { [owner.ident]: [] })).toEqual(nodes);
+  });
+});
+
+describe("dependents are not tasks (N12)", () => {
+  // #Task nodes (the fixture task blocks) with the hand-written depends_on property: Wireframes (Doing) and Ship homepage
+  // (Done) depend on Draft brief, so both reference it; without the rule they are its linked tasks.
+  const graph = fixtureDq({ taskNodes: true, depends: { Wireframes: ["Draft brief"], "Ship homepage": ["Draft brief"] } });
+  const rollupOfDraft = async (dependsOn: string | null) => {
+    const infos = await loadTagInfos(graph);
+    const taskTag = infos.find((t) => t.title === "Task")!;
+    const { nodes, tasks } = await loadNodesAndTasks(graph, infos, taskTag, { childTags: true, zone: west5, dependsOn });
+    const draft = nodes.find((n) => n.title.startsWith("Draft brief"))!;
+    return { linked: tasksOf(draft, tasks).map((t) => t.title.split(" [[")[0]).sort(), progress: rollup(tasksOf(draft, tasks), choiceProp(taskTag, "Status").values) };
+  };
+
+  it("with the dependency property, a node's rollup and task list leave its dependents out", async () => {
+    expect(await rollupOfDraft(DEPENDS_ON.ident)).toEqual({ linked: [], progress: { done: 0, total: 0 } });
+  });
+
+  it("with none, the dependents count as before", async () => {
+    expect(await rollupOfDraft(null)).toEqual({ linked: ["Ship homepage", "Wireframes"], progress: { done: 1, total: 2 } });
   });
 });

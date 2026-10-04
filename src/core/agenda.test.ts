@@ -46,7 +46,7 @@ function synthetic(spec: [string, string | null, string | null, string?][], over
   const e = dateIdent(p, "End");
   const status = choiceProp(p, "Status");
   const nodes: PlannerNode[] = spec.map(([title, start, end, st], i) => ({
-    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [],
+    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], dependsOn: [],
     dates: { ...(start ? { [s]: d(start) } : {}), ...(end ? { [e]: d(end) } : {}) },
     choices: st ? { [status.ident]: statusOf(st) } : {},
   }));
@@ -245,7 +245,7 @@ describe("overdue and late", () => {
   it("a node of a tag with no done notion (meetings) is never overdue: past ones are filed under Earlier", () => {
     const type = tag("Meeting").choiceProps.find((p) => p.title === "Type")!;
     const dateIdentM = dateIdent(tag("Meeting"), "Date");
-    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
+    const nodes: PlannerNode[] = [{ id: 1, uuid: "m1", title: "Retro", tagIds: [], dependsOn: [], dates: { [dateIdentM]: d("2026-10-01", "10:00") }, choices: { [type.ident]: type.values[0] } }];
     const l = layoutAgenda({
       items: viewItems(nodes, [], dateIdentM, null, statusValues), groupBy: "date", showDone: false, today: TODAY, statusValues,
       choiceProps: tag("Meeting").choiceProps, doneValues: {}, titles: titlesByUuid(nodes),

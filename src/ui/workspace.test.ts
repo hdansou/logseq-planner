@@ -5,9 +5,9 @@ import { defaultViewConfig, serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { StorageDeps, TagInfo } from "../types";
 import { createWorkspace, initialTag, visibleData, type Workspace } from "./workspace";
-import { fakeStorage, fixtureDq, noWrites } from "./test-fakes";
+import { DEPENDS_ON, fakeStorage, fixtureDq, noWrites } from "./test-fakes";
 import { DAY_TRACK_PX } from "./timeline";
-import { loadNodes, loadNodesAndTasks, TITLES_QUERY } from "../core/queries";
+import { loadNodes, loadNodesAndTasks, tasksQuery, TITLES_QUERY } from "../core/queries";
 import workspaceCss from "./workspace.css?inline";
 
 let tags: TagInfo[];
@@ -794,5 +794,99 @@ describe("linked titles outside the loaded nodes (T11 live finding)", () => {
     await pickTag(ws, "Task");
     await click(ws, "[data-view-kind=kanban]");
     expect(cardTitles()).toEqual(expect.arrayContaining(["Draft brief (link)"]));
+  });
+});
+
+describe("Depends on (N12)", () => {
+  // #Task nodes (the fixture task blocks) with the hand-written depends_on property (test-fakes `DEPENDS_ON`): Wireframes
+  // and Ship homepage depend on Draft brief, so both reference it.
+  const DEPS = { Wireframes: ["Draft brief"], "Ship homepage": ["Draft brief"] };
+  const recorded = () => {
+    const queries: string[] = [];
+    const base = fixtureDq({ taskNodes: true, depends: DEPS });
+    const dq: Dq = async (q, ...i) => (queries.push(q), base(q, ...i));
+    return { dq, queries };
+  };
+  const row = (title: string) => $$("[data-tl-row]").find((r) => r.querySelector(".pl-tl-name")!.textContent!.startsWith(title))!;
+  const count = (title: string) => row(title).querySelector(".pl-tl-count")?.textContent ?? null;
+  const controls = () => $$("[data-region=settings] [data-control]").map((el) => el.dataset.control);
+
+  it("a Depends on menu follows End when the tag has a node property: None plus the node properties, the default chosen", async () => {
+    const { ws } = await setup({ dq: recorded().dq });
+    await pickTag(ws, "Task");
+    expect(controls().slice(controls().indexOf("end"), controls().indexOf("end") + 2)).toEqual(["end", "depends"]);
+    expect(text("[data-control=depends]")).toContain("depends_on");
+    expect($("#pl-depends-label")!.textContent).toBe("Depends on");
+    expect(ws.config()!.dependsOn).toBe(DEPENDS_ON.ident);
+    await click(ws, "[data-control=depends]");
+    expect($$("[data-popover=depends] [data-option]").map((o) => [o.dataset.option, o.textContent, o.getAttribute("aria-selected")]))
+      .toEqual([["", "None", "false"], [DEPENDS_ON.ident, "depends_on", "true"]]);
+    expect(document.activeElement).toBe($(`[data-popover=depends] [data-option="${DEPENDS_ON.ident}"]`));
+    await pickTag(ws, "Meeting");
+    expect($("[data-control=depends]")).toBeNull(); // no node property on Meeting
+  });
+
+  it("is not shown for a tag without node properties", async () => {
+    const { ws } = await setup();
+    await pickTag(ws, "Project");
+    expect($("[data-control=depends]")).toBeNull();
+    expect(ws.config()!.dependsOn).toBeNull();
+  });
+
+  it("dependents are not tasks: Draft brief has no task rows; None reloads with them back as its tasks, and back again", async () => {
+    const { dq, queries } = recorded();
+    const { ws } = await setup({ dq });
+    await pickTag(ws, "Task");
+    expect(count("Draft brief")).toBeNull();
+    expect(row("Draft brief").querySelector("[data-tl-toggle]")).toBeNull();
+    queries.length = 0;
+    await click(ws, "[data-control=depends]");
+    await click(ws, '[data-popover=depends] [data-option=""]');
+    expect(ws.config()!.dependsOn).toBeNull();
+    expect(queries).toContain(tasksQuery(null));
+    expect(text("[data-control=depends]")).toContain("None");
+    expect(document.activeElement).toBe($("[data-control=depends]"));
+    expect(count("Draft brief")).toBe("1/2");
+    await click(ws, "[data-control=depends]");
+    await click(ws, `[data-popover=depends] [data-option="${DEPENDS_ON.ident}"]`);
+    expect(ws.config()!.dependsOn).toBe(DEPENDS_ON.ident);
+    expect(count("Draft brief")).toBeNull();
+  });
+
+  it("switching the view kind keeps the choice", async () => {
+    const { ws } = await setup({ dq: recorded().dq });
+    await pickTag(ws, "Task");
+    await click(ws, "[data-control=depends]");
+    await click(ws, '[data-popover=depends] [data-option=""]');
+    await click(ws, "[data-view-kind=agenda]");
+    expect(ws.config()).toMatchObject({ kind: "agenda", dependsOn: null });
+  });
+
+  it("a saved view keeps the choice; a view stored without the key opens with the default rule", async () => {
+    const taskTag = tags.find((t) => t.title === "Task")!;
+    const { dependsOn: _, ...old } = defaultViewConfig({ ...taskTag, nodeProps: [] });
+    const storage = fakeStorage({ blocks: [{ uuid: "v1", name: "Old", config: serializeViewConfig(old) }] });
+    const { ws, store } = await setup({ dq: recorded().dq, storage });
+    await pickTag(ws, "Task");
+    await click(ws, "[data-control=depends]");
+    await click(ws, '[data-popover=depends] [data-option=""]');
+    await click(ws, "[data-control=saved-views]");
+    $<HTMLInputElement>("[data-field=view-name]")!.value = "No deps";
+    await click(ws, "[data-action=save-view]");
+    const saved = (await store.list()).find((v) => v.name === "No deps")!;
+    expect("config" in saved && saved.config.dependsOn).toBeNull();
+
+    await pickTag(ws, "Meeting");
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, `[data-view-open="${saved.id}"]`);
+    expect(ws.config()!.dependsOn).toBeNull();
+    expect(text("[data-control=depends]")).toContain("None");
+    expect(count("Draft brief")).toBe("1/2");
+
+    await click(ws, "[data-control=saved-views]");
+    await click(ws, "[data-view-open=v1]");
+    expect(ws.config()!.dependsOn).toBeUndefined();
+    expect(text("[data-control=depends]")).toContain("depends_on");
+    expect(count("Draft brief")).toBeNull();
   });
 });

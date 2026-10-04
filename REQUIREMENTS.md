@@ -33,6 +33,14 @@ Calendar, Agenda or Kanban board, in a full-screen workspace.
   Planner never creates date properties.
 - **Tasks belong to a node by reference.** A #Task block belongs to node N when its
   `:block/refs` contains N (inline link or node property). Rollup = done / (all − canceled).
+  **Dependents are not tasks** (N12): when the view has a dependency property, a #Task block T is
+  not a task of N if N is among T's values of that property (only values on T itself count); every
+  view follows (rollups, task rows, Calendar chips, Agenda, Kanban progress). With None, as above.
+- **Depends on** (N12). A setting after End, shown when the tag has a node-typed property (own or
+  inherited, any cardinality): None or one of them. Default: the node property whose title,
+  lowercased with non-alphanumerics removed, is `dependson` (`depends_on`, "Depends on",
+  "depends-on"), else None. Saved with the view (`dependsOn`); a view saved before it uses the
+  default rule; a property the tag no longer has counts as None.
 - **Done values.** Built-in Task Status uses its Done/Canceled flags. For a user choice
   property, values named Done, Completed, Canceled, Cancelled or Closed count as done by
   default; the user can change the set; it is saved with the view. Used for rollups,

@@ -72,3 +72,34 @@ describe("the empty placeholder means no value (T11 live finding)", () => {
     for (const t of tasks) expect(t.status).toBeNull();
   });
 });
+
+describe("dependency values (N12)", () => {
+  // Hand-written minimal rows (the T01 fixtures have no node property): the shapes a plain pull of a ref attribute gives,
+  // `[{id}]` for a many-valued property and `{id}` for a cardinality-one property.
+  const D = ":user.property/depends_on-x";
+  const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
+  const project = tags.find((t) => t.title === "Project")!;
+  const row = (id: number, extra: Record<string, unknown> = {}) => [{ id, uuid: `u${id}`, title: `N${id}`, tags: [{ id: project.id }], ...extra }];
+  const nodes = buildNodes([row(1), row(2, { [D]: [{ id: 1 }] }), row(3, { [D]: { id: 2 } }), row(4, { [D]: [{ id: 1 }, { id: 2 }] })], tags, project, true, () => 0, D);
+  const task = (id: number, refs: number[], extra: Record<string, unknown> = {}) => [{ id, uuid: `t${id}`, title: `T${id}`, refs: refs.map((r) => ({ id: r })), ...extra }];
+
+  it("reads many-valued ([{id}]) and single ({id}) values as node ids; no value = []", () => {
+    expect(nodes.map((n) => n.dependsOn)).toEqual([[], [1], [2], [1, 2]]);
+  });
+
+  it("without a dependency property every node has dependsOn []", () => {
+    const plain = buildNodes([row(2, { [D]: [{ id: 1 }] })], tags, project, true, () => 0);
+    expect(plain[0].dependsOn).toEqual([]);
+  });
+
+  it("a task does not link the nodes it depends on through the property; its other refs still link", () => {
+    const tasks = buildTasks([task(10, [1, 2], { [D]: [{ id: 1 }] }), task(11, [1]), task(12, [1], { [D]: [{ id: 1 }] })], nodes, () => 0, D);
+    expect(tasks.map((t) => [t.id, t.nodeIds])).toEqual([[10, [2]], [11, [1]]]);
+  });
+
+  it("with the property null (or absent on the task entity) every ref links, as before", () => {
+    const rows = [task(10, [1, 2], { [D]: [{ id: 1 }] }), task(11, [1])];
+    expect(buildTasks(rows, nodes, () => 0).map((t) => t.nodeIds)).toEqual([[1, 2], [1]]);
+    expect(buildTasks([task(11, [1])], nodes, () => 0, D).map((t) => t.nodeIds)).toEqual([[1]]);
+  });
+});

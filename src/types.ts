@@ -134,6 +134,8 @@ export interface PlannerNode {
   dates: Record<string, LocalDate>;
   /** Choice values by property ident; a property the node has no value for is absent. */
   choices: Record<string, ClosedValue>;
+  /** Entity ids of the nodes it depends on through the view's dependency property (N12); [] without one. */
+  dependsOn: number[];
 }
 
 /** The Status of a #Task block, as the query returns it. */
@@ -149,7 +151,10 @@ export interface PlannerTask {
   title: string;
   /** Null when the block has no Status value. */
   status: TaskStatus | null;
-  /** Ids of the loaded nodes it references (inline `[[uuid]]` refs and node-property links alike). */
+  /**
+   * Ids of the loaded nodes it references (inline `[[uuid]]` refs and node-property links alike), except the nodes it
+   * depends on through the view's dependency property (N12: a dependent is not a task of its dependency).
+   */
   nodeIds: number[];
   /** The task's built-in Deadline (DateTime) as a local date; null when unset. */
   deadline: LocalDate | null;

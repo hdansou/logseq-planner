@@ -50,7 +50,7 @@ function synthetic(start: string, end: string | null, zoom: Zoom, anchor = TODAY
   const p = tag("Project");
   const s = dateIdent(p, "Start");
   const e = dateIdent(p, "End");
-  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
+  const node: PlannerNode = { id: 1, uuid: "u1", title: "Edge", tagIds: [], dependsOn: [], dates: { [s]: d(start), ...(end ? { [e]: d(end) } : {}) }, choices: {} };
   return layoutTimeline({ items: viewItems([node], [], s, e, statusValues), zoom, anchor, today: TODAY, now: NOW, weekStart, statusValues, titles: new Map() });
 }
 
@@ -163,7 +163,7 @@ describe("rows", () => {
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const node = (id: number, start: string, end: string): PlannerNode =>
-      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
+      ({ id, uuid: `u${id}`, title: `N${id}`, tagIds: [], dependsOn: [], dates: { [s]: d(start), [e]: d(end) }, choices: {} });
     const nodes = [node(1, "2026-07-01", "2026-07-10"), node(2, "2026-08-01", "2026-09-05"), node(3, "2026-09-25", "2026-09-30"),
       node(4, "2026-11-02", "2026-11-20"), node(5, "2026-10-20", "2026-12-01"), node(6, "2027-01-05", "2027-01-06")];
     const at = (anchor: string) => layoutTimeline({ items: viewItems(nodes, [], s, e, statusValues), zoom: "week", anchor, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });
@@ -243,7 +243,7 @@ describe("task rows", () => {
   it("lateness counts the Scheduled date when there is no Deadline; with both dates only the deadline marker is late", () => {
     const p = tag("Project");
     const s = dateIdent(p, "Start");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dates: { [s]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dependsOn: [], dates: { [s]: d("2026-10-01") }, choices: {} };
     const todo = statusValues.find((v) => v.title === "Todo")!;
     const status = { ident: todo.ident!, title: todo.title };
     const mk = (id: number, scheduled: string | null, deadline: string | null): PlannerTask => ({
@@ -269,7 +269,7 @@ describe("task rows", () => {
 
   it("sorts dated tasks first by date, then undated by title", () => {
     const p = tag("Project");
-    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
+    const node: PlannerNode = { id: 1, uuid: "u1", title: "N", tagIds: [], dependsOn: [], dates: { [dateIdent(p, "Start")]: d("2026-10-01") }, choices: {} };
     const t = (id: number, title: string, deadline: string | null): PlannerTask =>
       ({ id, uuid: `t${id}`, title, status: null, nodeIds: [1], deadline: deadline ? d(deadline) : null, scheduled: null });
     const tasks = [t(1, "b undated", null), t(2, "late", "2026-10-09"), t(3, "a undated", null), t(4, "early", "2026-10-02")];
@@ -301,7 +301,7 @@ describe("Day zoom (N10): one day of 96 tracks of 15 minutes, 24 hour columns", 
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
     return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map(), ...over });
@@ -417,7 +417,7 @@ describe("dayFocus (N10): where the Day zoom opens", () => {
     const s = dateIdent(p(), "Start");
     const e = dateIdent(p(), "End");
     const nodes = specs.map(([start, end], i): PlannerNode => ({
-      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], choices: {},
+      id: i + 1, uuid: `u${i + 1}`, title: `N${i + 1}`, tagIds: [], dependsOn: [], choices: {},
       dates: { ...(start ? { [s]: start } : {}), ...(end ? { [e]: end } : {}) },
     }));
     return layoutTimeline({ items: viewItems(nodes, tasks, s, e, statusValues), zoom: "day", anchor: TODAY, today: TODAY, now: NOW, weekStart: 0, statusValues, titles: new Map() });

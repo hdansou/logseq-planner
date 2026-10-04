@@ -28,14 +28,18 @@ export function nodePropIdents(tags: TagInfo[]): string[] {
   return [...new Set(tags.flatMap((t) => [...t.dateProps, ...t.choiceProps].map((p) => p.ident)))].filter(isPropertyIdent).sort();
 }
 
+/** The dependency property as a pulled attribute (N12): ` <ident>`, or "" for none or an ident that is not a valid keyword. */
+const dependsAttr = (dependsOn: string | null) => (dependsOn !== null && isPropertyIdent(dependsOn) ? ` ${dependsOn}` : "");
+
 /**
  * The node pull: `NODE_ATTRS` and every tag's date/choice ident; a Date ident (a journal page ref) as
  * `{<ident> [:db/id :block/journal-day]}` so the day comes with the node (T13a: no separate journal-day query, which
- * queued behind the task query live). DateTime and choice idents stay plain (epoch ms, `{id}`).
+ * queued behind the task query live). DateTime and choice idents stay plain (epoch ms, `{id}`). The view's dependency
+ * property (N12), when it has one, last and plain: its values come back as `[{id}]` (or `{id}`).
  */
-export function nodePull(tags: TagInfo[]): string {
+export function nodePull(tags: TagInfo[], dependsOn: string | null = null): string {
   const dates = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
-  return [NODE_ATTRS, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ");
+  return [NODE_ATTRS, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ") + dependsAttr(dependsOn);
 }
 
 /**
@@ -44,7 +48,7 @@ export function nodePull(tags: TagInfo[]): string {
  * title no longer merge. Same join as probe query `nodesOfTagWithExtends` (fixture nodes.json), with the narrow pull;
  * blocks in Recycle (or on a recycled page) are left out (`notRecycled`).
  */
-export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${nodePull(tags)}])
+export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null) => `[:find (pull ?b [${nodePull(tags, dependsOn)}])
           :in $ ?tag %
           :where [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
                  ${notRecycled("?b")}]`;
@@ -54,11 +58,13 @@ export const nodesQuery = (tags: TagInfo[]) => `[:find (pull ?b [${nodePull(tags
  * with its ident (the empty placeholder is recognised by it), Deadline, Scheduled and the refs' ids. T13a: bound by the
  * tag instead of every #Task of the graph, and no nested tag or ref titles (2,033 rows 314 ms → ~100 ms live). Neither
  * the task nor the node it links may be in Recycle (T14); `buildTasks` also drops refs to nodes that are not loaded.
+ * The view's dependency property (N12), when it has one, is pulled last and plain: a task's values for it decide which
+ * refs do not link (`buildTasks`).
  */
-export const TASKS_QUERY = `[:find (pull ?b [:db/id :block/uuid :block/title
+export const tasksQuery = (dependsOn: string | null) => `[:find (pull ?b [:db/id :block/uuid :block/title
                         {:logseq.property/status [:db/ident :block/title]}
                         :logseq.property/deadline :logseq.property/scheduled
-                        {:block/refs [:db/id]}])
+                        {:block/refs [:db/id]}${dependsAttr(dependsOn)}])
           :in $ ?tag %
           :where [?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
                  ${notRecycled("?n")}
@@ -70,6 +76,8 @@ export interface LoadNodesOptions {
   childTags: boolean;
   /** Local zone offset; defaults to the machine's. */
   zone?: ZoneOffset;
+  /** The view's dependency property (N12; test-only loaders): pulled and applied when set. */
+  dependsOn?: string | null;
 }
 
 /**
@@ -77,41 +85,47 @@ export interface LoadNodesOptions {
  * workspace reads through `readRaw` + `buildData`.
  */
 export async function loadNodes(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<PlannerNode[]> {
-  const raw = await dq(nodesQuery(tags), tag.id, CLASS_EXTENDS_RULES);
-  return buildNodes(raw, tags, tag, opts.childTags, opts.zone ?? systemZone);
+  const raw = await dq(nodesQuery(tags, opts.dependsOn ?? null), tag.id, CLASS_EXTENDS_RULES);
+  return buildNodes(raw, tags, tag, opts.childTags, opts.zone ?? systemZone, opts.dependsOn ?? null);
 }
 
 /** The rows of the node and task queries for one tag, with what they were asked with (to tell when they are stale). */
 export interface RawData {
-  /** The node query string (`nodesQuery(tags)`): it names the pulled idents. */
+  /** The node query string (`nodesQuery(tags, dependsOn)`): it names the pulled idents. */
   nodesQuery: string;
   /** The tag entity id both queries were run with. */
   tagId: number;
+  /** The dependency property both queries pulled (N12); null = none. `buildData` reads the rows with it. */
+  dependsOn: string | null;
   nodes: unknown[];
   tasks: unknown[];
 }
 
 /**
- * Runs the node and task queries for `tag`. The task query does not need the nodes (it joins on the tag), so both are
- * asked at once. With `prev` (rows read earlier, e.g. with the tags shown before a refresh re-read them), only the
- * stale part is asked again: the node rows when the pull (`nodesQuery(tags)`) or the tag id differ, the task rows
- * when the tag id differs (a renamed tag is the same tag); with neither, `prev` is returned and no query is sent.
+ * Runs the node and task queries for `tag`, pulling the dependency property `dependsOn` (N12; null = none). The task
+ * query does not need the nodes (it joins on the tag), so both are asked at once. With `prev` (rows read earlier, e.g.
+ * with the tags shown before a refresh re-read them), only the stale part is asked again: the node rows when the pull
+ * (`nodesQuery(tags, dependsOn)`) or the tag id differ, the task rows when the tag id or the dependency property differ
+ * (a renamed tag is the same tag); with neither, `prev`'s rows are reused and no query is sent.
  */
-export async function readRaw(dq: Dq, tags: TagInfo[], tag: TagInfo, prev?: RawData): Promise<RawData> {
-  const query = nodesQuery(tags);
+export async function readRaw(dq: Dq, tags: TagInfo[], tag: TagInfo, dependsOn: string | null, prev?: RawData): Promise<RawData> {
+  const query = nodesQuery(tags, dependsOn);
   const sameTag = prev?.tagId === tag.id;
   const [nodes, tasks] = await Promise.all([
     sameTag && prev!.nodesQuery === query ? prev!.nodes : dq(query, tag.id, CLASS_EXTENDS_RULES),
-    sameTag ? prev!.tasks : dq(TASKS_QUERY, tag.id, CLASS_EXTENDS_RULES),
+    sameTag && prev!.dependsOn === dependsOn ? prev!.tasks : dq(tasksQuery(dependsOn), tag.id, CLASS_EXTENDS_RULES),
   ]);
-  return { nodesQuery: query, tagId: tag.id, nodes, tasks };
+  return { nodesQuery: query, tagId: tag.id, dependsOn, nodes, tasks };
 }
 
-/** Raw rows → nodes (`tags` maps the dates and closed values) and the #Task blocks whose refs hit one of them. */
-export function buildData(raw: RawData, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): { nodes: PlannerNode[]; tasks: PlannerTask[] } {
+/**
+ * Raw rows → nodes (`tags` maps the dates and closed values) and the #Task blocks whose refs hit one of them, both read
+ * with the dependency property the rows were pulled with (`raw.dependsOn`).
+ */
+export function buildData(raw: RawData, tags: TagInfo[], tag: TagInfo, opts: Omit<LoadNodesOptions, "dependsOn">): { nodes: PlannerNode[]; tasks: PlannerTask[] } {
   const zone = opts.zone ?? systemZone;
-  const nodes = buildNodes(raw.nodes, tags, tag, opts.childTags, zone);
-  return { nodes, tasks: buildTasks(raw.tasks, nodes, zone) };
+  const nodes = buildNodes(raw.nodes, tags, tag, opts.childTags, zone, raw.dependsOn);
+  return { nodes, tasks: buildTasks(raw.tasks, nodes, zone, raw.dependsOn) };
 }
 
 /**
@@ -120,7 +134,7 @@ export function buildData(raw: RawData, tags: TagInfo[], tag: TagInfo, opts: Loa
  * Test-only: the workspace reads through `readRaw` + `buildData`.
  */
 export async function loadNodesAndTasks(dq: Dq, tags: TagInfo[], tag: TagInfo, opts: LoadNodesOptions): Promise<{ nodes: PlannerNode[]; tasks: PlannerTask[] }> {
-  return buildData(await readRaw(dq, tags, tag), tags, tag, opts);
+  return buildData(await readRaw(dq, tags, tag, opts.dependsOn ?? null), tags, tag, opts);
 }
 
 /**

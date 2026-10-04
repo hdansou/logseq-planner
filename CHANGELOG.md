@@ -15,6 +15,12 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   Journals calendar plugin's button.
 
 ### Added
+- Dependencies (N12): a **Depends on** setting after End, shown when the tag has a node property (own or inherited,
+  any cardinality): None or one of the tag's node properties; default: the one titled like "depends on"
+  (`depends_on`, "Depends on", "depends-on"), else None. Saved with the view as `dependsOn`; a view saved before it uses
+  the default rule; a property the tag no longer has counts as None. With a dependency property, a #Task that points
+  to a node through it is that node's dependent, not one of its tasks: it leaves the node's rollup and task rows in
+  every view. The property is pulled with the nodes and the tasks (no `pull [*]`).
 - Tracker (N11): `npm run tracker` writes a planned schedule instead of commit times. Every task gets 2 hours
   (weekdays 09:00-17:00 local) and starts after the tasks it depends on (`after` map in the meta file; default: the previous task, tasks with
   commits first by first commit, then the rest by id; independent tasks overlap). Start / End / Scheduled are the plan, so dates before today are

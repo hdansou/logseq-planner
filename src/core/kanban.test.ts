@@ -52,7 +52,7 @@ function tasksBoard(spec: [string, string | null, string | null][], sort: Kanban
   const status = choiceProp(t, "Status");
   const priority = choiceProp(t, "Priority");
   const nodes: PlannerNode[] = spec.map(([title, day, pri], i) => ({
-    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [],
+    id: i + 1, uuid: `00000000-0000-4000-8000-00000000000${i + 1}`, title, tagIds: [], dependsOn: [],
     dates: day ? { [deadline]: { day, time: null } as LocalDate } : {},
     choices: { [status.ident]: value(t, "Status", "Todo"), ...(pri ? { [priority.ident]: value(t, "Priority", pri) } : {}) },
   }));

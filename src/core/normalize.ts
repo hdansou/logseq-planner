@@ -41,6 +41,7 @@ interface RawTask {
   refs?: { id: number }[];
   ":logseq.property/deadline"?: number;
   ":logseq.property/scheduled"?: number;
+  [propIdent: string]: unknown;
 }
 
 /**
@@ -63,6 +64,9 @@ function choiceValueOf(prop: TagInfo["choiceProps"][number], v: unknown): Closed
   if (!isRef(v) || isEmptyPlaceholder(v)) return null;
   return prop.values.find((c) => c.id === v.id) ?? null;
 }
+
+/** Entity ids of a ref attribute's value as a plain pull returns it: `[{id}]` (many-valued), `{id}` (one), absent = []. */
+const refIds = (v: unknown): number[] => (Array.isArray(v) ? v : [v]).filter(isRef).map((r) => r.id);
 
 const rawNodes = (raw: unknown[]) => (raw as [RawNode][]).map(([n]) => n);
 const isRef = (v: unknown): v is { id: number } => typeof v === "object" && v !== null && typeof (v as { id?: unknown }).id === "number";
@@ -89,7 +93,8 @@ const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
 
 /**
  * Raw `nodesQuery` rows → nodes with mapped dates and choices. A Date value is the journal page ref pulled with its
- * `journal-day` (`{id, "journal-day"}`); a ref without one (the empty placeholder, T14) is no value.
+ * `journal-day` (`{id, "journal-day"}`); a ref without one (the empty placeholder, T14) is no value. `dependsOn`: the
+ * dependency property the rows were pulled with (N12), read into each node's `dependsOn` ids; null = none.
  */
 export function buildNodes(
   raw: unknown[],
@@ -97,6 +102,7 @@ export function buildNodes(
   tag: TagInfo,
   childTags: boolean,
   zone: ZoneOffset,
+  dependsOn: string | null = null,
 ): PlannerNode[] {
   const tagsById = tagMap(tags);
   return selectNodes(raw, tag, childTags).map((node) => {
@@ -124,18 +130,24 @@ export function buildNodes(
       tagIds: (node.tags ?? []).map((t) => t.id),
       dates,
       choices,
+      dependsOn: dependsOn === null ? [] : refIds(node[dependsOn]),
     };
   });
 }
 
 const dateTimeOrNull = (v: number | undefined, zone: ZoneOffset) => (typeof v === "number" ? localDateTime(v, zone) : null);
 
-/** Raw `TASKS_QUERY` rows (DateTime values are epoch ms, refs `{id}`) → the tasks whose `:block/refs` hit one of `nodes`. */
-export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffset = systemZone): PlannerTask[] {
+/**
+ * Raw `tasksQuery` rows (DateTime values are epoch ms, refs `{id}`) → the tasks whose `:block/refs` hit one of `nodes`.
+ * With a dependency property (N12) a ref to a node the task depends on through it does not link: a dependent is not a
+ * task of its dependency. Only the values on the task entity count; a task without the property links as before.
+ */
+export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffset = systemZone, dependsOn: string | null = null): PlannerTask[] {
   const nodeIds = new Set(nodes.map((n) => n.id));
   const tasks: PlannerTask[] = [];
   for (const [t] of raw as [RawTask][]) {
-    const hits = (t.refs ?? []).map((r) => r.id).filter((id) => nodeIds.has(id));
+    const deps = dependsOn === null ? [] : refIds(t[dependsOn]);
+    const hits = (t.refs ?? []).map((r) => r.id).filter((id) => nodeIds.has(id) && !deps.includes(id));
     if (hits.length === 0) continue;
     const s = t[":logseq.property/status"];
     tasks.push({

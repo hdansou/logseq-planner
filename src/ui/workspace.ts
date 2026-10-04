@@ -82,7 +82,7 @@ export interface Workspace {
   config(): ViewConfig | null;
 }
 
-type Popover = "tag" | "start" | "end" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
+type Popover = "tag" | "start" | "end" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -247,6 +247,14 @@ function renderSettings(s: State, tag: TagInfo): string {
     html += menu("end", s, "End", esc(dateTitle(c.end)), () => options("End property", [{ value: "", text: "None" }, ...dateItems], c.end ?? ""));
   } else {
     html += `<span class="pl-hint">No date properties on this tag</span>`;
+  }
+
+  if (tag.nodeProps.length) {
+    // N12: the node property whose values are the nodes a node depends on (Timeline connectors; dependents are not tasks).
+    const current = dependsOnOf(c, tag);
+    const title = tag.nodeProps.find((p) => p.ident === current)?.title ?? "None";
+    const items = [{ value: "", text: "None" }, ...tag.nodeProps.map((p) => ({ value: p.ident, text: p.title }))];
+    html += menu("depends", s, "Depends on", esc(title), () => options("Depends on property", items, current ?? ""));
   }
 
   const primary = primaryChoice(tag);
@@ -522,7 +530,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** The current view's nodes, tasks and titles as the graph has them now (`tags` = the tags to read them with). */
   async function readData(config: ViewConfig, tags: TagInfo[]) {
-    return fromRaw(config, tags, await readRaw(deps.dq, tags, validateViewConfig(config, tags)));
+    const tag = validateViewConfig(config, tags);
+    return fromRaw(config, tags, await readRaw(deps.dq, tags, tag, dependsOnOf(config, tag)));
   }
 
   /** Nodes, tasks and titles from rows already read (`tags` maps them; the titles lookup runs here). */
@@ -641,7 +650,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     // One batch (T13a): the view's rows are read with the tags on screen while the week start and the tags are re-read,
     // instead of after them (the host's worker runs queries one at a time, so waiting added the tag queries' time).
     const shownTag = tagOf(s.config);
-    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownTag)]);
+    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownTag, dependsOnOf(s.config, shownTag))]);
     let config: ViewConfig | null = s.config;
     let error: string | null = null;
     /** The view was replaced by the default one (its tag or a property it uses is gone). */
@@ -659,7 +668,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
     // only when its rows are stale (`readRaw`: the pulled idents or the tag id changed). Another view: read afresh.
     const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
-      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), shownRaw))
+      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags), dependsOnOf(config, tagOf(config, tags)), shownRaw))
       : await readData(config, tags);
     deps.timing?.queried();
     if (busy()) {
@@ -711,7 +720,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         return void run(() => {}, () => (s.popover ? firstInPopover(s.popover) : trigger(p)));
@@ -725,6 +734,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (p === "tag") return void run(() => selectTag(s.tags.find((x) => x.ident === value)!), () => trigger("tag"));
       if (p === "start") return void run(() => setConfig({ ...s.config!, start: value }), () => trigger("start"));
       if (p === "end") return void run(() => setConfig({ ...s.config!, end: value || null }), () => trigger("end"));
+      // The dependency property is pulled with the nodes and tasks (N12), so a new one reads them again.
+      if (p === "depends") {
+        return void run(async () => {
+          setConfig({ ...s.config!, dependsOn: value || null });
+          await loadData();
+        }, () => trigger("depends"));
+      }
       const c = s.config!;
       if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));

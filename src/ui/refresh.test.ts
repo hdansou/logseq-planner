@@ -2,7 +2,7 @@
 // Workspace.refresh (T12): the quiet reload that live updates trigger.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildTagInfos, loadTagInfos, TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodesQuery, TASKS_QUERY } from "../core/queries";
+import { nodesQuery, tasksQuery } from "../core/queries";
 import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
@@ -126,7 +126,7 @@ describe("schema on refresh: data is read with the tags on screen while the tags
     };
   };
   const same = (rows: Rows) => rows;
-  const tasksQueries = () => dqCalls.filter((q) => q === TASKS_QUERY).length;
+  const tasksQueries = () => dqCalls.filter((q) => q === tasksQuery(null)).length;
 
   it("unchanged schema: one node and one task query per refresh, both asked before the tag queries answer", async () => {
     let release!: () => void;

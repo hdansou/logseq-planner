@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import { buildTagInfos, loadTagInfos } from "./schema";
-import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, notRecycled, readRaw, TASKS_QUERY, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
-import { fixtureDq, type Recycled } from "../ui/test-fakes";
+import { loadNodes, loadNodesAndTasks, loadTitles, nodePropIdents, nodesQuery, notRecycled, readRaw, tasksQuery, TITLES_QUERY, CLASS_EXTENDS_RULES } from "./queries";
+import { DEPENDS_ON, fixtureDq, type Recycled } from "../ui/test-fakes";
 import type { PlannerNode, PlannerTask, TagInfo } from "../types";
 import type { ZoneOffset } from "./normalize";
 
@@ -220,13 +220,13 @@ describe("loadNodesAndTasks", () => {
   it("the task query is bound to the tag's nodes (tag id + extends rules) and pulls no nested tags or ref titles (T13a)", async () => {
     const { dq, calls } = fakeDq();
     await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
-    const call = calls.find((c) => c.query === TASKS_QUERY)!;
+    const call = calls.find((c) => c.query === tasksQuery(null))!;
     expect(call.inputs).toEqual([tag("Project").id, CLASS_EXTENDS_RULES]);
-    expect(TASKS_QUERY).toContain(":in $ ?tag %");
-    expect(TASKS_QUERY).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
-    expect(TASKS_QUERY).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
-    expect(TASKS_QUERY).toContain("{:block/refs [:db/id]}");
-    expect(TASKS_QUERY).not.toContain("{:block/tags");
+    expect(tasksQuery(null)).toContain(":in $ ?tag %");
+    expect(tasksQuery(null)).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
+    expect(tasksQuery(null)).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
+    expect(tasksQuery(null)).toContain("{:block/refs [:db/id]}");
+    expect(tasksQuery(null)).not.toContain("{:block/tags");
   });
 
   it("asks for the tasks without waiting for the nodes (both queries in flight together)", async () => {
@@ -237,7 +237,7 @@ describe("loadNodesAndTasks", () => {
     const done = loadNodesAndTasks(held, tags, tag("Project"), { childTags: true, zone: west5 });
     await Promise.resolve();
     await Promise.resolve();
-    expect(calls.map((c) => c.query)).toContain(TASKS_QUERY);
+    expect(calls.map((c) => c.query)).toContain(tasksQuery(null));
     release();
     expect((await done).tasks).toHaveLength(5);
   });
@@ -292,13 +292,13 @@ describe("tag by entity id, not title (T14, F2)", () => {
 
   it("staleness is keyed on the tag id: a renamed tag re-asks neither query", async () => {
     const { dq, calls } = fakeDq();
-    const prev = await readRaw(dq, tags, tag("Project"));
+    const prev = await readRaw(dq, tags, tag("Project"), null);
     const renamed = buildTagInfos(
       (tagsFixture.query.detail as unknown as [Record<string, unknown>][]).map(([t]) => [t.title === "Project" ? { ...t, title: "Projects" } : t]),
       propsFixture.query.detail as unknown[],
     );
     calls.length = 0;
-    const next = await readRaw(dq, renamed, renamed.find((t) => t.id === tag("Project").id)!, prev);
+    const next = await readRaw(dq, renamed, renamed.find((t) => t.id === tag("Project").id)!, null, prev);
     expect(calls).toEqual([]);
     expect(next.nodes).toBe(prev.nodes);
     expect(next.tasks).toBe(prev.tasks);
@@ -317,8 +317,8 @@ describe("recycled content is not loaded (T14, F4)", () => {
 
   it("both queries carry the Recycle clauses: the node, the node a task links, and the task", () => {
     expect(nodesQuery(tags)).toContain(notRecycled("?b"));
-    expect(TASKS_QUERY).toContain(notRecycled("?n"));
-    expect(TASKS_QUERY).toContain(notRecycled("?b"));
+    expect(tasksQuery(null)).toContain(notRecycled("?n"));
+    expect(tasksQuery(null)).toContain(notRecycled("?b"));
   });
 
   it("a node on a recycled page is not loaded, nor are the tasks that link only such nodes", async () => {
@@ -335,5 +335,74 @@ describe("recycled content is not loaded (T14, F4)", () => {
   it("a task with deleted-at is not loaded", async () => {
     const { tasks } = await load({ blocks: [await fixtureTask("Wireframes")] });
     expect(tasks.map((t) => t.title.split(" [[")[0]).sort()).toEqual(["Acme contract", "Draft brief", "Ship homepage", "Survey users"]);
+  });
+});
+
+describe("dependency property (N12)", () => {
+  // fixtureDq's `depends` adds the hand-written node property DEPENDS_ON to #Project and #Task (the T01 fixtures have none).
+  const DEPENDS = { "Mobile app": ["Website relaunch"], "Acme rollout": ["Website relaunch", "Mobile app"], Wireframes: ["Draft brief"] };
+  const graph = async () => {
+    const calls: Call[] = [];
+    const base = fixtureDq({ depends: DEPENDS, taskNodes: true });
+    const dq = async (query: string, ...inputs: unknown[]) => (calls.push({ query, inputs }), base(query, ...inputs));
+    const infos = await loadTagInfos(dq);
+    calls.length = 0;
+    return { dq, calls, infos, of: (title: string) => infos.find((t) => t.title === title)! };
+  };
+  const D = DEPENDS_ON.ident;
+
+  it("pulls the dependency property plainly with the nodes and with the tasks, and nothing more when it is null", () => {
+    expect(nodesQuery(tags, D)).toContain(` ${D}])`);
+    expect(nodesQuery(tags, D).replace(` ${D}`, "")).toBe(nodesQuery(tags, null));
+    expect(tasksQuery(D)).toContain(`{:block/refs [:db/id]} ${D}])`);
+    expect(tasksQuery(D).replace(` ${D}`, "")).toBe(tasksQuery(null));
+    expect(nodesQuery(tags, D)).not.toContain("[*]");
+    expect(nodesQuery(tags)).toBe(nodesQuery(tags, null));
+  });
+
+  it("an ident that is not a valid keyword is never put into a query", () => {
+    expect(nodesQuery(tags, ":user.property/bad ident")).toBe(nodesQuery(tags, null));
+    expect(tasksQuery(":user.property/st]x")).toBe(tasksQuery(null));
+  });
+
+  it("each node carries the ids of the nodes it depends on (many-valued); none without the property", async () => {
+    const { dq, of } = await graph();
+    const { nodes } = await loadNodesAndTasks(dq, [...tags.filter((t) => t.title !== "Project"), of("Project")], of("Project"), { childTags: true, zone: west5, dependsOn: D });
+    const id = (title: string) => byTitle(nodes, title).id;
+    expect(byTitle(nodes, "Mobile app").dependsOn).toEqual([id("Website relaunch")]);
+    expect(byTitle(nodes, "Acme rollout").dependsOn).toEqual([id("Website relaunch"), id("Mobile app")]);
+    expect(byTitle(nodes, "Website relaunch").dependsOn).toEqual([]);
+    const plain = await loadNodesAndTasks(dq, tags, tag("Project"), { childTags: true, zone: west5 });
+    expect(plain.nodes.every((n) => n.dependsOn.length === 0)).toBe(true);
+  });
+
+  it("a task is not a linked task of a node it depends on through the property; with the property null it still is", async () => {
+    const { dq, infos, of } = await graph();
+    const load = (dependsOn: string | null) => loadNodesAndTasks(dq, infos, of("Task"), { childTags: true, zone: west5, dependsOn });
+    const withRule = await load(D);
+    const draft = withRule.nodes.find((n) => n.title.startsWith("Draft brief"))!;
+    const wireframes = (r: { tasks: PlannerTask[] }) => r.tasks.find((t) => t.title.startsWith("Wireframes"));
+    expect(wireframes(withRule)?.nodeIds ?? []).not.toContain(draft.id);
+    const without = await load(null);
+    expect(wireframes(without)?.nodeIds).toContain(draft.id); // today's behaviour: the ref makes it a linked task
+  });
+
+  it("the rule applies only to the dependency targets: other refs of the task still link it", async () => {
+    const { dq, infos, of } = await graph();
+    const { nodes, tasks } = await loadNodesAndTasks(dq, infos, of("Project"), { childTags: true, zone: west5, dependsOn: D });
+    // Wireframes (a #Task) links Mobile app by its Project property; its depends_on (Draft brief) is not a Project node.
+    expect(tasks.find((t) => t.title.startsWith("Wireframes"))).toMatchObject({ nodeIds: [byTitle(nodes, "Mobile app").id] });
+  });
+
+  it("readRaw re-asks both queries when the dependency property changes, neither when it stays", async () => {
+    const { dq, calls, infos, of } = await graph();
+    const prev = await readRaw(dq, infos, of("Project"), null);
+    calls.length = 0;
+    const same = await readRaw(dq, infos, of("Project"), null, prev);
+    expect(calls).toEqual([]);
+    expect(same.nodes).toBe(prev.nodes);
+    const next = await readRaw(dq, infos, of("Project"), D, prev);
+    expect(calls.map((c) => c.query).sort()).toEqual([nodesQuery(infos, D), tasksQuery(D)].sort());
+    expect(next.dependsOn).toBe(D);
   });
 });

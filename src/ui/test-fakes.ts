@@ -5,7 +5,7 @@ import nodesFixture from "../core/__fixtures__/nodes.json";
 import datesFixture from "../core/__fixtures__/dates.json";
 import tasksFixture from "../core/__fixtures__/tasks.json";
 import { TAG_PROPERTIES_QUERY, TAGS_QUERY, type Dq } from "../core/schema";
-import { nodesQuery, notRecycled, TASKS_QUERY, TITLES_QUERY } from "../core/queries";
+import { nodesQuery, notRecycled, tasksQuery, TITLES_QUERY } from "../core/queries";
 import type { KanbanWriteDeps, StorageDeps, ViewBlock } from "../types";
 
 /** Property values written by a fake write layer, by node uuid then property ident (with colon): closed value id, or null = removed. */
@@ -66,17 +66,38 @@ function narrowNode(row: Row, pull: NodePull): Row {
   }));
 }
 
-/** A fixture task row (T01 pull) cut down to the `TASKS_QUERY` pull: Status `{ident, title}`, Deadline, Scheduled, refs as `{id}`. */
-function narrowTask(t: Row): Row {
+/**
+ * A fixture task row (T01 pull) cut down to the `tasksQuery` pull: Status `{ident, title}`, Deadline, Scheduled, refs as
+ * `{id}`, and the dependency property when the query pulls one (`dependsOn`) and the row has it.
+ */
+function narrowTask(t: Row, dependsOn: string | null): Row {
   const out: Row = { id: t.id, uuid: t.uuid, title: t.title };
-  for (const k of [":logseq.property/status", ":logseq.property/deadline", ":logseq.property/scheduled"]) if (k in t) out[k] = t[k];
+  for (const k of [":logseq.property/status", ":logseq.property/deadline", ":logseq.property/scheduled", ...(dependsOn ? [dependsOn] : [])]) if (k in t) out[k] = t[k];
   if (t.refs) out.refs = (t.refs as Row[]).map((r) => ({ id: r.id }));
   return out;
 }
 
+/** The dependency property `tasksQuery` pulls (null for none), or undefined when `query` is not a task query. */
+function taskPullOf(query: string): string | null | undefined {
+  const m = query.match(/\{:block\/refs \[:db\/id\]\} (\S+)\]\)/);
+  const ident = m ? m[1] : null;
+  return query === tasksQuery(ident) ? ident : undefined;
+}
+
+/**
+ * The node property the `depends` option of `fixtureDq` adds to #Project and #Task (N12): the T01 fixtures have no node
+ * property, so this one is hand-written in the probe's shape (`:logseq.property/type` "node", many-valued like
+ * `depends_on` on #Task in planner-project).
+ */
+export const DEPENDS_ON = { id: 9901, uuid: "00000002-0000-4000-8000-000000009901", ident: ":user.property/depends_on-N12fake0", title: "depends_on", ":logseq.property/type": "node", cardinality: ":db.cardinality/many" };
+
+/** A block's title without its inline refs ("Draft brief [[…]]" → "Draft brief"): how `depends` names blocks. */
+const shortTitle = (row: Row) => String(row.title).split(" [[")[0];
+
 /**
  * The fixture #Task blocks in the shape `pull [*]` gives a node (cut down by `narrowNode` for `nodesQuery`): the T01 task pull carries tags and Status
- * as `{ident, title}`, so they are turned into `{id}` refs through the tag and closed-value ids of the same fixtures.
+ * as `{ident, title}`, so they are turned into `{id}` refs through the tag and closed-value ids of the same fixtures;
+ * Deadline and Scheduled (epoch ms) are kept.
  */
 function taskNodeRows(): [Row][] {
   const tags = (tagsFixture.query.detail as unknown as [{ id: number; ident: string }][]).map(([t]) => t);
@@ -86,6 +107,8 @@ function taskNodeRows(): [Row][] {
     const status = t[":logseq.property/status"] as { ident: string } | undefined;
     const row: Row = { id: t.id, uuid: t.uuid, title: t.title, tags: (t.tags as { ident: string }[]).map((x) => ({ id: tags.find((g) => g.ident === x.ident)!.id })) };
     if (status) row[":logseq.property/status"] = { id: statusValues.find((v) => v.ident === status.ident)!.id };
+    // DateTime values are epoch ms in both pulls: copied as they are (N12: the Task Timeline needs dated #Task nodes).
+    for (const k of [":logseq.property/deadline", ":logseq.property/scheduled"]) if (k in t) row[k] = t[k];
     return [row];
   });
 }
@@ -133,23 +156,26 @@ export interface Recycled {
  * title) in the tag rows, nothing else (T14: titles the host's input reading mangles, and same-titled tags).
  * `recycled` marks pages or blocks as in Recycle; the node and task queries leave them out only when they carry the
  * Recycle clauses (`notRecycled`), as datascript would.
+ * `depends` (N12) adds the node property `DEPENDS_ON` to #Project and #Task and gives blocks values for it, by title
+ * without inline refs: `{ Wireframes: ["Draft brief"] }`; a value also lands in the block's `:block/refs`, as the host does.
  * Every top-level string input goes through `hostReadInput` first, like the host's.
  */
-export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean; retitle?: Record<string, string>; recycled?: Recycled } = {}): Dq => async (query, ...rawInputs) => {
+export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edits?: Edits; taskNodes?: boolean; retitle?: Record<string, string>; recycled?: Recycled; depends?: Record<string, string[]> } = {}): Dq => async (query, ...rawInputs) => {
   const inputs = rawInputs.map(hostReadInput);
   if (query === TAGS_QUERY) return opts.noTags ? [] : tagRows();
-  if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : (propsFixture.query.detail as unknown[]);
+  if (query === TAG_PROPERTIES_QUERY) return opts.noTags ? [] : [...(propsFixture.query.detail as unknown[]), ...(opts.depends ? [["Project", DEPENDS_ON], ["Task", DEPENDS_ON]] : [])];
   const pull = nodePullOf(query);
   if (pull) {
     const live = liveFilter(query, "?b");
-    return nodeRows(inputs[0]).filter(([n]) => live(n)).map(([n]) => [narrowNode(n, pull)]);
+    return nodeRows(inputs[0]).filter(([n]) => live(n)).map(([n]) => [narrowNode(withDepends(n), pull)]);
   }
-  if (query === TASKS_QUERY) {
+  const taskPull = taskPullOf(query);
+  if (taskPull !== undefined) {
     // Bound by the tag: the fixture tasks that reference one of its nodes (child tags included, as the query's rule does).
     const liveNode = liveFilter(query, "?n");
     const liveTask = liveFilter(query, "?b");
     const ids = new Set(nodeRows(inputs[0]).filter(([n]) => liveNode(n)).map(([n]) => n.id));
-    return taskRows().filter((t) => liveTask(t) && ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t)]);
+    return taskRows().map(withDepends).filter((t) => liveTask(t) && ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t, taskPull)]);
   }
   if (query === TITLES_QUERY) {
     const titles = fixtureTitles();
@@ -157,9 +183,27 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
   }
   throw new Error(`unexpected query ${query}`);
 
-  /** The fixture tag rows with `retitle` applied. */
+  /** The fixture tag rows with `retitle` applied, and with `depends` the node property listed on #Project and #Task. */
   function tagRows(): [Row][] {
-    return (tagsFixture.query.detail as unknown as [Row][]).map(([t]) => [opts.retitle && String(t.title) in opts.retitle ? { ...t, title: opts.retitle[String(t.title)] } : t]);
+    return (tagsFixture.query.detail as unknown as [Row][]).map(([t]) => {
+      const row = opts.retitle && String(t.title) in opts.retitle ? { ...t, title: opts.retitle[String(t.title)] } : t;
+      if (!opts.depends || (t.title !== "Project" && t.title !== "Task")) return [row];
+      const own = (row[":logseq.property.class/properties"] as Row[] | undefined) ?? [];
+      return [{ ...row, ":logseq.property.class/properties": [...own, { id: DEPENDS_ON.id, ident: DEPENDS_ON.ident, title: DEPENDS_ON.title }] }];
+    });
+  }
+
+  /** `row` with its `depends` values: the property as `[{id}]` refs, also added to `:block/refs`. */
+  function withDepends(row: Row): Row {
+    const titles = opts.depends?.[shortTitle(row)];
+    if (!titles) return row;
+    const blocks = [...fixtureRows(), ...taskRows()];
+    const ids = titles.map((title) => {
+      const b = blocks.find((x) => shortTitle(x) === title);
+      if (!b) throw new Error(`depends: no fixture block titled ${title}`);
+      return { id: b.id as number };
+    });
+    return { ...row, [DEPENDS_ON.ident]: ids, refs: [...((row.refs as Row[] | undefined) ?? []), ...ids] };
   }
 
   /**

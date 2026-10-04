@@ -52,6 +52,7 @@ of your own root tags that has date properties.
 | Control | What it does |
 |---|---|
 | **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
+| **Depends on** | Shown when the tag has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
 | Filters (left column) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. |
 
@@ -67,6 +68,13 @@ How a node gets its dates:
 A #Task block belongs to a node when it references the node, either as an inline link or in
 a node property. A node's progress is done tasks divided by all its tasks minus canceled
 ones.
+
+### Dependencies
+
+With a **Depends on** property set, a node that points to another node through it depends on
+that node; it is not one of its tasks. For example, when T08 has `depends_on: T07`, T08 does
+not count in T07's progress and is not one of T07's task rows, in every view. Its other
+references still link it as before. With **Depends on** set to None, every reference links.
 
 ### Views
 
