@@ -215,7 +215,7 @@ Live-check method (web app):
       Open questions for the owner: is nesting (step 2) the main goal, with the flat union
       only a means; how many tags at most (the scope assumes any number, tested with two to
       four); should colour follow the tag in a multi-tag view.
-- [ ] **N15 Window move / resize while the workspace is open** — owner report 2026-10-03:
+- [x] **N15 Window move / resize while the workspace is open** — owner report 2026-10-03:
       "we cannot resize the application until we escape or click on close". Logged and
       investigated, not fixed.
       Measured on the desktop test instance (Logseq-DB 2.0.1 nightly, build 94327e9, real
@@ -878,3 +878,14 @@ Total: about 10 hours.
   Seen: in Week zoom bars that touch end to start make every connector take the elbow
   route, and the lines crowd; Day zoom reads well. The "Depends on" menu lists every
   node property of the tag (Milestone too).
+- 2026-10-03 N15 done (a066651). 656 unit tests. The workspace frame starts under the host
+  header (`top: var(--ls-headbar-height, 3rem)`); the no-drag marking and the macOS
+  window-button padding are gone; the toolbar button toggles Planner; the command palette
+  still only opens. Live on the desktop app with real mouse input (rows A11–A13, A15,
+  A16): frame exactly under the header, window moves by the header and resizes by corner,
+  right and bottom edge with Planner open, top-bar controls and the toolbar toggle take
+  clicks. Host navigation is not intercepted: Planner stays on top until closed.
+  Not verified: A14 (double-click on the header to zoom the window); the web app path
+  (`setMainUIInlineStyle` with `calc()` and a host variable); dark mode; the owner's
+  original report of a blocked resize was never reproduced (Logseq-DB only; the stable
+  Logseq.app was not tested).

@@ -77,12 +77,12 @@ Selectors named below are `data-*` hooks in src/ui/*.ts (`data-view-kind`, `data
 | A8 | Resize the window to 720 px wide and open | Nothing is cut off; the left column and the built-in tag group are reachable (built-in tags collapsed, filters visible) | pass | 4d45a0b | 2026-10-03 | 720 px: bars wrap, no page overflow, Close at x=704 |
 | A9 | Desktop app only: open at the macOS window | Retired by N15: Content clears the window buttons (`pl-mac-desktop` padding) | pass | e849107 | 2026-10-03 | desktop app 2.0.1 nightly (rev 8ffbb22, 2026-10-01), second instance over CDP: `html.pl-mac-desktop`, top bar padding-left 84 px, the title starts at x = 84. The native window buttons are not in a CDP screenshot, so their position was not seen |
 | A10 | Reload the whole app, then open Planner | Opens; no `[Ready Error]` or deferred-timeout error in the console | pass | 4d45a0b | 2026-10-03 | several app reloads; no Ready Error from the :8294 build |
-| A11 | Open Planner (desktop app) | The frame starts at the lower edge of the host header (48 px); the host header stays visible above it (N15) | not run |  |  |  |
-| A12 | With Planner open, drag the host header | The window moves (N15) | not run |  |  |  |
-| A13 | With Planner open, drag the window edges and corners | The window resizes (N15) | not run |  |  |  |
+| A11 | Open Planner (desktop app) | The frame starts at the lower edge of the host header (48 px); the host header stays visible above it (N15) | pass | a066651 | 2026-10-03 | desktop app (Logseq-DB, app zoom 144%): container style `top: var(--ls-headbar-height, 3rem)`, `height: calc(100vh - …)`; frame rect y = 48, the header's lower edge 47.99; still exact after resizing the window; the plugin page fills its frame with no overflow; the host's open left sidebar does not show through |
+| A12 | With Planner open, drag the host header | The window moves (N15) | pass | a066651 | 2026-10-03 | real drag on the host header with Planner open: window moved from (0, 30) to (88, 50) |
+| A13 | With Planner open, drag the window edges and corners | The window resizes (N15) | pass | a066651 | 2026-10-03 | real drags with Planner open: corner (width 2558 to 2458; the window's bottom was at the screen edge), right edge (2458 to 2398), bottom edge (1570 to 1510) |
 | A14 | With Planner open, double-click an empty part of the host header | The window zooms (maximizes or restores) (N15) | not run |  |  |  |
-| A15 | Click the toolbar button twice | The first click opens Planner, the second hides it; a third opens it again (N15) | not run |  |  |  |
-| A16 | With real mouse clicks (not CDP), use Planner's top bar: view switch, Saved views, Close | Every control takes the click (N15) | not run |  |  |  |
+| A15 | Click the toolbar button twice | The first click opens Planner, the second hides it; a third opens it again (N15) | pass | a066651 | 2026-10-03 | real clicks on the host toolbar button: Planner hides, then shows again on the same view |
+| A16 | With real mouse clicks (not CDP), use Planner's top bar: view switch, Saved views, Close | Every control takes the click (N15) | pass | a066651 | 2026-10-03 | real clicks: Calendar, Saved views open and close, Timeline all respond |
 
 ## B. Workspace shell
 
