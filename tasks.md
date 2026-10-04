@@ -324,13 +324,14 @@ Live-check method (web app):
       the owner's unreproduced "cannot resize" report. Also to look at while there:
       `logseq.api.add_tag_property` rejecting a valid tag from the host page ("Not a valid
       tag") — report upstream only if it also fails from a plugin.
-- [x] **N20 Connector routing when bars touch** — done 2026-10-04: when the dependent starts
-      within two stubs (16 px) after the dependency's end, or overlaps it by at most 1 px,
-      `linkPath` leaves the dependency's bottom (or top) edge one stub before its end and
-      goes straight to the dependent's row, then in; a real overlap keeps the elbow. Unit
-      tests only: not looked at in the app yet (Week zoom on `planner-project`). Was: in
-      Week zoom two-hour bars touch end to start, so every connector took the elbow route
-      and the lines piled into a ladder.
+- [x] **N20 Connector routing when bars touch** — done 2026-10-04: every connector is one S
+      curve (cubic Bézier) from the dependency's right edge middle to the dependent's left
+      edge middle, control points half the distance out and in, at least 24 px; no stub
+      route, no elbow. The owner asked for a curve ("to avoid the overlapping perception")
+      after a first fix (4d957f3) that dropped a straight line from under the dependency's
+      end. Unit tests only: not looked at in the app yet (Week zoom on `planner-project`).
+      Was: in Week zoom two-hour bars touch end to start, so every connector took the elbow
+      route and the lines piled into a ladder.
 - [ ] **N21 Remember panel, surface and Edit dates per graph** — they last for the session
       only; the plugin has no per-graph UI store (last view and tag are in memory too).
       Needs an owner decision on what should persist (see N03c).

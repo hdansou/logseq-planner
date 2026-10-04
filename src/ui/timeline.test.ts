@@ -381,49 +381,29 @@ describe("dependency connectors (N12)", () => {
     const rect = (left: number, top: number, right: number, bottom: number) => ({ left, top, right, bottom });
     const origin = { left: 100, top: 50 };
 
-    it("dependent starts after the end: right from the dependency's right edge middle, a stub, down, then into the left edge middle", () => {
-      // from: 200–300 at rows 60–80 (middle 70); to: 340–400 at 92–112 (middle 102)
-      expect(linkPath(rect(200, 60, 300, 80), rect(340, 92, 400, 112), origin)).toBe("M200 20 H208 V52 H240");
+    it("an S curve from the dependency's right edge middle to the dependent's left edge middle, level at both ends", () => {
+      // from: 200–300 at rows 60–80 (middle 70); to: 340–400 at 92–112 (middle 102); control points 24 px out and in
+      expect(linkPath(rect(200, 60, 300, 80), rect(340, 92, 400, 112), origin)).toBe("M200 20 C224 20 216 52 240 52");
     });
 
-    it("dependent above the dependency (rows sorted otherwise): the same route, going up", () => {
-      expect(linkPath(rect(200, 124, 300, 144), rect(340, 92, 400, 112), origin)).toBe("M200 84 H208 V52 H240");
+    it("a wide gap stretches the curve: control points half the distance out", () => {
+      expect(linkPath(rect(200, 60, 300, 80), rect(500, 92, 600, 112), origin)).toBe("M200 20 C300 20 300 52 400 52");
     });
 
-    it("dependent starts before the dependency's end (overlap): out, down to just above the dependent, back left, down, in", () => {
-      // to.left 250 < from.right 300: elbow at to.top - 6 = 86 → 36 relative
-      expect(linkPath(rect(200, 60, 300, 80), rect(250, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H142 V52 H150");
+    it("bars touch end to start (N20): the same curve, a small S around the seam", () => {
+      expect(linkPath(rect(200, 60, 300, 80), rect(300, 92, 400, 112), origin)).toBe("M200 20 C224 20 176 52 200 52");
     });
 
-    it("dependent starts earlier and sits above: the elbow runs just below the dependent", () => {
-      expect(linkPath(rect(200, 124, 300, 144), rect(120, 92, 180, 112), origin)).toBe("M200 84 H208 V68 H12 V52 H20");
+    it("dependent above the dependency (rows sorted otherwise): the same curve, going up", () => {
+      expect(linkPath(rect(200, 124, 300, 144), rect(300, 92, 400, 112), origin)).toBe("M200 84 C224 84 176 52 200 52");
     });
 
-    it("bars touch end to start (N20): straight down from the dependency's end, then in; no elbow", () => {
-      // from ends at 300, to starts at 300: out of the bottom edge one stub before the end (292 → 192), down to 52, in
-      expect(linkPath(rect(200, 60, 300, 80), rect(300, 92, 400, 112), origin)).toBe("M192 30 V52 H200");
-    });
-
-    it("a gap of less than two stubs takes the same short route", () => {
-      expect(linkPath(rect(200, 60, 300, 80), rect(310, 92, 400, 112), origin)).toBe("M192 30 V52 H210");
-      expect(linkPath(rect(200, 60, 300, 80), rect(315.9, 92, 400, 112), origin)).toBe("M192 30 V52 H215.9");
-    });
-
-    it("the short route goes up from the top edge when the dependent sits above", () => {
-      expect(linkPath(rect(200, 124, 300, 144), rect(300, 92, 400, 112), origin)).toBe("M192 74 V52 H200");
-    });
-
-    it("a dependency narrower than two stubs (a point) drops from its middle", () => {
-      expect(linkPath(rect(290, 60, 300, 80), rect(300, 92, 400, 112), origin)).toBe("M195 30 V52 H200");
-    });
-
-    it("a sub-pixel overlap still counts as touching; a real overlap takes the elbow", () => {
-      expect(linkPath(rect(200, 60, 300, 80), rect(299.5, 92, 400, 112), origin)).toBe("M191.5 30 V52 H199.5");
-      expect(linkPath(rect(200, 60, 300, 80), rect(298, 92, 400, 112), origin)).toBe("M200 20 H208 V36 H190 V52 H198");
+    it("dependent starts before the dependency's end (overlap): the curve swings out and comes back in from the left", () => {
+      expect(linkPath(rect(200, 124, 300, 144), rect(120, 92, 180, 112), origin)).toBe("M200 84 C290 84 -70 52 20 52");
     });
 
     it("keeps fractions to one decimal", () => {
-      expect(linkPath(rect(200.26, 60, 300.04, 80.5), rect(340.33, 92, 400, 113), origin)).toBe("M200 20.3 H208 V52.5 H240.3");
+      expect(linkPath(rect(200.26, 60, 300.04, 80.5), rect(340.33, 92, 400, 113), origin)).toBe("M200 20.3 C224 20.3 216.3 52.5 240.3 52.5");
     });
   });
 
@@ -443,8 +423,8 @@ describe("dependency connectors (N12)", () => {
       drawLinks(el.querySelector<HTMLElement>("[data-timeline]")!);
       spy.mockRestore();
       const d = (link: string) => el.querySelector(`[data-tl-link="${link}"]`)!.getAttribute("d");
-      expect(d("u1:u2")).toBe("M400 50 H408 V82 H420");
-      expect(d("u2:u4")).toBe("M480 82 H488 V145.5 H560");
+      expect(d("u1:u2")).toBe("M400 50 C424 50 396 82 420 82");
+      expect(d("u2:u4")).toBe("M480 82 C520 82 520 145.5 560 145.5");
     });
 
     it("does nothing while the timeline has no size (Planner hidden) or has no links", () => {

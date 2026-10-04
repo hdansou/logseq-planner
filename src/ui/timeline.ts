@@ -164,11 +164,8 @@ function renderLinks(links: TimelineLink[]): string {
     + `</svg>`;
 }
 
-/** Horizontal run out of the dependency's bar and into the dependent's (px), and the elbow's distance from a bar (half the space between the bars of two rows). */
-const LINK_STUB = 8;
-const LINK_GAP = 6;
-/** An overlap up to this still counts as touching (sub-pixel layout). */
-const LINK_TOUCH = 1;
+/** The least distance of a connector's control points from its ends (px): how far the curve leaves and enters level. */
+const LINK_CURVE = 24;
 /** The sides of a box, as `getBoundingClientRect` gives them. */
 export interface LinkRect {
   left: number;
@@ -179,12 +176,10 @@ export interface LinkRect {
 
 /**
  * The `d` of a connector from the dependency's box to the dependent's, in the coordinates of `origin` (the timeline's
- * top left, where the svg sits). Out of the dependency's right edge middle, a stub to the right, vertical to the
- * dependent's middle, then into its left edge middle. When the bars touch or the gap has no room for that stub (N20):
- * out of the dependency's bottom (or top) edge one stub before its end (its middle when it is narrower), vertical to
- * the dependent's middle, then in. When the dependent overlaps or starts earlier, an elbow: out, vertical to just above
- * (or below) the dependent, back left past its start, vertical to its middle, then in. Straight lines only; numbers to
- * one decimal.
+ * top left, where the svg sits): one S curve (a cubic Bézier, N20) from the dependency's right edge middle to the
+ * dependent's left edge middle. It leaves and arrives level, so the arrow always points right; the control points sit
+ * half the horizontal distance out and in, at least `LINK_CURVE`, which keeps a curve between bars that touch or
+ * overlap. Numbers to one decimal.
  */
 export function linkPath(from: LinkRect, to: LinkRect, origin: { left: number; top: number }): string {
   const n = (v: number) => String(Math.round(v * 10) / 10);
@@ -192,14 +187,8 @@ export function linkPath(from: LinkRect, to: LinkRect, origin: { left: number; t
   const y1 = (from.top + from.bottom) / 2 - origin.top;
   const x2 = to.left - origin.left;
   const y2 = (to.top + to.bottom) / 2 - origin.top;
-  const out = `M${n(x1)} ${n(y1)} H${n(x1 + LINK_STUB)}`;
-  if (x2 - x1 >= 2 * LINK_STUB) return `${out} V${n(y2)} H${n(x2)}`;
-  if (x2 - x1 >= -LINK_TOUCH) {
-    const x = Math.max(Math.min(x1, x2) - LINK_STUB, (from.left + from.right) / 2 - origin.left);
-    return `M${n(x)} ${n((y2 > y1 ? from.bottom : from.top) - origin.top)} V${n(y2)} H${n(x2)}`;
-  }
-  const elbow = y2 > y1 ? to.top - origin.top - LINK_GAP : to.bottom - origin.top + LINK_GAP;
-  return `${out} V${n(elbow)} H${n(x2 - LINK_STUB)} V${n(y2)} H${n(x2)}`;
+  const c = Math.max(LINK_CURVE, Math.abs(x2 - x1) / 2);
+  return `M${n(x1)} ${n(y1)} C${n(x1 + c)} ${n(y1)} ${n(x2 - c)} ${n(y2)} ${n(x2)} ${n(y2)}`;
 }
 
 /**

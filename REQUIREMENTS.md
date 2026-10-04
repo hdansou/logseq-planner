@@ -141,9 +141,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   (done by the view's done values, canceled ones left out) plus its linked tasks that are not
   nodes of the view, each block once. The Calendar and the Kanban do not nest.
 - **Dependency connectors** (N12): with a Depends on property, a line runs from the right end of each dependency's bar
-  (or point) to the left end of its dependent's, with an arrow at the dependent, in every zoom; when the two touch or
-  nearly do, the line drops straight from the dependency's end into the dependent (N20); when the dependent starts
-  before the dependency ends, the line takes a right-angle detour between the rows. Only pairs whose both nodes have a
+  (or point) to the left end of its dependent's, with an arrow at the dependent, in every zoom. The line is one
+  S curve (N20, the owner's choice on 2026-10-04: a curve does not read as bars overlapping), level where it leaves
+  and where it arrives, also when the two bars touch or the dependent starts before the dependency ends. Only pairs whose both nodes have a
   row in the range (after filters) are drawn. One neutral colour; lines never take the pointer. A bar or point with
   dependencies adds ", depends on A, B" to its label, so the relation is not visual only. No dragging to create or edit
   dependencies, no connectors in other views, no critical path, no lag / lead.
