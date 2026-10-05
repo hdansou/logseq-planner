@@ -1371,6 +1371,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     stop() {
       win?.removeEventListener("resize", drawTimelineLinks);
       narrowQuery?.removeEventListener("change", onWidth);
+      root.ownerDocument.removeEventListener("dragend", endDrag);
+      root.ownerDocument.removeEventListener("drop", endDrag);
     },
   };
 }

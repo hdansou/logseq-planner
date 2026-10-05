@@ -72,15 +72,41 @@ Live-check method (web app):
           taken" list in the Progress log for T05, T07, T08, T09, T10, T11 and T13a, except
           two from T07: saving always creating a new view, and deleting without a
           confirmation. Both changed in N23.
-- [ ] **N04 Known limitations to fix or accept** — deleting a tag triggers no refresh (next
-      change or 30 s poll); reopening after a stale hide reloads twice; the Agenda's
-      Overdue bucket is capped at 100 per page (done 20a8892); refresh at 2,000 nodes ran
-      165–254 ms with single runs at 320, and 187–432 ms after a Kanban drag (target 250 ms
-      plus the 50 ms debounce); done and canceled rows measure 3.33 / 2.98 contrast in
-      Logseq's default light / dark themes (host `--muted-foreground`; Inkwell 4.63 / 4.98);
-      the saved-views and Done-when popovers have no arrow-key navigation (Tab works); a task linked to two nodes is listed under the first one in the Agenda by
-      node; saved-view writes are not serialised; no auto-restore of a views page in
-      Recycle; a band continuing on both sides shows its title mid-row; no CSP.
+- [x] **N04 Known limitations to fix or accept** — split on 2026-10-04 into one item each,
+      N25-N33 below (one tasks.md item per change). Already fixed under N04: the Agenda's
+      Overdue bucket is capped at 100 per page (20a8892); saved-view writes run one at a
+      time (the store's promise queue). Each new item carries a recommendation; the owner
+      decides fix or accept.
+- [ ] **N25 Deleting a tag triggers no refresh** — the view updates on the next change or
+      the 30 s poll. Recommendation: accept (rare, and the poll covers it).
+- [ ] **N26 Reopening after a stale hide reloads twice** — Recommendation: fix (wasted
+      queries on every reopen after a change made while hidden).
+- [ ] **N27 Refresh time at 2,000 nodes** — 165-254 ms with single runs at 320, and
+      187-432 ms after a Kanban drag (target 250 ms plus the 50 ms debounce); DEV build,
+      web app. Recommendation: accept for 1.0; measure a production build first.
+- [ ] **N28 Done and canceled rows have low contrast in Logseq's default themes** — 3.33
+      (light) and 2.98 (dark) against 4.5 wanted; they use the host's
+      `--muted-foreground` (Inkwell: 4.63 / 4.98). Recommendation: fix.
+- [ ] **N29 Arrow keys in the saved-views and Done-when popovers** — only Tab moves
+      through them. Recommendation: fix.
+- [ ] **N30 A task linked to two nodes is listed under the first only** (Agenda by node).
+      Recommendation: fix, listing it under each node; needs the owner's yes, since counts
+      then show the task twice.
+- [ ] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
+      says where it is. Recommendation: accept.
+- [ ] **N32 A Calendar band continuing on both sides shows its title mid-row** —
+      Recommendation: fix (title at the left edge).
+- [ ] **N33 No Content-Security-Policy on the plugin page** — Recommendation: add one before
+      the release if the dev server and the host's frame allow it; otherwise accept.
+- [x] **N24 Test memory: N21's workspace tests in their own file** — done 2026-10-04.
+      happy-dom 20.14.5 keeps memory for every tree replaced through `innerHTML` (a probe
+      re-rendering 2,000 rows 150 times ran out of a 4 GB heap), so
+      `src/ui/workspace.test.ts` retains about 1.9 GB by its last test and a worker
+      sometimes died ("Worker exited unexpectedly") once N21 added seven tests there. They
+      moved to `src/ui/workspace-prefs.test.ts` (a fresh worker); `stop()` now also
+      removes the document's dragend / drop listeners, and the test files stop their
+      workspaces after each test. Seven full runs in a row passed. Left: the big file is
+      still near the limit; split it further or try a newer happy-dom when it grows.
 - [x] **N08 Kanban: choose which columns show** — owner request 2026-10-03 ("we may only
       want to show TODO, Doing and Done"). A "Show" control in the Kanban toolbar, after
       Columns: a checkbox per value of the column property, in order, plus "No <prop>"; the

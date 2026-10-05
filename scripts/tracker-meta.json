@@ -10,7 +10,7 @@
     { "key": "foundation", "title": "Foundation", "tasks": ["T00", "T01", "T02", "T03", "T04", "T05", "T06"] },
     { "key": "views", "title": "Views", "tasks": ["T07", "T08", "T09", "T10", "T11", "T12", "N10", "N12", "N13", "N14"] },
     { "key": "validation", "title": "Validation and review", "tasks": ["T13", "T14", "N01", "N02", "N19"] },
-    { "key": "decisions", "title": "Decisions and follow-ups", "tasks": ["N03", "N04", "N08", "N09", "N11", "N15", "N16", "N17", "N18", "N20", "N21", "N22", "N23"] },
+    { "key": "decisions", "title": "Decisions and follow-ups", "tasks": ["N03", "N04", "N08", "N09", "N11", "N15", "N16", "N17", "N18", "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27", "N28", "N29", "N30", "N31", "N32", "N33"] },
     { "key": "release", "title": "Release", "tasks": ["N05"] },
     { "key": "later", "title": "Later", "tasks": ["N06", "N07"] }
   ],
@@ -52,7 +52,17 @@
     "N20": ["N12"],
     "N21": ["N13"],
     "N22": ["N11"],
-    "N23": ["N03"]
+    "N23": ["N03"],
+    "N24": ["N21"],
+    "N25": ["N04"],
+    "N26": ["N04"],
+    "N27": ["N04"],
+    "N28": ["N04"],
+    "N29": ["N04"],
+    "N30": ["N04"],
+    "N31": ["N04"],
+    "N32": ["N04"],
+    "N33": ["N04"]
   },
   "tasks": {
     "T13": { "team": "QA" },
