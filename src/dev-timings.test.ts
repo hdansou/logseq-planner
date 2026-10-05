@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { build } from "vite";
 import { createTimings, installTimings } from "./dev-timings";
@@ -76,11 +77,16 @@ describe("production bundle", () => {
     // Vitest runs with NODE_ENV=test, which makes import.meta.env.DEV true; `npm run build` runs as production.
     const env = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
-    const out = (await build({ logLevel: "silent", mode: "production", build: { write: false, outDir: "dist-timings-test" } }).finally(() => void (process.env.NODE_ENV = env))) as { output: { type: string; code?: string; source?: string }[] }[] | { output: { type: string; code?: string; source?: string }[] };
+    const out = (await build({ logLevel: "silent", mode: "production", build: { write: false, outDir: "dist-timings-test" } }).finally(() => void (process.env.NODE_ENV = env))) as { output: { type: string; fileName?: string; code?: string; source?: string }[] }[] | { output: { type: string; fileName?: string; code?: string; source?: string }[] };
     const outputs = Array.isArray(out) ? out.flatMap((o) => o.output) : out.output;
     const text = outputs.map((o) => o.code ?? String(o.source ?? "")).join("\n");
     expect(text.length).toBeGreaterThan(10_000); // the build really produced the plugin
     expect(text.includes("__plannerTimings"), "recorder global in the bundle").toBe(false);
     expect(text.includes("plannerProbe"), "probe hook (src/dev-probe.ts message key) in the bundle").toBe(false);
+    // N33: the built page carries the Content-Security-Policy; index.html (the dev server's page) does not.
+    const page = String(outputs.find((o) => o.fileName === "index.html")?.source ?? "");
+    expect(page).toContain(`<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'">`);
+    expect(page.indexOf("Content-Security-Policy")).toBeLessThan(page.indexOf("<script"));
+    expect(readFileSync(new URL("../index.html", import.meta.url), "utf8")).not.toContain("Content-Security-Policy");
   }, 60_000);
 });
