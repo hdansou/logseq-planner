@@ -410,8 +410,9 @@ Live-check method (web app):
       zooms (A14). (3) O5 passes in a test instance (nightly, 2026-10-04): tag deleted while
       Planner was hidden: after a restart the default view on the other tag, no error;
       deleted while open: the default view at once with "unknown tag … Showing the default
-      view instead". The owner saw no error and not the deleted tag, but "the view that
-      had the tag": what the Tag control read is still to confirm with them.
+      view instead". The owner's own run (2026-10-05) was a view of several tags, saved as
+      "DeleteMeView": after the restart it reopened as Kanban on the two tags left
+      (#Project + #Client project), no error, as REQUIREMENTS says for a gone tag.
       (4) done, nothing to report: on the stable app `addTagProperty` from a plugin adds
       the plugin's own property to its own tag, and a user property to a user tag when the
       property is given by ident or uuid; by bare name it answers "Not a valid property"
