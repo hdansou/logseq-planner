@@ -1291,6 +1291,23 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const items = [...t.closest("[role=listbox]")!.querySelectorAll<HTMLElement>("[role=option]")];
       const i = items.indexOf(t);
       items[(i + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+      return;
+    }
+    // The other popovers (saved views, Done when, Kanban Show; N29): Up / Down walk their buttons and fields in order and
+    // wrap. A saved view's × is skipped (Tab reaches it); from a ×, Down goes on to the next row and Up to its own row.
+    const pop = e.key === "ArrowDown" || e.key === "ArrowUp" ? t.closest("[data-popover]") : null;
+    if (pop) {
+      const all = [...pop.querySelectorAll<HTMLElement>("button:not([disabled]), input:not([disabled])")];
+      const items = all.filter((el) => !el.hasAttribute("data-view-delete"));
+      if (!items.length) return;
+      e.preventDefault();
+      const down = e.key === "ArrowDown";
+      const at = all.indexOf(t);
+      const i = items.indexOf(t);
+      const next = i >= 0
+        ? items[(i + (down ? 1 : items.length - 1)) % items.length]
+        : down ? items.find((el) => all.indexOf(el) > at) ?? items[0] : [...items].reverse().find((el) => all.indexOf(el) < at) ?? items[items.length - 1];
+      next.focus();
     }
   });
 

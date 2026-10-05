@@ -79,22 +79,30 @@ Live-check method (web app):
       decides fix or accept.
 - [x] **N25 Deleting a tag triggers no refresh** — the view updates on the next change or
       the 30 s poll. Accepted by the owner on 2026-10-04; stays in the README's known limits.
-- [ ] **N26 Reopening after a stale hide reloads twice** — Owner 2026-10-04: fix (wasted
-      queries on every reopen after a change made while hidden).
+- [x] **N26 Reopening after a stale hide reloads twice** — not fixed, cause unknown. Already looked at on
+      2026-10-04 (Progress log): unit tests show one load after a stale hide, a regression
+      test exists, no code changed; the likely cause is host change events that arrive
+      after the frame is shown, which are real changes. It needs a live reproduction with
+      the reload count on screen: folded into N19. The second reload redraws nothing.
 - [x] **N27 Refresh time at 2,000 nodes** — 165-254 ms with single runs at 320, and
       187-432 ms after a Kanban drag (target 250 ms plus the 50 ms debounce); DEV build,
       web app. Accepted by the owner on 2026-10-04 for 1.0 (a production build is still to be measured); stays in the README's known limits.
-- [ ] **N28 Done and canceled rows have low contrast in Logseq's default themes** — 3.33
-      (light) and 2.98 (dark) against 4.5 wanted; they use the host's
-      `--muted-foreground` (Inkwell: 4.63 / 4.98). Owner 2026-10-04: fix.
-- [ ] **N29 Arrow keys in the saved-views and Done-when popovers** — only Tab moves
-      through them. Owner 2026-10-04: fix.
+- [x] **N28 Done and canceled rows have low contrast in Logseq's default themes** — already fixed before the split (7b84fd8, the `--pl-label-done` token):
+      done titles measure 7.61 in Logseq's default light, 6.11 in default dark and 6.94 in
+      Inkwell dark (manual-test F9). The N04 list was stale; nothing to do.
+- [x] **N29 Arrow keys in the saved-views and Done-when popovers** — done 2026-10-04: Arrow Up / Down
+      walk the buttons, checkboxes and fields of the saved-views, Done-when and Kanban Show
+      popovers in order and wrap; a saved view's × is skipped (Tab reaches it; from a ×,
+      Down goes to the next row, Up to its own). Listbox popovers keep their own handling.
+      `src/ui/popover-keys.test.ts`. Unit tests only.
 - [ ] **N30 A task linked to two nodes is listed under the first only** (Agenda by node).
       Owner 2026-10-04: fix, listing it under each node; counts then show the task twice.
 - [x] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
       says where it is. Accepted by the owner on 2026-10-04; stays in the README's known limits.
-- [ ] **N32 A Calendar band continuing on both sides shows its title mid-row** —
-      Owner 2026-10-04: fix (title at the left edge).
+- [x] **N32 A Calendar band continuing on both sides shows its title mid-row** —
+      Owner 2026-10-04: fix (title at the left edge). — already fixed before the split (2026-10-04 follow-ups, Progress
+      log: the `margin-left: auto` rule matched the "‹" marker too). Not re-run live: the
+      demo graph has no span over three weeks; a row for N19.
 - [ ] **N33 No Content-Security-Policy on the plugin page** — Owner 2026-10-04: add one before
       the release if the dev server and the host's frame allow it; otherwise accept.
 - [x] **N24 Test memory: N21's workspace tests in their own file** — done 2026-10-04.

@@ -285,7 +285,8 @@ edit has not been checked.
 **Saved views** (top bar) lists, opens and deletes saved views. **Save current view** saves
 a new view under the name in the Name field. With a saved view open, **Update "name"** stores the
 current settings in that view, under the same name. **×** asks first: the row turns into
-**Delete "name"?** with **Cancel** and **Delete**. A saved view stores the tags, child tags, each tag's Start and End,
+**Delete "name"?** with **Cancel** and **Delete**. In this menu, and in **Done when** and the
+Kanban **Show** menu, Arrow Up and Down move through the entries. A saved view stores the tags, child tags, each tag's Start and End,
 done values, filters and the view settings: Timeline zoom and arrangement, Calendar layout, Agenda Group by
 and Show done, Kanban columns, shown columns, swimlanes and sort. It does not store the period you are
 looking at.
