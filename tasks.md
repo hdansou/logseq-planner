@@ -404,11 +404,18 @@ Live-check method (web app):
       (`data-view-delete-cancel`, focused) and Delete (`data-view-delete-confirm`);
       opening or closing a menu drops the question (`State.viewDeleting`, session state).
       No browser dialog. Unit tests only; manual-test rows B12 and B12a are not run.
-- [ ] **N34 Owner's own look before the release** — left from N19: the owner restarts their
-      Logseq.app (it still runs the build it loaded earlier) and tries Planner there;
-      A14 (double-click the header: needs a true double-click); O5 (delete the remembered
-      view's tag, restart: default view, no error); `logseq.api.add_tag_property` from a
-      plugin ("Not a valid tag" was seen from the host page only).
+- [ ] **N34 Owner's own look before the release** — left from N19. (1) open: the owner is
+      trying the new build in their own app (2026-10-04; their Logseq-DB.app had
+      `planner-desktop` open). (2) done: the owner double-clicked the header, the window
+      zooms (A14). (3) open: O5. The owner saw no error and not the deleted tag, but "the
+      view that had the tag": to clarify. In a test instance (nightly, 2026-10-04): tag
+      deleted with Planner open: the default view at once, with "unknown tag … Showing the
+      default view instead"; after a restart the default view (#Stay tag) and no error.
+      (4) done, nothing to report: on the stable app `addTagProperty` from a plugin adds
+      the plugin's own property to its own tag, and a user property to a user tag when the
+      property is given by ident or uuid; by bare name it answers "Not a valid property"
+      (names resolve in the plugin's namespace). From the host page `add_tag_property`
+      worked by uuid and by title; "Not a valid tag" was not reproduced.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
