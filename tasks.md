@@ -95,8 +95,10 @@ Live-check method (web app):
       popovers in order and wrap; a saved view's × is skipped (Tab reaches it; from a ×,
       Down goes to the next row, Up to its own). Listbox popovers keep their own handling.
       `src/ui/popover-keys.test.ts`. Unit tests only.
-- [ ] **N30 A task linked to two nodes is listed under the first only** (Agenda by node).
-      Owner 2026-10-04: fix, listing it under each node; counts then show the task twice.
+- [x] **N30 A task linked to two nodes is listed under the first only** (Agenda by node) —
+      done 2026-10-04, the owner's decision: by node the task is listed under each node it
+      links, and counts as open in each; within one nested parent's group it is listed
+      once; by date it stays one entry, under the first node. Unit tests only.
 - [x] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
       says where it is. Accepted by the owner on 2026-10-04; stays in the README's known limits.
 - [x] **N32 A Calendar band continuing on both sides shows its title mid-row** —

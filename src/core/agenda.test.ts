@@ -135,11 +135,28 @@ describe("what an entry is filed under", () => {
     expect(titles(l, "2026-10-06")).toEqual(["Only task"]);
   });
 
-  it("a task linked to two nodes appears once, under the first", () => {
+  it("by date, a task linked to two nodes appears once, under the first", () => {
     const t = { ...task(1, 1, "Shared", "Todo", d("2026-10-06")), isNode: false, nodeIds: [1, 2] };
     const l = synthetic([["A", "2026-10-06", "2026-10-06", "Doing"], ["B", "2026-10-06", "2026-10-06", "Doing"]], {}, [t]);
     expect(l.buckets[0].entries.filter((e) => e.title === "Shared")).toHaveLength(1);
     expect(entry(l, "2026-10-06", "Shared").node).toBe("A");
+  });
+
+  it("by node, a task linked to two nodes is listed under each of them, and counts as open in both (N30)", () => {
+    const t = { ...task(1, 1, "Shared", "Todo", d("2026-10-06")), isNode: false, nodeIds: [1, 2] };
+    const own = task(2, 2, "Own", "Todo", d("2026-10-07"));
+    const l = synthetic([["A", "2026-10-06", "2026-10-06", "Doing"], ["B", "2026-10-06", "2026-10-06", "Doing"]], { groupBy: "node" }, [t, own]);
+    const group = (title: string) => l.groups.find((g) => g.node.title === title)!;
+    expect(group("A").tasks.map((e) => [e.title, e.node])).toEqual([["Shared", "A"]]);
+    expect(group("B").tasks.map((e) => [e.title, e.node])).toEqual([["Shared", "B"], ["Own", "B"]]);
+    expect([group("A").open, group("B").open]).toEqual([1, 2]);
+  });
+
+  it("by node, nested: a task linked to a parent and its child is listed once in the parent's group (N30)", () => {
+    const t = { ...task(1, 1, "Shared", "Todo", d("2026-10-06")), isNode: false, nodeIds: [1, 2] };
+    const l = synthetic([["Parent", "2026-10-06", "2026-10-06", "Doing"], ["Child", "2026-10-06", "2026-10-06", "Doing"]], { groupBy: "node", nest: new Map([[2, 1]]) }, [t]);
+    expect(l.groups.map((g) => g.node.title)).toEqual(["Parent"]);
+    expect(l.groups[0].tasks.filter((e) => e.title === "Shared")).toHaveLength(1);
   });
 
   it("resolves inline [[uuid]] refs in task titles to the node's title", () => {

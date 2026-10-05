@@ -188,7 +188,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   its own dates and late state, followed by its own tasks; it gets no group of its own.
 - Done and canceled hidden; **Show done** reveals those in the range.
 - Folded buckets render their entries only once opened (the heading always shows the count);
-  by node, the first 100 groups render, then "Show 100 more of N" (T13a).
+  by node, the first 100 groups render, then "Show 100 more of N" (T13a). A task linked to several nodes is
+  listed under each of them by node (and counts as open in each; once within a nested parent's group), and once,
+  under the first, by date (N30).
 
 ### Kanban
 - Columns = closed values of a chosen choice property (default Status) + "No <prop>".

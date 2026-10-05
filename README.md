@@ -213,7 +213,8 @@ sorts at that date and shows how many days late.
   **Earlier**. The last three are folded and render when opened. Empty buckets are omitted.
   Overdue renders its first 100 entries; **Show 100 more of N** adds the next 100 (its
   heading keeps the real total).
-- By node: one panel per node with its progress and tasks, overdue first. The first 100
+- By node: one panel per node with its progress and tasks, overdue first. A task linked to
+  several nodes is listed under each of them (by date it is listed once). The first 100
   groups render; **Show 100 more of N** adds the next 100. With several tags, a child node
   (as in the Timeline's Nested) is listed in its parent's panel, not in a panel of its own.
 - **Show done** includes done and canceled entries (within 14 days, or under No date).

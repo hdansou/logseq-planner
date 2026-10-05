@@ -143,7 +143,10 @@ const byAt = (a: AgendaEntry, b: AgendaEntry): number =>
 interface Built {
   node: AgendaEntry;
   derived: boolean;
+  /** Its tasks for the date buckets: one linked to several nodes is here under the first only. */
   tasks: AgendaEntry[];
+  /** All its tasks, for its own group by node (N30). */
+  allTasks: AgendaEntry[];
   item: ViewItem;
 }
 
@@ -168,13 +171,10 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
       kind: "node", uuid: node.uuid, title, node: null, cat, status: null, bucket, at, done, late, when,
       label: [title, when, progress.total ? `${progress.done} of ${progress.total} done` : "", done && "done"].filter(Boolean).join(", "),
     };
-    const taskEntries: AgendaEntry[] = [];
-    for (const task of tasks) {
-      if (seenTasks.has(task.id)) continue; // linked to several nodes: the first wins
-      seenTasks.add(task.id);
-      taskEntries.push(taskEntry(task, title, cat));
-    }
-    return { node: nodeEntry, derived: span.kind === "derived", tasks: taskEntries, item };
+    const allTasks = tasks.map((task) => ({ id: task.id, entry: taskEntry(task, title, cat) }));
+    // By date a task linked to several nodes is one entry, under the first; by node it is listed under each (N30).
+    const first = allTasks.filter(({ id }) => !seenTasks.has(id) && seenTasks.add(id));
+    return { node: nodeEntry, derived: span.kind === "derived", tasks: first.map((t) => t.entry), allTasks: allTasks.map((t) => t.entry), item };
   });
 
   function taskEntry(task: PlannerTask, nodeTitle: string, cat: number): AgendaEntry {
@@ -222,12 +222,17 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     const pid = nest.get(b.item.node.id);
     if (pid === undefined) continue;
     const list = under.get(pid);
-    if (list) list.push(b.node, ...b.tasks);
-    else under.set(pid, [b.node, ...b.tasks]);
+    if (list) list.push(b.node, ...b.allTasks);
+    else under.set(pid, [b.node, ...b.allTasks]);
   }
+  /** A task linked to a parent and to its child, or to two children, is one entry in the parent's group. */
+  const once = (entries: AgendaEntry[]) => {
+    const seen = new Set<string>();
+    return entries.filter((e) => e.kind === "node" || (!seen.has(e.uuid) && seen.add(e.uuid)));
+  };
   const groups: AgendaGroup[] = built
     .filter((b) => !nest.has(b.item.node.id))
-    .map((b) => ({ ...b, tasks: [...b.tasks, ...(under.get(b.item.node.id) ?? [])] }))
+    .map((b) => ({ ...b, tasks: once([...b.allTasks, ...(under.get(b.item.node.id) ?? [])]) }))
     .map((b) => ({ b, tasks: b.tasks.filter(shown).sort(byAt) }))
     .filter(({ b, tasks }) => shown(b.node) || tasks.length > 0)
     .map(({ b, tasks }) => ({
