@@ -105,8 +105,16 @@ Live-check method (web app):
       Owner 2026-10-04: fix (title at the left edge). — already fixed before the split (2026-10-04 follow-ups, Progress
       log: the `margin-left: auto` rule matched the "‹" marker too). Not re-run live: the
       demo graph has no span over three weeks; a row for N19.
-- [ ] **N33 No Content-Security-Policy on the plugin page** — Owner 2026-10-04: add one before
-      the release if the dev server and the host's frame allow it; otherwise accept.
+- [ ] **N33 No Content-Security-Policy on the plugin page** — owner 2026-10-04: add one before
+      the release if the dev server and the host's frame allow it; otherwise accept. Looked
+      at on 2026-10-04, not added: a wrong policy stops the plugin from loading, and three
+      things can only be checked live. (1) `@logseq/libs` (lsplugin.user.js) contains
+      `new Function`, so `script-src 'self'` may need `'unsafe-eval'`; (2) the views write
+      inline `style` attributes (grid placement), so `style-src` needs `'unsafe-inline'`;
+      (3) what `'self'` matches differs between the dev server (http), an unpacked install
+      (file://) and a marketplace install (lsp://). To do with the app open (N19): add the
+      meta tag to index.html, load the plugin all three ways, watch the console for
+      violations. If any of the three cannot be made to pass: accept and close.
 - [x] **N24 Test memory: N21's workspace tests in their own file** — done 2026-10-04.
       happy-dom 20.14.5 keeps memory for every tree replaced through `innerHTML` (a probe
       re-rendering 2,000 rows 150 times ran out of a 4 GB heap), so
