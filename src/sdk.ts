@@ -249,6 +249,23 @@ export function dateReadQuery(ident: string, type: "date" | "datetime"): string 
   return `[:find (pull ?b [:block/uuid ${attr}]) :in $ ?u :where [?b :block/uuid ?u]]`;
 }
 
+/** The journal day (`20261005`) of `createJournalPage`'s argument (`YYYY-MM-DD…`, `journalArg` in core/date-edit.ts). */
+export function journalDayOfArg(date: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  if (!m) throw new Error(`Not a journal date: ${date}`);
+  return Number(m[1] + m[2] + m[3]);
+}
+
+/** The journal page(s) of one journal day, by db id. */
+export function journalPageQuery(journalDay: number): string {
+  if (!Number.isInteger(journalDay) || journalDay < 10000101 || journalDay > 99991231) throw new Error(`Not a journal day: ${journalDay}`);
+  return `[:find ?p :where [?p :block/journal-day ${journalDay}]]`;
+}
+
+/** After asking the host to create a journal page: how often, and how far apart, the page is looked for. */
+const JOURNAL_PAGE_TRIES = 10;
+const JOURNAL_PAGE_WAIT_MS = 100;
+
 /**
  * The real SDK behind a Timeline date edit (N06c). Write probe on the desktop app (2026-10-04, tasks.md N06c): a
  * DateTime takes epoch ms; a Date takes the db id of the day's journal page, which `createJournalPage` returns (existing
@@ -256,9 +273,24 @@ export function dateReadQuery(ident: string, type: "date" | "datetime"): string 
  */
 export const dateWriteDeps = (): DateWriteDeps => ({
   upsertBlockProperty: (uuid, key, value) => logseq.Editor.upsertBlockProperty(uuid, key, value),
+  // N19: the day's journal page is looked up by its journal day, never taken from `createJournalPage`'s return value. On
+  // the stable desktop app (b09316a) that call returned null for local noon, for a page that exists and for one it had
+  // just created, while the nightly (8ffbb22) returned the page. The call is only made to create a missing page.
   createJournalPage: async (date) => {
-    const page = await logseq.Editor.createJournalPage(date);
-    return page ? { id: page.id } : null;
+    const day = journalDayOfArg(date);
+    const find = async () => {
+      const rows = (await datascriptQuery(journalPageQuery(day))) as [number][];
+      return rows.length ? { id: Math.min(...rows.map(([id]) => id)) } : null;
+    };
+    const existing = await find();
+    if (existing) return existing;
+    await logseq.Editor.createJournalPage(date);
+    for (let i = 0; i < JOURNAL_PAGE_TRIES; i++) {
+      const created = await find();
+      if (created) return created;
+      await new Promise((r) => setTimeout(r, JOURNAL_PAGE_WAIT_MS));
+    }
+    return null;
   },
   readDate: async (uuid, ident, type) => {
     if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);

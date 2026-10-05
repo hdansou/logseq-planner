@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, dateReadQuery, dateWriteDeps, HEADBAR, hostWeekStart, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, dateReadQuery, dateWriteDeps, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -191,16 +191,68 @@ describe("date writes (N06c; write probe 2026-10-04)", () => {
   const UUID = "6a000000-0000-4000-8000-000000000001";
   const START = ":user.property/start-Sd0PMVjj";
 
-  it("passes the key and the value through; asks the journal page with the argument as given and returns its id", async () => {
+  it("passes the key and the value of a property write through unchanged", async () => {
     const upsertBlockProperty = vi.fn(async () => null);
-    const createJournalPage = vi.fn(async () => ({ id: 412, uuid: "x", journalDay: 20261201 }));
-    vi.stubGlobal("logseq", { Editor: { upsertBlockProperty, createJournalPage } });
+    vi.stubGlobal("logseq", { Editor: { upsertBlockProperty } });
     await dateWriteDeps().upsertBlockProperty(UUID, "user.property/start-Sd0PMVjj", 1791041400000);
     expect(upsertBlockProperty).toHaveBeenCalledWith(UUID, "user.property/start-Sd0PMVjj", 1791041400000);
-    expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toEqual({ id: 412 });
-    expect(createJournalPage).toHaveBeenCalledWith("2026-12-01T12:00:00");
-    createJournalPage.mockResolvedValueOnce(null as never);
-    expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toBeNull();
+  });
+
+  describe("the day's journal page (N19: looked up by journal day, createJournalPage's return value is not used)", () => {
+    const QUERY = "[:find ?p :where [?p :block/journal-day 20261201]]";
+    /** A fake host: `pages` are the journal page ids the query finds; `create` is what createJournalPage does. */
+    const host = (pages: number[], create: () => unknown = () => null) => {
+      const state = { pages, queries: [] as string[] };
+      const createJournalPage = vi.fn(async (date: string) => (void date, create()));
+      vi.stubGlobal("logseq", { Editor: { createJournalPage }, DB: { datascriptQuery: async (q: string) => (state.queries.push(q), state.pages.map((id) => [id])) } });
+      return { state, createJournalPage };
+    };
+
+    it("an existing page is found by its day and nothing is created", async () => {
+      const h = host([412]);
+      expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toEqual({ id: 412 });
+      expect(h.state.queries).toEqual([QUERY]);
+      expect(h.createJournalPage).not.toHaveBeenCalled();
+    });
+
+    it("a missing page is created with the argument as given, then found, although the host returned null (stable app b09316a)", async () => {
+      const h = host([]);
+      h.createJournalPage.mockImplementation(async () => (h.state.pages = [512], null));
+      expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toEqual({ id: 512 });
+      expect(h.createJournalPage).toHaveBeenCalledWith("2026-12-01T12:00:00");
+    });
+
+    it("waits for a page that shows up a little later, and gives null when it never does", async () => {
+      vi.useFakeTimers();
+      try {
+        const late = host([]);
+        const found = dateWriteDeps().createJournalPage("2026-12-01T12:00:00");
+        await vi.advanceTimersByTimeAsync(250);
+        late.state.pages = [7];
+        await vi.advanceTimersByTimeAsync(200);
+        expect(await found).toEqual({ id: 7 });
+
+        host([]);
+        const never = dateWriteDeps().createJournalPage("2026-12-01T12:00:00");
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(await never).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("two pages of one day: the older one (lower id)", async () => {
+      host([900, 412]);
+      expect(await dateWriteDeps().createJournalPage("2026-12-01T12:00:00")).toEqual({ id: 412 });
+    });
+
+    it("builds the query from a checked day and rejects anything else", () => {
+      expect(journalDayOfArg("2026-12-01T12:00:00")).toBe(20261201);
+      expect(journalDayOfArg("2026-12-01")).toBe(20261201);
+      expect(() => journalDayOfArg("Dec 1st, 2026")).toThrow(/journal date/);
+      expect(journalPageQuery(20261201)).toBe(QUERY);
+      for (const bad of [NaN, 1.5, 2026, -20261201]) expect(() => journalPageQuery(bad)).toThrow(/journal day/);
+    });
   });
 
   it("reads a Date back as its journal page id and day, a DateTime as epoch ms, by uuid with a #uuid input", async () => {
