@@ -79,11 +79,11 @@ Live-check method (web app):
       decides fix or accept.
 - [x] **N25 Deleting a tag triggers no refresh** — the view updates on the next change or
       the 30 s poll. Accepted by the owner on 2026-10-04; stays in the README's known limits.
-- [x] **N26 Reopening after a stale hide reloads twice** — not fixed, cause unknown. Already looked at on
-      2026-10-04 (Progress log): unit tests show one load after a stale hide, a regression
-      test exists, no code changed; the likely cause is host change events that arrive
-      after the frame is shown, which are real changes. It needs a live reproduction with
-      the reload count on screen: folded into N19. The second reload redraws nothing.
+- [x] **N26 Reopening after a stale hide reloads twice** — closed 2026-10-04: not reproduced on the
+      stable desktop app. Counting the plugin's queries from the host: reopening after a
+      change made while hidden ran one burst of 5 queries (one reload) and nothing in the
+      next 6 s, twice; without a change, 1 query (the saved views). Earlier unit tests
+      agree. The "two reloads" were seen in the web app only (manual-test A7, E6).
 - [x] **N27 Refresh time at 2,000 nodes** — 165-254 ms with single runs at 320, and
       187-432 ms after a Kanban drag (target 250 ms plus the 50 ms debounce); DEV build,
       web app. Accepted by the owner on 2026-10-04 for 1.0 (a production build is still to be measured); stays in the README's known limits.
@@ -101,20 +101,16 @@ Live-check method (web app):
       once; by date it stays one entry, under the first node. Unit tests only.
 - [x] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
       says where it is. Accepted by the owner on 2026-10-04; stays in the README's known limits.
-- [x] **N32 A Calendar band continuing on both sides shows its title mid-row** —
-      Owner 2026-10-04: fix (title at the left edge). — already fixed before the split (2026-10-04 follow-ups, Progress
-      log: the `margin-left: auto` rule matched the "‹" marker too). Not re-run live: the
-      demo graph has no span over three weeks; a row for N19.
-- [ ] **N33 No Content-Security-Policy on the plugin page** — owner 2026-10-04: add one before
-      the release if the dev server and the host's frame allow it; otherwise accept. Looked
-      at on 2026-10-04, not added: a wrong policy stops the plugin from loading, and three
-      things can only be checked live. (1) `@logseq/libs` (lsplugin.user.js) contains
-      `new Function`, so `script-src 'self'` may need `'unsafe-eval'`; (2) the views write
-      inline `style` attributes (grid placement), so `style-src` needs `'unsafe-inline'`;
-      (3) what `'self'` matches differs between the dev server (http), an unpacked install
-      (file://) and a marketplace install (lsp://). To do with the app open (N19): add the
-      meta tag to index.html, load the plugin all three ways, watch the console for
-      violations. If any of the three cannot be made to pass: accept and close.
+- [x] **N32 A Calendar band continuing on both sides shows its title mid-row** — fixed before the split (2026-10-04 follow-ups) and seen live on
+      2026-10-04 (stable app): "‹" at 5 px, the title at 15 px, "›" at the right end.
+- [x] **N33 No Content-Security-Policy on the plugin page** — done 2026-10-04 (f71adad): the built
+      page carries `default-src 'none'; script-src 'self'; style-src 'self'
+      'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';
+      base-uri 'none'; form-action 'none'`, added at build time only (vite.config.ts), so
+      the dev server is untouched. Live on the stable desktop app (lsp:// origin, which
+      unpacked and marketplace installs share): no violation, all four views, a popover,
+      docking and real date edits work; `new Function` in the SDK is not reached. Not
+      checked: a plugin served to the Logseq web app.
 - [x] **N24 Test memory: N21's workspace tests in their own file** — done 2026-10-04.
       happy-dom 20.14.5 keeps memory for every tree replaced through `innerHTML` (a probe
       re-rendering 2,000 rows 150 times ran out of a 4 GB heap), so
@@ -360,13 +356,20 @@ Live-check method (web app):
       UTC and then read in local time. Planner passes local noon, so it is not affected.
       Before filing: re-run on the current build, check east of UTC by reasoning or a
       second zone, search for duplicates.
-- [ ] **N19 Validate in the owner's app, with real mouse input** — the stable Logseq.app
-      (b09316a) was never tested; every desktop check ran on Logseq-DB.app. With the owner
-      present: confirm which app they use, run the top-bar, sidebar-handle and Edit-dates
-      rows with a real mouse (L2, N6, N10, N13, N15 and the A rows of N15), and re-check
-      the owner's unreproduced "cannot resize" report. Also to look at while there:
-      `logseq.api.add_tag_property` rejecting a valid tag from the host page ("Not a valid
-      tag") — report upstream only if it also fails from a plugin.
+- [x] **N19 Validate in the owner's app, with real mouse input** — done 2026-10-04 on the stable Logseq.app 2.0.1 (b09316a), a second
+      instance driven over CDP with real mouse clicks and drags (CGEvent); the owner's own
+      window was not touched. The owner's app is this stable build (their Logseq.app had
+      `planner-project` open). Results in docs/manual-test.md, "Stable app pass". Passed:
+      top bar and toolbar clicks (A15, A16), window move and resize by every edge (A12,
+      A13), saved views Update / delete confirmation / arrow keys (B12, B12a, N29), Edit
+      dates in both surfaces incl. a diamond (N6, N13), a failed write (N10), Undo (N15:
+      one Undo per property, two for a move), the remembered state over restarts and two
+      graphs (O1-O4, O6), the band title (N32), the CSP (N33). Three bugs found and fixed:
+      (1) 5b65c72: the sidebar handle could not be dragged toward a docked Planner, the
+      frame swallowed the drag: likely the owner's "cannot resize" report (the window
+      itself always resized); (2) c78dcee: every Date edit failed on this build, since its
+      `createJournalPage` returns null where the nightly returns the page; (3) 724bb24: a
+      host error showed as "[object Object]". Left over: N34.
 - [x] **N20 Connector routing when bars touch** — done 2026-10-04: every connector is one S
       curve (cubic Bézier) from the dependency's right edge middle to the dependent's left
       edge middle, control points half the distance out and in, at least 24 px; no stub
@@ -401,6 +404,11 @@ Live-check method (web app):
       (`data-view-delete-cancel`, focused) and Delete (`data-view-delete-confirm`);
       opening or closing a menu drops the question (`State.viewDeleting`, session state).
       No browser dialog. Unit tests only; manual-test rows B12 and B12a are not run.
+- [ ] **N34 Owner's own look before the release** — left from N19: the owner restarts their
+      Logseq.app (it still runs the build it loaded earlier) and tries Planner there;
+      A14 (double-click the header: needs a true double-click); O5 (delete the remembered
+      view's tag, restart: default view, no error); `logseq.api.add_tag_property` from a
+      plugin ("Not a valid tag" was seen from the host page only).
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

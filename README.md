@@ -19,8 +19,8 @@ It runs in three places:
 ![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
 
 Status: version 0.1.0, not released yet. Planner was validated in the Logseq desktop app
-(Logseq-DB 2.0.1, nightly builds of 2026-10-01 and later) and partly in the Logseq web app. It
-has **not** been tested in the stable Logseq.app. See [Limits and known issues](#limits-and-known-issues)
+(Logseq-DB 2.0.1 nightly builds of 2026-10-01 and later, and a focused pass on the stable
+Logseq.app 2.0.1, build b09316a) and partly in the Logseq web app. See [Limits and known issues](#limits-and-known-issues)
 for what was and was not checked.
 
 ## Requirements
@@ -352,8 +352,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.
 - No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
   no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
-- The sidebar surface is desktop only. It was checked live there, but with in-app clicks: not a real-mouse drag of
-  Logseq's sidebar handle, not the narrow drawer while docked, and not the web app (which shows no switch).
+- The sidebar surface is desktop only. It was checked live there, with a real-mouse drag of Logseq's sidebar handle
+  on the stable app; not the narrow drawer while docked, and not the web app (which shows no switch).
 - The in-page block was checked live on the desktop app, but not the slash command (the caret lands after `}}`), the
   host's page styles outside the block (beyond one font size), clicks on a bar or a Kanban card, Open in Planner while
   docked, Logseq's default themes, or the web app.
@@ -364,7 +364,10 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
   focused desktop pass in docs/manual-test.md, the sidebar and in-page block rows, and Edit dates. Most of the older
   checklist rows (sections A to J) were run in the Logseq web app dev build of 2026-09-02 (checkout `d2ab7726ab`) on an
   in-memory test graph in headless Chrome, and not repeated on the desktop.
-- The **stable Logseq.app was not tested**, and neither was any Logseq build other than those two.
+- Stable Logseq.app 2.0.1 (build b09316a): a focused pass on 2026-10-04 with real mouse input (docs/manual-test.md,
+  "Stable app pass"): the top bar, window move and resize, the sidebar handle, Edit dates in both surfaces, saved
+  views, the remembered state across restarts and graphs, and the Content-Security-Policy. It found and fixed three
+  problems there. The rest of the checklist was not repeated on it. No other Logseq build was tested.
 - Real mouse clicks were checked on the desktop top bar only after the first desktop pass failed on them (fixed); later
   passes mostly used in-app clicks over CDP because the window could not be brought to the front.
 - Sync is untested. Changes that arrive by sync are caught by the 30-second check, not by an event. A second desktop
