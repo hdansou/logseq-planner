@@ -77,26 +77,25 @@ Live-check method (web app):
       Overdue bucket is capped at 100 per page (20a8892); saved-view writes run one at a
       time (the store's promise queue). Each new item carries a recommendation; the owner
       decides fix or accept.
-- [ ] **N25 Deleting a tag triggers no refresh** — the view updates on the next change or
-      the 30 s poll. Recommendation: accept (rare, and the poll covers it).
-- [ ] **N26 Reopening after a stale hide reloads twice** — Recommendation: fix (wasted
+- [x] **N25 Deleting a tag triggers no refresh** — the view updates on the next change or
+      the 30 s poll. Accepted by the owner on 2026-10-04; stays in the README's known limits.
+- [ ] **N26 Reopening after a stale hide reloads twice** — Owner 2026-10-04: fix (wasted
       queries on every reopen after a change made while hidden).
-- [ ] **N27 Refresh time at 2,000 nodes** — 165-254 ms with single runs at 320, and
+- [x] **N27 Refresh time at 2,000 nodes** — 165-254 ms with single runs at 320, and
       187-432 ms after a Kanban drag (target 250 ms plus the 50 ms debounce); DEV build,
-      web app. Recommendation: accept for 1.0; measure a production build first.
+      web app. Accepted by the owner on 2026-10-04 for 1.0 (a production build is still to be measured); stays in the README's known limits.
 - [ ] **N28 Done and canceled rows have low contrast in Logseq's default themes** — 3.33
       (light) and 2.98 (dark) against 4.5 wanted; they use the host's
-      `--muted-foreground` (Inkwell: 4.63 / 4.98). Recommendation: fix.
+      `--muted-foreground` (Inkwell: 4.63 / 4.98). Owner 2026-10-04: fix.
 - [ ] **N29 Arrow keys in the saved-views and Done-when popovers** — only Tab moves
-      through them. Recommendation: fix.
+      through them. Owner 2026-10-04: fix.
 - [ ] **N30 A task linked to two nodes is listed under the first only** (Agenda by node).
-      Recommendation: fix, listing it under each node; needs the owner's yes, since counts
-      then show the task twice.
-- [ ] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
-      says where it is. Recommendation: accept.
+      Owner 2026-10-04: fix, listing it under each node; counts then show the task twice.
+- [x] **N31 A "Planner views" page in Recycle is not restored automatically** — the error
+      says where it is. Accepted by the owner on 2026-10-04; stays in the README's known limits.
 - [ ] **N32 A Calendar band continuing on both sides shows its title mid-row** —
-      Recommendation: fix (title at the left edge).
-- [ ] **N33 No Content-Security-Policy on the plugin page** — Recommendation: add one before
+      Owner 2026-10-04: fix (title at the left edge).
+- [ ] **N33 No Content-Security-Policy on the plugin page** — Owner 2026-10-04: add one before
       the release if the dev server and the host's frame allow it; otherwise accept.
 - [x] **N24 Test memory: N21's workspace tests in their own file** — done 2026-10-04.
       happy-dom 20.14.5 keeps memory for every tree replaced through `innerHTML` (a probe
