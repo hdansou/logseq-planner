@@ -3,6 +3,8 @@ import type { HostDocument } from "./ui/host-keys";
 
 /** The SDK calls `registerApp` needs; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface AppDeps {
+  /** Per-graph UI state in the plugin's settings (N21, `uiStateDeps()` in src/sdk.ts). */
+  prefs: import("./ui-state").UiStateDeps;
   registerUIItem(type: "toolbar", item: { key: string; template: string }): void;
   registerCommandPalette(
     command: { key: string; label: string; keybinding?: { binding: string; mode: "global" | "non-editing" | "editing" } },

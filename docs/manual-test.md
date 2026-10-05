@@ -424,6 +424,17 @@ Desktop app. `planner-project`: DateTime Start / End on #Task and #Milestone. `p
 | N14 | A page with the in-page block (section M) while Edit dates is on in the workspace | The block has no handles and no toggle; nothing in it can be dragged | not run |  |  |  |
 | N15 | Logseq's own Undo (Cmd+Z) right after a date edit | Record what happens (README makes no claim) | not run |  |  |  |
 
+## O. Remembered per graph (N21)
+
+| # | Step | Expected | Result | Build | Date | Notes |
+|---|---|---|---|---|---|---|
+| O1 | Pick a tag, switch to Kanban, close the panel, turn Edit dates on in the Timeline; restart Logseq and open Planner | The same tag, kind and settings, the panel closed, Edit dates on | not run |  |  | new with N21; unit tests only |
+| O2 | Open a saved view, restart, open Planner | Saved views reads that view's name | not run |  |  |  |
+| O3 | Desktop: switch to Sidebar, restart, open Planner | Planner opens docked over the right sidebar | not run |  |  |  |
+| O4 | Open a second graph, change the view there, switch back to the first | Each graph shows its own last state | not run |  |  |  |
+| O5 | Delete the tag of the remembered view (in Logseq), restart, open Planner | The default view, no error bar | not run |  |  |  |
+| O6 | Plugin settings file (`~/.logseq/settings/<plugin id>.json`) after O1 | A `uiState` key with one entry per graph used | not run |  |  | checks the `updateSettings` merge assumed from the SDK source |
+
 ## Desktop pass (2026-10-03, build e849107)
 
 Logseq-DB.app 2.0.1 nightly (revision 8ffbb22-dirty, built 2026-10-01), a second instance with its own profile driven over

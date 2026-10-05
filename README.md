@@ -299,8 +299,13 @@ reason; it cannot be opened, only deleted.
 The open view redraws after graph changes. It keeps your scroll position, expanded rows,
 unfolded Agenda buckets and focus. It waits while a menu is open, a card or a Timeline bar is being dragged, or a
 write is running.
-When you open another graph in the same Logseq session, Planner starts fresh: it forgets the previous graph's
-view, tags and saved-view list and loads the new graph (the surface, the panel state and Edit dates are kept).
+When you open another graph in the same Logseq session, Planner loads the new graph and opens it as you left
+it (see below); a graph you never used opens with the default view, and the surface stays as it is.
+
+Planner remembers, per graph: the view on screen (tags, kind and settings, and the saved view it belongs to),
+whether the side panel is open, Workspace or Sidebar, and Edit dates. This is kept in the plugin's settings on
+this device, not in the graph, so it does not sync. The period you are looking at and expanded rows are not
+remembered.
 Planner also checks the graph every 30 seconds while it is visible. While hidden, it only
 notes that data may be stale and reloads once when you open it again.
 

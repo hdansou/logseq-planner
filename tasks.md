@@ -332,9 +332,19 @@ Live-check method (web app):
       end. Accepted by the owner on 2026-10-04 ("much better").
       Was: in Week zoom two-hour bars touch end to start, so every connector took the elbow
       route and the lines piled into a ladder.
-- [ ] **N21 Remember panel, surface and Edit dates per graph** — they last for the session
-      only; the plugin has no per-graph UI store (last view and tag are in memory too).
-      Needs an owner decision on what should persist (see N03c).
+- [x] **N21 Remember panel, surface and Edit dates per graph** — done 2026-10-04, the owner's
+      decision: all of it persists. `src/ui-state.ts` (`createUiStore`, `parsePrefs`): the
+      panel (wide / narrow), the surface, Edit dates and the view on screen (serialised
+      config + saved view id), one entry per graph (key: the graph's url) in the plugin's
+      settings under `uiState` (`uiStateDeps()` in sdk.ts: `getCurrentGraph`,
+      `logseq.settings`, `updateSettings`). Per device, never in the graph. The workspace
+      reads it on the first load of a graph (after `reset()` too) and writes after a render
+      when it differs from the last write; a restored Sidebar goes through `setSurface`;
+      unreadable settings or a gone tag give the default view silently. Unit tests only:
+      NOT run in the app. Assumed from the SDK source, not probed: `updateSettings` merges
+      deeply (LSPlugin.core `settings.patch`), so one graph's entry leaves the others.
+      manual-test section O (O1-O6) is the live check. Was: session only, no per-graph UI
+      store, pending an owner decision.
 - [x] **N22 Tracker test derives its task list from tasks.md** — done 2026-10-04:
       `scripts/tracker-lib.test.mjs` reads the ids from tasks.md and the dependency map from
       `tracker-meta.json` (every task in exactly one milestone, each start at the latest End

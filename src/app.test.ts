@@ -14,6 +14,7 @@ import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewBlock } from "./types";
 import type { HostDocument } from "./ui/host-keys";
+import { DEFAULT_PREFS, type UiPrefs } from "./ui-state";
 import { Window } from "happy-dom";
 
 /** Fake SDK: records every call; `defer` queues work so the test decides when it runs. */
@@ -77,6 +78,7 @@ function fakeDeps() {
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
     dates: { upsertBlockProperty: async () => null, createJournalPage: async () => null, readDate: async () => null },
     hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
+    prefs: { graph: vi.fn(async () => "logseq_db_test"), read: vi.fn((): unknown => undefined), write: vi.fn((graph: string, prefs: UiPrefs) => void [graph, prefs]) },
   } satisfies AppDeps;
   const flush = () => deferred.splice(0).forEach((fn) => fn());
   return { deps, flush, clock, feed, visibility, unload, offs, slotted, graphChanged };
@@ -648,6 +650,18 @@ describe("sidebar surface (N06a)", () => {
     expect(f.deps.setFrame).toHaveBeenCalledWith(WORKSPACE_FRAME);
     expect(f.deps.setFrame.mock.invocationCallOrder[0]).toBeLessThan(f.deps.showMainUI.mock.invocationCallOrder[0]);
     expect(f.deps.setRightSidebarVisible).not.toHaveBeenCalled();
+  });
+
+  it("the graph's last surface comes back on the first open: Sidebar docks without a click, and a switch is stored (N21)", async () => {
+    const d = docked();
+    d.deps.prefs.read.mockReturnValue({ logseq_db_test: { ...DEFAULT_PREFS, surface: "sidebar" } });
+    await opened(d);
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
+    expect(d.deps.setRightSidebarVisible).toHaveBeenCalledWith(true);
+    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    switchTo("workspace");
+    await vi.waitFor(() => expect(d.deps.prefs.write.mock.lastCall![1].surface).toBe("workspace"));
+    expect(d.deps.prefs.write.mock.lastCall![0]).toBe("logseq_db_test");
   });
 
   it("a cross-origin frame has no switch", async () => {

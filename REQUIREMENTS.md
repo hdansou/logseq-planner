@@ -81,14 +81,20 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   order. "Sidebar" means Logseq's right sidebar only. A **Panel** toggle, last in the settings
   bar, hides and shows the panel (the view then takes the full width); while the panel is hidden
   and filters are ticked, the toggle shows how many values are ticked ("Panel · 2"). The choice is
-  kept for the session (in memory; not saved with a view, not persisted). In a frame narrower than
+  remembered per graph (N21; not saved with a view). In a frame narrower than
   640 px the panel is a **drawer** over the view from the right edge, closed by default; Escape
   (after an open menu, before Planner) or a click on the view closes it. Wide and narrow keep their
   own open state, so crossing the width without a toggle follows the defaults.
+- **Remembered per graph** (N21, the owner's decision on 2026-10-04: all of it). Planner opens on a graph as it was
+  left there: the view on screen (its tags and settings, and the saved view it belongs to), the side panel open or
+  closed (wide and narrow apart), the surface, and Edit dates. Kept in the plugin's settings on this device, one entry
+  per graph, never written into the graph; not synced. A graph never used opens with the defaults. Stored settings
+  that cannot be read, or that name a tag that is gone, give the default view without an error. Not remembered: the
+  period on screen, expanded and collapsed rows, open menus.
 - **Surfaces** (N06a). Planner shows in the **workspace** (the window under the app header, the
   default) or in the **sidebar**: laid over Logseq's right sidebar, beside the page. A
-  **Workspace | Sidebar** switch in the top bar, before Saved views, picks one; the choice is kept
-  for the session (in memory, not persisted). Sidebar opens Logseq's right sidebar, lays Planner
+  **Workspace | Sidebar** switch in the top bar, before Saved views, picks one; the choice is
+  remembered per graph (N21). Sidebar opens Logseq's right sidebar, lays Planner
   over it from the header's lower edge, leaving the sidebar's resize handle free, and follows the
   sidebar's width (its handle, the window). The sidebar's own content is covered while Planner is
   docked. Closing Planner leaves the sidebar open (its content shows again); the user closing the
@@ -149,8 +155,8 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   row in the range (after filters) are drawn. One neutral colour; lines never take the pointer. A bar or point with
   dependencies adds ", depends on A, B" to its label, so the relation is not visual only. No dragging to create or edit
   dependencies, no connectors in other views, no critical path, no lag / lead.
-- **Edit dates** (N06c; v1 was read-only by the owner's decision): a toolbar toggle, off by default, session state only
-  (not saved with a view). Workspace and sidebar surfaces only, never the in-page block. When on: drag a bar's body to
+- **Edit dates** (N06c; v1 was read-only by the owner's decision): a toolbar toggle, off by default, remembered per graph
+  (N21; not saved with a view). Workspace and sidebar surfaces only, never the in-page block. When on: drag a bar's body to
   move it (Start and End shift by the same number of tracks), drag its first or last 6 px to change that end only; a
   one-date point moves. Deltas snap to the zoom's track (a day; 15 minutes in Day zoom); a span keeps at least one track
   and its start on or before its end, and nothing is dragged off the range. A drag under 4 px is a click (opens the

@@ -4,6 +4,7 @@ import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
 import { CONFIG_KEY, configSchemaFor } from "./storage";
+import type { UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /**
@@ -92,6 +93,7 @@ export const appDeps = (): AppDeps => ({
   weekStart: () => hostWeekStart(),
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
+  prefs: uiStateDeps(),
   kanban: kanbanWriteDeps(),
   dates: dateWriteDeps(),
   changes: changesSdk(),
@@ -159,6 +161,22 @@ const toViewBlock = async (b: { uuid: string; content?: string; title?: string }
  * round trip on `plugin-test`) and T07 (recycled page). `blockTags` (T14) is not verified live yet. The write calls
  * resolve null on failure, which the store catches by reading back.
  */
+/** The plugin-settings key holding the per-graph UI state (N21): `{ [graph url]: UiPrefs }`. */
+export const UI_STATE_KEY = "uiState";
+
+/**
+ * N21: per-graph UI state lives in the plugin's settings (per device, never in the graph). `updateSettings` merges
+ * deeply, so writing one graph's entry leaves the others; the graph key is its url (`logseq_db_<name>`), else its name.
+ */
+export const uiStateDeps = (): UiStateDeps => ({
+  graph: async () => {
+    const g = await logseq.App.getCurrentGraph();
+    return g?.url ?? g?.name ?? null;
+  },
+  read: () => (logseq.settings as Record<string, unknown> | undefined)?.[UI_STATE_KEY],
+  write: (graph, prefs) => logseq.updateSettings({ [UI_STATE_KEY]: { [graph]: prefs } }),
+});
+
 export const storageDeps = (): StorageDeps => ({
   // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
   findPage: async (title) => {

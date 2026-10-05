@@ -13,13 +13,15 @@ import { systemZone, type ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos, tagsTitle, TAG_KEY, type ViewTags } from "../core/schema";
 import {
-  defaultViewConfig, dependsOnOf, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags, type ViewConfig, type ViewKind,
+  defaultViewConfig, dependsOnOf, parseViewConfig, serializeViewConfig, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags,
+  type ViewConfig, type ViewKind,
 } from "../core/view-config";
 import { clampDelta, editedBar, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
 import { dateChanges, writeDates, type DateChange, type EditMode } from "../core/date-edit";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
+import type { UiPrefs, UiStore } from "../ui-state";
 import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction } from "./calendar";
@@ -68,6 +70,11 @@ export interface WorkspaceDeps {
    * host document is reachable (desktop app); absent, the switch is not rendered (web app, dev server).
    */
   setSurface?(surface: Surface): void;
+  /**
+   * Per-graph UI state (N21, src/ui-state.ts): read on the first load of a graph, written whenever the panel, the
+   * surface, Edit dates or the view on screen changes. Absent, nothing is remembered.
+   */
+  prefs?: UiStore;
 }
 
 export interface Workspace {
@@ -522,6 +529,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const viewLeft = root.querySelector<HTMLElement>("[data-region=view]")?.scrollLeft ?? 0;
     drawnClock = clockOf(s.config, todayNow());
     root.innerHTML = renderWorkspace(s, now);
+    savePrefs();
     for (const [sel, open] of folds) {
       const d = root.querySelector<HTMLDetailsElement>(sel);
       if (d) d.open = open;
@@ -643,6 +651,52 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     await loadData();
   };
 
+  /**
+   * Per-graph UI state (N21). `prefsLoaded`: this graph's state was read, so changes may be written (never before: the
+   * defaults would overwrite it). `storedSurface`: what the store holds, kept where the switch does not exist (web app).
+   */
+  let prefsLoaded = false;
+  let storedSurface: Surface | null = null;
+  let savedPrefs = "";
+  const currentPrefs = (): UiPrefs => ({
+    panel: { ...s.panelOpen },
+    surface: s.canDock ? s.surface : storedSurface,
+    editDates: s.editDates,
+    view: s.config ? { id: s.viewId, config: serializeViewConfig(s.config) } : null,
+  });
+  /** After every render: writes the state when it differs from what was last written. */
+  const savePrefs = () => {
+    if (!deps.prefs || !prefsLoaded || s.loading) return;
+    const next = currentPrefs();
+    const json = JSON.stringify(next);
+    if (json === savedPrefs) return;
+    savedPrefs = json;
+    deps.prefs.save(next);
+  };
+  /** The graph's stored state onto `s` (tags are loaded): unreadable view settings or a gone tag mean the default view. */
+  const restorePrefs = async () => {
+    const p = await deps.prefs!.load();
+    s.panelOpen = { ...p.panel };
+    s.editDates = p.editDates;
+    storedSurface = p.surface;
+    if (p.surface && s.canDock && p.surface !== s.surface) {
+      s.surface = p.surface;
+      deps.setSurface!(p.surface);
+    }
+    if (p.view && !s.config) {
+      try {
+        const config = withKnownTags(parseViewConfig(p.view.config), s.tags);
+        tagOf(config);
+        s.config = config;
+        s.viewId = p.view.id; // dropped by `listViews` when that saved view is gone
+      } catch {
+        // the default view
+      }
+    }
+    savedPrefs = JSON.stringify(p);
+    prefsLoaded = true;
+  };
+
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
   const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" ? "input" : "[aria-selected=true]"}`;
@@ -661,6 +715,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     } finally {
       s.loading = false;
     }
+    if (deps.prefs && !prefsLoaded) await restorePrefs();
     try {
       await listViews();
     } catch (e) {
@@ -779,6 +834,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     wantRefresh = false;
     shownSig = null;
     dayScrolled = null;
+    prefsLoaded = false; // the next open reads the new graph's state (N21)
     deps.views.invalidate();
   });
   const refreshWhenFree = () => void (wantRefresh && !busy() && refresh());
@@ -1305,6 +1361,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     reset,
     showViews: () => run(listViews),
     openView: (id) => run(async () => {
+      if (s.surface === "sidebar") deps.setSurface?.("workspace"); // a restored sidebar mode (N21): the app follows
       s.surface = "workspace";
       await listViews();
       await openSaved(id);

@@ -1,5 +1,6 @@
 import { HEADBAR, sidebarFrame, WORKSPACE_FRAME } from "./sdk";
 import { createViewStore } from "./storage";
+import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
 import { blockStyle } from "./ui/block-style";
 import { createChanges, shareFeed } from "./ui/changes";
@@ -51,7 +52,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   let changes: ReturnType<typeof createChanges> | null = null; // created with the deferred registrations
   let visible = false; // the frame is shown: set by open / close and by the host's visibility event
   const host = deps.hostDocument(); // null when cross-origin: no host keys, no sidebar surface
-  /** Where Planner shows (N06a); session memory only. */
+  /** Where Planner shows (N06a); the workspace restores the graph's last one through `setSurface` on its first load (N21). */
   let surface: Surface = "workspace";
   /** Stops following the host's sidebar; null while not docked. */
   let undock: (() => void) | null = null;
@@ -87,7 +88,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   };
   const views = createViewStore(deps.storage); // one store for the workspace and the in-page blocks
   const openNode = nodeOpener({ ...deps, hideMainUI: close });
-  const workspace = createWorkspace(root, { dq: deps.dq, views, onClose: close, openNode, weekStart: deps.weekStart, kanban: deps.kanban, dates: deps.dates, timing, setSurface: host ? setSurface : undefined });
+  const workspace = createWorkspace(root, { dq: deps.dq, views, onClose: close, openNode, weekStart: deps.weekStart, kanban: deps.kanban, dates: deps.dates, timing, setSurface: host ? setSurface : undefined, prefs: createUiStore(deps.prefs) });
   // N06b: read-only views in pages, drawn into host slots; they redraw on graph changes whether Planner is shown or not.
   const blocks = createBlocks({ dq: deps.dq, views, weekStart: deps.weekStart, provideUI: deps.provideUI, host, doc });
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).
