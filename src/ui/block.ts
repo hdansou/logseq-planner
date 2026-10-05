@@ -9,7 +9,7 @@ import type { ListedView, SavedView, ViewStore } from "../storage";
 import type { MacroSlotEvent, TagInfo } from "../types";
 import { BLOCK_CLASS } from "./block-style";
 import type { HostDocument } from "./host-keys";
-import { esc } from "./html";
+import { esc, errorText } from "./html";
 import { blockSession, readViewData, renderViewArea, type Now } from "./view-area";
 import { localTime, localToday } from "./workspace";
 
@@ -145,7 +145,7 @@ export function createBlocks(deps: BlockDeps): Blocks {
   let running: Promise<void> | null = null;
 
   const show = (slot: string, template: string) => deps.provideUI({ key: `planner-block-${slot}`, slot, reset: true, template });
-  const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const message = errorText;
 
   const prune = () => {
     const host = deps.host;

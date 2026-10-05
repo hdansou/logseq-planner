@@ -23,7 +23,7 @@ import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, typ
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { UiPrefs, UiStore } from "../ui-state";
 import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
-import { checkList, esc, flag, menu as menuHtml, options } from "./html";
+import { checkList, errorText, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
@@ -496,7 +496,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null || s.datePending.size > 0 || tlDrag !== null;
 
-  const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+  const message = errorText;
 
   /**
    * Draws the workspace and never throws (T14): a render that fails puts its error in the error bar and draws again;
@@ -719,14 +719,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     try {
       await listViews();
     } catch (e) {
-      s.error = (e as Error).message;
+      s.error = message(e);
     }
     if (s.config) {
       try {
         s.config = withKnownTags(s.config, s.tags); // a gone tag is dropped from the view (N14)
         tagOf(s.config);
       } catch (e) {
-        s.error = `${(e as Error).message}. Showing the default view instead.`;
+        s.error = `${message(e)}. Showing the default view instead.`;
         s.config = null;
         s.viewId = null;
       }
@@ -786,7 +786,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       config = withDefaults(known, validateViewConfig(known, tags));
     } catch (e) {
       // The tag or a property the view uses is gone from the graph: show the default view, like open() does.
-      error = `${(e as Error).message}. Showing the default view instead.`;
+      error = `${message(e)}. Showing the default view instead.`;
       const t = initialTag(tags);
       config = t ? defaultViewConfig(t) : null;
       replaced = true;

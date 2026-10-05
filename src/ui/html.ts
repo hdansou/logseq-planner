@@ -56,3 +56,18 @@ export function options(label: string, items: { value: string; text: string }[],
     .map((o) => `<button type="button" role="option" class="pl-row" data-option="${esc(o.value)}" aria-selected="${o.value === current}">${esc(o.text)}</button>`)
     .join("")}</div>`;
 }
+
+/**
+ * An error as text for the error bar. The host rejects SDK calls with plain objects (`{message, data, …}`), not Errors
+ * (seen on the desktop app, N19), so `String(e)` would show "[object Object]".
+ */
+export function errorText(e: unknown): string {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "string") return e;
+  if (typeof e === "object" && e !== null && typeof (e as { message?: unknown }).message === "string") return (e as { message: string }).message;
+  try {
+    return JSON.stringify(e) ?? String(e);
+  } catch {
+    return "Unknown error";
+  }
+}
