@@ -407,10 +407,11 @@ Live-check method (web app):
 - [ ] **N34 Owner's own look before the release** — left from N19. (1) open: the owner is
       trying the new build in their own app (2026-10-04; their Logseq-DB.app had
       `planner-desktop` open). (2) done: the owner double-clicked the header, the window
-      zooms (A14). (3) open: O5. The owner saw no error and not the deleted tag, but "the
-      view that had the tag": to clarify. In a test instance (nightly, 2026-10-04): tag
-      deleted with Planner open: the default view at once, with "unknown tag … Showing the
-      default view instead"; after a restart the default view (#Stay tag) and no error.
+      zooms (A14). (3) O5 passes in a test instance (nightly, 2026-10-04): tag deleted while
+      Planner was hidden: after a restart the default view on the other tag, no error;
+      deleted while open: the default view at once with "unknown tag … Showing the default
+      view instead". The owner saw no error and not the deleted tag, but "the view that
+      had the tag": what the Tag control read is still to confirm with them.
       (4) done, nothing to report: on the stable app `addTagProperty` from a plugin adds
       the plugin's own property to its own tag, and a user property to a user tag when the
       property is given by ident or uuid; by bare name it answers "Not a valid property"
