@@ -664,6 +664,33 @@ describe("sidebar surface (N06a)", () => {
     expect(d.deps.prefs.write.mock.lastCall![0]).toBe("logseq_db_test");
   });
 
+  it("while the host's sidebar handle is dragged the frame takes no pointer events, so the drag is not lost over it (N19)", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
+    const resizer = d.sidebar.querySelector(".resizer")!;
+    const fire = (target: { dispatchEvent(e: unknown): boolean }, type: string) => target.dispatchEvent(new d.win.Event(type, { bubbles: true }));
+    const pointerEvents = () => d.deps.setFrame.mock.calls.map(([style]) => style.pointerEvents).filter((v) => v !== undefined);
+
+    fire(d.sidebar, "pointerdown"); // a press elsewhere in the sidebar is not a resize
+    expect(pointerEvents()).toEqual([]);
+    fire(resizer, "pointerdown");
+    expect(pointerEvents()).toEqual(["none"]);
+    fire(resizer, "pointerdown"); // already dragging
+    expect(pointerEvents()).toEqual(["none"]);
+    fire(d.win as never, "pointerup");
+    expect(pointerEvents()).toEqual(["none", "auto"]);
+    fire(d.win as never, "pointerup"); // no drag running
+    expect(pointerEvents()).toEqual(["none", "auto"]);
+
+    fire(resizer, "pointerdown");
+    switchTo("workspace"); // leaving the sidebar mode mid-drag gives the pointer back
+    expect(pointerEvents()).toEqual(["none", "auto", "none", "auto"]);
+    fire(resizer, "pointerdown"); // no longer followed
+    expect(pointerEvents()).toHaveLength(4);
+  });
+
   it("a cross-origin frame has no switch", async () => {
     const f = fakeDeps();
     registerApp(f.deps, root);

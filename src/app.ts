@@ -70,6 +70,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
         if (frame) deps.setFrame(frame);
       },
       onClosed: () => close(),
+      dragging: (on) => deps.setFrame({ pointerEvents: on ? "none" : "auto" }),
     });
   };
   /** Hides Planner; in the sidebar mode the host's sidebar stays as it is (its own content shows again). The mode is kept. */
