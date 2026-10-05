@@ -59,7 +59,13 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 - `npm run typecheck && npm test && npm run build` before every commit.
 - Check `npm view @logseq/libs@next` at the start of a session; bump the pin if needed.
 - Dev server: `npm run dev` on port 8293 (`--strictPort`); preview 8294.
-- Live checks use the `plugin-test` graph only.
+- Live checks use the `plugin-test` graph (web app) or `planner-desktop` and fresh throwaway graphs (desktop); never a
+  graph one of the owner's apps has open. Confirm the graph after every switch before opening Planner.
+- Commit only on a real exit code: `npm run typecheck && npm test && npm run build; echo $?`, never through a pipe or
+  `;` that hides a failure.
+- Before recommending a fix for a listed limitation, read its Progress log entry: the list in "Next" can be stale.
+- A visual choice (a line's shape, a layout): show the owner two or three small sketches and ask, before building.
+- Unit tests do not close a UI item: say "unit tests only" in tasks.md until it was seen in an app, and on which build.
 
 ## Repo-specific gotchas (DO NOT UNDO)
 
