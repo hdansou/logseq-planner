@@ -9,13 +9,24 @@ first (TDD); UI items are accepted on what renders; docs land in the same commit
 code; `npm run typecheck`, `npm test` and `npm run build` pass at every commit. Commit
 subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
-## Resume here (updated 2026-10-03, end of the third session)
+## Resume here (updated 2026-10-05, end of the session of 2026-10-04)
 
-State: every v1 item below (T00–T14) and the performance item T13a are done; so are N02 (as far
-as the web app allows) and N03 (a) and (b). 504 unit tests pass at `da5d181` plus the docs commits after it. No remote, nothing pushed.
-The full checklist was run in the Logseq WEB app (dev build of the main checkout at
-d2ab7726ab, 2026-09-02, in-memory graph); a focused pass was run on the desktop app 2.0.1 nightly
-(8ffbb22, 2026-10-01) with the CLI-seeded graph `planner-desktop` (kept for re-runs). docs/manual-test.md: A–I 117 pass, 6 partial, 3 not run; J 15 pass.
+State: everything is done except N34 part 1 (the owner's own try of the current build) and
+N05 (the release, on the owner's go-ahead). 1008 unit tests pass at `f71adad` plus the docs
+commits after it. No remote, nothing pushed. Upstream reports filed: logseq/db-test#1399
+(CLI writes leave `:block/refs` empty) and #1400 (`createJournalPage("YYYY-MM-DD")` a day
+early west of UTC); watch them for replies.
+What the session of 2026-10-04 added: curved connectors (N20), saved-view Update and delete
+confirmation (N23), per-graph remembered state (N21), arrow keys in popovers (N29), a
+shared task under each node in the Agenda (N30), a CSP on the built page (N33), and a pass
+on the stable Logseq.app with real mouse input (N19) that found and fixed three bugs
+there (sidebar handle drag, Date edits, "[object Object]"). The owner's decisions (N03,
+N25-N33) are recorded on each item.
+Checked where: the full checklist in the Logseq WEB app (dev build d2ab7726ab); focused
+passes on the desktop nightly (8ffbb22) and on the stable Logseq.app (b09316a): see
+docs/manual-test.md, "Stable app pass". The owner uses both desktop apps. Test graph
+`planner-desktop` (kept; modified by the passes). The `logseq` CLI follows whichever app
+started last: `npm run tracker` may need `--revision <rev>`.
 
 Read in this order: this section, "Next" below, then the Progress log entry of whatever
 you touch (it records what was verified live, the decisions taken and what was not
