@@ -95,6 +95,7 @@ function renderMoveMenu(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout
 function renderCard(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout, moveOpen: string | null): string {
   const pct = card.progress.total ? Math.round((card.progress.done / card.progress.total) * 100) : null;
   const meta = [
+    card.tag ? `<span class="pl-kb-tag">${esc(card.tag)}</span>` : "",
     card.progress.total ? `<span>${card.progress.done}/${card.progress.total} tasks</span>` : "",
     card.priority ? `<span class="pl-kb-priority" data-priority="${esc(card.priority.key)}">${esc(card.priority.title)}</span>` : "",
     ...card.meta.map((m) => `<span>${esc(m)}</span>`),

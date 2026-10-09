@@ -464,7 +464,10 @@ Live-check method (web app):
       wraps to three lines and the column stays 320. Not seen: the owner's own board; with the
       panel open only ~2.5 columns fit a 1960 px window (maybe 280 px later).
 - [ ] **N38 Kanban cards: tag and property values** — owner request 2026-10-09. (1) Tag
-      chip on the card (`PlannerNode.tag`), when the view has two or more tags.
+      chip on the card (`PlannerNode.tag`), when the view has two or more tags. DONE
+      2026-10-09, seen live (#Task + #Project on `planner-project`: "#Task" / "#Project" first
+      in each card's meta line; none with one tag): `KanbanInput.tagTitles`, `KanbanCard.tag`,
+      `.pl-kb-tag`, also in the card's aria label.
       (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,
       saved in the view config (versioned JSON, old configs keep working); `nodePull` and
       `normalize.ts` carry the extra values. Do (1) first. After N37 (card height).

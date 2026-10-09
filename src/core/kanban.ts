@@ -60,6 +60,8 @@ export interface KanbanCard {
   progress: Rollup;
   /** Values of the tag's other choice properties (not the column, lane or priority property), in property order. */
   meta: string[];
+  /** "#Tag" of the view tag the node belongs to (N38), only in a view of two or more tags; null otherwise. */
+  tag: string | null;
   /** The node's Priority value (`key` = last ident segment for built-ins, else the lower-case title). */
   priority: { title: string; key: string } | null;
   /** Its move is being written: shown in the target, not draggable. */
@@ -105,6 +107,8 @@ export interface KanbanInput {
   pending: ReadonlySet<string>;
   /** Keys of the columns not shown (value uuids, `NO_VALUE`); unknown keys are ignored. */
   hidden: readonly string[];
+  /** "#Title" by tag ident, given for a view of two or more tags: cards then name their tag (N38). */
+  tagTitles?: ReadonlyMap<string, string>;
 }
 
 /**
@@ -171,9 +175,10 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     const meta = input.choiceProps.filter((p) => !own.has(p.ident)).map((p) => node.choices[p.ident]?.title).filter((t): t is string => !!t);
     const pv = priority ? node.choices[priority.ident] : undefined;
     const pri = pv ? { title: pv.title, key: pv.ident ? pv.ident.split(".").pop()! : pv.title.trim().toLowerCase() } : null;
-    const label = [title, when, progress.total ? `${progress.done} of ${progress.total} tasks done` : "", pri && `${pri.title} priority`, ...meta, done && "done"]
+    const tag = input.tagTitles?.get(node.tag) ?? null;
+    const label = [title, tag, when, progress.total ? `${progress.done} of ${progress.total} tasks done` : "", pri && `${pri.title} priority`, ...meta, done && "done"]
       .filter(Boolean).join(", ");
-    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, priority: pri, pending: input.pending.has(node.uuid), label };
+    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, tag, priority: pri, pending: input.pending.has(node.uuid), label };
   };
 
   const rows = (laneProp ? lanes : [null]).map((lane) => ({ lane, cells: columns.map((column): KanbanCell => ({ column, lane, cards: [] })) }));

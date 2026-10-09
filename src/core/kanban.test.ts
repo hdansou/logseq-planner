@@ -480,3 +480,16 @@ describe("Tag swimlanes (N14)", () => {
     expect((await project({ laneProp: choiceProp(tag("Project"), "Owner") })).lanesReadOnly).toBe(false);
   });
 });
+
+describe("card tag (N38)", () => {
+  it("a card names the view tag it belongs to when the layout is given tag titles, else none", async () => {
+    const plain = await project();
+    expect(findCell(plain, colKey(tag("Project"), "Status", "Doing"), null).cards.map((c) => c.tag)).toEqual(
+      findCell(plain, colKey(tag("Project"), "Status", "Doing"), null).cards.map(() => null));
+    const titled = await project({ tagTitles: new Map([[tag("Project").ident, "#Project"]]) });
+    const cards = titled.columns.flatMap((c) => findCell(titled, c.key, null).cards);
+    expect(cards.length).toBeGreaterThan(0);
+    expect(new Set(cards.map((c) => c.tag))).toEqual(new Set(["#Project"]));
+    expect(cards.every((c) => c.label.includes("#Project"))).toBe(true);
+  });
+});

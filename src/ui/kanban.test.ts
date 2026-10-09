@@ -455,3 +455,19 @@ describe("column width (N37)", () => {
     expect(title).toContain("overflow-wrap: anywhere");
   });
 });
+
+describe("card tag (N38)", () => {
+  it("one tag: no chip on the cards", () => {
+    expect($$(".pl-kb-tag")).toHaveLength(0);
+  });
+
+  it("two or more tags: each card shows the tag it belongs to, first in its meta line", async () => {
+    await click(`[data-tag-id="${tag("Client project").id}"]`);
+    await click(`[data-tag-check="${tag("Project").id}"]`);
+    expect(card(ACME).querySelector(".pl-kb-tag")!.textContent).toBe("#Client project");
+    const other = $$("[data-kb-card]").find((c) => c.dataset.kbCard !== ACME)!;
+    expect(other.querySelector(".pl-kb-tag")!.textContent).toBe("#Project");
+    expect(card(ACME).querySelector(".pl-kb-meta")!.firstElementChild!.classList.contains("pl-kb-tag")).toBe(true);
+    expect(card(ACME).querySelector(".pl-kb-open")!.getAttribute("aria-label")).toContain("#Client project");
+  });
+});

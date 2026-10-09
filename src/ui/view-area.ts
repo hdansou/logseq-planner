@@ -217,6 +217,7 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
     columnProp: kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
     choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
     hidden: c.hiddenColumns[c.columnProp] ?? [],
+    tagTitles: a.view.tags.length > 1 ? new Map(a.view.tags.map((t) => [t.ident, `#${t.title}`])) : undefined,
   });
 }
 
