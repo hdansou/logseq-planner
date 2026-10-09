@@ -429,7 +429,7 @@ Live-check method (web app):
       property is given by ident or uuid; by bare name it answers "Not a valid property"
       (names resolve in the plugin's namespace). From the host page `add_tag_property`
       worked by uuid and by title; "Not a valid tag" was not reproduced.
-- [x] **N35 Edit dates: say what it does** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. Clicking "Edit dates"
+- [x] **N35 Edit dates: say what it does** — done 2026-10-09, seen live on the nightly (planner-project, Workspace surface, 2026-10-09); owner request. Clicking "Edit dates"
       in the Timeline toolbar looks like nothing happened: it only flips the toggle (N06c);
       the one hint, `#pl-tl-edit-help`, is hidden for screen readers. Show it: a visible
       hint next to the toggle while on ("Drag a bar to move it, an end to resize it"),
@@ -437,18 +437,22 @@ Live-check method (web app):
       first (owner rule). Built the small version without sketches: while on, a visible
       hint "Drag a bar to move it, drag an end to resize it" (`data-tl-edit-hint`, `.pl-hint`)
       follows the toggle, and the resize handles show a faint tint (grab cursor existed).
-      Left: look at it in the sidebar width, where the toolbar wraps.
-- [x] **N36 Timeline: read the full title** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. The label column is
+      Seen live: hint appears and goes with the toggle, handles tinted. Left: the sidebar
+      width, where the toolbar wraps.
+- [x] **N36 Timeline: read the full title** — done 2026-10-09, seen live on the nightly (planner-project, Workspace surface, 2026-10-09); owner request. The label column is
       fixed (`--pl-tl-label-w: 240px`) and titles end in an ellipsis. Two ways, probably
       both: wrap titles to two lines, and a draggable divider that sets the label width
       (remembered per view or per graph, N21). Watch: taller rows must keep the bar tracks,
       today line and `drawLinks` connectors aligned. Same wrapping rules as N37.
       Built (owner picked "wrap + resizable divider"): titles clamp at two lines; a divider
-      `data-tl-resize` on the head corner drags `--pl-tl-label-w` (140-640 px, double-click
+      `data-tl-resize` on the head corner drags `--pl-tl-label-w` (160-640 px, double-click
       resets), kept per graph in `UiPrefs.labelWidth`, not in a saved view; the in-page block
-      has no divider. Pointer only (the head is `aria-hidden`). Not yet seen: row height
-      with connectors, Day zoom, narrow sidebar.
-- [x] **N37 Kanban: narrow columns, taller cards** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. A column can
+      has no divider. Pointer only (the head is `aria-hidden`). Seen live: drag to the
+      minimum wraps "Decisions and follow-ups" to two rows (41 px), today line still on
+      the bar grid, reload restores the width, double-click resets. Live check moved the
+      minimum 140 -> 160 px ("Decisions" broke mid-word at 140). Not seen: connectors
+      with wrapped rows, Day zoom, narrow sidebar.
+- [x] **N37 Kanban: narrow columns, taller cards** — done 2026-10-09, seen live on the nightly (planner-project, Workspace surface, 2026-10-09); owner request. A column can
       be ~800 px wide (two columns fill the workspace). `.pl-kb` is `minmax(220px, 1fr)`
       with `width: max-content`; the title is already nowrap + ellipsis, so find in the app
       what stretches the track before fixing. Target: columns ~280 px (decide), titles wrap,
@@ -456,7 +460,9 @@ Live-check method (web app):
       for many columns. Cause found: `white-space: nowrap` titles in a `width: max-content`
       grid, so the longest title anywhere sized every `1fr` column. Fix without sketches
       (owner said go ahead): columns `minmax(240px, 320px)`, left-aligned, titles wrap to
-      three lines (`-webkit-line-clamp: 3`), cards grow. Not yet seen: the owner's board.
+      three lines (`-webkit-line-clamp: 3`), cards grow. Seen live (#Project, 7 columns): every column 320 px; a 120-character title
+      wraps to three lines and the column stays 320. Not seen: the owner's own board; with the
+      panel open only ~2.5 columns fit a 1960 px window (maybe 280 px later).
 - [ ] **N38 Kanban cards: tag and property values** — owner request 2026-10-09. (1) Tag
       chip on the card (`PlannerNode.tag`), when the view has two or more tags.
       (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,

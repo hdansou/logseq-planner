@@ -79,7 +79,7 @@ describe("labelWidth (N36)", () => {
   it("is kept within the range a drag may set, and null otherwise", () => {
     expect(parsePrefs({ labelWidth: 300 }).labelWidth).toBe(300);
     expect(parsePrefs({ labelWidth: 5000 }).labelWidth).toBe(640);
-    expect(parsePrefs({ labelWidth: 10 }).labelWidth).toBe(140);
+    expect(parsePrefs({ labelWidth: 10 }).labelWidth).toBe(160);
     expect(parsePrefs({ labelWidth: "wide" }).labelWidth).toBeNull();
     expect(parsePrefs({ labelWidth: NaN }).labelWidth).toBeNull();
   });
