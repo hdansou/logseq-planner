@@ -381,8 +381,8 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(kanbanCss).not.toMatch(/\[hidden\]/);
   });
 
-  it("the board scrolls sideways inside the view: fixed-minimum columns, the board as wide as its columns", () => {
-    expect(kanbanCss).toMatch(/\.pl-kb\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--pl-kb-cols\),\s*minmax\(220px,\s*1fr\)\)/);
+  it("the board scrolls sideways inside the view: capped-width columns, the board as wide as its columns", () => {
+    expect(kanbanCss).toMatch(/\.pl-kb\s*\{[^}]*grid-template-columns:\s*repeat\(var\(--pl-kb-cols\),\s*minmax\(240px,\s*320px\)\)/);
     expect(kanbanCss).toMatch(/\.pl-kb\s*\{[^}]*width:\s*max-content;[^}]*min-width:\s*100%/);
     expect($("[data-kanban]")!.getAttribute("style")).toContain("--pl-kb-cols: 7");
   });
@@ -435,5 +435,23 @@ describe("Tag swimlanes (N14)", () => {
     await click(`[data-kb-move="${ACME}"]`);
     expect($$("[data-popover=kb-move] [data-kb-to-col]").length).toBeGreaterThan(0);
     expect($$("[data-popover=kb-move] [data-kb-to-lane]")).toHaveLength(0);
+  });
+});
+
+describe("column width (N37)", () => {
+  const rule = (sel: string) => kanbanCss.match(new RegExp(`${sel.replace(/\./g, "\\.")} \\{[^}]*\\}`))![0];
+
+  it("columns have a capped width, so one long title cannot stretch the board", () => {
+    const board = rule(".pl-kb");
+    expect(board).toMatch(/minmax\(\d+px, \d+px\)/);
+    expect(board).not.toContain("1fr");
+    expect(board).toContain("justify-content: start");
+  });
+
+  it("a card title wraps (at most three lines) instead of widening its column", () => {
+    const title = rule(".pl-kb-title");
+    expect(title).not.toContain("nowrap");
+    expect(title).toContain("-webkit-line-clamp: 3");
+    expect(title).toContain("overflow-wrap: anywhere");
   });
 });

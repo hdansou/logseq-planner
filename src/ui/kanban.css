@@ -1,9 +1,9 @@
 /* Kanban (T11; docs/design.md "Panels and cards"). Tokens only: every colour is a --pl-* variable from theme.css; the
    node's category colour arrives as --pl-node-hue from [data-cat] (theme.css).
    One grid: a header row of columns, then per lane a lane heading across the board and one cell per column. Columns
-   keep a 220px minimum and the board is as wide as its columns, so a wide board scrolls sideways inside .pl-view
-   (overflow: auto), never the page. */
-.pl-kb { display: grid; grid-template-columns: repeat(var(--pl-kb-cols), minmax(220px, 1fr)); width: max-content; min-width: 100%;
+   are 240-320px wide (N37: a title cannot stretch them; it wraps and the card grows), so several sit side by side and a
+   board with many scrolls sideways inside .pl-view (overflow: auto), never the page. */
+.pl-kb { display: grid; grid-template-columns: repeat(var(--pl-kb-cols), minmax(240px, 320px)); justify-content: start; width: max-content; min-width: 100%;
   gap: 8px 10px; align-items: start; }
 
 /* Column headers stick to the top of the scrolling view  */
@@ -46,7 +46,8 @@
 .pl-kb-open:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-kb-title-row { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .pl-kb-dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--pl-node-hue); }
-.pl-kb-title { min-width: 0; font-size: 14px; font-weight: 600; line-height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-kb-title { min-width: 0; font-size: 14px; font-weight: 600; line-height: 20px; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
 .pl-kb-card[data-done] .pl-kb-title { color: var(--pl-label-done); text-decoration: line-through; }
 .pl-kb-meter { display: block; height: 4px; border-radius: 2px; background: var(--pl-fill-strong); overflow: hidden; }
 .pl-kb-meter i { display: block; height: 100%; background: var(--pl-node-hue); }

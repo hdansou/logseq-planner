@@ -448,12 +448,15 @@ Live-check method (web app):
       resets), kept per graph in `UiPrefs.labelWidth`, not in a saved view; the in-page block
       has no divider. Pointer only (the head is `aria-hidden`). Not yet seen: row height
       with connectors, Day zoom, narrow sidebar.
-- [ ] **N37 Kanban: narrow columns, taller cards** — owner request 2026-10-09. A column can
+- [x] **N37 Kanban: narrow columns, taller cards** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. A column can
       be ~800 px wide (two columns fill the workspace). `.pl-kb` is `minmax(220px, 1fr)`
       with `width: max-content`; the title is already nowrap + ellipsis, so find in the app
       what stretches the track before fixing. Target: columns ~280 px (decide), titles wrap,
       cards grow in height, several columns visible without horizontal scroll; scroll only
-      for many columns. Sketch first.
+      for many columns. Cause found: `white-space: nowrap` titles in a `width: max-content`
+      grid, so the longest title anywhere sized every `1fr` column. Fix without sketches
+      (owner said go ahead): columns `minmax(240px, 320px)`, left-aligned, titles wrap to
+      three lines (`-webkit-line-clamp: 3`), cards grow. Not yet seen: the owner's board.
 - [ ] **N38 Kanban cards: tag and property values** — owner request 2026-10-09. (1) Tag
       chip on the card (`PlannerNode.tag`), when the view has two or more tags.
       (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,
