@@ -429,6 +429,46 @@ Live-check method (web app):
       property is given by ident or uuid; by bare name it answers "Not a valid property"
       (names resolve in the plugin's namespace). From the host page `add_tag_property`
       worked by uuid and by title; "Not a valid tag" was not reproduced.
+- [x] **N35 Edit dates: say what it does** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. Clicking "Edit dates"
+      in the Timeline toolbar looks like nothing happened: it only flips the toggle (N06c);
+      the one hint, `#pl-tl-edit-help`, is hidden for screen readers. Show it: a visible
+      hint next to the toggle while on ("Drag a bar to move it, an end to resize it"),
+      a grab cursor / visible handles on editable bars, a clearer pressed state. Sketch
+      first (owner rule). Built the small version without sketches: while on, a visible
+      hint "Drag a bar to move it, drag an end to resize it" (`data-tl-edit-hint`, `.pl-hint`)
+      follows the toggle, and the resize handles show a faint tint (grab cursor existed).
+      Left: look at it in the sidebar width, where the toolbar wraps.
+- [ ] **N36 Timeline: read the full title** — owner request 2026-10-09. The label column is
+      fixed (`--pl-tl-label-w: 240px`) and titles end in an ellipsis. Two ways, probably
+      both: wrap titles to two lines, and a draggable divider that sets the label width
+      (remembered per view or per graph, N21). Watch: taller rows must keep the bar tracks,
+      today line and `drawLinks` connectors aligned. Same wrapping rules as N37.
+- [ ] **N37 Kanban: narrow columns, taller cards** — owner request 2026-10-09. A column can
+      be ~800 px wide (two columns fill the workspace). `.pl-kb` is `minmax(220px, 1fr)`
+      with `width: max-content`; the title is already nowrap + ellipsis, so find in the app
+      what stretches the track before fixing. Target: columns ~280 px (decide), titles wrap,
+      cards grow in height, several columns visible without horizontal scroll; scroll only
+      for many columns. Sketch first.
+- [ ] **N38 Kanban cards: tag and property values** — owner request 2026-10-09. (1) Tag
+      chip on the card (`PlannerNode.tag`), when the view has two or more tags.
+      (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,
+      saved in the view config (versioned JSON, old configs keep working); `nodePull` and
+      `normalize.ts` carry the extra values. Do (1) first. After N37 (card height).
+- [ ] **N39 Less chrome: a focus / compact mode** — owner request 2026-10-09. In the
+      sidebar surface the top bar, settings bar and view toolbar take ~350 px of ~1100.
+      Options (sketch two or three, owner picks): collapsible settings bar with a one-line
+      summary (recommended), a focus mode that hides all bars to a thin strip, settings
+      moved into the Panel, responsive icon buttons. State remembered per graph and per
+      surface (N21 `UiPrefs`); a clear way back to the controls.
+- [ ] **N40 Sidebar surface beside the native right sidebar** — owner request 2026-10-09.
+      Toggling Logseq's native right sidebar while Planner is docked overlaps it. Reference:
+      `logseq-dev/plugin-dev/logseq-outline-canvas` (`src/index.ts` ~472-552, "mirror"
+      mode): reserve the strip with host CSS (`provideStyle`, `margin-right` on
+      `#app-container-wrapper`), so the native sidebar opens to its left; the two open and
+      close independently; width drag sets iframe and margin together. Changes N06a / N19:
+      the host closing its sidebar no longer closes Planner, opening Planner no longer
+      forces it open; `sidebarFrame` / `dock.ts` and their tests change. Decide the width
+      model (fixed strip or draggable). Live test on the nightly and the stable app.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

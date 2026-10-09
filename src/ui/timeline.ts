@@ -52,13 +52,18 @@ function dayAttrs(layout: TimelineLayout, expanded: ReadonlySet<number>): string
 /** Track → grid line (column 1 is the label column). */
 const col = (index: number) => index + 2;
 
+/** N35: the visible line next to the Edit dates toggle while it is on (the full help stays hidden for screen readers). */
+function editHint(editing: boolean): string {
+  return editing ? `<span class="pl-hint" data-tl-edit-hint>Drag a bar to move it, drag an end to resize it</span>` : "";
+}
+
 /**
  * Range navigation, the Edit dates toggle (N06c: `data-tl-edit`, pressed while the layout is editing) and Zoom; with two
  * or more tags (`arrange` not null, N14) also the Arrange control (`data-tl-arrange`).
  */
 export function renderTimelineToolbar(layout: TimelineLayout, arrange: Arrange | null): string {
   const arranged = arrange === null ? "" : segmented("Arrange", "tl-arrange", ARRANGE_ITEMS, arrange);
-  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + toggleButton("Edit dates", "tl-edit", layout.editing) + arranged
+  return viewNav("tl", layout.range.label) + `<span class="pl-spacer"></span>` + toggleButton("Edit dates", "tl-edit", layout.editing) + editHint(layout.editing) + arranged
     + segmented("Zoom", "tl-zoom", ZOOMS, layout.zoom);
 }
 

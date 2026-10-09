@@ -472,6 +472,17 @@ describe("Edit dates markup (N06c)", () => {
     expect(html(renderTimelineToolbar(l, null)).querySelector("[data-tl-edit]")!.getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("the toolbar says what Edit dates does while it is on, and nothing while it is off (N35)", async () => {
+    const off = html(renderTimelineToolbar(await layoutOf(false), null));
+    expect(off.querySelector("[data-tl-edit-hint]")).toBeNull();
+    const on = html(renderTimelineToolbar(await layoutOf(true), null));
+    const hint = on.querySelector("[data-tl-edit-hint]")!;
+    expect(hint.textContent).toBe("Drag a bar to move it, drag an end to resize it");
+    expect(hint.classList.contains("pl-hint")).toBe(true);
+    expect(hint.hasAttribute("hidden")).toBe(false);
+    expect(on.querySelector("[data-tl-edit]")!.nextElementSibling).toBe(hint);
+  });
+
   it("on: editable bars carry handles inside and the one description; points move only; the toggle pressed", async () => {
     const l = await layoutOf(true);
     const d = html(renderTimeline(l, "#Project", NONE_SHOWN));

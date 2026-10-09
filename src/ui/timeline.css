@@ -118,6 +118,7 @@
 .pl-tl-handle { position: absolute; top: 0; bottom: 0; z-index: 1; width: 6px; cursor: ew-resize; }
 .pl-tl-handle[data-tl-handle="start"] { left: 0; }
 .pl-tl-handle[data-tl-handle="end"] { right: 0; }
+.pl-tl-handle { background: color-mix(in srgb, var(--pl-node-hue) 35%, transparent); }
 .pl-tl-handle:hover, [data-tl-dragging] > .pl-tl-handle { background: var(--pl-node-hue); }
 [data-tl-dragging] { cursor: grabbing; box-shadow: 0 0 0 2px var(--pl-ring); }
 .pl-tl-bar[data-tl-pending], .pl-tl-diamond[data-tl-pending] { opacity: .6; cursor: progress; }
