@@ -88,7 +88,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 - **Remembered per graph** (N21, the owner's decision on 2026-10-04: all of it). Planner opens on a graph as it was
   left there: the view on screen (its tags and settings, and the saved view it belongs to), the side panel open or
   closed (wide and narrow apart), the surface, and Edit dates. Kept in the plugin's settings on this device, one entry
-  per graph, never written into the graph; not synced. A graph never used opens with the defaults. Stored settings
+  per graph. N41 (2026-10-09, the owner's decision): the view on screen and the Timeline's title column width are also
+  written into the graph (a hidden property of the "Planner views" page) and follow it to other devices; the graph's
+  copy wins on open. Panel, surface and Edit dates stay on the device. A graph never used opens with the defaults. Stored settings
   that cannot be read, or that name a tag that is gone, give the default view without an error. Not remembered: the
   period on screen, expanded and collapsed rows, open menus.
 - **Surfaces** (N06a). Planner shows in the **workspace** (the window under the app header, the

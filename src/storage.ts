@@ -8,6 +8,8 @@ import type { StorageDeps, ViewBlock } from "./types";
 export const PAGE_TITLE = "Planner views";
 /** Property name: the host strips spaces and the name is its visible title, so it is specific and hyphenated (gotcha §29). */
 export const CONFIG_KEY = "planner-view-config";
+/** N41: the hidden property on the same page that holds the UI state following the graph (the view on screen, title width). */
+export const STATE_KEY = "planner-ui-state";
 
 export interface SavedView {
   /** The block uuid. */

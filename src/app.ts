@@ -89,7 +89,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   };
   const views = createViewStore(deps.storage); // one store for the workspace and the in-page blocks
   const openNode = nodeOpener({ ...deps, hideMainUI: close });
-  const workspace = createWorkspace(root, { dq: deps.dq, views, onClose: close, openNode, weekStart: deps.weekStart, kanban: deps.kanban, dates: deps.dates, timing, setSurface: host ? setSurface : undefined, prefs: createUiStore(deps.prefs) });
+  const workspace = createWorkspace(root, { dq: deps.dq, views, onClose: close, openNode, weekStart: deps.weekStart, kanban: deps.kanban, dates: deps.dates, timing, setSurface: host ? setSurface : undefined, prefs: createUiStore(deps.prefs, deps.graphState) });
   // N06b: read-only views in pages, drawn into host slots; they redraw on graph changes whether Planner is shown or not.
   const blocks = createBlocks({ dq: deps.dq, views, weekStart: deps.weekStart, provideUI: deps.provideUI, host, doc });
   // The first show loads the workspace; every later refresh is the quiet reload (src/ui/changes.ts decides when).

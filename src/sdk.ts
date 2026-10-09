@@ -3,8 +3,8 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { CONFIG_KEY, configSchemaFor } from "./storage";
-import type { UiStateDeps } from "./ui-state";
+import { CONFIG_KEY, configSchemaFor, PAGE_TITLE, STATE_KEY } from "./storage";
+import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
 /**
@@ -94,6 +94,7 @@ export const appDeps = (): AppDeps => ({
   dq: (query, ...inputs) => datascriptQuery(query, ...inputs),
   storage: storageDeps(),
   prefs: uiStateDeps(),
+  graphState: graphStateDeps(),
   kanban: kanbanWriteDeps(),
   dates: dateWriteDeps(),
   changes: changesSdk(),
@@ -177,6 +178,44 @@ export const uiStateDeps = (): UiStateDeps => ({
   write: (graph, prefs) => logseq.updateSettings({ [UI_STATE_KEY]: { [graph]: prefs } }),
 });
 
+/** Makes sure `key` exists as a hidden string property (never changes an existing type); before every write of it. */
+async function ensureHiddenString(key: string): Promise<void> {
+  const existing = (await logseq.Editor.getProperty(key).catch(() => null)) as Record<string, unknown> | null;
+  const schema = configSchemaFor(existing ? { type: existing.type as string | undefined, hide: existing["hide?"] === true || existing.hide === true } : null);
+  // Host `upsert_property` takes these keys; the typings are narrower (Query Builder src/sdk.ts).
+  if (schema) await logseq.Editor.upsertProperty(key, schema as never);
+}
+
+/**
+ * N41: the UI state that follows the graph, a hidden string property on the "Planner views" page (the page entity takes
+ * `upsertBlockProperty` by uuid; probed live on the nightly 2026-10-09: write, read back, remove, and the page's blocks
+ * are unchanged). Written only after a change, read back every time.
+ */
+export const graphStateDeps = (): GraphStateDeps => {
+  const find = async () => {
+    const rows = (await datascriptQuery(pageQuery(PAGE_TITLE))) as unknown[][];
+    return rows.length > 0 ? String(rows[0][0]) : null;
+  };
+  return {
+    read: async () => {
+      const page = await find();
+      const raw = page ? await logseq.Editor.getBlockProperty(page, STATE_KEY) : null;
+      return typeof raw === "string" ? raw : null;
+    },
+    write: async (text) => {
+      let page = await find();
+      if (!page) {
+        await logseq.Editor.createPage(PAGE_TITLE, {}, { redirect: false, createFirstBlock: false });
+        page = await find();
+      }
+      if (!page) throw new Error(`Page "${PAGE_TITLE}" could not be created (is it in Recycle?)`);
+      await ensureHiddenString(STATE_KEY);
+      await logseq.Editor.upsertBlockProperty(page, STATE_KEY, text);
+      if ((await logseq.Editor.getBlockProperty(page, STATE_KEY) as unknown) !== text) throw new Error("UI state was not stored (read back differs)");
+    },
+  };
+};
+
 export const storageDeps = (): StorageDeps => ({
   // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
   findPage: async (title) => {
@@ -184,12 +223,7 @@ export const storageDeps = (): StorageDeps => ({
     return rows.length > 0 ? String(rows[0][0]) : null;
   },
   createPage: async (title) => void (await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false })),
-  ensureConfigProperty: async () => {
-    const existing = (await logseq.Editor.getProperty(CONFIG_KEY).catch(() => null)) as Record<string, unknown> | null;
-    const schema = configSchemaFor(existing ? { type: existing.type as string | undefined, hide: existing["hide?"] === true || existing.hide === true } : null);
-    // Host `upsert_property` takes these keys; the typings are narrower (Query Builder src/sdk.ts).
-    if (schema) await logseq.Editor.upsertProperty(CONFIG_KEY, schema as never);
-  },
+  ensureConfigProperty: () => ensureHiddenString(CONFIG_KEY),
   listBlocks: async (pageUuid) => {
     const tree = (await logseq.Editor.getPageBlocksTree(pageUuid)) ?? [];
     return Promise.all(tree.map((b) => toViewBlock(b as never)));

@@ -29,6 +29,35 @@ export interface UiStateDeps {
   write(graph: string, prefs: UiPrefs): void | Promise<void>;
 }
 
+/**
+ * N41: the part of the state that follows the graph (the view on screen and the title column width), kept in a hidden
+ * property of the "Planner views" page. The rest (panel, surface, Edit dates) depends on the device and stays in settings.
+ */
+export interface GraphStateDeps {
+  /** The stored text, or null when the graph has none (no page, no property). */
+  read(): Promise<string | null>;
+  /** Stores the text, creating the page and the property when needed, and reads it back; rejects when it differs. */
+  write(text: string): Promise<void>;
+}
+
+type GraphState = Pick<UiPrefs, "view" | "labelWidth">;
+
+export const graphStateText = (p: UiPrefs): string => JSON.stringify({ v: 1, view: p.view, labelWidth: p.labelWidth });
+
+/** Stored graph text → the state it holds; null for no text, bad JSON or another version. Never throws. */
+export function parseGraphState(text: string | null): GraphState | null {
+  if (text === null) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isObject(raw) || raw.v !== 1) return null;
+  const { view, labelWidth } = parsePrefs({ view: raw.view, labelWidth: raw.labelWidth });
+  return { view, labelWidth };
+}
+
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 
 /** Stored prefs → `UiPrefs`: every well-formed part is kept, anything else gets its default. Never throws. */
@@ -52,9 +81,28 @@ export function parsePrefs(raw: unknown): UiPrefs {
 
 export type UiStore = ReturnType<typeof createUiStore>;
 
-export function createUiStore(deps: UiStateDeps) {
+export function createUiStore(deps: UiStateDeps, graph?: GraphStateDeps) {
   /** The graph the last `load` was for: `save` writes there. */
   let key: string | null = null;
+  /** The graph text last read or handed to a write; a save writes the graph only when its text differs. */
+  let graphText = "";
+  let waiting: string | null = null;
+  let writing = false;
+  /** Writes the latest waiting text, one at a time; a failed write is dropped and the next save tries again. */
+  const flush = async () => {
+    if (writing || !graph) return;
+    writing = true;
+    while (waiting !== null) {
+      const text = waiting;
+      waiting = null;
+      try {
+        await graph.write(text);
+      } catch {
+        // best effort: the device copy still has the state
+      }
+    }
+    writing = false;
+  };
   return {
     /** The open graph's prefs (the defaults when it has none or they cannot be read). Call on every first load of a graph. */
     async load(): Promise<UiPrefs> {
@@ -62,7 +110,16 @@ export function createUiStore(deps: UiStateDeps) {
       try {
         key = await deps.graph();
         const all = deps.read();
-        return parsePrefs(key !== null && isObject(all) ? all[key] : undefined);
+        const prefs = parsePrefs(key !== null && isObject(all) ? all[key] : undefined);
+        if (graph) {
+          try {
+            Object.assign(prefs, parseGraphState(await graph.read())); // the graph's view and width win over this device's
+          } catch {
+            // no page or no property: this device's copy
+          }
+          graphText = graphStateText(prefs);
+        }
+        return prefs;
       } catch {
         return parsePrefs(undefined);
       }
@@ -70,6 +127,11 @@ export function createUiStore(deps: UiStateDeps) {
     /** Stores the prefs of the graph last loaded; nothing before a load or without a graph. A failed write is dropped. */
     save(prefs: UiPrefs): void {
       if (key === null) return;
+      if (graph && graphStateText(prefs) !== graphText) {
+        graphText = graphStateText(prefs);
+        waiting = graphText;
+        void flush();
+      }
       try {
         void Promise.resolve(deps.write(key, prefs)).catch(() => {});
       } catch {

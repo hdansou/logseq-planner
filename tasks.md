@@ -483,6 +483,19 @@ Live-check method (web app):
       the host closing its sidebar no longer closes Planner, opening Planner no longer
       forces it open; `sidebarFrame` / `dock.ts` and their tests change. Decide the width
       model (fixed strip or draggable). Live test on the nightly and the stable app.
+- [x] **N41 UI state follows the graph** — done 2026-10-09, seen live on the nightly
+      (`planner-project`); owner request ("let's write in the graph", views are graph-specific).
+      The on-screen view and the Timeline title width (N36) are written into the graph: hidden
+      string property `planner-ui-state` on the "Planner views" page (`STATE_KEY`; JSON
+      `{v:1, view, labelWidth}`), `graphStateDeps()` in sdk.ts, `GraphStateDeps` + `graphStateText` /
+      `parseGraphState` in ui-state.ts. Panel, surface and Edit dates stay in device settings
+      (owner's choice). `load`: the graph's copy wins, else this device's (migration); `save`: the
+      graph is written only when view or width changed, one write at a time, latest state wins,
+      a failure is dropped. The device copy keeps everything. Live: drag + zoom wrote the
+      property (read back); a different width written into the graph beat the device's on reload;
+      a reset wrote back. Probe first: `upsertBlockProperty` on the page uuid works, the page's
+      blocks (saved views) are unchanged. Not seen: a second device, the stable app, a page in
+      Recycle (the write fails quietly), the first write creating the page on a graph without it.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

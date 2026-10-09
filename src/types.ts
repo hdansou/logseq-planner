@@ -5,6 +5,8 @@ import type { HostDocument } from "./ui/host-keys";
 export interface AppDeps {
   /** Per-graph UI state in the plugin's settings (N21, `uiStateDeps()` in src/sdk.ts). */
   prefs: import("./ui-state").UiStateDeps;
+  /** The part of the UI state that follows the graph (N41): the view on screen and the title column width. */
+  graphState: import("./ui-state").GraphStateDeps;
   registerUIItem(type: "toolbar", item: { key: string; template: string }): void;
   registerCommandPalette(
     command: { key: string; label: string; keybinding?: { binding: string; mode: "global" | "non-editing" | "editing" } },
