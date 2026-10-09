@@ -7,6 +7,7 @@ import { viewItems } from "../core/layout-common";
 import { createWorkspace, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 import timelineCss from "./timeline.css?inline";
+import { LABEL_W } from "../core/timeline-layout";
 import { DAY_TRACK_PX, drawLinks, EDIT_HELP_ID, linkPath, renderTimeline, renderTimelineToolbar, timelineAction } from "./timeline";
 import { layoutTimeline } from "../core/timeline-layout";
 import { loadNodesAndTasks } from "../core/queries";
@@ -510,5 +511,31 @@ describe("Edit dates markup (N06c)", () => {
   it("the toggle is a Timeline action", () => {
     const b = html(renderTimelineToolbar(emptyLayout(), null)).querySelector("[data-tl-edit]")!;
     expect(timelineAction(b)).toEqual({ type: "edit" });
+  });
+});
+
+describe("the title column (N36)", () => {
+  const html = (s: string) => {
+    const d = document.createElement("div");
+    d.innerHTML = s;
+    return d;
+  };
+  it("has a divider in the corner; a chosen width goes on the Timeline as --pl-tl-label-w, the default adds nothing", async () => {
+    const l = emptyLayout();
+    const plain = html(renderTimeline(l, "#Project", NONE_SHOWN));
+    expect(plain.querySelector(".pl-tl-corner [data-tl-resize]")).not.toBeNull();
+    expect(plain.querySelector<HTMLElement>("[data-timeline]")!.getAttribute("style")).not.toContain("label-w");
+    const wide = html(renderTimeline(l, "#Project", { ...NONE_SHOWN, labelWidth: 320 }));
+    expect(wide.querySelector<HTMLElement>("[data-timeline]")!.getAttribute("style")).toContain("--pl-tl-label-w: 320px");
+    const dflt = html(renderTimeline(l, "#Project", { ...NONE_SHOWN, labelWidth: LABEL_W.default }));
+    expect(dflt.querySelector<HTMLElement>("[data-timeline]")!.getAttribute("style")).not.toContain("label-w");
+  });
+
+  it("keeps the default equal to timeline.css and lets a title wrap to two lines", () => {
+    const css = timelineCss;
+    expect(css).toContain(`--pl-tl-label-w: ${LABEL_W.default}px`);
+    const name = css.match(/\.pl-tl-name \{[^}]*\}/)![0];
+    expect(name).toContain("-webkit-line-clamp: 2");
+    expect(name).not.toContain("nowrap");
   });
 });

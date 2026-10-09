@@ -16,7 +16,7 @@ import {
   defaultViewConfig, dependsOnOf, parseViewConfig, serializeViewConfig, validateViewConfig, VIEW_KINDS, withDefaults, withKnownTags, withTags,
   type ViewConfig, type ViewKind,
 } from "../core/view-config";
-import { clampDelta, editedBar, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
+import { clampDelta, clampLabelWidth, editedBar, LABEL_W, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
 import { dateChanges, writeDates, type DateChange, type EditMode } from "../core/date-edit";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
@@ -169,6 +169,8 @@ interface State {
   surface: Surface;
   /** Timeline: the Edit dates toggle (N06c). Session state: off on start, never saved with a view. */
   editDates: boolean;
+  /** Timeline: the title column's width in px (N36); null = the default. Per graph (UiPrefs), not saved with a view. */
+  labelWidth: number | null;
   /** Timeline date edits being written, by node uuid: the bar shows at its new place (optimistic). Session state. */
   datePending: Map<string, DateChange[]>;
 }
@@ -426,7 +428,7 @@ const areaOf = (s: State, view: ViewTags): ViewAreaInput => ({
   tags: s.tags, config: s.config!, view, nodes: s.nodes, tasks: s.tasks, titles: s.titles,
   session: { anchor: s.anchor, expanded: s.expanded, collapsed: s.collapsed, agendaOpen: s.agendaOpen, agendaGroups: s.agendaGroups,
     agendaOverdue: s.agendaOverdue, kbShown: s.kbShown, pending: s.pending, moveOpen: s.popover === "kb-move" ? s.moveCard : null, popover: s.popover,
-    editDates: s.editDates, datePending: s.datePending },
+    editDates: s.editDates, datePending: s.datePending, labelWidth: s.labelWidth },
 });
 
 /** The main area (loading, an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar. */
@@ -466,7 +468,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
-    canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, datePending: new Map() };
+    canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, labelWidth: null, datePending: new Map() };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -662,6 +664,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     panel: { ...s.panelOpen },
     surface: s.canDock ? s.surface : storedSurface,
     editDates: s.editDates,
+    labelWidth: s.labelWidth,
     view: s.config ? { id: s.viewId, config: serializeViewConfig(s.config) } : null,
   });
   /** After every render: writes the state when it differs from what was last written. */
@@ -678,6 +681,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const p = await deps.prefs!.load();
     s.panelOpen = { ...p.panel };
     s.editDates = p.editDates;
+    s.labelWidth = p.labelWidth;
     storedSurface = p.surface;
     if (p.surface && s.canDock && p.surface !== s.surface) {
       s.surface = p.surface;
@@ -1024,6 +1028,43 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
     refreshWhenFree();
   };
+
+  /** N36: the title column's divider. The width is set on the Timeline while dragging; the state takes it on release. */
+  let labelDrag: { el: HTMLElement; tl: HTMLElement; pointerId: number; x: number; w0: number; w: number } | null = null;
+  root.addEventListener("pointerdown", (e) => {
+    const el = (e.target as Element).closest?.<HTMLElement>("[data-tl-resize]");
+    const tl = el?.closest<HTMLElement>("[data-timeline]");
+    if (!el || !tl || e.button !== 0) return;
+    const w0 = root.ownerDocument.defaultView!.getComputedStyle(tl).getPropertyValue("--pl-tl-label-w");
+    labelDrag = { el, tl, pointerId: e.pointerId, x: e.clientX, w0: parseFloat(w0) || LABEL_W.default, w: parseFloat(w0) || LABEL_W.default };
+    el.setAttribute("data-tl-resizing", "");
+    el.setPointerCapture?.(e.pointerId);
+    e.preventDefault();
+  });
+  root.addEventListener("pointermove", (e) => {
+    const g = labelDrag;
+    if (!g || e.pointerId !== g.pointerId) return;
+    g.w = clampLabelWidth(g.w0 + e.clientX - g.x);
+    g.tl.style.setProperty("--pl-tl-label-w", `${g.w}px`);
+    drawLinks(g.tl);
+  });
+  const endLabelDrag = (e: PointerEvent, keep: boolean) => {
+    const g = labelDrag;
+    if (!g || e.pointerId !== g.pointerId) return;
+    labelDrag = null;
+    g.el.removeAttribute("data-tl-resizing");
+    if (keep && g.w !== g.w0) {
+      s.labelWidth = g.w;
+      render();
+    } else g.tl.style.setProperty("--pl-tl-label-w", `${g.w0}px`);
+  };
+  root.addEventListener("pointerup", (e) => endLabelDrag(e, true));
+  root.addEventListener("pointercancel", (e) => endLabelDrag(e, false));
+  root.addEventListener("dblclick", (e) => {
+    if (!(e.target as Element).closest?.("[data-tl-resize]") || s.labelWidth === null) return;
+    s.labelWidth = null;
+    render();
+  });
 
   root.addEventListener("pointerdown", (e) => {
     swallowClick = false; // a click that did not follow its drag is not swallowed later

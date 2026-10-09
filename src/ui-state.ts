@@ -1,6 +1,7 @@
 // Per-graph UI state (N21): what Planner looked like when it was last used on a graph, so the next session opens the
 // same way. Kept in the plugin's settings under one key per graph (`uiStateDeps()` in src/sdk.ts), so it is per device
 // and never written into the graph. Best effort: nothing here may fail the workspace.
+import { clampLabelWidth } from "./core/timeline-layout";
 import type { Surface } from "./types";
 
 export interface UiPrefs {
@@ -10,11 +11,13 @@ export interface UiPrefs {
   surface: Surface | null;
   /** The Timeline's Edit dates toggle (N06c). */
   editDates: boolean;
+  /** The Timeline's title column width in px (N36); null = the default. */
+  labelWidth: number | null;
   /** The view on screen: its settings as `serializeViewConfig` writes them, and the saved view they belong to. */
   view: { id: string | null; config: string } | null;
 }
 
-export const DEFAULT_PREFS: UiPrefs = { panel: { wide: true, narrow: false }, surface: null, editDates: false, view: null };
+export const DEFAULT_PREFS: UiPrefs = { panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null };
 
 /** The SDK calls behind the store; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface UiStateDeps {
@@ -42,6 +45,7 @@ export function parsePrefs(raw: unknown): UiPrefs {
     },
     surface: raw.surface === "workspace" || raw.surface === "sidebar" ? raw.surface : null,
     editDates: raw.editDates === true,
+    labelWidth: typeof raw.labelWidth === "number" && Number.isFinite(raw.labelWidth) ? clampLabelWidth(raw.labelWidth) : null,
     view,
   };
 }

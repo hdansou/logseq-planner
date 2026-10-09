@@ -79,6 +79,7 @@ export function readOnly(html: string, doc: Document): string {
   all("[draggable]").forEach((e) => e.removeAttribute("draggable"));
   all(".pl-kb-drop").forEach((e) => (e.textContent = "")); // "Drop here": nothing can be dropped in a block
   all("details[open]").forEach((e) => e.removeAttribute("open"));
+  all("[data-tl-resize]").forEach((e) => e.remove());
   all("[data-tl-toggle]").forEach((e) => e.replaceWith(el("span", { class: "pl-tl-toggle", "aria-hidden": "true" }, "")));
   all("[data-tl-jump], [data-cal-more]").forEach((e) =>
     e.replaceWith(el("span", { class: e.className, style: e.getAttribute("style") ?? "", "data-planner-text": "" }, e.textContent ?? "")));

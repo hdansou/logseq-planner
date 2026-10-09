@@ -55,6 +55,8 @@ export interface ViewSession {
   editDates: boolean;
   /** Timeline date edits being written, by node uuid: the bar shows where the writes put it (N06c). */
   datePending: ReadonlyMap<string, DateChange[]>;
+  /** Timeline: the title column's width in px (N36); null = the default. */
+  labelWidth: number | null;
 }
 
 /**
@@ -65,7 +67,7 @@ export interface ViewSession {
 export const blockSession = (): ViewSession => ({
   anchor: null, expanded: new Set(), collapsed: new Set(), agendaOpen: new Set(["later", "none", "earlier"]),
   agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null,
-  editDates: false, datePending: new Map(),
+  editDates: false, datePending: new Map(), labelWidth: null,
 });
 
 /** Everything the view area is drawn from. */
@@ -246,7 +248,7 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   }
   if (c.kind === "timeline") {
     const layout = timelineLayout(a, now(), shown);
-    return { view: renderTimeline(layout, heading, { expanded: session.expanded, collapsed: session.collapsed }), toolbar: renderTimelineToolbar(layout, multi ? c.arrange : null) };
+    return { view: renderTimeline(layout, heading, { expanded: session.expanded, collapsed: session.collapsed, labelWidth: session.labelWidth }), toolbar: renderTimelineToolbar(layout, multi ? c.arrange : null) };
   }
   if (c.kind === "calendar") {
     const layout = calendarLayout(a, now(), shown);

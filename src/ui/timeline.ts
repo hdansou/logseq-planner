@@ -3,7 +3,7 @@
 // One CSS grid of tracks (timeline.css): the label column, then `--pl-tl-tracks` tracks of `--pl-tl-track`; every
 // position is a track index from the layout (`grid-column: index + 2`). A track is a day, or 15 minutes in Day zoom (N10).
 import { formatDay } from "../core/layout-common";
-import { dayFocus, type OutsideCount, type TimelineLayout, type TimelineLink, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
+import { dayFocus, LABEL_W, type OutsideCount, type TimelineLayout, type TimelineLink, type TimelineRow, type TimelineTaskRow, type Zoom } from "../core/timeline-layout";
 import type { Arrange } from "../core/view-config";
 import { esc, flag, segmented, toggleButton, viewNav } from "./html";
 
@@ -133,6 +133,8 @@ function renderTask(t: TimelineTaskRow, nodeId: number, deep: boolean, editing: 
 export interface TimelineShown {
   expanded: ReadonlySet<number>;
   collapsed: ReadonlySet<number>;
+  /** The title column's width in px (N36); absent or null = the CSS default. */
+  labelWidth?: number | null;
 }
 
 /**
@@ -245,6 +247,7 @@ export function renderTimeline(layout: TimelineLayout, heading: string, shown: T
   const cells = columns.map((c) =>
     `<i class="pl-tl-cell"${flag("data-weekend", c.weekend)}${flag("data-week-start", c.weekStart)}${flag("data-month-start", c.monthStart)} style="grid-column: ${col(c.from)} / ${col(c.to)}"></i>`).join("");
   const today = layout.todayAt === null ? "" : `<div class="pl-tl-today" data-tl-today aria-hidden="true" style="--pl-tl-today: ${layout.todayAt}"></div>`;
+  const labelVar = shown.labelWidth != null && shown.labelWidth !== LABEL_W.default ? `; --pl-tl-label-w: ${shown.labelWidth}px` : "";
   const step = layout.zoom === "day" ? "15 minutes" : "a day";
   const help = layout.editing
     ? `<p id="${EDIT_HELP_ID}" data-tl-edit-help hidden>Dates can be edited: drag to move, or drag the first or last edge to change that date. `
@@ -255,10 +258,10 @@ export function renderTimeline(layout: TimelineLayout, heading: string, shown: T
     : "";
   return renderOutside(layout.earlier, layout.later)
     + (layout.zoom === "day"
-      ? `<div class="pl-tl" data-timeline data-zoom="day"${dayAttrs(layout, shown.expanded)} style="--pl-tl-tracks: ${range.tracks}; --pl-tl-track: ${DAY_TRACK_PX}px">`
-      : `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-tracks: ${range.tracks}">`)
+      ? `<div class="pl-tl" data-timeline data-zoom="day"${dayAttrs(layout, shown.expanded)} style="--pl-tl-tracks: ${range.tracks}; --pl-tl-track: ${DAY_TRACK_PX}px${labelVar}">`
+      : `<div class="pl-tl" data-timeline data-zoom="${layout.zoom}" style="--pl-tl-tracks: ${range.tracks}${labelVar}">`)
     + `<div class="pl-tl-grid" aria-hidden="true">${cells}</div>`
-    + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}</span>${head}</div>`
+    + `<div class="pl-tl-head" aria-hidden="true"><span class="pl-tl-corner">${esc(heading)}<span class="pl-tl-resize" data-tl-resize title="Drag to resize the title column, double-click to reset"></span></span>${head}</div>`
     + renderLinks(layout.links)
     + `<ul class="pl-tl-rows" aria-label="${esc(`${heading} timeline, ${range.label}`)}">${renderRows(layout, shown)}</ul>`
     + today + help + `</div>` + undated;

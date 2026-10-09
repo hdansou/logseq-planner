@@ -24,6 +24,9 @@
 .pl-tl-corner { grid-column: 1; grid-row: 1; position: sticky; left: 0; align-self: stretch; display: flex; align-items: end;
   padding: 6px 8px 4px; background: var(--pl-surface); border-right: 1px solid var(--pl-line-soft);
   font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+/* N36: the title column's divider, a grab strip on the corner's right edge */
+.pl-tl-resize { position: absolute; top: 0; bottom: 0; right: -3px; z-index: 5; width: 7px; cursor: col-resize; touch-action: none; }
+.pl-tl-resize:hover, .pl-tl-resize[data-tl-resizing] { background: var(--pl-ring); opacity: .5; }
 .pl-tl-col { grid-row: 1; padding: 6px 0 4px 3px; white-space: nowrap; font-size: 11px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
 .pl-tl-col[data-today] { color: var(--pl-today); font-weight: 700; }
 
@@ -38,8 +41,8 @@
   font-size: 10px; color: var(--pl-label-2); cursor: pointer; }
 .pl-tl-toggle[aria-expanded="true"] { transform: rotate(90deg); }
 .pl-tl-toggle:hover { color: var(--pl-label); background: var(--pl-fill); }
-.pl-tl-name { all: unset; display: block; min-width: 0; padding: 2px 4px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis;
-  white-space: nowrap; cursor: pointer; transition: background-color .12s; }
+.pl-tl-name { all: unset; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; min-width: 0; padding: 2px 4px;
+  border-radius: 6px; overflow: hidden; overflow-wrap: anywhere; cursor: pointer; transition: background-color .12s; }
 .pl-tl-row:not(.pl-tl-task) .pl-tl-name { font-weight: 600; }
 .pl-tl-name:hover { background: var(--pl-fill); }
 .pl-tl-toggle:focus-visible, .pl-tl-name:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }

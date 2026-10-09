@@ -438,11 +438,16 @@ Live-check method (web app):
       hint "Drag a bar to move it, drag an end to resize it" (`data-tl-edit-hint`, `.pl-hint`)
       follows the toggle, and the resize handles show a faint tint (grab cursor existed).
       Left: look at it in the sidebar width, where the toolbar wraps.
-- [ ] **N36 Timeline: read the full title** — owner request 2026-10-09. The label column is
+- [x] **N36 Timeline: read the full title** — done 2026-10-09 (unit tests only, not yet seen in an app); owner request. The label column is
       fixed (`--pl-tl-label-w: 240px`) and titles end in an ellipsis. Two ways, probably
       both: wrap titles to two lines, and a draggable divider that sets the label width
       (remembered per view or per graph, N21). Watch: taller rows must keep the bar tracks,
       today line and `drawLinks` connectors aligned. Same wrapping rules as N37.
+      Built (owner picked "wrap + resizable divider"): titles clamp at two lines; a divider
+      `data-tl-resize` on the head corner drags `--pl-tl-label-w` (140-640 px, double-click
+      resets), kept per graph in `UiPrefs.labelWidth`, not in a saved view; the in-page block
+      has no divider. Pointer only (the head is `aria-hidden`). Not yet seen: row height
+      with connectors, Day zoom, narrow sidebar.
 - [ ] **N37 Kanban: narrow columns, taller cards** — owner request 2026-10-09. A column can
       be ~800 px wide (two columns fill the workspace). `.pl-kb` is `minmax(220px, 1fr)`
       with `width: max-content`; the title is already nowrap + ellipsis, so find in the app

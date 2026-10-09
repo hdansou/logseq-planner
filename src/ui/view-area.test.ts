@@ -13,7 +13,7 @@ const NOW: Now = { today: "2026-10-03", time: "13:30", weekStart: 0 };
 /** The session a freshly opened workspace has. */
 const workspaceSession = (): ViewSession => ({
   anchor: null, expanded: new Set(), collapsed: new Set(), agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE,
-  kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null, editDates: false, datePending: new Map(),
+  kbShown: new Map(), pending: new Map(), moveOpen: null, popover: null, editDates: false, datePending: new Map(), labelWidth: null,
 });
 /** HTML as the DOM serialises it (boolean attributes gain `=""`). */
 const normal = (html: string) => {

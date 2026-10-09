@@ -485,3 +485,7 @@ export function dayFocus(layout: TimelineLayout, expanded: ReadonlySet<number>):
   }
   return timed.length ? Math.min(...timed) : untimed ? 0 : null;
 }
+
+/** N36: the Timeline's title column, px: default (kept equal to timeline.css by a test), and the range a drag may set. */
+export const LABEL_W = { default: 240, min: 140, max: 640 } as const;
+export const clampLabelWidth = (px: number): number => Math.min(LABEL_W.max, Math.max(LABEL_W.min, Math.round(px)));

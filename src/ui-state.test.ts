@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createUiStore, DEFAULT_PREFS, parsePrefs, type UiPrefs, type UiStateDeps } from "./ui-state";
 
-const PREFS: UiPrefs = { panel: { wide: false, narrow: true }, surface: "sidebar", editDates: true, view: { id: "v1", config: '{"v":1}' } };
+const PREFS: UiPrefs = { panel: { wide: false, narrow: true }, surface: "sidebar", editDates: true, labelWidth: 300, view: { id: "v1", config: '{"v":1}' } };
 
 /** A fake settings store: one prefs object per graph key. */
 function fakeDeps(graph: string | null, stored: Record<string, unknown> = {}) {
@@ -17,14 +17,14 @@ function fakeDeps(graph: string | null, stored: Record<string, unknown> = {}) {
 describe("parsePrefs", () => {
   it("gives the defaults for nothing or for garbage", () => {
     for (const raw of [undefined, null, 3, "x", [], {}]) expect(parsePrefs(raw)).toEqual(DEFAULT_PREFS);
-    expect(DEFAULT_PREFS).toEqual({ panel: { wide: true, narrow: false }, surface: null, editDates: false, view: null });
+    expect(DEFAULT_PREFS).toEqual({ panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null });
   });
   it("reads a stored object back", () => {
     expect(parsePrefs(JSON.parse(JSON.stringify(PREFS)))).toEqual(PREFS);
   });
   it("keeps each well-formed part and defaults the rest", () => {
     expect(parsePrefs({ panel: { wide: false }, surface: "floating", editDates: "yes", view: { id: 3, config: "c" } }))
-      .toEqual({ panel: { wide: false, narrow: false }, surface: null, editDates: false, view: { id: null, config: "c" } });
+      .toEqual({ panel: { wide: false, narrow: false }, surface: null, editDates: false, labelWidth: null, view: { id: null, config: "c" } });
     expect(parsePrefs({ view: { id: "v1" } }).view).toBeNull(); // no config: no view
   });
 });
@@ -72,5 +72,15 @@ describe("createUiStore", () => {
       expect(() => store.save(PREFS)).not.toThrow();
       await Promise.resolve();
     }
+  });
+});
+
+describe("labelWidth (N36)", () => {
+  it("is kept within the range a drag may set, and null otherwise", () => {
+    expect(parsePrefs({ labelWidth: 300 }).labelWidth).toBe(300);
+    expect(parsePrefs({ labelWidth: 5000 }).labelWidth).toBe(640);
+    expect(parsePrefs({ labelWidth: 10 }).labelWidth).toBe(140);
+    expect(parsePrefs({ labelWidth: "wide" }).labelWidth).toBeNull();
+    expect(parsePrefs({ labelWidth: NaN }).labelWidth).toBeNull();
   });
 });
