@@ -39,6 +39,9 @@ export interface KanbanToolbarInput {
   hasPriority: boolean;
   /** Two or more tags (N14): "Tag" is offered as swimlanes (`TAG_KEY`, read-only lanes). */
   tagLanes: boolean;
+  /** The choice properties a card can show (N38) and the idents hidden. */
+  fields: ChoiceProp[];
+  hiddenFields: readonly string[];
   /** The open workspace popover. */
   popover: string | null;
 }
@@ -54,11 +57,17 @@ export function renderKanbanToolbar(t: KanbanToolbarInput): string {
     attrs: `data-kb-show-value="${esc(c.key)}"`, text: c.title, checked: shown.has(c.key), disabled: shown.size === 1 && shown.has(c.key),
   }))) + `<p class="pl-hint">Saved with the view.</p>`;
   const showText = shown.size === t.columns.length ? "All" : `${shown.size} of ${t.columns.length}`;
+  const fields = () => checkList("Card fields", t.fields.map((p) => ({
+    attrs: `data-kb-field-value="${esc(p.ident)}"`, text: p.title, checked: !t.hiddenFields.includes(p.ident), disabled: false,
+  }))) + `<p class="pl-hint">Saved with the view.</p>`;
+  const shownFields = t.fields.filter((p) => !t.hiddenFields.includes(p.ident)).length;
+  const fieldsText = shownFields === t.fields.length ? "All" : `${shownFields} of ${t.fields.length}`;
   const byTag = t.laneProp?.ident === TAG_KEY;
   const changes = esc(t.columnProp.title) + (t.laneProp && !byTag ? ` or ${esc(t.laneProp.title)}` : "") + (byTag ? ". Tag lanes are read-only: a card keeps its tag" : "");
   return menu("kb-column", t.popover === "kb-column", "Columns", esc(t.columnProp.title), columns)
     + menu("kb-show", t.popover === "kb-show", "Show", showText, show)
     + menu("kb-lane", t.popover === "kb-lane", "Swimlanes", esc(t.laneProp?.title ?? "None"), lanes)
+    + (t.fields.length ? menu("kb-fields", t.popover === "kb-fields", "Card fields", fieldsText, fields) : "")
     + `<span class="pl-field-label">Sort</span>` + segmented("Sort cards by", "kb-sort", sorts, t.sort)
     + `<span class="pl-spacer"></span><span class="pl-hint">Drag a card, or use its ⋯ menu, to change ${changes}</span>`;
 }

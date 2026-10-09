@@ -174,7 +174,7 @@ describe("Show menu (N08)", () => {
 
   it("sits right after Columns: label Show, a menu button reading All", () => {
     const toolbar = $("[data-region=view-toolbar]")!;
-    expect([...toolbar.querySelectorAll(".pl-field-label")].map((l) => l.textContent)).toEqual(["Columns", "Show", "Swimlanes", "Sort"]);
+    expect([...toolbar.querySelectorAll(".pl-field-label")].map((l) => l.textContent)).toEqual(["Columns", "Show", "Swimlanes", "Card fields", "Sort"]);
     const button = $("[data-control=kb-show]")!;
     expect(button.tagName).toBe("BUTTON");
     expect(button.getAttribute("aria-haspopup")).toBe("true");
@@ -469,5 +469,37 @@ describe("card tag (N38)", () => {
     expect(other.querySelector(".pl-kb-tag")!.textContent).toBe("#Project");
     expect(card(ACME).querySelector(".pl-kb-meta")!.firstElementChild!.classList.contains("pl-kb-tag")).toBe(true);
     expect(card(ACME).querySelector(".pl-kb-open")!.getAttribute("aria-label")).toContain("#Client project");
+  });
+});
+
+describe("Card fields menu (N38)", () => {
+  const box = (ident: string) => $<HTMLInputElement>(`[data-popover=kb-fields] input[data-kb-field-value="${ident}"]`)!;
+  const meta = (uuid: string) => text(`[data-kb-card="${uuid}"] .pl-kb-meta`)!;
+
+  it("after Swimlanes: a Card fields menu reading All; it lists the choice properties a card can show, all ticked", async () => {
+    const toolbar = $("[data-region=view-toolbar]")!;
+    expect([...toolbar.querySelectorAll(".pl-field-label")].map((l) => l.textContent)).toEqual(["Columns", "Show", "Swimlanes", "Card fields", "Sort"]);
+    expect(text("[data-control=kb-fields]")).toBe("All▾");
+    await click("[data-control=kb-fields]");
+    expect($$("[data-popover=kb-fields] input").map((i) => i.dataset.kbFieldValue)).toEqual([prop("Owner").ident]);
+    expect(box(prop("Owner").ident).checked).toBe(true);
+    expect(meta(SITE)).toContain("Alice");
+  });
+
+  it("unticking a property takes its value off the cards and is saved with the view; ticking brings it back", async () => {
+    await click("[data-control=kb-fields]");
+    await click(`[data-popover=kb-fields] input[data-kb-field-value="${prop("Owner").ident}"]`);
+    expect(ws.config()).toMatchObject({ kind: "kanban", hiddenFields: [prop("Owner").ident] });
+    expect(meta(SITE)).not.toContain("Alice");
+    expect(text("[data-control=kb-fields]")).toBe("0 of 1▾");
+    await click(`[data-popover=kb-fields] input[data-kb-field-value="${prop("Owner").ident}"]`);
+    expect(ws.config()).toMatchObject({ hiddenFields: [] });
+    expect(meta(SITE)).toContain("Alice");
+  });
+
+  it("the column and lane properties are not offered (a card already sits in them)", async () => {
+    await click("[data-control=kb-lane]");
+    await click(`[data-popover=kb-lane] [data-option="${prop("Owner").ident}"]`);
+    expect($("[data-control=kb-fields]")).toBeNull(); // nothing left to choose
   });
 });

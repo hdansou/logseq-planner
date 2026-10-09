@@ -60,8 +60,9 @@ export type ViewConfig = CommonConfig &
      * share no choice property.
      * `hiddenColumns`: per column property ident, the columns not shown (closed-value uuids, `NO_VALUE` = "No <prop>"),
      * kept per property so switching the column property and back keeps each choice; unknown keys are ignored (N08).
+     * `hiddenFields`: idents of the choice properties whose value a card does not show (N38); [] = all shown.
      */
-    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]> }
+    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]>; hiddenFields: string[] }
   );
 
 const VERSION = 1;
@@ -115,7 +116,7 @@ export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "ti
     case "agenda":
       return { ...common, kind, groupBy: "node", showDone: false };
     case "kanban":
-      return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {} };
+      return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {}, hiddenFields: [] };
   }
 }
 
@@ -246,7 +247,9 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
       oneOf("kanban sort", SORTS, config.sort);
       stringOrNull("columnProp", config.columnProp);
       stringOrNull("laneProp", config.laneProp);
-      return selection("hiddenColumns", config.hiddenColumns, false, "column keys");
+      selection("hiddenColumns", config.hiddenColumns, false, "column keys");
+      if (!Array.isArray(config.hiddenFields) || !config.hiddenFields.every((f) => typeof f === "string")) throw invalid("hiddenFields must be a list of property idents");
+      return;
   }
 }
 
@@ -332,6 +335,7 @@ export function parseViewConfig(text: string): ViewConfig {
   if (parsed?.v !== VERSION) throw new Error(`Invalid view config: unsupported version ${String(parsed?.v)}, expected ${VERSION}`);
   let stored = parsed.config;
   if (isObject(stored) && stored.kind === "kanban" && !("hiddenColumns" in stored)) stored.hiddenColumns = {};
+  if (isObject(stored) && stored.kind === "kanban" && !("hiddenFields" in stored)) stored.hiddenFields = [];
   if (isObject(stored) && !("tags" in stored) && typeof stored.tag === "string") {
     const { tag, start, end, ...rest } = stored;
     stored = { ...rest, tags: [tag], dates: { [tag]: { start, end } } };

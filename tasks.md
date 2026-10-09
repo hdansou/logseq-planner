@@ -463,11 +463,18 @@ Live-check method (web app):
       three lines (`-webkit-line-clamp: 3`), cards grow. Seen live (#Project, 7 columns): every column 320 px; a 120-character title
       wraps to three lines and the column stays 320. Not seen: the owner's own board; with the
       panel open only ~2.5 columns fit a 1960 px window (maybe 280 px later).
-- [ ] **N38 Kanban cards: tag and property values** — owner request 2026-10-09. (1) Tag
+- [x] **N38 Kanban cards: tag and property values** — done 2026-10-09, both parts seen live on the nightly; owner request. (1) Tag
       chip on the card (`PlannerNode.tag`), when the view has two or more tags. DONE
       2026-10-09, seen live (#Task + #Project on `planner-project`: "#Task" / "#Project" first
       in each card's meta line; none with one tag): `KanbanInput.tagTitles`, `KanbanCard.tag`,
       `.pl-kb-tag`, also in the card's aria label.
+      Part 2 (owner chose "choice properties only"): cards already listed every other choice
+      value (`meta`); a **Card fields** menu (`data-control=kb-fields`, checkbox
+      `data-kb-field-value`, after Swimlanes, only when a property is left to choose) now picks
+      which: Kanban config `hiddenFields` (idents; [] = all; an older stored config loads as []),
+      `KanbanInput.hiddenFields`, `cardFieldProps` (all but column, lane and Priority). Seen live
+      (#Task + #Project): Owner off -> "0 of 1", values gone from the cards, `hiddenFields` in
+      the graph's `planner-ui-state`; on again -> back. Dates and other types on cards: not done.
       (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,
       saved in the view config (versioned JSON, old configs keep working); `nodePull` and
       `normalize.ts` carry the extra values. Do (1) first. After N37 (card height).

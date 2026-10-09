@@ -493,3 +493,16 @@ describe("card tag (N38)", () => {
     expect(cards.every((c) => c.label.includes("#Project"))).toBe(true);
   });
 });
+
+describe("card fields (N38)", () => {
+  it("hiddenFields leaves a choice property's value off the card and its label; others stay", async () => {
+    const owner = choiceProp(tag("Project"), "Owner").ident;
+    const all = await project();
+    const site = (l: KanbanLayout) => l.columns.flatMap((c) => findCell(l, c.key, null).cards).find((c) => c.uuid === SITE)!;
+    expect(site(all).meta).toEqual(["Alice"]);
+    const hidden = await project({ hiddenFields: [owner] });
+    expect(site(hidden).meta).toEqual([]);
+    expect(site(hidden).label).not.toContain("Alice");
+    expect(site(hidden).title).toBe(site(all).title);
+  });
+});

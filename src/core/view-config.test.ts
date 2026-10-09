@@ -434,3 +434,22 @@ describe("views over several tags (N14)", () => {
     expect(withDefaults(k, validateViewConfig(k, tags))).toMatchObject({ columnProp: status.ident });
   });
 });
+
+describe("Kanban card fields (N38)", () => {
+  const p = tag("Project");
+  const board = () => defaultViewConfig(p, "kanban") as unknown as Record<string, unknown>;
+
+  it("a new Kanban view hides no field; a stored one without hiddenFields loads the same", () => {
+    expect(board()).toMatchObject({ kind: "kanban", hiddenFields: [] });
+    const { hiddenFields: _, ...stored } = board();
+    expect(parseViewConfig(JSON.stringify({ v: 1, config: stored }))).toEqual({ ...stored, hiddenFields: [] });
+  });
+
+  it("round-trips the hidden fields and rejects anything but a list of idents", () => {
+    const c = { ...board(), hiddenFields: [":user.property/owner-x"] };
+    expect(parseViewConfig(serializeViewConfig(c as never))).toEqual(c);
+    for (const hiddenFields of ["owner", [1], null, {}]) {
+      expect(() => parseViewConfig(JSON.stringify({ v: 1, config: { ...board(), hiddenFields } }))).toThrow(/hiddenFields must be a list of property idents/);
+    }
+  });
+});

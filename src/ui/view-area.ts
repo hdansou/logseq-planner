@@ -203,6 +203,10 @@ export const timelineLayoutOf = (a: ViewAreaInput, now: Now): TimelineLayout =>
   timelineLayout(a, now, visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks));
 
 /** A Kanban view's column or lane property: one of the view's shared choice properties, or the Tag lanes (N14); null for none. */
+/** The choice properties a card can show or hide (N38): all but the ones it sits in (column, lane) and its Priority. */
+export const cardFieldProps = (view: ViewTags, column: string | null, lane: string | null): ChoiceProp[] =>
+  view.choiceProps.filter((p) => p.ident !== column && p.ident !== lane && p.ident !== priorityProp(view)?.ident);
+
 export const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | null =>
   ident === null ? null : ident === TAG_KEY ? tagLaneProp(view.tags) : view.choiceProps.find((p) => p.ident === ident)!;
 
@@ -216,7 +220,7 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
     columnProp: kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
     choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
-    hidden: c.hiddenColumns[c.columnProp] ?? [],
+    hidden: c.hiddenColumns[c.columnProp] ?? [], hiddenFields: c.hiddenFields,
     tagTitles: a.view.tags.length > 1 ? new Map(a.view.tags.map((t) => [t.ident, `#${t.title}`])) : undefined,
   });
 }
@@ -263,6 +267,7 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   return {
     view: renderKanban(layout, heading, session.moveOpen, session.kbShown),
     toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
-      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: session.popover }),
+      shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: session.popover,
+      fields: cardFieldProps(view, c.columnProp, c.laneProp), hiddenFields: c.hiddenFields }),
   };
 }

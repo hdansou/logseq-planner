@@ -113,7 +113,7 @@ export interface Workspace {
   stop(): void;
 }
 
-type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-lane" | "kb-move";
+type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -703,7 +703,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
-  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" ? "input" : "[aria-selected=true]"}`;
+  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" ? "input" : "[aria-selected=true]"}`;
 
   async function openBody() {
     s.loading = true;
@@ -869,7 +869,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         s.viewDeleting = null;
@@ -1376,6 +1376,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return void run(() => {
         const prop = tagOf(s.config!).choiceProps.find((p) => p.ident === d.doneProp)!;
         setConfig({ ...s.config!, doneValues: { ...s.config!.doneValues, [prop.ident]: toggle(doneUuids(s.config!, prop), d.doneValue!) } });
+      });
+    }
+    if (d.kbFieldValue !== undefined) {
+      return void run(() => {
+        const c = s.config!;
+        if (c.kind !== "kanban") throw new Error(`Kanban Card fields control in a ${c.kind} view`);
+        setConfig({ ...c, hiddenFields: toggle(c.hiddenFields, d.kbFieldValue!) });
       });
     }
     if (d.kbShowValue !== undefined) {

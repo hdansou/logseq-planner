@@ -109,6 +109,8 @@ export interface KanbanInput {
   hidden: readonly string[];
   /** "#Title" by tag ident, given for a view of two or more tags: cards then name their tag (N38). */
   tagTitles?: ReadonlyMap<string, string>;
+  /** Idents of the choice properties whose value a card leaves out (N38). */
+  hiddenFields?: readonly string[];
 }
 
 /**
@@ -171,7 +173,7 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     const late = !done && !!due && due.day < today;
     const point = !!span.start && !!due && span.start.day === due.day && span.start.time === due.time;
     const when = !due ? "no date" : `${point ? "" : "ends "}${formatDate(due)}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
-    const own = new Set([columnProp.ident, laneProp?.ident, priority?.ident]);
+    const own = new Set([columnProp.ident, laneProp?.ident, priority?.ident, ...(input.hiddenFields ?? [])]);
     const meta = input.choiceProps.filter((p) => !own.has(p.ident)).map((p) => node.choices[p.ident]?.title).filter((t): t is string => !!t);
     const pv = priority ? node.choices[priority.ident] : undefined;
     const pri = pv ? { title: pv.title, key: pv.ident ? pv.ident.split(".").pop()! : pv.title.trim().toLowerCase() } : null;
