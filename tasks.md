@@ -506,6 +506,15 @@ Live-check method (web app):
       a reset wrote back. Probe first: `upsertBlockProperty` on the page uuid works, the page's
       blocks (saved views) are unchanged. Not seen: a second device, the stable app, a page in
       Recycle (the write fails quietly), the first write creating the page on a graph without it.
+- [ ] **N42 Kanban card fields: any simple property** — owner request 2026-10-09 ("review the UX,
+      allow choosing what to show, more than the narrowed list"). Requirement written in
+      REQUIREMENTS.md, Kanban "Card contents" (owner's choices: all simple types; value only
+      with the name as tooltip; chosen per tag, saved with the view). Work: schema discovery of
+      every property of a tag with its type (today `TagInfo` knows date / choice / node props
+      only); `cardFields` per tag in the view config (old `hiddenFields` configs keep working:
+      default = today's shared choice values); the node pull widened by the chosen idents only
+      (keep the T13a timings: re-run the 2,000-node check); a value formatter per type; the Card
+      fields menu grouped by tag; tooltips + aria label. Tests first, then live. After N39.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

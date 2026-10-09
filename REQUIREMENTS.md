@@ -203,6 +203,17 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   (`hiddenColumns`), so switching the column property and back keeps each choice; a saved
   view without it shows every column; values that no longer exist are ignored. The Move menu
   still lists every value: moving a card to a hidden column takes it off the board (N08).
+- **Card contents** (N38 done, N42 requirement, owner 2026-10-09): a card shows its title, progress, due text and Priority.
+  In a view of two or more tags it starts its meta line with its tag (`#Task`). **Card fields** (toolbar menu after
+  Swimlanes): which other properties show on the card. Today (N38): the choice properties the tags share, all on, each
+  switched off by `hiddenFields`. Wanted (N42): any simple property of the view's tags: choice, Date / DateTime, text,
+  number, checkbox, URL, and node refs by title (multi-value: joined, cut at the card's width; no rich blocks).
+  Shown as a bare value, the property's name as its tooltip and in the card's accessible name (no "Label: value" rows,
+  so cards stay short beside each other); a Date or DateTime in the card's due format ("6 Oct 09:00"). Chosen **per
+  tag** (a #Task and a #Project in one view show their own), saved with the view; nothing chosen by default beyond
+  today's behaviour (the shared choice values), so an existing view looks the same. The column, lane and Priority
+  properties are never offered (a card already sits in them / shows them). Stale idents are ignored. The query stays
+  narrow: only the chosen properties are added to the node pull (the T13a speed-up, 2,000 nodes, must hold).
 - Optional **swimlanes** by a second choice property + "No <prop>" lane.
 - Cards sorted by **due/end date** (default), **priority** or **title**; no manual order.
 - Drag writes the column property, and the lane property when moved across lanes; dropping
