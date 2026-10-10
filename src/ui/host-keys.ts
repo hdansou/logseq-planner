@@ -40,7 +40,7 @@ export function shouldForward(e: KeyLike): boolean {
  * The host side the dispatcher needs: its document (events go to the body) whose window supplies `KeyboardEvent`; the
  * sidebar dock (src/ui/dock.ts, N06a) also finds `#right-sidebar` in it and takes its window's observers.
  */
-export type HostDocument = Pick<Document, "body" | "activeElement" | "hasFocus" | "addEventListener" | "removeEventListener" | "querySelector"> & { defaultView: (Window & typeof globalThis) | null };
+export type HostDocument = Pick<Document, "body" | "activeElement" | "hasFocus" | "addEventListener" | "removeEventListener" | "querySelector" | "querySelectorAll"> & { defaultView: (Window & typeof globalThis) | null };
 
 /** What the focus hand-back needs from the app. */
 export interface FocusBack {

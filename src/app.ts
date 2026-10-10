@@ -4,6 +4,7 @@ import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
 import { blockStyle } from "./ui/block-style";
 import { createChanges, shareFeed } from "./ui/changes";
+import { installNeighbours, type Neighbours } from "./ui/dock-neighbours";
 import { installDockResize } from "./ui/dock-resize";
 import { installHostKeys } from "./ui/host-keys";
 import type { AppDeps, ModelEvent, Surface } from "./types";
@@ -62,17 +63,39 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   let docked = false;
   let shownPx = 0;
   let keptPx: number | null = null;
-  const viewport = () => host?.defaultView?.innerWidth ?? 0;
-  const dockWidth = () => clampDockWidth(keptPx ?? deps.dockWidth.read() ?? defaultDockWidth(viewport()), viewport());
+  const windowPx = () => host?.defaultView?.innerWidth ?? 0;
+  /** N44: the room other plugins' docked frames take on the right edge; Planner docks to the left of it. */
+  let offsetPx = 0;
+  let neighbours: Neighbours | null = null;
+  /** The window's width less what the neighbours hold: the range Planner's own width lives in. */
+  const viewport = () => windowPx() - offsetPx;
+  /** The width Planner wants: this session's, else the settings', else what it started at; a neighbour only squeezes it for a while. */
+  let wantedPx: number | null = null;
+  const dockWidth = () => clampDockWidth(keptPx ?? deps.dockWidth.read() ?? wantedPx ?? defaultDockWidth(viewport()), viewport());
   const applyDock = (px: number, animate: boolean) => {
     shownPx = px;
-    deps.setFrame(dockFrame(px, HEADBAR));
-    deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate) });
+    deps.setFrame(dockFrame(px, HEADBAR, offsetPx));
+    deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate, offsetPx) });
   };
-  const onHostResize = () => applyDock(dockWidth(), false); // a smaller window pulls a too wide Planner in
+  const onHostResize = () => {
+    offsetPx = neighbours?.offset() ?? 0;
+    applyDock(dockWidth(), false); // a smaller window pulls a too wide Planner in
+  };
+  const onNeighbours = () => {
+    const next = neighbours?.offset() ?? 0;
+    if (docked && next !== offsetPx) {
+      offsetPx = next;
+      applyDock(dockWidth(), true); // the wanted width comes back when the neighbour leaves
+    }
+  };
   const dock = () => {
-    if (!docked) host!.defaultView?.addEventListener("resize", onHostResize);
+    if (!docked) {
+      host!.defaultView?.addEventListener("resize", onHostResize);
+      neighbours = installNeighbours(host!, deps.pluginId(), windowPx, onNeighbours);
+    }
+    offsetPx = neighbours!.offset();
     docked = true;
+    wantedPx ??= dockWidth();
     applyDock(dockWidth(), true);
   };
   /** Gives the reserved strip back (the host layout returns to normal); the mode is kept by the caller. */
@@ -80,6 +103,10 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     if (!docked) return;
     docked = false;
     host!.defaultView?.removeEventListener("resize", onHostResize);
+    neighbours?.stop();
+    neighbours = null;
+    offsetPx = 0;
+    wantedPx = null;
     deps.provideStyle({ key: DOCK_STYLE_KEY, style: "" });
   };
   const stopResize = installDockResize(root, {

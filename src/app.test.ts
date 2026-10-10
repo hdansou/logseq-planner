@@ -600,7 +600,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     const lastStyle = () => styles()[styles().length - 1]?.style;
     return { ...f, win, host, sidebar, lastFrame, lastStyle, styles };
   }
-  const DOCKED = (width: number) => dockFrame(width, HEADBAR);
+  const DOCKED = (width: number, offset = 0) => dockFrame(width, HEADBAR, offset);
   const switchTo = (surface: "workspace" | "sidebar") => root.querySelector<HTMLButtonElement>(`[data-surface=${surface}]`)!.click();
   const opened = async (d: ReturnType<typeof docked>) => {
     modelHandler(d.deps)();
@@ -664,6 +664,55 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     d.deps.dockWidth.read.mockReturnValue(5000);
     switchTo("sidebar");
     expect(d.lastFrame()).toEqual(DOCKED(1140)); // the window less the page's 360 px
+  });
+
+  /** Another plugin's docked frame on the window's right edge, `width` px wide (the host is 1500 px wide). */
+  const neighbour = (d: ReturnType<typeof docked>, width: number, visible = true) => {
+    const el = d.host.createElement("div");
+    el.className = "lsp-iframe-sandbox-container" + (visible ? " visible" : "");
+    el.setAttribute("data-pid", "outline-canvas");
+    el.getBoundingClientRect = () => ({ left: 1500 - width, right: 1500, width, top: 0, bottom: 900, height: 900 }) as DOMRect;
+    d.host.body.append(el);
+    return el;
+  };
+
+  it("another docked plugin already there: Planner docks to its left and reserves both strips (N44)", async () => {
+    const d = docked();
+    neighbour(d, 300);
+    await opened(d);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(480, 300)); // 40% of the room left of the neighbour
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 480, true, 300));
+    expect(d.lastStyle()).toContain("margin-right: 780px");
+  });
+
+  it("another plugin showing, resizing or hiding while Planner is docked moves Planner and the reserved strip (N44)", async () => {
+    const d = docked();
+    const other = neighbour(d, 300, false);
+    await opened(d);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(600));
+    other.classList.add("visible");
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600, 300)));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true, 300));
+    other.getBoundingClientRect = () => ({ left: 900, right: 1500, width: 600 }) as DOMRect;
+    other.setAttribute("style", "width: 600px");
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(540, 600))); // the page keeps its 360 px
+    other.classList.remove("visible");
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600)));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
+  });
+
+  it("stops watching other plugins when Planner closes (N44)", async () => {
+    const d = docked();
+    const other = neighbour(d, 300, false);
+    await opened(d);
+    switchTo("sidebar");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    const frames = d.deps.setFrame.mock.calls.length;
+    other.classList.add("visible");
+    await new Promise((r) => setTimeout(r, 30));
+    expect(d.deps.setFrame.mock.calls.length).toBe(frames);
   });
 
   it("Logseq's own sidebar opening, closing and resizing does not move, hide or close Planner", async () => {

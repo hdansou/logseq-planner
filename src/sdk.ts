@@ -36,8 +36,8 @@ export const clampDockWidth = (px: number, viewport: number): number =>
  * The sidebar surface (N40): Planner on the window's right edge, under the host header like the workspace frame, `width`
  * px wide. It sits BESIDE Logseq's right sidebar, not over it: `dockHostStyle` reserves its strip in the host layout.
  */
-export const dockFrame = (width: number, headbar: string): Frame =>
-  ({ position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, right: "0", left: "auto", width: `${width}px` });
+export const dockFrame = (width: number, headbar: string, offset = 0): Frame =>
+  ({ position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, right: offset ? `${offset}px` : "0", left: "auto", width: `${width}px` });
 
 /**
  * Host CSS that makes room for the docked frame (the approach of the Outline Canvas plugin, "mirror" mode): the app's
@@ -45,9 +45,11 @@ export const dockFrame = (width: number, headbar: string): Frame =>
  * closes on its own button without moving Planner. Applies only while Planner's container is visible, so a hidden
  * Planner gives the room back. `animate` false while the width is being dragged, so the host follows the pointer 1:1.
  */
-export function dockHostStyle(pluginId: string, width: number, animate: boolean): string {
-  return `body:has(.lsp-iframe-sandbox-container.visible[data-pid="${pluginId}"]) #app-container-wrapper {\n`
-    + `  margin-right: ${width}px !important;\n  transition: ${animate ? "margin-right 0.2s ease" : "none"};\n}`;
+export function dockHostStyle(pluginId: string, width: number, animate: boolean, offset = 0): string {
+  // N44: `offset` = the room another plugin's docked frame takes; the strip is both widths, and the `html` prefix makes this
+  // rule outrank the other plugin's own margin rule on the same wrapper (a tie goes to the later rule).
+  return `html body:has(.lsp-iframe-sandbox-container.visible[data-pid="${pluginId}"]) #app-container-wrapper {\n`
+    + `  margin-right: ${offset + width}px !important;\n  transition: ${animate ? "margin-right 0.2s ease" : "none"};\n}`;
 }
 
 /**

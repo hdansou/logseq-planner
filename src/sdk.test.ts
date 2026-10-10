@@ -156,11 +156,19 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
 
   it("the host rule reserves the strip on the app wrapper only while Planner's container is visible, and does not touch the host's toggle", () => {
     const css = dockHostStyle("planner", 600, true);
-    expect(css).toContain('body:has(.lsp-iframe-sandbox-container.visible[data-pid="planner"]) #app-container-wrapper');
+    expect(css).toContain('html body:has(.lsp-iframe-sandbox-container.visible[data-pid="planner"]) #app-container-wrapper');
     expect(css).toContain("margin-right: 600px !important");
     expect(css).toContain("transition: margin-right 0.2s ease");
     expect(css).not.toContain("Toggle right sidebar");
     expect(dockHostStyle("planner", 612, false)).toContain("transition: none");
+  });
+
+  it("N44: beside another docked plugin the frame is offset and the strip is both widths, with a rule that outranks the neighbour's", () => {
+    expect(dockFrame(500, HEADBAR, 300).right).toBe("300px");
+    expect(dockFrame(500, HEADBAR).right).toBe("0");
+    const css = dockHostStyle("planner", 500, true, 300);
+    expect(css).toContain("margin-right: 800px !important");
+    expect(css.startsWith("html body:has(")).toBe(true);
   });
 
   it("the docked frame goes on the container, important, like the workspace frame", () => {

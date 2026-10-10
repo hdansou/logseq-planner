@@ -122,6 +122,8 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   panel, drag, the Kanban Move menu, Timeline connectors or row toggles (nested children are open,
   task rows folded), "Show more" (it reads "N more"). Its styles are scoped to the block; works in
   the desktop and the web app.
+- **Other docked plugins.** In the Sidebar surface Planner docks to the left of any other plugin's frame on the window's
+  right edge (e.g. Outline Canvas) and reserves both strips; it follows that frame showing, resizing and hiding.
 - **Click** opens the node in the main area and hides Planner, except in the Sidebar surface
   (docked beside the page), where Planner stays open; **Shift+click** opens it in
   the right sidebar and keeps Planner open.

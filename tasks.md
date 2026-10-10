@@ -559,6 +559,18 @@ Live-check method (web app):
       Workspace surface still hides Planner; Shift+click and the in-page block opener unchanged. Focus is left with
       the opened page. Seen live: docked Kanban card open button → route changed, container still visible, host
       margin 620 px; Workspace → container hidden.
+- [x] **N44 Dock beside other docked plugins (step 1: measure)** — done 2026-10-10, seen live on the nightly
+      (planner-project, with Outline Canvas open at 48vw). Owner report: Planner and Outline Canvas both pinned
+      to `right: 0` and each set `margin-right` on `#app-container-wrapper`, so one covered the other and the
+      host reserved one strip, not both. `src/ui/dock-neighbours.ts`: `neighbourOffset` (the widest visible
+      foreign frame touching the right edge; full-screen / floating ones ignored) and `installNeighbours`
+      (watches only the other frames' class / style and added frames). Docked Planner sits at
+      `right: <offset>px`, reserves offset + width with an `html`-prefixed rule that outranks the other plugin's,
+      follows it showing / resizing / hiding, and keeps its wanted width (squeezed, not forgotten). Seen live:
+      canvas 947–1821, Planner 459–947, margin 1362 = 874 + 488; canvas at 30vw → Planner 787–1275, margin
+      1034; canvas hidden → Planner 1333–1821, margin 488. Step 2 (not done): a shared `{id, width}` registry
+      Outline Canvas also publishes and reads, for a stable order; Outline Canvas still covers itself over
+      Planner when it opens after Planner until it adopts it (Planner moves left of it instead: seen).
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
