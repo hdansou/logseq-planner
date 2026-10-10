@@ -76,10 +76,15 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   and expanded rows.
 - **Host shortcuts keep working** (desktop app). Keys Planner does not use are passed to Logseq, so Cmd+K,
   Cmd+Shift+P and `t t` work with Planner open; not available in the web app (cross-origin frame).
-- **Layout** (N13). Top bar, settings bar, then the body: the view (its toolbar, then the view) on
+- **Compact header and focus mode** (N39, owner 2026-10-09; both surfaces). The header is one row: icon tabs for the
+  four views (the pressed one named; all named from 640 px), ⤢ focus, ⚙ settings, ⋯ more. ⚙ opens the settings bar
+  (Tag, Dates, Depends on, Done when) in place; it starts folded. ⋯ holds Workspace | Sidebar, Panel, Close and Saved
+  views. Focus hides the header, the settings bar and the view toolbar behind one strip that names the view and its
+  tags; ⌄ brings them back. Both are session state: not saved with a view, not remembered per graph.
+- **Layout** (N13). Header, settings bar, then the body: the view (its toolbar, then the view) on
   the left and the **panel** (tag tree and filters, 220 px) on its right, in that reading and Tab
-  order. "Sidebar" means Logseq's right sidebar only. A **Panel** toggle, last in the settings
-  bar, hides and shows the panel (the view then takes the full width); while the panel is hidden
+  order. "Sidebar" means Logseq's right sidebar only. A **Panel** toggle, in the ⋯ menu (N39),
+  hides and shows the panel (the view then takes the full width); while the panel is hidden
   and filters are ticked, the toggle shows how many values are ticked ("Panel · 2"). The choice is
   remembered per graph (N21; not saved with a view). In a frame narrower than
   640 px the panel is a **drawer** over the view from the right edge, closed by default; Escape
@@ -95,7 +100,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   period on screen, expanded and collapsed rows, open menus.
 - **Surfaces** (N06a). Planner shows in the **workspace** (the window under the app header, the
   default) or in the **sidebar**: laid over Logseq's right sidebar, beside the page. A
-  **Workspace | Sidebar** switch in the top bar, before Saved views, picks one; the choice is
+  **Workspace | Sidebar** switch in the ⋯ menu, before Saved views, picks one; the choice is
   remembered per graph (N21). Sidebar opens Logseq's right sidebar, lays Planner
   over it from the header's lower edge, leaving the sidebar's resize handle free, and follows the
   sidebar's width (its handle, the window). The sidebar's own content is covered while Planner is
@@ -103,7 +108,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   sidebar hides Planner and keeps the mode, so the next open docks again and reopens it. Switching
   back to Workspace restores the full frame and leaves the sidebar as it is. Desktop app only: the
   web app's frame cannot read the host document, so the switch is not shown there. Inside the
-  frame nothing changes: the top bar wraps, and under 640 px the panel is a drawer.
+  frame nothing changes: the header stays one row, and under 640 px the panel is a drawer.
 - **In-page block** (N06b). A block `{{renderer :planner, <saved view name>}}` (slash command
   **Planner view**) shows a read-only picture of that saved view inside the page: a header (the
   view's name, its tags "#A + #B", an **Open in Planner** button that opens Planner in the
