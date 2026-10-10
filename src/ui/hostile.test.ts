@@ -55,7 +55,8 @@ async function click(sel: string) {
 /** Nothing was created from the strings: no element, no event-handler attribute; the strings show as text. */
 function expectInert(where: string) {
   expect(root.querySelectorAll("img").length, where).toBe(0);
-  expect(root.querySelectorAll("[onerror], [onmouseover], [x]").length, where).toBe(0);
+  expect(root.querySelectorAll("[onerror], [onmouseover]").length, where).toBe(0);
+  expect([...root.querySelectorAll("[x]")].filter((e) => !e.closest("svg")).length, where).toBe(0); // the tab icons are svg: their x is geometry
   expect(root.textContent, where).toContain(H);
 }
 

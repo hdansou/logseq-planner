@@ -449,11 +449,11 @@ describe("panel (N13)", () => {
     for (const css of [workspaceCss, themeCss]) expect(css).not.toMatch(/sidebar/i);
   });
 
-  it("a Panel toggle, last in the settings bar, hides and shows the panel; the view then takes the full width; focus stays on it", async () => {
+  it("a Panel toggle, in the ⋯ menu (N39), hides and shows the panel; the view then takes the full width; focus stays on it", async () => {
     const { ws } = await setup();
     const btn = () => $("[data-action=toggle-panel]")!;
     expect(btn().tagName).toBe("BUTTON");
-    expect($("[data-region=settings]")!.lastElementChild).toBe(btn());
+    expect($("[data-region=more]")!.contains(btn())).toBe(true);
     expect(btn().getAttribute("aria-controls")).toBe("pl-panel");
     expect(btn().getAttribute("aria-expanded")).toBe("true");
     expect(text("[data-action=toggle-panel]")).toBe("Panel");
@@ -637,17 +637,17 @@ describe("surface switch (N06a)", () => {
     expect($(".pl-ws")!.hasAttribute("data-surface-mode")).toBe(false);
   });
 
-  it("a Workspace | Sidebar segmented control in the top bar, before Saved views, Workspace pressed", async () => {
+  it("a Workspace | Sidebar segmented control in the ⋯ menu (N39), before Saved views, Workspace pressed", async () => {
     await setup({ setSurface: vi.fn() });
-    const group = $("[data-region=topbar] [role=group][aria-label=Surface]")!;
+    const group = $("[data-region=more] [role=group][aria-label=Surface]")!;
     expect(group.classList.contains("pl-seg")).toBe(true);
     const buttons = [...group.querySelectorAll<HTMLButtonElement>("button")];
     expect(buttons.map((b) => [b.dataset.surface, b.textContent, b.getAttribute("aria-pressed"), b.type])).toEqual([
       ["workspace", "Workspace", "true", "button"],
       ["sidebar", "Sidebar", "false", "button"],
     ]);
-    const top = [...$("[data-region=topbar]")!.children];
-    expect(top.indexOf(group)).toBe(top.indexOf($("[data-control=saved-views]")!.closest(".pl-anchor")!) - 1);
+    const top = [...$("[data-region=more]")!.children];
+    expect(top.indexOf(group)).toBeLessThan(top.indexOf($("[data-control=saved-views]")!.closest(".pl-anchor")!));
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
 
@@ -668,10 +668,12 @@ describe("surface switch (N06a)", () => {
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
 
-  it("the top bar wraps at the sidebar's widths (~700 and ~450 px), wrapped rows to the right edge (stylesheet; happy-dom does not lay out)", () => {
-    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*flex-wrap:\s*wrap/);
-    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*justify-content:\s*flex-end/);
-    expect(workspaceCss).toMatch(/\.pl-top\s*\{[^}]*gap:\s*8px 12px/);
+  it("the header is one row that never wraps (N39: icon tabs, the rest in the ⋯ menu), tab names shown from 640 px (stylesheet; happy-dom does not lay out)", () => {
+    const top = workspaceCss.match(/\.pl-top\s*\{[^}]*\}/)![0];
+    expect(top).not.toMatch(/flex-wrap/);
+    expect(top).toMatch(/align-items:\s*center/);
+    expect(workspaceCss).toMatch(/\.pl-tab\s*>\s*\.pl-tab-label\s*\{\s*display:\s*none/);
+    expect(workspaceCss).toMatch(/@container \(min-width: 640px\)/);
   });
 });
 

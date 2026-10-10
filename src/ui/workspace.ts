@@ -113,7 +113,7 @@ export interface Workspace {
   stop(): void;
 }
 
-type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move";
+type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move" | "more";
 
 interface State {
   loading: boolean;
@@ -169,6 +169,10 @@ interface State {
   surface: Surface;
   /** Timeline: the Edit dates toggle (N06c). Session state: off on start, never saved with a view. */
   editDates: boolean;
+  /** The settings bar is open (N39); folded on start, session state. */
+  settingsOpen: boolean;
+  /** Focus mode (N39): the header, settings and view toolbar are hidden behind one strip; session state. */
+  focus: boolean;
   /** Timeline: the title column's width in px (N36); null = the default. Per graph (UiPrefs), not saved with a view. */
   labelWidth: number | null;
   /** Timeline date edits being written, by node uuid: the bar shows at its new place (optimistic). Session state. */
@@ -263,7 +267,8 @@ const menu = (kind: Popover, s: State, label: string, buttonText: string, popove
 
 function renderTopBar(s: State): string {
   const kind = s.config?.kind;
-  const seg = VIEW_KINDS.map((k) => `<button type="button" data-view-kind="${k}" aria-pressed="${k === kind}"${s.config ? "" : " disabled"}>${KIND_LABEL[k]}</button>`).join("");
+  const seg = VIEW_KINDS.map((k) => `<button type="button" class="pl-tab" data-view-kind="${k}" aria-pressed="${k === kind}" aria-label="${KIND_LABEL[k]}" title="${KIND_LABEL[k]}"${s.config ? "" : " disabled"}>`
+    + `${KIND_ICON[k]}<span class="pl-tab-label">${KIND_LABEL[k]}</span></button>`).join("");
   const current = s.views.find((v) => v.id === s.viewId);
   const viewsPopover = () => {
     const rows = s.views.length
@@ -291,12 +296,27 @@ function renderTopBar(s: State): string {
       : "";
     return rows + update + save;
   };
-  return `<header class="pl-top" data-region="topbar"><h1 class="pl-title">Planner</h1>`
-    + `<div class="pl-seg" role="group" aria-label="View">${seg}</div><span class="pl-spacer"></span>`
+  // N39: one row. Icon tabs (the pressed one named), then focus, settings and the ⋯ menu with what is used less often.
+  const moreOpen = s.popover === "more" || s.popover === "views";
+  return `<header class="pl-top" data-region="topbar"${s.focus ? " hidden" : ""}><h1 class="pl-title">Planner</h1>`
+    + `<div class="pl-seg pl-tabs" role="group" aria-label="View">${seg}</div><span class="pl-spacer"></span>`
+    + `<button type="button" class="pl-ibtn" data-action="toggle-focus" aria-pressed="${s.focus}" aria-label="Focus: hide the controls" title="Focus: hide the controls">⤢</button>`
+    + `<button type="button" class="pl-ibtn" data-action="toggle-settings" aria-expanded="${s.settingsOpen}" aria-controls="pl-settings" aria-label="View settings" title="View settings">⚙</button>`
+    + `<span class="pl-anchor"><button type="button" class="pl-ibtn" id="pl-more-btn" data-control="more" aria-haspopup="true" aria-expanded="${moreOpen}" aria-controls="pl-more" aria-label="More" title="More">⋯</button>`
+    + `<div class="pl-more pl-popover" id="pl-more" data-region="more" role="group" aria-label="More"${moreOpen ? "" : " hidden"}>`
     + renderSurfaceSwitch(s)
+    + `<div class="pl-more-row">${renderPanelToggle(s)}<button type="button" class="pl-btn" data-action="close">Close</button></div>`
     + menu("views", s, "Saved views", current ? esc(current.name) : "None", viewsPopover, "saved-views")
-    + `<button type="button" class="pl-btn" data-action="close">Close</button></header>`;
+    + `</div></span></header>`;
 }
+
+/** N39: the view tabs' icons (16 px, stroke = the text colour). */
+const KIND_ICON: Record<ViewKind, string> = {
+  timeline: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M2 4h6M5 8h8M3 12h7"/></svg>`,
+  calendar: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 2v2M10.5 2v2"/></svg>`,
+  agenda: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.1M2.5 8h.1M2.5 12h.1"/></svg>`,
+  kanban: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="3.4" height="11" rx="1"/><rect x="6.3" y="2.5" width="3.4" height="7" rx="1"/><rect x="10.6" y="2.5" width="3.4" height="9" rx="1"/></svg>`,
+};
 
 const SURFACES: [Surface, string][] = [["workspace", "Workspace"], ["sidebar", "Sidebar"]];
 
@@ -444,14 +464,23 @@ function renderView(s: State, view: ViewTags | undefined, now: () => Now): { vie
 const errorBar = (error: string) =>
   `<div class="pl-error" role="alert" data-region="error"><span>${esc(error)}</span><button type="button" class="pl-btn" data-action="dismiss-error">Dismiss</button></div>`;
 
+/** N39 focus mode: one line that names the view, and the button that brings the controls back. Hidden otherwise. */
+function renderFocusStrip(s: State): string {
+  const c = s.config;
+  const text = c ? `<b>${KIND_LABEL[c.kind]}</b> <i>· ${esc(tagsTitle(c.tags.map((id) => s.tags.find((t) => t.ident === id)).filter((t): t is TagInfo => !!t)))}</i>` : "<b>Planner</b>";
+  return `<div class="pl-strip" data-region="focus-strip"${s.focus ? "" : " hidden"}><span class="pl-strip-text">${text}</span>`
+    + `<button type="button" class="pl-ibtn" data-action="toggle-focus" data-focus-show aria-label="Show the controls" title="Show the controls">⌄</button></div>`;
+}
+
 function renderWorkspace(s: State, now: () => Now): string {
   const view = s.config ? validateViewConfig(s.config, s.tags) : undefined;
   const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
   const main = renderView(s, view, now);
   return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${renderTopBar(s)}${error}`
-    + `<div class="pl-settings" data-region="settings" role="group" aria-label="View settings">${view ? renderSettings(s, view) : ""}<span class="pl-spacer"></span>${renderPanelToggle(s)}</div>`
-    + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}">${main.toolbar}</div>`
+    + renderFocusStrip(s)
+    + `<div class="pl-settings" id="pl-settings" data-region="settings" role="group" aria-label="View settings"${s.settingsOpen && !s.focus ? "" : " hidden"}>${view ? renderSettings(s, view) : ""}</div>`
+    + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}"${s.focus ? " hidden" : ""}>${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
     + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, s.config?.tags ?? [])}${view ? renderFilters(s, view) : ""}</aside></div></div>`;
 }
@@ -468,7 +497,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
-    canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, labelWidth: null, datePending: new Map() };
+    canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, settingsOpen: false, focus: false, labelWidth: null, datePending: new Map() };
   /** Today as the injected clock says (the machine's by default); the renders and the refresh signature both use it. */
   const todayNow = () => (deps.today ?? localToday)();
   const timeNow = () => (deps.time ?? localTime)();
@@ -703,7 +732,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
-  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" ? "input" : "[aria-selected=true]"}`;
+  const firstInPopover = (p: Popover) => p === "more" ? "[data-region=more] button" : `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" ? "input" : "[aria-selected=true]"}`;
 
   async function openBody() {
     s.loading = true;
@@ -869,7 +898,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane", more: "more" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         s.viewDeleting = null;
@@ -934,7 +963,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         render();
         return deps.onClose();
       case "toggle-panel":
-        return void run(() => void (s.panelOpen[s.narrow ? "narrow" : "wide"] = !panelShown(s)), () => "[data-action=toggle-panel]");
+        return void run(() => {
+          s.panelOpen[s.narrow ? "narrow" : "wide"] = !panelShown(s);
+          if (s.popover === "more" || s.popover === "views") s.popover = null; // the ⋯ menu has done its job (N39)
+        }, () => "[data-action=toggle-panel]");
+      case "toggle-settings":
+        return void run(() => void (s.settingsOpen = !s.settingsOpen), () => "[data-action=toggle-settings]");
+      case "toggle-focus":
+        return void run(() => void (s.focus = !s.focus), () => (s.focus ? "[data-focus-show]" : "[data-action=toggle-focus]:not([data-focus-show])"));
       case "toggle-built-in":
         return void run(() => void (s.builtInOpen = !s.builtInOpen));
       case "retry":

@@ -478,12 +478,23 @@ Live-check method (web app):
       (2) Chosen property values on the card: a "Card fields" menu in the Kanban toolbar,
       saved in the view config (versioned JSON, old configs keep working); `nodePull` and
       `normalize.ts` carry the extra values. Do (1) first. After N37 (card height).
-- [ ] **N39 Less chrome: a focus / compact mode** — owner request 2026-10-09. In the
+- [x] **N39 Less chrome: a focus / compact mode** — done 2026-10-09, seen live on the nightly (workspace and sidebar); owner request. In the
       sidebar surface the top bar, settings bar and view toolbar take ~350 px of ~1100.
       Options (sketch two or three, owner picks): collapsible settings bar with a one-line
       summary (recommended), a focus mode that hides all bars to a thin strip, settings
       moved into the Panel, responsive icon buttons. State remembered per graph and per
       surface (N21 `UiPrefs`); a clear way back to the controls.
+      Built (owner chose the compact header + focus mode, for the workspace and the sidebar,
+      after clickable mockups): ONE header row of icon tabs (the pressed one named; all named
+      from 640 px, container query) + ⤢ focus + ⚙ settings + ⋯ menu (surface switch, Panel,
+      Close, Saved views); ⚙ opens the settings bar in place (not a popover); focus hides the
+      header, settings and view toolbar behind one strip `data-region=focus-strip` (view name,
+      tags, ⌄). Both are session state (`settingsOpen`, `focus`), not remembered per graph and
+      not in a saved view. All old selectors kept (controls stay in the DOM, hidden when
+      folded); tests moved with the layout (Panel and surface now in `[data-region=more]`).
+      Seen live: sidebar (418 px) header 155 px before the view toolbar's content, with
+      settings open 265, focus 41; workspace ⋯ menu, nested Saved views, settings, focus.
+      Left: remembering settings/focus per graph; the Panel (docked) stays visible in focus.
 - [ ] **N40 Sidebar surface beside the native right sidebar** — owner request 2026-10-09.
       Toggling Logseq's native right sidebar while Planner is docked overlaps it. Reference:
       `logseq-dev/plugin-dev/logseq-outline-canvas` (`src/index.ts` ~472-552, "mirror"

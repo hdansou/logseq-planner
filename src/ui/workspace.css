@@ -9,8 +9,31 @@ html, body, #app { height: 100%; }
 /* Top bar */
 /* Wraps in a narrow frame (the docked surface, N06a: ~700 px, ~450 px); wrapped rows sit at the right edge, so the
    right-aligned Saved views popover stays inside the frame. On the first row the spacer takes the free space. */
-.pl-top { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px 12px; padding: 10px 16px;
-  border-bottom: 1px solid var(--pl-line-soft); }
+.pl-ws { container-type: inline-size; }
+/* N39 compact header: one row. Icon tabs (the pressed one named; all named from 640 px), then focus, settings and the
+   ⋯ menu that holds the surface switch, Saved views, Panel and Close. The title stays for assistive technology. */
+.pl-top { display: flex; align-items: center; gap: 4px; padding: 8px 10px 6px 12px; border-bottom: 1px solid var(--pl-line-soft); }
+.pl-tabs { flex: none; }
+.pl-tab { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; }
+.pl-tab svg { flex: none; }
+.pl-tab > .pl-tab-label { display: none; }
+.pl-tab[aria-pressed="true"] > .pl-tab-label { display: inline; }
+@container (min-width: 640px) { .pl-tab > .pl-tab-label { display: inline; } .pl-top .pl-title { position: static; width: auto; height: auto; margin: 0 8px 0 0; clip-path: none; } }
+.pl-top .pl-title { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.pl-ibtn { flex: none; border: 0; border-radius: 8px; width: 28px; height: 28px; font: inherit; font-size: 15px; line-height: 1; background: transparent; color: var(--pl-label-2); cursor: pointer; }
+.pl-ibtn:hover { background: var(--pl-fill); color: var(--pl-label); }
+.pl-ibtn[aria-pressed="true"], .pl-ibtn[aria-expanded="true"] { background: var(--pl-tint-soft); color: var(--pl-label); }
+.pl-ibtn:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 0; }
+.pl-more { right: 0; left: auto; display: grid; gap: 8px; padding: 10px; min-width: 260px; max-height: calc(100vh - 80px); }
+.pl-more[hidden] { display: none; }
+.pl-more .pl-anchor { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+.pl-more .pl-field-label { white-space: nowrap; }
+.pl-more .pl-popover { position: static; flex: 1 1 100%; box-shadow: none; padding: 6px 0 0; max-height: none; min-width: 0; background: transparent; }
+.pl-more-row { display: flex; gap: 8px; }
+.pl-more-row > * { flex: 1; text-align: center; justify-content: center; }
+.pl-strip { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 16px; border-bottom: 1px solid var(--pl-line-soft); }
+.pl-strip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-strip-text i { font-style: normal; color: var(--pl-label-2); }
 .pl-title { margin: 0; font-size: 15px; font-weight: 700; }
 .pl-spacer { flex: 1; }
 .pl-seg > button:disabled { cursor: default; color: var(--pl-label-2); }
