@@ -8,7 +8,7 @@
 // `data-kb-more="<cellKey>"` button for the next page; the counts in the heads are the real totals.
 import { TAG_KEY } from "../core/schema";
 import { NO_VALUE, type KanbanCard, type KanbanCell, type KanbanLayout, type KanbanSlot, type KanbanSort } from "../core/kanban";
-import type { ChoiceProp } from "../types";
+import type { ChoiceProp, FieldProp } from "../types";
 import { checkList, esc, flag, menu, options, segmented } from "./html";
 
 export type KanbanAction =
@@ -39,9 +39,8 @@ export interface KanbanToolbarInput {
   hasPriority: boolean;
   /** Two or more tags (N14): "Tag" is offered as swimlanes (`TAG_KEY`, read-only lanes). */
   tagLanes: boolean;
-  /** The choice properties a card can show (N38) and the idents hidden. */
-  fields: ChoiceProp[];
-  hiddenFields: readonly string[];
+  /** Per view tag: the properties its cards can show (N42) and which of them they do. */
+  fieldGroups: { ident: string; title: string; offered: FieldProp[]; shown: ReadonlySet<string> }[];
   /** The open workspace popover. */
   popover: string | null;
 }
@@ -57,17 +56,20 @@ export function renderKanbanToolbar(t: KanbanToolbarInput): string {
     attrs: `data-kb-show-value="${esc(c.key)}"`, text: c.title, checked: shown.has(c.key), disabled: shown.size === 1 && shown.has(c.key),
   }))) + `<p class="pl-hint">Saved with the view.</p>`;
   const showText = shown.size === t.columns.length ? "All" : `${shown.size} of ${t.columns.length}`;
-  const fields = () => checkList("Card fields", t.fields.map((p) => ({
-    attrs: `data-kb-field-value="${esc(p.ident)}"`, text: p.title, checked: !t.hiddenFields.includes(p.ident), disabled: false,
-  }))) + `<p class="pl-hint">Saved with the view.</p>`;
-  const shownFields = t.fields.filter((p) => !t.hiddenFields.includes(p.ident)).length;
-  const fieldsText = shownFields === t.fields.length ? "All" : `${shownFields} of ${t.fields.length}`;
+  // One group per view tag (N42); ticked = the cards of that tag show it.
+  const groups = t.fieldGroups.filter((g) => g.offered.length);
+  const fields = () => groups.map((g) => checkList(t.fieldGroups.length > 1 ? `#${g.title}` : "Card fields", g.offered.map((p) => ({
+    attrs: `data-kb-field-tag="${esc(g.ident)}" data-kb-field-value="${esc(p.ident)}"`, text: p.title, checked: g.shown.has(p.ident), disabled: false,
+  })))).join("") + `<p class="pl-hint">Saved with the view.</p>`;
+  const offeredCount = groups.reduce((n, g) => n + g.offered.length, 0);
+  const shownCount = groups.reduce((n, g) => n + g.offered.filter((p) => g.shown.has(p.ident)).length, 0);
+  const fieldsText = shownCount === offeredCount ? "All" : `${shownCount} of ${offeredCount}`;
   const byTag = t.laneProp?.ident === TAG_KEY;
   const changes = esc(t.columnProp.title) + (t.laneProp && !byTag ? ` or ${esc(t.laneProp.title)}` : "") + (byTag ? ". Tag lanes are read-only: a card keeps its tag" : "");
   return menu("kb-column", t.popover === "kb-column", "Columns", esc(t.columnProp.title), columns)
     + menu("kb-show", t.popover === "kb-show", "Show", showText, show)
     + menu("kb-lane", t.popover === "kb-lane", "Swimlanes", esc(t.laneProp?.title ?? "None"), lanes)
-    + (t.fields.length ? menu("kb-fields", t.popover === "kb-fields", "Card fields", fieldsText, fields) : "")
+    + (groups.length ? menu("kb-fields", t.popover === "kb-fields", "Card fields", fieldsText, fields) : "")
     + `<span class="pl-field-label">Sort</span>` + segmented("Sort cards by", "kb-sort", sorts, t.sort)
     + `<span class="pl-spacer"></span><span class="pl-hint">Drag a card, or use its ⋯ menu, to change ${changes}</span>`;
 }
@@ -107,7 +109,7 @@ function renderCard(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout, mo
     card.tag ? `<span class="pl-kb-tag">${esc(card.tag)}</span>` : "",
     card.progress.total ? `<span>${card.progress.done}/${card.progress.total} tasks</span>` : "",
     card.priority ? `<span class="pl-kb-priority" data-priority="${esc(card.priority.key)}">${esc(card.priority.title)}</span>` : "",
-    ...card.meta.map((m) => `<span>${esc(m)}</span>`),
+    ...card.fields.map((f) => `<span title="${esc(f.title)}">${esc(f.text)}</span>`),
     `<span class="pl-kb-when">${esc(card.when)}</span>`,
   ].filter(Boolean).join("");
   const open = moveOpen === card.uuid;

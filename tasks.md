@@ -526,7 +526,7 @@ Live-check method (web app):
       a reset wrote back. Probe first: `upsertBlockProperty` on the page uuid works, the page's
       blocks (saved views) are unchanged. Not seen: a second device, the stable app, a page in
       Recycle (the write fails quietly), the first write creating the page on a graph without it.
-- [ ] **N42 Kanban card fields: any simple property** — owner request 2026-10-09 ("review the UX,
+- [x] **N42 Kanban card fields: any simple property** — done 2026-10-09, seen live on the nightly (planner-project, #Task); owner request ("review the UX,
       allow choosing what to show, more than the narrowed list"). Requirement written in
       REQUIREMENTS.md, Kanban "Card contents" (owner's choices: all simple types; value only
       with the name as tooltip; chosen per tag, saved with the view). Work: schema discovery of
@@ -535,6 +535,24 @@ Live-check method (web app):
       default = today's shared choice values); the node pull widened by the chosen idents only
       (keep the T13a timings: re-run the 2,000-node check); a value formatter per type; the Card
       fields menu grouped by tag; tooltips + aria label. Tests first, then live. After N39.
+      Built: `TagInfo.fieldProps` (`FieldProp`: choice, text, number, checkbox, url, node, date,
+      datetime; hidden properties left out), config `cardFields` (per tag ident, ordered; absent =
+      the N38 default, so old views look the same; `hiddenFields` still applies to that default),
+      `src/core/fields.ts` (`cardFieldsOf`, `offeredFields`, `extraFieldProps`, `fieldTexts`, and
+      `priorityProp` moved there), the pull adds an attribute only for chosen text / number /
+      checkbox / url / node fields (`nodePull(..., fields)`, `RawData.fields`, so `readRaw` re-asks
+      when the choice changes; a dated or choice field adds nothing), `PlannerNode.extras`, the
+      menu one group per view tag (`data-kb-field-tag` + `data-kb-field-value`), values as bare
+      chips with the property name as `title`, several values joined in one chip cut at the card's
+      width. Seen live on #Task: the menu lists Deadline, Scheduled, Start, End, Owner, Team,
+      Milestone, depends_on; ticking depends_on (a node property) read the nodes again and the
+      cards show its titles; saved with the view into the graph. Not done: the 2,000-node timing
+      re-run (the default pull string is unchanged, asserted by a test), dates / numbers /
+      checkboxes / urls on real data (no such property in the test graph; unit tests only), the
+      property name in the card's aria-label (tooltip only), Planner's own Priority / column
+      properties offered.
+      Seen: clicking the already active view tab resets that view's settings (`switchKind`), which
+      cleared the card fields in a test run; it is the old behaviour for every Kanban setting.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

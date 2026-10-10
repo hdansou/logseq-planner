@@ -1,5 +1,5 @@
 // Graph queries for nodes and tasks. The datascript call is injected (see `Dq`); no SDK use here.
-import type { PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { FieldProp, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { isPropertyIdent, type Dq } from "./schema";
 import { buildNodes, buildTasks, systemZone, type ZoneOffset } from "./normalize";
 
@@ -31,6 +31,15 @@ export function nodePropIdents(tags: TagInfo[]): string[] {
 /** The dependency property as a pulled attribute (N12): ` <ident>`, or "" for none or an ident that is not a valid keyword. */
 const dependsAttr = (dependsOn: string | null) => (dependsOn !== null && isPropertyIdent(dependsOn) ? ` ${dependsOn}` : "");
 
+/**
+ * N42: the card fields that need an attribute of their own: a plain one for text, number, checkbox and url, and the
+ * referenced block's title for a node or page value. Date and choice fields are pulled with every node already.
+ * Idents that are not valid keywords are skipped, as everywhere here.
+ */
+const fieldAttrs = (fields: FieldProp[]): string =>
+  fields.filter((f) => ["text", "number", "checkbox", "url", "node"].includes(f.type) && isPropertyIdent(f.ident))
+    .map((f) => (f.type === "node" ? ` {${f.ident} [:db/id :block/title]}` : ` ${f.ident}`)).join("");
+
 /** The node refs as ids (N14: what nesting reads), pulled only for a view over two or more tags. */
 export const NODE_REFS = "{:block/refs [:db/id]}";
 
@@ -41,10 +50,10 @@ export const NODE_REFS = "{:block/refs [:db/id]}";
  * ms, `{id}`). The view's dependency property (N12), when it has one, last and plain: its values come back as `[{id}]`
  * (or `{id}`).
  */
-export function nodePull(tags: TagInfo[], dependsOn: string | null = null, links = false): string {
+export function nodePull(tags: TagInfo[], dependsOn: string | null = null, links = false, fields: FieldProp[] = []): string {
   const dates = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
   const head = links ? `${NODE_ATTRS} ${NODE_REFS}` : NODE_ATTRS;
-  return [head, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ") + dependsAttr(dependsOn);
+  return [head, ...nodePropIdents(tags).map((i) => (dates.has(i) ? `{${i} [:db/id :block/journal-day]}` : i))].join(" ") + dependsAttr(dependsOn) + fieldAttrs(fields);
 }
 
 /**
@@ -54,7 +63,7 @@ export function nodePull(tags: TagInfo[], dependsOn: string | null = null, links
  * live, T01/T04), and two tags with the same title no longer merge. Same join as probe query `nodesOfTagWithExtends`
  * (fixture nodes.json), with the narrow pull; blocks in Recycle (or on a recycled page) are left out (`notRecycled`).
  */
-export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null, links = false) => `[:find (pull ?b [${nodePull(tags, dependsOn, links)}])
+export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null, links = false, fields: FieldProp[] = []) => `[:find (pull ?b [${nodePull(tags, dependsOn, links, fields)}])
           :in $ [?tag ...] %
           :where [?b :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))
                  ${notRecycled("?b")}]`;
@@ -108,6 +117,8 @@ export interface RawData {
   tagIds: number[];
   /** The dependency property both queries pulled (N12); null = none. `buildData` reads the rows with it. */
   dependsOn: string | null;
+  /** The card fields with their own attribute the node query pulled (N42); `buildData` reads the rows with them. */
+  fields: FieldProp[];
   nodes: unknown[];
   tasks: unknown[];
 }
@@ -120,8 +131,8 @@ export interface RawData {
  * dependency property differ (a renamed tag is the same tag; the rows do not depend on the selection order, which
  * `buildData` applies); with neither, `prev`'s rows are reused and no query is sent.
  */
-export async function readRaw(dq: Dq, tags: TagInfo[], selected: TagInfo[], dependsOn: string | null, prev?: RawData): Promise<RawData> {
-  const query = nodesQuery(tags, dependsOn, withLinks(selected));
+export async function readRaw(dq: Dq, tags: TagInfo[], selected: TagInfo[], dependsOn: string | null, prev?: RawData, fields: FieldProp[] = []): Promise<RawData> {
+  const query = nodesQuery(tags, dependsOn, withLinks(selected), fields);
   const ids = tagIds(selected);
   const key = (list: number[]) => [...list].sort((a, b) => a - b).join(" ");
   const sameTags = !!prev && key(prev.tagIds) === key(ids);
@@ -129,7 +140,7 @@ export async function readRaw(dq: Dq, tags: TagInfo[], selected: TagInfo[], depe
     sameTags && prev!.nodesQuery === query ? prev!.nodes : dq(query, ids, CLASS_EXTENDS_RULES),
     sameTags && prev!.dependsOn === dependsOn ? prev!.tasks : dq(tasksQuery(dependsOn), ids, CLASS_EXTENDS_RULES),
   ]);
-  return { nodesQuery: query, tagIds: ids, dependsOn, nodes, tasks };
+  return { nodesQuery: query, tagIds: ids, dependsOn, fields, nodes, tasks };
 }
 
 /**
@@ -138,7 +149,7 @@ export async function readRaw(dq: Dq, tags: TagInfo[], selected: TagInfo[], depe
  */
 export function buildData(raw: RawData, tags: TagInfo[], selected: TagInfo[], opts: Omit<LoadNodesOptions, "dependsOn">): { nodes: PlannerNode[]; tasks: PlannerTask[] } {
   const zone = opts.zone ?? systemZone;
-  const nodes = buildNodes(raw.nodes, tags, selected, opts.childTags, zone, raw.dependsOn);
+  const nodes = buildNodes(raw.nodes, tags, selected, opts.childTags, zone, raw.dependsOn, raw.fields);
   return { nodes, tasks: buildTasks(raw.tasks, nodes, zone, raw.dependsOn) };
 }
 

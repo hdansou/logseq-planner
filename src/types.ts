@@ -142,6 +142,19 @@ export interface NodeProp {
   title: string;
 }
 
+/** What a property holds, as far as a card can show it (N42): `choice` = a closed-value property with one value. */
+export type FieldType = "choice" | "text" | "number" | "checkbox" | "url" | "node" | "date" | "datetime";
+
+/** Any property of a tag a Kanban card can show (N42): own or inherited, never a hidden one. */
+export interface FieldProp {
+  id: number;
+  ident: string;
+  title: string;
+  type: FieldType;
+  /** More than one value possible (cardinality many). */
+  many: boolean;
+}
+
 /** One tag with the properties Planner can map, inherited ones included. */
 export interface TagInfo {
   id: number;
@@ -159,6 +172,8 @@ export interface TagInfo {
   choiceProps: ChoiceProp[];
   /** Node-typed properties: the choices of the "Depends on" setting (N12). */
   nodeProps: NodeProp[];
+  /** Every property a card can show, in the same order (N42). */
+  fieldProps: FieldProp[];
 }
 
 /** A local calendar day, with the wall-clock time for DateTime values (`time` is null for Date values). */
@@ -186,6 +201,11 @@ export interface PlannerNode {
   dates: Record<string, LocalDate>;
   /** Choice values by property ident; a property the node has no value for is absent. */
   choices: Record<string, ClosedValue>;
+  /**
+   * The values of the card fields that need their own attribute (N42: text, number, checkbox, url, node / page), by
+   * property ident, each as a list (a ref by its title); a property with no value is absent. Only what the view asked for.
+   */
+  extras?: Record<string, (string | number | boolean)[]>;
   /** Entity ids of the nodes it depends on through the view's dependency property (N12); [] without one. */
   dependsOn: number[];
   /**

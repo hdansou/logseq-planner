@@ -35,7 +35,7 @@ describe("macroViewName", () => {
 });
 
 describe("findView", () => {
-  const config = defaultViewConfig({ id: 1, uuid: "u", ident: ":user.class/A", title: "A", builtIn: false, parentIds: [], childIds: [], dateProps: [], choiceProps: [], nodeProps: [] });
+  const config = defaultViewConfig({ id: 1, uuid: "u", ident: ":user.class/A", title: "A", builtIn: false, parentIds: [], childIds: [], dateProps: [], choiceProps: [], nodeProps: [], fieldProps: [] });
   const views: ListedView[] = [
     { id: "1", name: "roadmap", config },
     { id: "2", name: "Roadmap", config },

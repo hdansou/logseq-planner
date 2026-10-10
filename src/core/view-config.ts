@@ -60,9 +60,12 @@ export type ViewConfig = CommonConfig &
      * share no choice property.
      * `hiddenColumns`: per column property ident, the columns not shown (closed-value uuids, `NO_VALUE` = "No <prop>"),
      * kept per property so switching the column property and back keeps each choice; unknown keys are ignored (N08).
-     * `hiddenFields`: idents of the choice properties whose value a card does not show (N38); [] = all shown.
+     * `hiddenFields`: idents of the choice properties whose value a card does not show (N38); [] = all shown. Only for
+     * a tag without a list of its own below.
+     * `cardFields` (N42): per tag ident, the idents of the properties its cards show, in order; a tag absent here shows
+     * the default (the shared choice properties less `hiddenFields`).
      */
-    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]>; hiddenFields: string[] }
+    | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]>; hiddenFields: string[]; cardFields: Record<string, string[]> }
   );
 
 const VERSION = 1;
@@ -116,7 +119,7 @@ export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "ti
     case "agenda":
       return { ...common, kind, groupBy: "node", showDone: false };
     case "kanban":
-      return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {}, hiddenFields: [] };
+      return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {}, hiddenFields: [], cardFields: {} };
   }
 }
 
@@ -249,6 +252,7 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
       stringOrNull("laneProp", config.laneProp);
       selection("hiddenColumns", config.hiddenColumns, false, "column keys");
       if (!Array.isArray(config.hiddenFields) || !config.hiddenFields.every((f) => typeof f === "string")) throw invalid("hiddenFields must be a list of property idents");
+      if (!isObject(config.cardFields) || !Object.values(config.cardFields).every((l) => Array.isArray(l) && l.every((f) => typeof f === "string"))) throw invalid("cardFields must be an object of lists of property idents");
       return;
   }
 }
@@ -336,6 +340,7 @@ export function parseViewConfig(text: string): ViewConfig {
   let stored = parsed.config;
   if (isObject(stored) && stored.kind === "kanban" && !("hiddenColumns" in stored)) stored.hiddenColumns = {};
   if (isObject(stored) && stored.kind === "kanban" && !("hiddenFields" in stored)) stored.hiddenFields = [];
+  if (isObject(stored) && stored.kind === "kanban" && !("cardFields" in stored)) stored.cardFields = {};
   if (isObject(stored) && !("tags" in stored) && typeof stored.tag === "string") {
     const { tag, start, end, ...rest } = stored;
     stored = { ...rest, tags: [tag], dates: { [tag]: { start, end } } };

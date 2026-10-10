@@ -3,6 +3,7 @@
 // state, the block passes `blockSession`. Also the one data loader both use (`readViewData`, `viewData`), so the two
 // surfaces cannot drift apart.
 import { buildData, loadTitles, readRaw, type RawData } from "../core/queries";
+import { cardFieldsOf, extraFieldProps, offeredFields } from "../core/fields";
 import { filterNodes } from "../core/nodes";
 import type { ZoneOffset } from "../core/normalize";
 import { tagsTitle, TAG_KEY, type Dq, type ViewTags } from "../core/schema";
@@ -104,7 +105,7 @@ export async function viewData(dq: Dq, config: ViewConfig, tags: TagInfo[], raw:
 /** A view's nodes, tasks and titles as the graph has them now. */
 export async function readViewData(dq: Dq, config: ViewConfig, tags: TagInfo[], zone?: ZoneOffset): Promise<ViewData> {
   const view = validateViewConfig(config, tags);
-  return viewData(dq, config, tags, await readRaw(dq, tags, view.tags, dependsOnOf(config, view)), zone);
+  return viewData(dq, config, tags, await readRaw(dq, tags, view.tags, dependsOnOf(config, view), undefined, extraFieldProps(config, view)), zone);
 }
 
 /** The loaded nodes with the pending Kanban moves and Timeline date edits applied: where they show while the writes run. */
@@ -203,10 +204,6 @@ export const timelineLayoutOf = (a: ViewAreaInput, now: Now): TimelineLayout =>
   timelineLayout(a, now, visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks));
 
 /** A Kanban view's column or lane property: one of the view's shared choice properties, or the Tag lanes (N14); null for none. */
-/** The choice properties a card can show or hide (N38): all but the ones it sits in (column, lane) and its Priority. */
-export const cardFieldProps = (view: ViewTags, column: string | null, lane: string | null): ChoiceProp[] =>
-  view.choiceProps.filter((p) => p.ident !== column && p.ident !== lane && p.ident !== priorityProp(view)?.ident);
-
 export const kanbanProp = (view: ViewTags, ident: string | null): ChoiceProp | null =>
   ident === null ? null : ident === TAG_KEY ? tagLaneProp(view.tags) : view.choiceProps.find((p) => p.ident === ident)!;
 
@@ -221,6 +218,7 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
     columnProp: kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
     choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
     hidden: c.hiddenColumns[c.columnProp] ?? [], hiddenFields: c.hiddenFields,
+    cardFields: new Map(a.view.tags.map((t) => [t.ident, cardFieldsOf(c, t, a.view)])),
     tagTitles: a.view.tags.length > 1 ? new Map(a.view.tags.map((t) => [t.ident, `#${t.title}`])) : undefined,
   });
 }
@@ -268,6 +266,6 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
     view: renderKanban(layout, heading, session.moveOpen, session.kbShown),
     toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
       shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: session.popover,
-      fields: cardFieldProps(view, c.columnProp, c.laneProp), hiddenFields: c.hiddenFields }),
+      fieldGroups: view.tags.map((t) => ({ ident: t.ident, title: t.title, offered: offeredFields(c, t, view), shown: new Set(cardFieldsOf(c, t, view).map((f) => f.ident)) })) }),
   };
 }

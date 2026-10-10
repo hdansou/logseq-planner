@@ -1,5 +1,5 @@
 // Pure normalisation: raw query results → plain nodes and tasks. No DOM, no SDK.
-import type { ClosedValue, DateProp, LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { ClosedValue, DateProp, FieldProp, LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 /** Minutes east of UTC at an instant (UTC-5 → -300). Injected so tests do not depend on process TZ. */
 export type ZoneOffset = (epochMs: number) => number;
@@ -112,6 +112,29 @@ function propsOf(node: RawNode, tagsById: Map<number, TagInfo>) {
   return { dateProps: [...dateProps.values()], choiceProps: [...choiceProps.values()] };
 }
 
+/**
+ * N42: the values of the card fields pulled with their own attribute, as lists: a scalar as it is (text trimmed, empty
+ * ones dropped), a node or page value by the title of what it points at (the empty placeholder and refs without a
+ * title are none). A property the node has no value for is absent.
+ */
+function extrasOf(node: RawNode, fields: FieldProp[]): NonNullable<PlannerNode["extras"]> {
+  const out: NonNullable<PlannerNode["extras"]> = {};
+  for (const f of fields) {
+    const v = node[f.ident];
+    if (v === undefined || v === null) continue;
+    const list = (Array.isArray(v) ? v : [v]).flatMap((x): (string | number | boolean)[] => {
+      if (f.type === "node") {
+        const title = (x as { title?: unknown } | null)?.title;
+        return isRef(x) && !isEmptyPlaceholder(x) && typeof title === "string" && title.trim() ? [title.trim()] : [];
+      }
+      if (typeof x === "string") return x.trim() ? [x.trim()] : [];
+      return typeof x === "number" || typeof x === "boolean" ? [x] : [];
+    });
+    if (list.length) out[f.ident] = list;
+  }
+  return out;
+}
+
 const tagMap = (tags: TagInfo[]) => new Map(tags.map((t) => [t.id, t]));
 
 /**
@@ -128,6 +151,7 @@ export function buildNodes(
   childTags: boolean,
   zone: ZoneOffset,
   dependsOn: string | null = null,
+  fields: FieldProp[] = [],
 ): PlannerNode[] {
   const tagsById = tagMap(tags);
   const rows = rawNodes(raw);
@@ -159,6 +183,7 @@ export function buildNodes(
       tag: viewTag.get(node.id)!,
       dates,
       choices,
+      extras: extrasOf(node, fields),
       dependsOn: deps,
       links: [...new Set((node.refs ?? []).map((r) => r.id))].filter((id) => id !== node.id && viewTag.has(id) && !deps.includes(id)),
     };

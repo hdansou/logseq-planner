@@ -472,34 +472,56 @@ describe("card tag (N38)", () => {
   });
 });
 
-describe("Card fields menu (N38)", () => {
+describe("Card fields menu (N38, N42)", () => {
   const box = (ident: string) => $<HTMLInputElement>(`[data-popover=kb-fields] input[data-kb-field-value="${ident}"]`)!;
   const meta = (uuid: string) => text(`[data-kb-card="${uuid}"] .pl-kb-meta`)!;
+  const field = (title: string) => tag("Project").fieldProps.find((f) => f.title === title)!;
+  const projectKey = () => tag("Project").ident;
 
-  it("after Swimlanes: a Card fields menu reading All; it lists the choice properties a card can show, all ticked", async () => {
+  it("after Swimlanes: a Card fields menu; it offers every property of the tag except the one the board is columned by, the shown ones ticked", async () => {
     const toolbar = $("[data-region=view-toolbar]")!;
     expect([...toolbar.querySelectorAll(".pl-field-label")].map((l) => l.textContent)).toEqual(["Columns", "Show", "Swimlanes", "Card fields", "Sort"]);
-    expect(text("[data-control=kb-fields]")).toBe("All▾");
+    expect(text("[data-control=kb-fields]")).toBe("1 of 3▾"); // Owner is shown by default, Start and End are offered
     await click("[data-control=kb-fields]");
-    expect($$("[data-popover=kb-fields] input").map((i) => i.dataset.kbFieldValue)).toEqual([prop("Owner").ident]);
-    expect(box(prop("Owner").ident).checked).toBe(true);
+    expect($$("[data-popover=kb-fields] input").map((i) => [i.dataset.kbFieldValue, (i as HTMLInputElement).checked])).toEqual([[field("Start").ident, false], [field("End").ident, false], [field("Owner").ident, true]]);
     expect(meta(SITE)).toContain("Alice");
   });
 
-  it("unticking a property takes its value off the cards and is saved with the view; ticking brings it back", async () => {
+  it("unticking a property takes its value off the cards; the choice is the tag's own list, saved with the view; ticking brings it back", async () => {
     await click("[data-control=kb-fields]");
-    await click(`[data-popover=kb-fields] input[data-kb-field-value="${prop("Owner").ident}"]`);
-    expect(ws.config()).toMatchObject({ kind: "kanban", hiddenFields: [prop("Owner").ident] });
+    await click(`[data-popover=kb-fields] input[data-kb-field-value="${field("Owner").ident}"]`);
+    expect(ws.config()).toMatchObject({ kind: "kanban", cardFields: { [projectKey()]: [] } });
     expect(meta(SITE)).not.toContain("Alice");
-    expect(text("[data-control=kb-fields]")).toBe("0 of 1▾");
-    await click(`[data-popover=kb-fields] input[data-kb-field-value="${prop("Owner").ident}"]`);
-    expect(ws.config()).toMatchObject({ hiddenFields: [] });
+    expect(text("[data-control=kb-fields]")).toBe("0 of 3▾");
+    await click(`[data-popover=kb-fields] input[data-kb-field-value="${field("Owner").ident}"]`);
+    expect(ws.config()).toMatchObject({ cardFields: { [projectKey()]: [field("Owner").ident] } });
     expect(meta(SITE)).toContain("Alice");
   });
 
-  it("the column and lane properties are not offered (a card already sits in them)", async () => {
+  it("a date property shows on the card as its value, with the property's name as its tooltip", async () => {
+    await click("[data-control=kb-fields]");
+    await click(`[data-popover=kb-fields] input[data-kb-field-value="${field("Start").ident}"]`);
+    const span = [...card(SITE).querySelectorAll<HTMLElement>(".pl-kb-meta span")].find((x) => x.getAttribute("title") === "Start")!;
+    expect(span.textContent).toMatch(/^\d{1,2} \w{3}/);
+    expect(card(SITE).querySelector(".pl-kb-open")!.getAttribute("aria-label")).toContain(span.textContent!);
+  });
+
+  it("the lane property is not offered: Swimlanes by Owner takes it off the list", async () => {
     await click("[data-control=kb-lane]");
     await click(`[data-popover=kb-lane] [data-option="${prop("Owner").ident}"]`);
-    expect($("[data-control=kb-fields]")).toBeNull(); // nothing left to choose
+    await click("[data-control=kb-fields]");
+    expect($$("[data-popover=kb-fields] input").map((i) => i.dataset.kbFieldValue)).toEqual([field("Start").ident, field("End").ident]);
+  });
+
+  it("a view of two tags has one group per tag, each toggling its own list", async () => {
+    await click(`[data-tag-id="${tag("Client project").id}"]`);
+    await click(`[data-tag-check="${tag("Project").id}"]`);
+    await click("[data-control=kb-fields]");
+    const groups = $$("[data-popover=kb-fields] fieldset");
+    expect(groups.map((g) => g.querySelector("legend")!.textContent)).toEqual(["#Client project", "#Project"]);
+    const owner = field("Owner").ident;
+    await click(`[data-popover=kb-fields] input[data-kb-field-tag="${tag("Client project").ident}"][data-kb-field-value="${owner}"]`);
+    expect(ws.config()).toMatchObject({ cardFields: { [tag("Client project").ident]: expect.any(Array) } });
+    expect((ws.config() as { cardFields: Record<string, string[]> }).cardFields[tag("Project").ident]).toBeUndefined();
   });
 });

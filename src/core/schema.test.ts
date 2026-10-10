@@ -198,3 +198,43 @@ describe("mergeTags: the properties a view over several tags shares (N14)", () =
     expect(tagsTitle([byTitle("Meeting")])).toBe("#Meeting");
   });
 });
+
+describe("card field properties (N42)", () => {
+  // The fixture rows plus hand-written ones on Project, as the probe saw each type: number, checkbox, url, text (default
+  // without closed values), a many-valued page-typed one, and a hidden one that must not be offered.
+  const PROPS = [
+    { id: 9911, ident: ":user.property/estimate-Aa11", title: "Estimate", ":logseq.property/type": "number", cardinality: ":db.cardinality/one" },
+    { id: 9912, ident: ":user.property/billable-Bb22", title: "Billable", ":logseq.property/type": "checkbox", cardinality: ":db.cardinality/one" },
+    { id: 9913, ident: ":user.property/site-Cc33", title: "Site", ":logseq.property/type": "url", cardinality: ":db.cardinality/one" },
+    { id: 9914, ident: ":user.property/notes-Dd44", title: "Notes", ":logseq.property/type": "default", cardinality: ":db.cardinality/one" },
+    { id: 9915, ident: ":user.property/people-Ee55", title: "People", ":logseq.property/type": "page", cardinality: ":db.cardinality/many" },
+    { id: 9916, ident: ":user.property/secret-Ff66", title: "Secret", ":logseq.property/type": "number", cardinality: ":db.cardinality/one", ":logseq.property/hide?": true },
+  ];
+  const withFields = () => {
+    const rows = (rawTags as [Record<string, unknown>][]).map(([t]) => {
+      const own = (t[":logseq.property.class/properties"] as unknown[] | undefined) ?? [];
+      return [t.title === "Project" ? { ...t, ":logseq.property.class/properties": [...own, ...PROPS.map((p) => ({ id: p.id, ident: p.ident, title: p.title }))] } : t];
+    });
+    return buildTagInfos(rows, [...(rawProps as unknown[]), ...PROPS.map((p) => ["Project", p])]);
+  };
+  const project = () => withFields().find((t) => t.title === "Project")!;
+
+  it("lists every property a card can show with its type, own first then inherited, hidden ones left out", () => {
+    expect(project().fieldProps.map((p) => [p.title, p.type, p.many])).toEqual([
+      ["Status", "choice", false], ["Start", "date", false], ["End", "date", false], ["Owner", "choice", false],
+      ["Estimate", "number", false], ["Billable", "checkbox", false], ["Site", "url", false], ["Notes", "text", false], ["People", "node", true],
+    ]);
+  });
+
+  it("a child tag inherits them, and a tag without properties has none", () => {
+    const client = withFields().find((t) => t.title === "Client project")!;
+    expect(titles(client.fieldProps)).toEqual(expect.arrayContaining(["Estimate", "Status", "Client"]));
+    expect(client.fieldProps.find((p) => p.title === "Client")!.type).toBe("text");
+    expect(byTitle("Page").fieldProps).toEqual([]);
+  });
+
+  it("the fixture's own tags: dates, choices and text, in the types the host gives", () => {
+    const type = (tag: string, title: string) => byTitle(tag).fieldProps.find((p) => p.title === title)?.type;
+    expect([type("Project", "Start"), type("Project", "Owner"), type("Task", "Deadline"), type("Task", "Scheduled"), type("Client project", "Client")]).toEqual(["date", "choice", "datetime", "datetime", "text"]);
+  });
+});

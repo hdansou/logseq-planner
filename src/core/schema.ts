@@ -1,6 +1,6 @@
 // Schema discovery: tags, their date, choice and node properties (inherited included), closed values.
 // Pure: no DOM, no SDK. The datascript call is injected (see `Dq`).
-import type { ChoiceProp, ClosedValue, DateProp, NodeProp, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, DateProp, FieldProp, FieldType, NodeProp, TagInfo } from "../types";
 
 /** `logseq.DB.datascriptQuery`-shaped call; `src/sdk.ts` supplies the real one. */
 export type Dq = (query: string, ...inputs: unknown[]) => Promise<unknown[]>;
@@ -61,6 +61,7 @@ interface RawProp {
   ident: string;
   title: string;
   ":logseq.property/type"?: string;
+  ":logseq.property/hide?"?: boolean;
   /** `:db/cardinality` (pull key without `:db/`): `:db.cardinality/one` or `/many`. */
   cardinality?: string;
   "_closed-value-property"?: RawClosedValue[];
@@ -81,6 +82,16 @@ const toClosedValue = (v: RawClosedValue): ClosedValue => ({
 
 const byOrder = (a: ClosedValue, b: ClosedValue) => (a.order < b.order ? -1 : a.order > b.order ? 1 : 0);
 
+/** The card field type of a property (N42), or null when a card cannot show it (a many-valued choice, rich types). */
+function fieldTypeOf(type: string | undefined, closed: boolean, one: boolean): FieldType | null {
+  switch (type) {
+    case "date": case "datetime": case "number": case "checkbox": case "url": return type;
+    case "node": case "page": return "node";
+    case "default": return closed ? (one ? "choice" : null) : "text";
+    default: return null;
+  }
+}
+
 /**
  * Date/DateTime, choice and node properties of a tag, own first then inherited (parents walked depth-first). A choice
  * property counts only with cardinality one (T14): a many-valued one is not offered for filters, Kanban or done values.
@@ -90,6 +101,7 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
   const dateProps: DateProp[] = [];
   const choiceProps: ChoiceProp[] = [];
   const nodeProps: NodeProp[] = [];
+  const fieldProps: FieldProp[] = [];
   const seenTags = new Set<number>();
   const seenProps = new Set<number>();
   const visit = (t: RawTag) => {
@@ -101,6 +113,8 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
       seenProps.add(p.id);
       const type = p[":logseq.property/type"];
       const closed = p["_closed-value-property"] ?? [];
+      const field = fieldTypeOf(type, closed.length > 0, p.cardinality === ONE);
+      if (field && p[":logseq.property/hide?"] !== true) fieldProps.push({ id: p.id, ident: p.ident, title: p.title, type: field, many: p.cardinality !== ONE });
       if (type === "date" || type === "datetime") {
         dateProps.push({ id: p.id, ident: p.ident, title: p.title, type });
       } else if (type === "node") {
@@ -120,7 +134,7 @@ function collectProps(tag: RawTag, tagsById: Map<number, RawTag>, propsById: Map
     }
   };
   visit(tag);
-  return { dateProps, choiceProps, nodeProps };
+  return { dateProps, choiceProps, nodeProps, fieldProps };
 }
 
 /** Raw `TAGS_QUERY` and `TAG_PROPERTIES_QUERY` results → tags with inherited properties resolved. */

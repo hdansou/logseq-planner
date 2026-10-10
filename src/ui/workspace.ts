@@ -7,6 +7,7 @@
 // Kanban moves are written through the injected `kanban` deps; drag events are delegated on the root like clicks.
 // Timeline date edits (N06c, Edit dates on) are written through the injected `dates` deps: pointer events on a bar or
 // point (pointer capture, no HTML5 drag) and Alt+Arrow keys on a focused one.
+import { cardFieldsOf, extraFieldProps, offeredFields } from "../core/fields";
 import { readRaw } from "../core/queries";
 import { isDone } from "../core/nodes";
 import { systemZone, type ZoneOffset } from "../core/normalize";
@@ -811,7 +812,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     // One batch (T13a): the view's rows are read with the tags on screen while the week start and the tags are re-read,
     // instead of after them (the host's worker runs queries one at a time, so waiting added the tag queries' time).
     const shownView = tagOf(s.config);
-    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownView.tags, dependsOnOf(s.config, shownView))]);
+    const [weekStart, tags, shownRaw] = await Promise.all([deps.weekStart(), loadTagInfos(deps.dq), readRaw(deps.dq, s.tags, shownView.tags, dependsOnOf(s.config, shownView), undefined, extraFieldProps(s.config, shownView))]);
     let config: ViewConfig | null = s.config;
     let error: string | null = null;
     /** The view was replaced by the default one (its tag or a property it uses is gone). */
@@ -831,7 +832,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     // Same view: the rows are mapped with the new tags (new closed values and tags apply at once); a query is asked again
     // only when its rows are stale (`readRaw`: the pulled idents or the tag id changed). Another view: read afresh.
     const data = !config ? { nodes: [], tasks: [], titles: new Map<string, string>() }
-      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags).tags, dependsOnOf(config, tagOf(config, tags)), shownRaw))
+      : !replaced ? await fromRaw(config, tags, await readRaw(deps.dq, tags, tagOf(config, tags).tags, dependsOnOf(config, tagOf(config, tags)), shownRaw, extraFieldProps(config, tagOf(config, tags))))
       : await readData(config, tags);
     deps.timing?.queried();
     if (busy()) {
@@ -1419,11 +1420,20 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       });
     }
     if (d.kbFieldValue !== undefined) {
-      return void run(() => {
+      return void run(async () => {
         const c = s.config!;
         if (c.kind !== "kanban") throw new Error(`Kanban Card fields control in a ${c.kind} view`);
-        setConfig({ ...c, hiddenFields: toggle(c.hiddenFields, d.kbFieldValue!) });
-      });
+        const view = tagOf(c);
+        const tag = view.tags.find((x) => x.ident === d.kbFieldTag) ?? view.tags[0];
+        // The tag's own list (N42), in the property order: what it shows now, with this one switched.
+        const shown = new Set(cardFieldsOf(c, tag, view).map((f) => f.ident));
+        if (!shown.delete(d.kbFieldValue!)) shown.add(d.kbFieldValue!);
+        const next = offeredFields(c, tag, view).filter((f) => shown.has(f.ident)).map((f) => f.ident);
+        const before = extraFieldProps(c, view).map((f) => f.ident).join();
+        setConfig({ ...c, cardFields: { ...c.cardFields, [tag.ident]: next } });
+        // A text, number, checkbox, url or node property comes with its own attribute: the nodes are read again for it.
+        if (extraFieldProps(s.config!, tagOf(s.config!)).map((f) => f.ident).join() !== before) await fetchData();
+      }, () => `[data-kb-field-tag="${d.kbFieldTag}"][data-kb-field-value="${d.kbFieldValue}"]`);
     }
     if (d.kbShowValue !== undefined) {
       return void run(() => {

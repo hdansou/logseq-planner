@@ -506,3 +506,43 @@ describe("card fields (N38)", () => {
     expect(site(hidden).title).toBe(site(all).title);
   });
 });
+
+describe("card fields per tag (N42)", () => {
+  const t = tag("Project");
+  const prop = (title: string) => t.fieldProps.find((f) => f.title === title)!;
+  const siteOf = (l: KanbanLayout) => l.columns.flatMap((c) => findCell(l, c.key, null).cards).find((c) => c.uuid === SITE)!;
+
+  it("without a field list a card shows the shared choice values, as before", async () => {
+    const card = siteOf(await project());
+    expect(card.meta).toEqual(["Alice"]);
+    expect(card.fields).toEqual([{ title: "Owner", text: "Alice" }]);
+  });
+
+  it("with the tag's list: exactly those, in that order, each as the property's name and its text; meta follows", async () => {
+    const fields = new Map([[t.ident, [prop("End"), prop("Owner"), prop("Start")]]]);
+    const card = siteOf(await project({ cardFields: fields }));
+    expect(card.fields.map((f) => f.title)).toEqual(["End", "Owner", "Start"]);
+    expect(card.fields.find((f) => f.title === "Owner")!.text).toBe("Alice");
+    expect(card.meta).toEqual(card.fields.map((f) => f.text));
+    expect(card.label).toContain(card.fields[0].text);
+  });
+
+  it("a property with several values is one entry, its values joined, so a card does not grow with them", async () => {
+    const people = { id: 99, ident: ":user.property/people-X", title: "People", type: "node" as const, many: true };
+    const fields = new Map([[t.ident, [people]]]);
+    const { buildNodes } = await import("./normalize");
+    const nodes = buildNodes([[{ id: 1, uuid: SITE, title: "Website relaunch", tags: [{ id: t.id }], [people.ident]: [{ id: 5, title: "Alice" }, { id: 6, title: "Bob" }] }]], tags, [t], false, west5, null, [people]);
+    const l = layoutKanban({
+      items: viewItems(nodes, [], () => ({ start: null, end: null }), statusValues), columnProp: choiceProp(t, "Status"), laneProp: null, sort: "due",
+      today: TODAY, choiceProps: t.choiceProps, doneValues: {}, titles: titlesByUuid(nodes), pending: new Set(), hidden: [], cardFields: fields,
+    });
+    const card = l.columns.flatMap((c) => findCell(l, c.key, null).cards).find((c) => c.uuid === SITE)!;
+    expect(card.fields).toEqual([{ title: "People", text: "Alice, Bob" }]);
+  });
+
+  it("a value the node has none of adds nothing; an empty list shows no field", async () => {
+    expect(siteOf(await project({ cardFields: new Map([[t.ident, []]]) })).fields).toEqual([]);
+    const card = siteOf(await project({ cardFields: new Map([[t.ident, [{ ...prop("Owner"), ident: ":user.property/nobody-X" }]]]) }));
+    expect(card.fields).toEqual([]);
+  });
+});

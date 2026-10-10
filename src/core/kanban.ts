@@ -17,7 +17,8 @@
 //   <full ident without the leading colon>, <closed value entity id>)`, `removeBlockProperty(uuid, <same key>)`. Both
 //   resolve null on success and on failure, so every write is read back and a mismatch throws. A removal reads back as
 //   either no attribute (user property) or the empty placeholder entity (built-in Status, seen live in T11).
-import type { ChoiceProp, ClosedValue, KanbanWriteDeps, LocalDate, PlannerNode, Rollup, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, FieldProp, KanbanWriteDeps, LocalDate, PlannerNode, Rollup, TagInfo } from "../types";
+import { fieldTexts, priorityProp } from "./fields";
 import { displayTitle } from "./display-title";
 import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
@@ -60,6 +61,8 @@ export interface KanbanCard {
   progress: Rollup;
   /** Values of the tag's other choice properties (not the column, lane or priority property), in property order. */
   meta: string[];
+  /** The same values with the property each belongs to (N42): what the card shows, the name being its tooltip. */
+  fields: { title: string; text: string }[];
   /** "#Tag" of the view tag the node belongs to (N38), only in a view of two or more tags; null otherwise. */
   tag: string | null;
   /** The node's Priority value (`key` = last ident segment for built-ins, else the lower-case title). */
@@ -111,6 +114,8 @@ export interface KanbanInput {
   tagTitles?: ReadonlyMap<string, string>;
   /** Idents of the choice properties whose value a card leaves out (N38). */
   hiddenFields?: readonly string[];
+  /** The fields to show on a card, by the node's view tag ident (N42); absent = the shared choice values less `hiddenFields`. */
+  cardFields?: ReadonlyMap<string, FieldProp[]>;
 }
 
 /**
@@ -122,11 +127,7 @@ export type PropertyWrite = { uuid: string; node: string; prop: { ident: string;
   | { kind: "remove" }
 );
 
-const PRIORITY_IDENT = ":logseq.property/priority";
-
-/** The tag's Priority choice property: the built-in one, else one titled "Priority"; null when it has none. */
-export const priorityProp = (tag: { choiceProps: ChoiceProp[] }): ChoiceProp | null =>
-  tag.choiceProps.find((p) => p.ident === PRIORITY_IDENT) ?? tag.choiceProps.find((p) => p.title.trim().toLowerCase() === "priority") ?? null;
+export { priorityProp } from "./fields"; // lives there so `fields.ts` does not import this file (N42)
 
 /**
  * The Tag pseudo-property as a swimlane property (N14, `TAG_KEY`): one lane per tag of the view in selection order, keyed
@@ -174,13 +175,20 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     const point = !!span.start && !!due && span.start.day === due.day && span.start.time === due.time;
     const when = !due ? "no date" : `${point ? "" : "ends "}${formatDate(due)}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
     const own = new Set([columnProp.ident, laneProp?.ident, priority?.ident, ...(input.hiddenFields ?? [])]);
-    const meta = input.choiceProps.filter((p) => !own.has(p.ident)).map((p) => node.choices[p.ident]?.title).filter((t): t is string => !!t);
+    const chosen = input.cardFields?.get(node.tag);
+    const fields = chosen
+      ? chosen.flatMap((f) => {
+        const texts = fieldTexts(f, node);
+        return texts.length ? [{ title: f.title, text: texts.join(", ") }] : []; // several values: one entry (N42)
+      })
+      : input.choiceProps.filter((p) => !own.has(p.ident)).flatMap((p) => (node.choices[p.ident] ? [{ title: p.title, text: node.choices[p.ident].title }] : []));
+    const meta = fields.map((f) => f.text);
     const pv = priority ? node.choices[priority.ident] : undefined;
     const pri = pv ? { title: pv.title, key: pv.ident ? pv.ident.split(".").pop()! : pv.title.trim().toLowerCase() } : null;
     const tag = input.tagTitles?.get(node.tag) ?? null;
     const label = [title, tag, when, progress.total ? `${progress.done} of ${progress.total} tasks done` : "", pri && `${pri.title} priority`, ...meta, done && "done"]
       .filter(Boolean).join(", ");
-    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, tag, priority: pri, pending: input.pending.has(node.uuid), label };
+    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, fields, tag, priority: pri, pending: input.pending.has(node.uuid), label };
   };
 
   const rows = (laneProp ? lanes : [null]).map((lane) => ({ lane, cells: columns.map((column): KanbanCell => ({ column, lane, cards: [] })) }));

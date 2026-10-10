@@ -53,6 +53,7 @@
 .pl-kb-meter i { display: block; height: 100%; background: var(--pl-node-hue); }
 .pl-kb-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; min-height: 18px; font-size: 12px; line-height: 18px; color: var(--pl-label-2); }
 .pl-kb-tag { color: var(--pl-label-2); font-weight: 600; }
+.pl-kb-meta > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-kb-when { font-variant-numeric: tabular-nums; }
 .pl-kb-card[data-late] .pl-kb-when { color: var(--pl-red-text); font-weight: 600; }
 .pl-kb-priority[data-priority="urgent"] { color: var(--pl-red-text); font-weight: 600; }
