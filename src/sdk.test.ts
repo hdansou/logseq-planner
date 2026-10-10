@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, dateReadQuery, dateWriteDeps, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, sidebarFrame, storageDeps, WORKSPACE_FRAME } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME } from "./sdk";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -137,35 +137,40 @@ describe("workspace frame starts under the host header (N15)", () => {
   });
 });
 
-describe("sidebar surface (N06a)", () => {
-  // Measured live (desktop app, 1777 px window): the sidebar at x=1066 w=711, its 3 px resizer at x=1067.
-  const SIDEBAR = { left: 1066, right: 1777, width: 711 };
-  const RESIZER = { left: 1067, right: 1070, width: 3 };
-
-  it("lays the frame over the sidebar right of its resizer (+2 px), under the header, as fixed px", () => {
-    expect(sidebarFrame(SIDEBAR, RESIZER, HEADBAR)).toEqual({
+describe("sidebar surface beside the host's sidebar (N40)", () => {
+  it("the docked frame sits on the right edge, under the header, as fixed px", () => {
+    expect(dockFrame(600, HEADBAR)).toEqual({
       position: "fixed", zIndex: "999", top: "var(--ls-headbar-height, 3rem)", height: "calc(100vh - var(--ls-headbar-height, 3rem))",
-      left: "1072px", width: "705px", right: "auto",
+      right: "0", left: "auto", width: "600px",
     });
   });
 
-  it("follows a resized sidebar", () => {
-    expect(sidebarFrame({ left: 900, right: 1777, width: 877 }, { left: 901, right: 904, width: 3 }, HEADBAR)).toMatchObject({ left: "906px", width: "871px" });
+  it("the width starts at 40% of the window and stays between a usable minimum and the window less room for the page", () => {
+    expect(defaultDockWidth(1500)).toBe(600);
+    expect(defaultDockWidth(1777)).toBe(711);
+    expect(clampDockWidth(100, 1500)).toBe(DOCK_MIN_PX);
+    expect(clampDockWidth(5000, 1500)).toBe(1500 - DOCK_PAGE_MIN_PX);
+    expect(clampDockWidth(512.4, 1500)).toBe(512);
+    expect(clampDockWidth(400, 500)).toBe(DOCK_MIN_PX); // a window too small for both: the minimum wins
   });
 
-  it("a closed (zero-width) sidebar gives no frame", () => {
-    expect(sidebarFrame({ left: 1777, right: 1777, width: 0 }, { left: 1777, right: 1777, width: 0 }, HEADBAR)).toBeNull();
-    expect(sidebarFrame({ left: 1770, right: 1773, width: 3 }, { left: 1770, right: 1773, width: 3 }, HEADBAR)).toBeNull(); // only the resizer left
+  it("the host rule reserves the strip on the app wrapper only while Planner's container is visible, and does not touch the host's toggle", () => {
+    const css = dockHostStyle("planner", 600, true);
+    expect(css).toContain('body:has(.lsp-iframe-sandbox-container.visible[data-pid="planner"]) #app-container-wrapper');
+    expect(css).toContain("margin-right: 600px !important");
+    expect(css).toContain("transition: margin-right 0.2s ease");
+    expect(css).not.toContain("Toggle right sidebar");
+    expect(dockHostStyle("planner", 612, false)).toContain("transition: none");
   });
 
   it("the docked frame goes on the container, important, like the workspace frame", () => {
     const setProperty = vi.fn();
     vi.stubGlobal("parent", { document: { querySelector: () => ({ dataset: {}, style: { setProperty } }) } });
     vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, setMainUIInlineStyle: vi.fn() });
-    appDeps().setFrame(sidebarFrame(SIDEBAR, RESIZER, HEADBAR)!);
-    expect(setProperty).toHaveBeenCalledWith("left", "1072px", "important");
-    expect(setProperty).toHaveBeenCalledWith("width", "705px", "important");
-    expect(setProperty).toHaveBeenCalledWith("right", "auto", "important");
+    appDeps().setFrame(dockFrame(600, HEADBAR));
+    expect(setProperty).toHaveBeenCalledWith("right", "0", "important");
+    expect(setProperty).toHaveBeenCalledWith("width", "600px", "important");
+    expect(setProperty).toHaveBeenCalledWith("left", "auto", "important");
     expect(setProperty).toHaveBeenCalledWith("z-index", "999", "important");
   });
 
@@ -179,11 +184,18 @@ describe("sidebar surface (N06a)", () => {
     expect(setProperty).not.toHaveBeenCalled();
   });
 
-  it("setRightSidebarVisible passes the flag to the host", () => {
-    const setRightSidebarVisible = vi.fn();
-    vi.stubGlobal("logseq", { App: { setRightSidebarVisible } });
-    appDeps().setRightSidebarVisible(true);
-    expect(setRightSidebarVisible).toHaveBeenCalledWith(true);
+  it("the width is kept in the plugin's settings, per device: read tolerantly, written as a number", () => {
+    const updateSettings = vi.fn();
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, settings: { dockWidth: 480 }, updateSettings });
+    const d = appDeps();
+    expect(d.dockWidth.read()).toBe(480);
+    d.dockWidth.write(512);
+    expect(updateSettings).toHaveBeenCalledWith({ dockWidth: 512 });
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" }, settings: { dockWidth: "wide" } });
+    expect(appDeps().dockWidth.read()).toBeNull();
+    vi.stubGlobal("logseq", { baseInfo: { id: "planner" } });
+    expect(appDeps().dockWidth.read()).toBeNull();
+    expect(appDeps().pluginId()).toBe("planner");
   });
 });
 

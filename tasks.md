@@ -495,7 +495,7 @@ Live-check method (web app):
       Seen live: sidebar (418 px) header 155 px before the view toolbar's content, with
       settings open 265, focus 41; workspace ⋯ menu, nested Saved views, settings, focus.
       Left: remembering settings/focus per graph; the Panel (docked) stays visible in focus.
-- [ ] **N40 Sidebar surface beside the native right sidebar** — owner request 2026-10-09.
+- [x] **N40 Sidebar surface beside the native right sidebar** — done 2026-10-09, seen live on the nightly with a synthetic pointer (real mouse not run: the test window was not frontmost); owner request.
       Toggling Logseq's native right sidebar while Planner is docked overlaps it. Reference:
       `logseq-dev/plugin-dev/logseq-outline-canvas` (`src/index.ts` ~472-552, "mirror"
       mode): reserve the strip with host CSS (`provideStyle`, `margin-right` on
@@ -504,6 +504,15 @@ Live-check method (web app):
       the host closing its sidebar no longer closes Planner, opening Planner no longer
       forces it open; `sidebarFrame` / `dock.ts` and their tests change. Decide the width
       model (fixed strip or draggable). Live test on the nightly and the stable app.
+      Built (owner chose: draggable edge kept per device; the host's toggle stays untouched):
+      `dockFrame` + `dockHostStyle` (sdk.ts), `installDockResize` (ui/dock-resize.ts), the app wiring;
+      `dock.ts`, `sidebarFrame` and `setRightSidebarVisible` are gone, and with them "the host
+      closing its sidebar closes Planner" (N06a) and the resizer-drag guard (N19). Seen live: with
+      the native sidebar open it sits at 567-821 and Planner at 821-1369, no overlap; closing and
+      opening it left Planner where it was; the handle: +160 px, -100 px, double-click back to 548
+      (40%); switching to Workspace gives the margin back. Not seen: a real mouse drag (CDP drags
+      stall when a step leaves the frame, hence the document / host listeners), the stable app
+      b09316a, a window resize while docked, Planner hidden by the host while docked.
 - [x] **N41 UI state follows the graph** — done 2026-10-09, seen live on the nightly
       (`planner-project`); owner request ("let's write in the graph", views are graph-specific).
       The on-screen view and the Timeline title width (N36) are written into the graph: hidden

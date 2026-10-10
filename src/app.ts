@@ -1,10 +1,10 @@
-import { HEADBAR, sidebarFrame, WORKSPACE_FRAME } from "./sdk";
+import { clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME } from "./sdk";
 import { createViewStore } from "./storage";
 import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
 import { blockStyle } from "./ui/block-style";
 import { createChanges, shareFeed } from "./ui/changes";
-import { startDock } from "./ui/dock";
+import { installDockResize } from "./ui/dock-resize";
 import { installHostKeys } from "./ui/host-keys";
 import type { AppDeps, ModelEvent, Surface } from "./types";
 import { watchTheme } from "./ui/theme";
@@ -54,25 +54,47 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const host = deps.hostDocument(); // null when cross-origin: no host keys, no sidebar surface
   /** Where Planner shows (N06a); the workspace restores the graph's last one through `setSurface` on its first load (N21). */
   let surface: Surface = "workspace";
-  /** Stops following the host's sidebar; null while not docked. */
-  let undock: (() => void) | null = null;
-  const stopDock = () => {
-    undock?.();
-    undock = null;
+  /**
+   * The sidebar surface (N40): the frame on the window's right edge and its strip reserved in the host layout, so Logseq's
+   * own right sidebar opens beside it and neither moves the other. `docked`: the strip is reserved now; `shownPx`: the
+   * width applied now; `keptPx`: the width this session settled on (else the settings', else 40% of the window).
+   */
+  let docked = false;
+  let shownPx = 0;
+  let keptPx: number | null = null;
+  const viewport = () => host?.defaultView?.innerWidth ?? 0;
+  const dockWidth = () => clampDockWidth(keptPx ?? deps.dockWidth.read() ?? defaultDockWidth(viewport()), viewport());
+  const applyDock = (px: number, animate: boolean) => {
+    shownPx = px;
+    deps.setFrame(dockFrame(px, HEADBAR));
+    deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate) });
   };
-  /** Opens the host's sidebar and keeps the frame over it until `stopDock`; the user closing the sidebar closes Planner. */
+  const onHostResize = () => applyDock(dockWidth(), false); // a smaller window pulls a too wide Planner in
   const dock = () => {
-    stopDock();
-    deps.setRightSidebarVisible(true);
-    undock = startDock(host!, {
-      place: (sidebar, resizer) => {
-        const frame = sidebarFrame(sidebar, resizer, HEADBAR);
-        if (frame) deps.setFrame(frame);
-      },
-      onClosed: () => close(),
-      dragging: (on) => deps.setFrame({ pointerEvents: on ? "none" : "auto" }),
-    });
+    if (!docked) host!.defaultView?.addEventListener("resize", onHostResize);
+    docked = true;
+    applyDock(dockWidth(), true);
   };
+  /** Gives the reserved strip back (the host layout returns to normal); the mode is kept by the caller. */
+  const stopDock = () => {
+    if (!docked) return;
+    docked = false;
+    host!.defaultView?.removeEventListener("resize", onHostResize);
+    deps.provideStyle({ key: DOCK_STYLE_KEY, style: "" });
+  };
+  const stopResize = installDockResize(root, {
+    width: () => shownPx,
+    viewport,
+    host: host?.defaultView ?? undefined,
+    frameLeft: () => host?.querySelector(`.lsp-iframe-sandbox-container[data-pid="${deps.pluginId()}"]`)?.getBoundingClientRect().left ?? null,
+    apply: (px, animate) => docked && applyDock(px, animate),
+    commit: (px) => {
+      if (!docked) return;
+      keptPx = px;
+      deps.dockWidth.write(px);
+      applyDock(px, true);
+    },
+  });
   /** Hides Planner; in the sidebar mode the host's sidebar stays as it is (its own content shows again). The mode is kept. */
   const close = () => {
     visible = false;
@@ -155,6 +177,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
       changes?.stop();
       blockChanges.stop();
       stopDock();
+      stopResize();
       workspace.stop();
       offVisible();
       offGraph();

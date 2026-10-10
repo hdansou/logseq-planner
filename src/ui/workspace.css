@@ -9,7 +9,10 @@ html, body, #app { height: 100%; }
 /* Top bar */
 /* Wraps in a narrow frame (the docked surface, N06a: ~700 px, ~450 px); wrapped rows sit at the right edge, so the
    right-aligned Saved views popover stays inside the frame. On the first row the spacer takes the free space. */
-.pl-ws { container-type: inline-size; }
+.pl-ws { container-type: inline-size; position: relative; }
+/* N40: the docked frame's left edge is the handle that sets its width */
+.pl-dock-resize { position: absolute; z-index: 30; top: 0; bottom: 0; left: 0; width: 7px; cursor: col-resize; touch-action: none; }
+.pl-dock-resize:hover, .pl-dock-resize:focus-visible { background: var(--pl-ring); opacity: .45; outline: none; }
 /* N39 compact header: one row. Icon tabs (the pressed one named; all named from 640 px), then focus, settings and the
    ⋯ menu that holds the surface switch, Saved views, Panel and Close. The title stays for assistive technology. */
 .pl-top { display: flex; align-items: center; gap: 4px; padding: 8px 10px 6px 12px; border-bottom: 1px solid var(--pl-line-soft); }

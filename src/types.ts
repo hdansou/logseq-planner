@@ -26,13 +26,15 @@ export interface AppDeps {
   insertAtCursor(text: string): Promise<void>;
   /**
    * Styles the main-UI container (camelCase keys, written directly with `important` when same-origin, see CLAUDE.md):
-   * `WORKSPACE_FRAME`, or `sidebarFrame(…)` while docked (N06a).
+   * `WORKSPACE_FRAME`, or `dockFrame(…)` while docked (N40).
    */
   setFrame(style: Frame): void;
   /** Shows the main UI in the frame last set by `setFrame`. */
   showMainUI(): void;
-  /** Opens (true) or closes (false) Logseq's right sidebar (`logseq.App.setRightSidebarVisible`). */
-  setRightSidebarVisible(visible: boolean): void;
+  /** The plugin's id: what the host rule that reserves the docked strip names (`data-pid`, N40). */
+  pluginId(): string;
+  /** The docked width in px kept in the plugin's settings (per device, N40); null when never set. */
+  dockWidth: { read(): number | null; write(px: number): void };
   hideMainUI(): void;
   /** Routes the main area to a node (page or block) by uuid. */
   openPage(uuid: string): void;
@@ -70,7 +72,7 @@ export interface MacroSlotEvent {
   payload: { arguments: string[]; uuid: string };
 }
 
-/** Where Planner shows (N06a): the workspace under the header, or docked over Logseq's right sidebar. Session state. */
+/** Where Planner shows (N06a): the workspace under the header, or docked on the window's right edge, beside Logseq's right sidebar (N40). Session state. */
 export type Surface = "workspace" | "sidebar";
 
 /** A main-UI container style: CSS properties in camelCase. */

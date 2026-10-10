@@ -98,17 +98,17 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   copy wins on open. Panel, surface and Edit dates stay on the device. A graph never used opens with the defaults. Stored settings
   that cannot be read, or that name a tag that is gone, give the default view without an error. Not remembered: the
   period on screen, expanded and collapsed rows, open menus.
-- **Surfaces** (N06a). Planner shows in the **workspace** (the window under the app header, the
-  default) or in the **sidebar**: laid over Logseq's right sidebar, beside the page. A
-  **Workspace | Sidebar** switch in the ⋯ menu, before Saved views, picks one; the choice is
-  remembered per graph (N21). Sidebar opens Logseq's right sidebar, lays Planner
-  over it from the header's lower edge, leaving the sidebar's resize handle free, and follows the
-  sidebar's width (its handle, the window). The sidebar's own content is covered while Planner is
-  docked. Closing Planner leaves the sidebar open (its content shows again); the user closing the
-  sidebar hides Planner and keeps the mode, so the next open docks again and reopens it. Switching
-  back to Workspace restores the full frame and leaves the sidebar as it is. Desktop app only: the
-  web app's frame cannot read the host document, so the switch is not shown there. Inside the
-  frame nothing changes: the header stays one row, and under 640 px the panel is a drawer.
+- **Surfaces** (N06a, reworked by N40). Planner shows in the **workspace** (the window under the app header, the
+  default) or in the **sidebar**: docked on the window's right edge, beside the page. A **Workspace | Sidebar** switch in
+  the ⋯ menu, before Saved views, picks one; the choice is remembered per graph (N21). Docked, Planner takes 40% of the
+  window by default (never less than 320 px, and the page keeps at least 360 px), and a handle on its left edge
+  (drag, arrow keys, double-click for 40%) sets the width, kept on this device. Planner **reserves its strip in the
+  host layout**, so Logseq's own right sidebar opens to the left of it: opening and closing either one, including the
+  host's own toggle button, never moves or closes the other. Closing Planner (Close, Escape, the toolbar button) gives
+  the strip back and keeps the mode, so the next open docks again; switching back to Workspace restores the full
+  frame; neither touches the host's sidebar. A smaller window pulls a too wide Planner in. Desktop app only: the web
+  app's frame cannot read the host document, so the switch is not shown there. Inside the frame nothing changes: the
+  header stays one row, and under 640 px the panel is a drawer.
 - **In-page block** (N06b). A block `{{renderer :planner, <saved view name>}}` (slash command
   **Planner view**) shows a read-only picture of that saved view inside the page: a header (the
   view's name, its tags "#A + #B", an **Open in Planner** button that opens Planner in the

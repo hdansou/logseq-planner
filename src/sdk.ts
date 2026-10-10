@@ -19,27 +19,35 @@ export const WORKSPACE_FRAME: Frame = {
   position: "fixed", zIndex: "999", top: HEADBAR, left: "0", right: "auto", width: "100vw", height: `calc(100vh - ${HEADBAR})`,
 };
 
-/** The horizontal extent of a host element (`getBoundingClientRect()`, viewport px). */
-export interface HostRect {
-  left: number;
-  right: number;
-  width: number;
-}
+/** N40: the docked width in px: its minimum, and the room the page keeps beside it (the page next to a docked Planner). */
+export const DOCK_MIN_PX = 320;
+export const DOCK_PAGE_MIN_PX = 360;
+/** Planner starts at this share of the window; the owner widens or narrows it with the handle (kept per device). */
+const DOCK_SHARE = 0.4;
+export const DOCK_STYLE_KEY = "planner-dock";
 
-/** The gap left free right of the sidebar's resizer, so the host's width handle stays grabbable (prototype, N06a). */
-const RESIZER_GAP = 2;
+export const defaultDockWidth = (viewport: number): number => Math.round(viewport * DOCK_SHARE);
+
+/** A width kept between the minimum and the window less the page's room; when the window is too small for both, the minimum. */
+export const clampDockWidth = (px: number, viewport: number): number =>
+  Math.max(DOCK_MIN_PX, Math.min(Math.round(px), viewport - DOCK_PAGE_MIN_PX));
 
 /**
- * The sidebar frame (N06a): Planner over Logseq's open right sidebar (`#right-sidebar`), from the resizer's right edge
- * + 2 px to the sidebar's right edge, under the host header like the workspace frame (`headbar` = its height as a CSS
- * length). Null when nothing of the sidebar is left beside its resizer (closed, zero width).
+ * The sidebar surface (N40): Planner on the window's right edge, under the host header like the workspace frame, `width`
+ * px wide. It sits BESIDE Logseq's right sidebar, not over it: `dockHostStyle` reserves its strip in the host layout.
  */
-export function sidebarFrame(sidebar: HostRect, resizer: HostRect, headbar: string): Frame | null {
-  if (sidebar.width <= 0) return null;
-  const left = resizer.right + RESIZER_GAP;
-  const width = sidebar.right - left;
-  if (width <= 0) return null;
-  return { position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, left: `${left}px`, width: `${width}px`, right: "auto" };
+export const dockFrame = (width: number, headbar: string): Frame =>
+  ({ position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, right: "0", left: "auto", width: `${width}px` });
+
+/**
+ * Host CSS that makes room for the docked frame (the approach of the Outline Canvas plugin, "mirror" mode): the app's
+ * wrapper gets `margin-right`, and Logseq's right sidebar, which lives inside it, opens to the left of Planner and
+ * closes on its own button without moving Planner. Applies only while Planner's container is visible, so a hidden
+ * Planner gives the room back. `animate` false while the width is being dragged, so the host follows the pointer 1:1.
+ */
+export function dockHostStyle(pluginId: string, width: number, animate: boolean): string {
+  return `body:has(.lsp-iframe-sandbox-container.visible[data-pid="${pluginId}"]) #app-container-wrapper {\n`
+    + `  margin-right: ${width}px !important;\n  transition: ${animate ? "margin-right 0.2s ease" : "none"};\n}`;
 }
 
 /**
@@ -84,7 +92,14 @@ export const appDeps = (): AppDeps => ({
   insertAtCursor: (text) => logseq.Editor.insertAtEditingCursor(text),
   setFrame: (style) => setContainerStyle(style),
   showMainUI: () => logseq.showMainUI({ autoFocus: true }),
-  setRightSidebarVisible: (visible) => logseq.App.setRightSidebarVisible(visible),
+  pluginId: () => logseq.baseInfo.id,
+  dockWidth: {
+    read: () => {
+      const v = (logseq.settings as Record<string, unknown> | undefined)?.dockWidth;
+      return typeof v === "number" && Number.isFinite(v) ? v : null;
+    },
+    write: (px) => void logseq.updateSettings({ dockWidth: px }),
+  },
   hideMainUI: () => logseq.hideMainUI({ restoreEditingCursor: true }),
   // The page route takes a uuid for pages and blocks alike (Query Builder src/nav.ts, verified there live).
   openPage: (uuid) => void logseq.App.pushState("page", { name: uuid }),

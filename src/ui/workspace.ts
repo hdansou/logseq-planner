@@ -477,7 +477,11 @@ function renderWorkspace(s: State, now: () => Now): string {
   const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
   const main = renderView(s, view, now);
-  return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${renderTopBar(s)}${error}`
+  // N40: docked, the frame's left edge is a handle that sets its width (the app listens to it).
+  const grip = s.canDock && s.surface === "sidebar"
+    ? `<div class="pl-dock-resize" data-dock-resize role="separator" aria-orientation="vertical" aria-label="Resize Planner" tabindex="0" title="Drag to resize, double-click to reset"></div>`
+    : "";
+  return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${grip}${renderTopBar(s)}${error}`
     + renderFocusStrip(s)
     + `<div class="pl-settings" id="pl-settings" data-region="settings" role="group" aria-label="View settings"${s.settingsOpen && !s.focus ? "" : " hidden"}>${view ? renderSettings(s, view) : ""}</div>`
     + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}"${s.focus ? " hidden" : ""}>${main.toolbar}</div>`

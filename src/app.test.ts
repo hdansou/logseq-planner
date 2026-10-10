@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nodeOpener, registerApp } from "./app";
-import { WORKSPACE_FRAME } from "./sdk";
+import { dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME } from "./sdk";
 import type { AppDeps, MacroSlotEvent, StorageDeps } from "./types";
 import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
@@ -42,7 +42,8 @@ function fakeDeps() {
     showMainUI: vi.fn(),
     hideMainUI: vi.fn(),
     setFrame: vi.fn((style: Record<string, string>) => void style),
-    setRightSidebarVisible: vi.fn((visible: boolean) => void visible),
+    pluginId: vi.fn(() => "planner-test"),
+    dockWidth: { read: vi.fn((): number | null => null), write: vi.fn((px: number) => void px) },
     openPage: vi.fn(),
     openInSidebar: vi.fn(),
     theme: {
@@ -562,7 +563,7 @@ describe("live updates (T12)", () => {
   });
 });
 
-describe("sidebar surface (N06a)", () => {
+describe("sidebar surface beside the host's sidebar (N40)", () => {
   let root: HTMLElement;
   beforeEach(() => {
     document.body.innerHTML = "";
@@ -570,126 +571,175 @@ describe("sidebar surface (N06a)", () => {
     document.body.append(root);
   });
 
-  /** A ResizeObserver the test can fire (happy-dom's never calls back); installed as the host window's constructor. */
-  class FakeResizeObserver {
-    static all: FakeResizeObserver[] = [];
-    targets: Element[] = [];
-    connected = true;
-    constructor(private cb: ResizeObserverCallback) {
-      FakeResizeObserver.all.push(this);
-    }
-    observe(t: Element) {
-      this.targets.push(t);
-    }
-    unobserve() {}
-    disconnect() {
-      this.connected = false;
-    }
-    fire() {
-      if (this.connected) this.cb([], this as never);
-    }
-  }
-
-  /**
-   * A second window as the host, with Logseq's right sidebar (closed) and its resizer measured as on the desktop app
-   * (1777 px window, sidebar 40% = 711 px). `setRightSidebarVisible` flips the sidebar's class as the host does.
-   */
+  /** A second window as the host (1500 px wide), with Logseq's own right sidebar in it, which Planner must leave alone. */
   function docked(views: ViewBlock[] = []) {
-    FakeResizeObserver.all = [];
     const f = fakeDeps();
     if (views.length) {
       f.deps.storage = fakeStorage({ blocks: views });
       f.deps.dq.mockImplementation(fixtureDq() as never);
     }
     const win = new Window();
+    win.happyDOM.setViewport({ width: 1500, height: 900 });
     const host = win.document as unknown as HostDocument & Document;
     host.body.innerHTML = `<div id="right-sidebar" class="cp__right-sidebar closed"><div class="resizer"></div></div>`;
     const sidebar = host.querySelector<HTMLElement>("#right-sidebar")!;
-    let box = { left: 1066, width: 711 };
-    const rect = (left: number, width: number) => ({ left, right: left + width, width, top: 48, bottom: 900, height: 852, x: left, y: 48 }) as DOMRect;
-    sidebar.getBoundingClientRect = () => rect(box.left, box.width);
-    sidebar.querySelector<HTMLElement>(".resizer")!.getBoundingClientRect = () => rect(box.left + 1, 3);
-    (win as unknown as { ResizeObserver: unknown }).ResizeObserver = FakeResizeObserver;
-    const mutations: Array<{ connected: boolean }> = [];
-    const HostMutationObserver = win.MutationObserver;
-    (win as unknown as { MutationObserver: unknown }).MutationObserver = class extends HostMutationObserver {
-      state = { connected: true };
-      constructor(cb: MutationCallback) {
-        super(cb as never);
-        mutations.push(this.state);
-      }
-      disconnect() {
-        this.state.connected = false;
-        super.disconnect();
-      }
-    };
-    const setOpen = (open: boolean) => (sidebar.className = `cp__right-sidebar ${open ? "open" : "closed"}`);
-    f.deps.setRightSidebarVisible.mockImplementation((v: boolean) => void setOpen(v));
     f.deps.hostDocument.mockReturnValue(host);
     registerApp(f.deps, root);
     f.flush();
-    const resize = (left: number, width: number) => {
-      box = { left, width };
-      FakeResizeObserver.all.forEach((o) => o.fire());
-    };
     const lastFrame = () => f.deps.setFrame.mock.lastCall?.[0];
-    const connected = () => FakeResizeObserver.all.filter((o) => o.connected).length + mutations.filter((m) => m.connected).length;
-    return { ...f, win, host, sidebar, setOpen, resize, lastFrame, connected, setBox: (left: number, width: number) => (box = { left, width }) };
+    const styles = () => f.deps.provideStyle.mock.calls.map(([x]) => x).filter((x) => x.key === "planner-dock");
+    const lastStyle = () => styles()[styles().length - 1]?.style;
+    return { ...f, win, host, sidebar, lastFrame, lastStyle, styles };
   }
-  const DOCKED = { position: "fixed", zIndex: "999", top: "var(--ls-headbar-height, 3rem)", height: "calc(100vh - var(--ls-headbar-height, 3rem))", left: "1072px", width: "705px", right: "auto" };
+  const DOCKED = (width: number) => dockFrame(width, HEADBAR);
   const switchTo = (surface: "workspace" | "sidebar") => root.querySelector<HTMLButtonElement>(`[data-surface=${surface}]`)!.click();
   const opened = async (d: ReturnType<typeof docked>) => {
     modelHandler(d.deps)();
     await vi.waitFor(() => expect(root.querySelector("[data-surface=sidebar]")).not.toBeNull());
   };
+  const ptr = (type: string, clientX: number) =>
+    root.querySelector("[data-dock-resize]")!.dispatchEvent(new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }));
 
-  it("opening in the workspace mode applies the workspace frame, then shows", () => {
-    const f = fakeDeps();
-    registerApp(f.deps, root);
-    f.flush();
-    modelHandler(f.deps)();
-    expect(f.deps.setFrame).toHaveBeenCalledWith(WORKSPACE_FRAME);
-    expect(f.deps.setFrame.mock.invocationCallOrder[0]).toBeLessThan(f.deps.showMainUI.mock.invocationCallOrder[0]);
-    expect(f.deps.setRightSidebarVisible).not.toHaveBeenCalled();
+  it("opening in the workspace mode applies the workspace frame and reserves nothing", async () => {
+    const d = docked();
+    modelHandler(d.deps)();
+    expect(d.deps.setFrame).toHaveBeenCalledWith(WORKSPACE_FRAME);
+    expect(d.deps.setFrame.mock.invocationCallOrder[0]).toBeLessThan(d.deps.showMainUI.mock.invocationCallOrder[0]);
+    expect(d.styles()).toEqual([]);
+    expect(root.querySelector("[data-dock-resize]")).toBeNull();
+  });
+
+  it("Sidebar docks at the right edge, 40% of the window, and reserves that strip in the host layout; the host's sidebar is not touched", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(600));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
+    expect(d.sidebar.className).toBe("cp__right-sidebar closed");
+    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
+    expect(root.querySelector("[data-dock-resize]")!.getAttribute("role")).toBe("separator");
   });
 
   it("the graph's last surface comes back on the first open: Sidebar docks without a click, and a switch is stored (N21)", async () => {
     const d = docked();
     d.deps.prefs.read.mockReturnValue({ logseq_db_test: { ...DEFAULT_PREFS, surface: "sidebar" } });
     await opened(d);
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    expect(d.deps.setRightSidebarVisible).toHaveBeenCalledWith(true);
+    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600)));
     expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
     switchTo("workspace");
     await vi.waitFor(() => expect(d.deps.prefs.write.mock.lastCall![1].surface).toBe("workspace"));
     expect(d.deps.prefs.write.mock.lastCall![0]).toBe("logseq_db_test");
   });
 
-  it("while the host's sidebar handle is dragged the frame takes no pointer events, so the drag is not lost over it (N19)", async () => {
+  it("a width kept on this device is used, within the allowed range", async () => {
+    const d = docked();
+    d.deps.dockWidth.read.mockReturnValue(480);
+    await opened(d);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(480));
+    switchTo("workspace");
+    d.deps.dockWidth.read.mockReturnValue(5000);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(1140)); // the window less the page's 360 px
+  });
+
+  it("Logseq's own sidebar opening, closing and resizing does not move, hide or close Planner", async () => {
     const d = docked();
     await opened(d);
     switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    const resizer = d.sidebar.querySelector(".resizer")!;
-    const fire = (target: { dispatchEvent(e: unknown): boolean }, type: string) => target.dispatchEvent(new d.win.Event(type, { bubbles: true }));
-    const pointerEvents = () => d.deps.setFrame.mock.calls.map(([style]) => style.pointerEvents).filter((v) => v !== undefined);
+    const frames = d.deps.setFrame.mock.calls.length;
+    d.sidebar.className = "cp__right-sidebar open";
+    d.sidebar.className = "cp__right-sidebar closed";
+    d.win.dispatchEvent(new d.win.Event("resize"));
+    await new Promise((r) => setTimeout(r, 5));
+    expect(d.deps.hideMainUI).not.toHaveBeenCalled();
+    expect(d.deps.setFrame.mock.calls.length).toBe(frames + 1); // only the window's own resize re-clamps the width
+    expect(d.lastFrame()).toEqual(DOCKED(600));
+  });
 
-    fire(d.sidebar, "pointerdown"); // a press elsewhere in the sidebar is not a resize
-    expect(pointerEvents()).toEqual([]);
-    fire(resizer, "pointerdown");
-    expect(pointerEvents()).toEqual(["none"]);
-    fire(resizer, "pointerdown"); // already dragging
-    expect(pointerEvents()).toEqual(["none"]);
-    fire(d.win as never, "pointerup");
-    expect(pointerEvents()).toEqual(["none", "auto"]);
-    fire(d.win as never, "pointerup"); // no drag running
-    expect(pointerEvents()).toEqual(["none", "auto"]);
+  it("a smaller window pulls a too wide Planner in, so the page keeps its room", async () => {
+    const d = docked();
+    d.deps.dockWidth.read.mockReturnValue(1000);
+    await opened(d);
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(1000));
+    d.win.happyDOM.setViewport({ width: 1200, height: 900 });
+    d.win.dispatchEvent(new d.win.Event("resize"));
+    expect(d.lastFrame()).toEqual(DOCKED(840));
+    expect(d.lastStyle()).toContain("margin-right: 840px");
+  });
 
-    fire(resizer, "pointerdown");
-    switchTo("workspace"); // leaving the sidebar mode mid-drag gives the pointer back
-    expect(pointerEvents()).toEqual(["none", "auto", "none", "auto"]);
-    fire(resizer, "pointerdown"); // no longer followed
-    expect(pointerEvents()).toHaveLength(4);
+  it("closing Planner in the sidebar mode (Escape, Close, toolbar) gives the strip back and keeps the mode; the next open reserves it again", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    const frames = d.deps.setFrame.mock.calls.length;
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1);
+    expect(d.lastStyle()).toBe("");
+    modelHandler(d.deps)(); // the toolbar button: Planner was hidden, so it opens
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
+    expect(d.lastFrame()).toEqual(DOCKED(600));
+    root.querySelector<HTMLButtonElement>("[data-action=close]")!.click();
+    expect(d.lastStyle()).toBe("");
+    modelHandler(d.deps)();
+    modelHandler(d.deps)(); // toggles off
+    expect(d.lastStyle()).toBe("");
+    expect(d.deps.setFrame.mock.calls.slice(frames).map(([x]) => x)).not.toContainEqual(WORKSPACE_FRAME);
+  });
+
+  it("switching back to Workspace restores the workspace frame and gives the strip back", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    switchTo("workspace");
+    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
+    expect(d.lastStyle()).toBe("");
+    expect(d.deps.hideMainUI).not.toHaveBeenCalled();
+    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
+    expect(root.querySelector("[data-dock-resize]")).toBeNull();
+  });
+
+  it("Open in Planner from a page block (N06b) leaves the sidebar mode: workspace frame, strip given back, that view selected", async () => {
+    const d = docked([roadmapView()]);
+    await opened(d);
+    switchTo("sidebar");
+    modelOf(d.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
+    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
+    expect(d.lastStyle()).toBe("");
+    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
+    expect(root.querySelector("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("dragging the handle widens the frame and the reserved strip together without animation, and keeps the width on release", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    ptr("pointerdown", 2);
+    ptr("pointermove", -48);
+    expect(d.lastFrame()).toEqual(DOCKED(650));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 650, false));
+    ptr("pointermove", -48); // the frame moved left with the pointer: another 50 px reads the same
+    expect(d.lastFrame()).toEqual(DOCKED(700));
+    ptr("pointerup", -48);
+    expect(d.deps.dockWidth.write).toHaveBeenCalledWith(700);
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 700, true));
+    switchTo("workspace");
+    switchTo("sidebar");
+    expect(d.lastFrame()).toEqual(DOCKED(700)); // this session remembers it even before the settings answer
+  });
+
+  it("unload gives the strip back and stops listening to the handle", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    d.unload.forEach((cb) => cb());
+    expect(d.lastStyle()).toBe("");
+    const frames = d.deps.setFrame.mock.calls.length;
+    ptr("pointerdown", 2);
+    ptr("pointermove", -50);
+    expect(d.deps.setFrame.mock.calls.length).toBe(frames);
   });
 
   it("a cross-origin frame has no switch", async () => {
@@ -699,132 +749,6 @@ describe("sidebar surface (N06a)", () => {
     modelHandler(f.deps)();
     await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
     expect(root.querySelector("[data-surface]")).toBeNull();
-  });
-
-  it("Sidebar opens the host's sidebar and lays the frame over it, right of the resizer", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    expect(d.deps.setRightSidebarVisible).toHaveBeenCalledWith(true);
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    expect(FakeResizeObserver.all[0].targets).toEqual([d.sidebar]);
-    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
-    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
-  });
-
-  it("an already open sidebar docks at once", async () => {
-    const d = docked();
-    d.setOpen(true);
-    await opened(d);
-    switchTo("sidebar");
-    expect(d.lastFrame()).toEqual(DOCKED);
-  });
-
-  it("follows the sidebar: a resize of it and a window resize re-apply the frame", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    d.resize(900, 877);
-    expect(d.lastFrame()).toMatchObject({ left: "906px", width: "871px" });
-    d.setBox(1000, 777);
-    d.win.dispatchEvent(new d.win.Event("resize"));
-    expect(d.lastFrame()).toMatchObject({ left: "1006px", width: "771px" });
-  });
-
-  it("the host closing its sidebar hides Planner and keeps the mode; the next open docks again", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    d.setOpen(false); // the user closes Logseq's sidebar
-    await vi.waitFor(() => expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1));
-    expect(d.connected()).toBe(0);
-    expect(d.deps.setRightSidebarVisible).not.toHaveBeenCalledWith(false);
-    const frames = d.deps.setFrame.mock.calls.length;
-    modelHandler(d.deps)(); // the toolbar button: Planner was hidden, so it opens
-    expect(d.deps.showMainUI).toHaveBeenCalledTimes(2);
-    expect(d.deps.setRightSidebarVisible).toHaveBeenCalledTimes(2);
-    expect(d.deps.setFrame.mock.calls.slice(frames).map(([s]) => s)).not.toContainEqual(WORKSPACE_FRAME);
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
-  });
-
-  it("closing Planner in the sidebar mode (Escape, Close, toolbar) disconnects the observers and leaves the host's sidebar open", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    const removed = vi.spyOn(d.win, "removeEventListener");
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
-    expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1);
-    expect(d.connected()).toBe(0);
-    expect(removed.mock.calls.some(([type]) => type === "resize")).toBe(true);
-    expect(d.sidebar.classList.contains("open")).toBe(true);
-    expect(d.deps.setRightSidebarVisible).not.toHaveBeenCalledWith(false);
-    // Close button and toolbar toggle take the same path
-    modelHandler(d.deps)();
-    await vi.waitFor(() => expect(d.connected()).toBe(2));
-    root.querySelector<HTMLButtonElement>("[data-action=close]")!.click();
-    expect(d.connected()).toBe(0);
-    modelHandler(d.deps)();
-    await vi.waitFor(() => expect(d.connected()).toBe(2));
-    modelHandler(d.deps)();
-    expect(d.connected()).toBe(0);
-    expect(d.deps.setRightSidebarVisible).not.toHaveBeenCalledWith(false);
-  });
-
-  it("switching back to Workspace restores the workspace frame, disconnects, and leaves the host's sidebar as it is", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    switchTo("workspace");
-    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
-    expect(d.connected()).toBe(0);
-    expect(d.sidebar.classList.contains("open")).toBe(true);
-    expect(d.deps.setRightSidebarVisible).toHaveBeenCalledTimes(1);
-    d.resize(900, 877); // no longer followed
-    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
-    expect(d.deps.hideMainUI).not.toHaveBeenCalled();
-    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
-  });
-
-  it("Open in Planner from a page block (N06b) leaves the sidebar mode: workspace frame, that view selected", async () => {
-    const d = docked([roadmapView()]);
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    modelOf(d.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
-    expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
-    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
-    expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
-    expect(root.querySelector("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("true");
-  });
-
-  it("unload disconnects the observers", async () => {
-    const d = docked();
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    d.unload.forEach((cb) => cb());
-    expect(d.connected()).toBe(0);
-  });
-
-  it("the focus hand-back does not fire once the host's closed sidebar hid Planner", async () => {
-    const d = docked();
-    d.host.hasFocus = () => true;
-    await opened(d);
-    switchTo("sidebar");
-    await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED));
-    d.setOpen(false);
-    await vi.waitFor(() => expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1));
-    const focus = vi.spyOn(window, "focus");
-    d.host.body.dispatchEvent(new d.win.Event("focusout", { bubbles: true }) as never);
-    await new Promise((r) => setTimeout(r, 5));
-    expect(focus).not.toHaveBeenCalled();
-    focus.mockRestore();
-    d.unload.forEach((cb) => cb());
   });
 });
 
