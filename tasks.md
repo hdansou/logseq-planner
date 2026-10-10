@@ -553,6 +553,12 @@ Live-check method (web app):
       properties offered.
       Seen: clicking the already active view tab resets that view's settings (`switchKind`), which
       cleared the card fields in a test run; it is the old behaviour for every Kanban setting.
+- [x] **N43 Keep Planner open when a node is opened while docked** — done 2026-10-10, seen live on the nightly
+      (planner-project). Owner request: clicking a node in the sidebar surface closed Planner. `nodeOpener(deps,
+      keepOpen)`: in the Sidebar surface a click only calls `openPage` (Planner and its reserved strip stay); the
+      Workspace surface still hides Planner; Shift+click and the in-page block opener unchanged. Focus is left with
+      the opened page. Seen live: docked Kanban card open button → route changed, container still visible, host
+      margin 620 px; Workspace → container hidden.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

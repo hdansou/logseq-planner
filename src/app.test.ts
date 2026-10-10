@@ -563,6 +563,15 @@ describe("live updates (T12)", () => {
   });
 });
 
+describe("opening a node while docked (N43)", () => {
+  it("nodeOpener keeps Planner open when told to", () => {
+    const { deps } = fakeDeps();
+    nodeOpener(deps, () => true)("u-1", { sidebar: false });
+    expect(deps.openPage).toHaveBeenCalledWith("u-1");
+    expect(deps.hideMainUI).not.toHaveBeenCalled();
+  });
+});
+
 describe("sidebar surface beside the host's sidebar (N40)", () => {
   let root: HTMLElement;
   beforeEach(() => {
@@ -599,6 +608,19 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
   };
   const ptr = (type: string, clientX: number) =>
     root.querySelector("[data-dock-resize]")!.dispatchEvent(new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }));
+
+  it("a node opened while docked leaves Planner docked; back in the workspace it hides Planner again (N43)", async () => {
+    const d = docked();
+    await opened(d);
+    switchTo("sidebar");
+    modelOf(d.deps)[OPEN_NODE]({ dataset: { uuid: "u-1" } });
+    expect(d.deps.openPage).toHaveBeenCalledWith("u-1");
+    expect(d.deps.hideMainUI).not.toHaveBeenCalled();
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
+    switchTo("workspace");
+    modelOf(d.deps)[OPEN_NODE]({ dataset: { uuid: "u-2" } });
+    expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1);
+  });
 
   it("opening in the workspace mode applies the workspace frame and reserves nothing", async () => {
     const d = docked();

@@ -122,7 +122,8 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   panel, drag, the Kanban Move menu, Timeline connectors or row toggles (nested children are open,
   task rows folded), "Show more" (it reads "N more"). Its styles are scoped to the block; works in
   the desktop and the web app.
-- **Click** opens the node in the main area and hides Planner; **Shift+click** opens it in
+- **Click** opens the node in the main area and hides Planner, except in the Sidebar surface
+  (docked beside the page), where Planner stays open; **Shift+click** opens it in
   the right sidebar and keeps Planner open.
 - **Theme.** Follows the active Logseq theme and light/dark mode; Inkwell values are the
   defaults where Logseq exposes no variable (see `docs/design.md`).
