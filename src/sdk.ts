@@ -45,10 +45,11 @@ export const dockFrame = (width: number, headbar: string, offset = 0): Frame =>
  * closes on its own button without moving Planner. Applies only while Planner's container is visible, so a hidden
  * Planner gives the room back. `animate` false while the width is being dragged, so the host follows the pointer 1:1.
  */
-export function dockHostStyle(pluginId: string, width: number, animate: boolean, offset = 0): string {
-  // N44: `offset` = the room another plugin's docked frame takes; the strip is both widths, and the `html` prefix makes this
-  // rule outrank the other plugin's own margin rule on the same wrapper (a tie goes to the later rule).
-  return `html body:has(.lsp-iframe-sandbox-container.visible[data-pid="${pluginId}"]) #app-container-wrapper {\n`
+export function dockHostStyle(pluginId: string, width: number, animate: boolean, offset = 0, rank = 0): string {
+  // N44: `offset` = the room another plugin's docked frame takes; the strip is both widths, and `:root` makes this
+  // rule outrank the other plugin's own margin rule on the same wrapper (a tie goes to the later rule), one more for
+  // every frame docked before this one, so the innermost plugin, whose strip is the widest, wins.
+  return `${":root".repeat(rank + 1)} body:has(.lsp-iframe-sandbox-container.visible[data-pid="${pluginId}"]) #app-container-wrapper {\n`
     + `  margin-right: ${offset + width}px !important;\n  transition: ${animate ? "margin-right 0.2s ease" : "none"};\n}`;
 }
 

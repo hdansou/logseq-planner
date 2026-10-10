@@ -667,8 +667,9 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
   });
 
   /** Another plugin's docked frame on the window's right edge, `width` px wide (the host is 1500 px wide). */
-  const neighbour = (d: ReturnType<typeof docked>, width: number, visible = true) => {
+  const neighbour = (d: ReturnType<typeof docked>, width: number, visible = true, seq?: number) => {
     const el = d.host.createElement("div");
+    if (seq !== undefined) el.setAttribute("data-dock-seq", String(seq));
     el.className = "lsp-iframe-sandbox-container" + (visible ? " visible" : "");
     el.setAttribute("data-pid", "outline-canvas");
     el.getBoundingClientRect = () => ({ left: 1500 - width, right: 1500, width, top: 0, bottom: 900, height: 900 }) as DOMRect;
@@ -682,7 +683,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     await opened(d);
     switchTo("sidebar");
     expect(d.lastFrame()).toEqual(DOCKED(480, 300)); // 40% of the room left of the neighbour
-    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 480, true, 300));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 480, true, 300, 1));
     expect(d.lastStyle()).toContain("margin-right: 780px");
   });
 
@@ -694,13 +695,31 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     expect(d.lastFrame()).toEqual(DOCKED(600));
     other.classList.add("visible");
     await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600, 300)));
-    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true, 300));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true, 300, 1));
     other.getBoundingClientRect = () => ({ left: 900, right: 1500, width: 600 }) as DOMRect;
     other.setAttribute("style", "width: 600px");
     await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(540, 600))); // the page keeps its 360 px
     other.classList.remove("visible");
     await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600)));
     expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
+  });
+
+  it("Planner stamps its frame when it docks and takes the stamp off when it closes; a plugin docked after it does not move it (N44)", async () => {
+    const d = docked();
+    const own = d.host.createElement("div");
+    own.className = "lsp-iframe-sandbox-container visible";
+    own.setAttribute("data-pid", "planner-test");
+    d.host.body.append(own);
+    neighbour(d, 300, true, 4);
+    await opened(d);
+    switchTo("sidebar");
+    expect(own.getAttribute("data-dock-seq")).toBe("5");
+    neighbour(d, 500, true, 6); // docked after Planner: it yields to Planner, not the other way round
+    await new Promise((r) => setTimeout(r, 30));
+    expect(d.lastFrame()).toEqual(DOCKED(480, 300));
+    expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 480, true, 300, 1));
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(own.hasAttribute("data-dock-seq")).toBe(false);
   });
 
   it("stops watching other plugins when Planner closes (N44)", async () => {

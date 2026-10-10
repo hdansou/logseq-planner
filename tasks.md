@@ -571,6 +571,17 @@ Live-check method (web app):
       1034; canvas hidden → Planner 1333–1821, margin 488. Step 2 (not done): a shared `{id, width}` registry
       Outline Canvas also publishes and reads, for a stable order; Outline Canvas still covers itself over
       Planner when it opens after Planner until it adopts it (Planner moves left of it instead: seen).
+- [x] **N45 Dock order shared with Outline Canvas (step 2)** — done 2026-10-10. Unit tests and Planner side seen
+      live on the nightly; the Outline Canvas side is unit tests + typecheck + build only (the instance loads the
+      installed copy in `~/.logseq/plugins/outline-canvas`, shared with the owner's app, which was not replaced).
+      `docs/dock-order.md`: a docked plugin stamps its container `data-dock-seq`, yields to visible frames stamped
+      lower or not stamped, reserves offset + width under `:root` × (rank + 1). Planner: `installNeighbours` gained
+      `stamp` / `unstamp` / `rank`, `dockHostStyle(..., offset, rank)`, a frame stamped after Planner does not move
+      it. Outline Canvas (`src/dock.ts` + glue in `src/index.ts`, its repo): same contract, `right: <offset>px`,
+      margin `calc(offset + width)`. Seen live (Planner, canvas simulated by DOM): canvas unstamped → Planner left
+      of it (margin 1034 = 546 + 488); canvas stamped later → Planner back on the edge (margin 488); stamped earlier
+      → left of it again; closing Planner removes its stamp. Not done: Outline Canvas running with the contract
+      beside Planner in a real app, the stable app, real-mouse resize of either plugin.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

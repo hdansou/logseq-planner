@@ -23,9 +23,23 @@ export function neighbourOffset(rects: EdgeRect[], viewport: number): number {
 
 const SELECTOR = ".lsp-iframe-sandbox-container";
 
+/**
+ * The shared dock order: a plugin that docks on the right edge puts this attribute on its own container, a number one
+ * above every stamp on the page, and takes it off when it stops docking. A plugin sits to the left of every visible frame
+ * stamped lower than its own or not stamped at all (a plugin that does not know the contract), and ignores higher ones:
+ * whoever docked first keeps the edge.
+ */
+export const DOCK_SEQ_ATTR = "data-dock-seq";
+
 export interface Neighbours {
-  /** The room other plugins' frames take on the right edge now, px. */
+  /** The room the frames docked before this one take on the right edge now, px. */
   offset(): number;
+  /** How many frames are docked before this one (the host rule's specificity steps up with it). */
+  rank(): number;
+  /** Takes the next place in the dock order. */
+  stamp(): void;
+  /** Gives the place up. */
+  unstamp(): void;
   stop(): void;
 }
 
@@ -36,14 +50,25 @@ export interface Neighbours {
  */
 export function installNeighbours(host: Pick<Document, "body" | "querySelector" | "querySelectorAll"> & { defaultView: { MutationObserver: typeof MutationObserver } | null }, pluginId: string, viewport: () => number, onChange: () => void): Neighbours {
   const Observer = host.defaultView?.MutationObserver ?? MutationObserver;
-  const others = () => [...host.querySelectorAll<HTMLElement>(SELECTOR)].filter((el) => el.dataset.pid !== pluginId);
+  const all = () => [...host.querySelectorAll<HTMLElement>(SELECTOR)];
+  const others = () => all().filter((el) => el.dataset.pid !== pluginId);
+  const own = () => all().find((el) => el.dataset.pid === pluginId);
+  const seqOf = (el: Element | undefined) => {
+    const n = Number(el?.getAttribute(DOCK_SEQ_ATTR));
+    return Number.isFinite(n) && el?.hasAttribute(DOCK_SEQ_ATTR) ? n : null;
+  };
+  /** The visible frames this one yields to. */
+  const before = () => {
+    const mine = seqOf(own());
+    return others().filter((el) => el.classList.contains("visible") && (mine === null || (seqOf(el) ?? -1) < mine));
+  };
   const attrs = new Observer(() => onChange());
   const watched = new Set<Element>();
   const watch = () => {
     for (const el of others()) {
       if (watched.has(el)) continue;
       watched.add(el);
-      attrs.observe(el, { attributes: true, attributeFilter: ["class", "style"] });
+      attrs.observe(el, { attributes: true, attributeFilter: ["class", "style", DOCK_SEQ_ATTR] });
     }
   };
   const added = new Observer(() => (watch(), onChange()));
@@ -52,7 +77,13 @@ export function installNeighbours(host: Pick<Document, "body" | "querySelector" 
   const first = host.querySelector(SELECTOR)?.parentElement;
   if (first && first !== host.body) added.observe(first, { childList: true });
   return {
-    offset: () => neighbourOffset(others().filter((el) => el.classList.contains("visible")).map((el) => el.getBoundingClientRect()), viewport()),
+    offset: () => neighbourOffset(before().map((el) => el.getBoundingClientRect()), viewport()),
+    rank: () => before().length,
+    stamp() {
+      const el = own();
+      if (el) el.setAttribute(DOCK_SEQ_ATTR, String(Math.max(0, ...all().map((e) => seqOf(e) ?? 0)) + 1));
+    },
+    unstamp: () => own()?.removeAttribute(DOCK_SEQ_ATTR),
     stop: () => (attrs.disconnect(), added.disconnect()),
   };
 }

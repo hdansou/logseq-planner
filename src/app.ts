@@ -66,6 +66,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const windowPx = () => host?.defaultView?.innerWidth ?? 0;
   /** N44: the room other plugins' docked frames take on the right edge; Planner docks to the left of it. */
   let offsetPx = 0;
+  let rankN = 0;
   let neighbours: Neighbours | null = null;
   /** The window's width less what the neighbours hold: the range Planner's own width lives in. */
   const viewport = () => windowPx() - offsetPx;
@@ -75,16 +76,21 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const applyDock = (px: number, animate: boolean) => {
     shownPx = px;
     deps.setFrame(dockFrame(px, HEADBAR, offsetPx));
-    deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate, offsetPx) });
+    deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate, offsetPx, rankN) });
+  };
+  const measure = () => {
+    offsetPx = neighbours?.offset() ?? 0;
+    rankN = neighbours?.rank() ?? 0;
   };
   const onHostResize = () => {
-    offsetPx = neighbours?.offset() ?? 0;
+    measure();
     applyDock(dockWidth(), false); // a smaller window pulls a too wide Planner in
   };
   const onNeighbours = () => {
-    const next = neighbours?.offset() ?? 0;
-    if (docked && next !== offsetPx) {
-      offsetPx = next;
+    if (!docked) return;
+    const [was, wasRank] = [offsetPx, rankN];
+    measure();
+    if (offsetPx !== was || rankN !== wasRank) {
       applyDock(dockWidth(), true); // the wanted width comes back when the neighbour leaves
     }
   };
@@ -92,8 +98,9 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     if (!docked) {
       host!.defaultView?.addEventListener("resize", onHostResize);
       neighbours = installNeighbours(host!, deps.pluginId(), windowPx, onNeighbours);
+      neighbours.stamp();
     }
-    offsetPx = neighbours!.offset();
+    measure();
     docked = true;
     wantedPx ??= dockWidth();
     applyDock(dockWidth(), true);
@@ -103,9 +110,11 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     if (!docked) return;
     docked = false;
     host!.defaultView?.removeEventListener("resize", onHostResize);
+    neighbours?.unstamp();
     neighbours?.stop();
     neighbours = null;
     offsetPx = 0;
+    rankN = 0;
     wantedPx = null;
     deps.provideStyle({ key: DOCK_STYLE_KEY, style: "" });
   };

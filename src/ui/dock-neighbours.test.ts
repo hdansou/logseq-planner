@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { installNeighbours, neighbourOffset } from "./dock-neighbours";
+import { DOCK_SEQ_ATTR, installNeighbours, neighbourOffset } from "./dock-neighbours";
 
 const VIEWPORT = 1800;
 
@@ -36,8 +36,9 @@ describe("installNeighbours (N44)", () => {
     document.body.innerHTML = "";
   });
 
-  const container = (pid: string, left: number, visible = true) => {
+  const container = (pid: string, left: number, visible = true, seq?: number) => {
     const el = document.createElement("div");
+    if (seq !== undefined) el.setAttribute(DOCK_SEQ_ATTR, String(seq));
     el.className = "lsp-iframe-sandbox-container" + (visible ? " visible" : "");
     el.dataset.pid = pid;
     el.getBoundingClientRect = () => ({ left, right: VIEWPORT, width: VIEWPORT - left, top: 0, bottom: 0, height: 0, x: left, y: 0, toJSON() {} }) as DOMRect;
@@ -96,5 +97,46 @@ describe("installNeighbours (N44)", () => {
     canvas.classList.add("visible");
     await new Promise((r) => setTimeout(r, 30));
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  describe("the dock order (shared contract)", () => {
+    it("stamps its own frame after every stamp already there, and takes the stamp off", () => {
+      const own = container("planner", 1300);
+      container("canvas", 936, true, 7);
+      const n = install();
+      n.stamp();
+      expect(own.getAttribute(DOCK_SEQ_ATTR)).toBe("8");
+      n.unstamp();
+      expect(own.hasAttribute(DOCK_SEQ_ATTR)).toBe(false);
+    });
+
+    it("yields only to frames docked before it: later stamped ones are ignored, unstamped ones count as earlier", () => {
+      container("planner", 1300);
+      container("later", 900, true, 9);
+      container("earlier", 1200, true, 2);
+      container("old", 1500);
+      const n = install();
+      n.stamp(); // 10: after "later" too
+      expect(n.offset()).toBe(900);
+      expect(n.rank()).toBe(3);
+    });
+
+    it("a frame stamped after Planner does not move Planner", () => {
+      const own = container("planner", 1300);
+      own.setAttribute(DOCK_SEQ_ATTR, "1");
+      const n = install();
+      n.stamp();
+      const seq = Number(own.getAttribute(DOCK_SEQ_ATTR));
+      container("canvas", 936, true, seq + 1);
+      expect(n.offset()).toBe(0);
+      expect(n.rank()).toBe(0);
+    });
+
+    it("tells when another frame's stamp changes", async () => {
+      const canvas = container("canvas", 936, true, 5);
+      const { onChange } = install();
+      canvas.setAttribute(DOCK_SEQ_ATTR, "6");
+      await vi.waitFor(() => expect(onChange).toHaveBeenCalled());
+    });
   });
 });
