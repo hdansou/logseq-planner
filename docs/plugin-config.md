@@ -10,7 +10,7 @@ the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it f
 | Per device (window size, dock width) | plugin settings (`~/.logseq/settings/<id>.json`, `logseq.settings`) | not synced, not part of the graph |
 | Per graph, the plugin's own (UI state, caches) | hidden config page in the graph | syncs with the graph, stays out of the user's way |
 | Per graph, the user's (saved views, user-editable defaults) | visible page, one block each | the user names, edits and links them |
-| Secrets | plugin settings only, see section 5 | never in the graph |
+| Secrets | plugin settings only, see section 6 | never in the graph |
 
 ## 2. Names
 
@@ -45,7 +45,7 @@ the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it f
 - A fenced string written to a text property renders as a highlighted code block and keeps its indentation; the stored text
   keeps the fences, so strip them when reading.
 
-## 4b. The value: JSON in an envelope
+## 5. The value: JSON in an envelope
 
 ```json
 { "v": 1, "config": { } }
@@ -68,7 +68,7 @@ For values the user may read or edit, a child code block is a better editor than
 - The block's text is the JSON; read it with `JSON.parse`. Not tested: a hand edit and a read back.
 - A code block's text is searchable. On a hidden page it is not, on a visible page it will show in search.
 
-## 5. Secrets (an API token, for example for a local LM Studio server)
+## 6. Secrets (an API token, for example for a local LM Studio server)
 
 - Never in the graph: it syncs, can be published and is searchable.
 - Keep it in the plugin's settings. They are saved in plaintext in `~/.logseq/settings/<id>.json`, per device, never synced.
@@ -80,7 +80,7 @@ For values the user may read or edit, a child code block is a better editor than
   - never put it in a log line, an error message, an export, a saved view or a UI-state value;
   - say in the plugin's description that it is stored in plaintext on this device.
 
-## 6. Open items
+## 7. Open items
 
-- Decide whether saved views become child code blocks (section 4) or stay properties.
+- Saved views stay hidden text properties (N51); child code blocks (section 5) are for visible, user-edited values such as `Plugin settings: <name>`.
 - A shared helper package for the owner's plugins, so the names, the envelope and the tolerant read live in one place.
