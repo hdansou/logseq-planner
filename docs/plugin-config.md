@@ -1,15 +1,16 @@
 # Plugin config convention
 
 Where a Logseq DB plugin keeps its own data, and how to tell it from the user's. Written for Planner, meant to be reused by
-the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it for the UI state since N50 (hidden page "Plugin state: Planner"); the saved views are still blocks with a property on the visible "Planner views" page. What was tested is marked "tested"; the rest is source reading or inference.
+the owner's other plugins. Status: adopted by Planner on 2026-10-11 (N50 hidden state page, N51 text property, N52 page names); the standard for the owner's other plugins is still a proposal until a second plugin uses it. What was tested is marked "tested"; the rest is source reading or inference.
 
 ## 1. Three places, by kind of data
 
 | Kind | Where | Why |
 |---|---|---|
 | Per device (window size, dock width) | plugin settings (`~/.logseq/settings/<id>.json`, `logseq.settings`) | not synced, not part of the graph |
-| Per graph, the plugin's own (UI state, caches) | hidden config page in the graph | syncs with the graph, stays out of the user's way |
-| Per graph, the user's (saved views, user-editable defaults) | visible page, one block each | the user names, edits and links them |
+| Per graph, the plugin's own (UI state, caches) | hidden page `Plugin state: <plugin>` | syncs with the graph, stays out of the user's way |
+| Per graph, the user's (saved views) | visible page `Plugin views: <plugin>`, one block per view, config in a hidden text property | the user names and links them; the plugin edits the config |
+| Per graph, user-editable defaults | visible page `Plugin settings: <plugin>`, JSON in a code block | meant to be read and edited by hand |
 | Secrets | plugin settings only, see section 6 | never in the graph |
 
 ## 2. Names
@@ -18,8 +19,10 @@ the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it f
   install and a real one, so never query across plugins by that namespace.
 - **Keys** are `<plugin>-<role>`, the same roles in every plugin:
   - `<plugin>-view-config` one saved view's config
-  - `<plugin>-ui-state` machine state (open panel, last view)
+  - `<plugin>-ui-state` machine state (open panel, last view); a `string` property is fine here, the page is hidden
   - `<plugin>-settings` defaults the user may edit
+  - Planner's saved-view key is `planner-view-json`, not `planner-view-config`: it was first created as a `string` property and a
+    type cannot change (section 4). A new plugin starts with `<plugin>-view-config` as a text property.
 - **Pages**: `Plugin <role>: <Plugin name>`, one page per role (owner decision 2026-10-11): `Plugin views: Planner` (the user's saved
   views, visible), `Plugin settings: Planner` (editable defaults, visible), `Plugin state: Planner` (machine state, hidden). The shared prefix groups every plugin's pages together and is distinctive
   enough that a user page will not collide. No `/` namespaces (they create a visible parent page). The host's own `$$$` prefix
@@ -35,6 +38,7 @@ resolves true (tested 2026-10-11). Planner renamed "Planner views" to "Plugin vi
 - The hidden page and its blocks are absent from All pages (UI and `get_all_pages`) and from the search dialog.
 - A datascript query by title still finds them, so the plugin reads and writes them as before.
 - Not tested: opening a hidden page by link, the stable app (b09316a).
+- A hidden page is not the place for a property that must stay visible: hide the property itself (section 4) for a visible page.
 - Hiding applies to the whole page: never put something the user must reach on the same page as the machine state.
 
 ## 4. The property type: text, not string (tested 2026-10-11)
@@ -62,7 +66,8 @@ resolves true (tested 2026-10-11). Planner renamed "Planner views" to "Plugin vi
 
 ### As a code block (tested 2026-10-11)
 
-For values the user may read or edit, a child code block is a better editor than a property string:
+For values the user may read or edit, a code block is a better editor than a property string. Two forms exist: the text property of
+section 4 (compact, inline, keeps indentation, hidden or visible), and a child block as below (large, strips the first indentation):
 
 - Create it by writing the fence in the block content: `` ```json\n{…}\n``` ``. The block gets display-type `code` and
   language `json` (built-in `:logseq.property.node/display-type`, `:logseq.property.code/lang`) and renders in CodeMirror with highlighting.
@@ -86,4 +91,7 @@ For values the user may read or edit, a child code block is a better editor than
 ## 7. Open items
 
 - Saved views stay hidden text properties (N51); child code blocks (section 5) are for visible, user-edited values such as `Plugin settings: <name>`.
-- A shared helper package for the owner's plugins, so the names, the envelope and the tolerant read live in one place.
+- A shared helper package for the owner's plugins, so the names, the envelope, the fence / unfence and the tolerant read live in one place.
+- A skill that sets a new plugin up to this standard (names, hidden state page, text property, secrets rules), written once a second plugin has used it.
+- `Plugin settings: Planner` does not exist yet: Planner has no editable defaults.
+- Not tested: the stable app (b09316a) for any of sections 2 to 5, and a hand edit of a code-block value.
