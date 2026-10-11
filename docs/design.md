@@ -10,7 +10,7 @@ Prototype with these treatments: https://claude.ai/artifact/KU9Z831Y9y974EUW1yVc
 - Neutral by default. **Tint** marks primary actions and the selected item. **Accent** marks
   only today. Links and tags are label-coloured, never accent-coloured.
 - **Status hues** carry state: blue doing, purple in review, green done, red late/overdue (a task is late when its Deadline, else its Scheduled date, is before today),
-  orange high priority. **Highlight set** carries categories (one colour per node), always
+  orange high priority. **Node colours** (N63: six own hues, teal, indigo, pink, purple, brown, slate; no red, orange, green or blue, which mean late, priority, done) carry categories (one colour per node), always
   with label-coloured text on it.
 - Components use tokens only, no colour literals. One elevation level. Almost no motion
   (`background-color .12s` on hover).
@@ -40,7 +40,7 @@ Read with `logseq.UI.resolveThemeCssPropsVals`, re-resolved on `onThemeModeChang
 | `--pl-tint-soft` | never the host (themes may set `--accent` = `--primary`); `color-mix(in srgb, var(--pl-tint) 13% / 12%, transparent)` | ≈ #dfe8e8 / ≈ #213232 |
 | `--pl-ring` | `--ring`, `--ls-focus-ring-color` | tint |
 | `--pl-today` | none in Logseq → Inkwell default; `--ink-accent` if present | #9c2529 / #e8878a |
-| `--pl-cat-{1..7}-soft` | `--ls-highlight-color-{blue,green,yellow,purple,pink,gray,red}` | Inkwell `--ink-hl-*` |
+| `--pl-cat-{1..6}` / `--pl-cat-{1..6}-soft` | none (N63): own hues, the soft fill is 18% of the hue over `--pl-surface` | none |
 | status (`--pl-green` …, `-text`, `-soft`) | none in Logseq → Inkwell defaults; `--ink-*` if present | see slate.css |
 | `--pl-shadow-float` | none → Inkwell default | `0 0 0 .5px rgba(0,0,0,.12), 0 12px 40px rgba(0,0,0,.18)` |
 | `--pl-font` | `--ls-font-family` + `, system-ui, -apple-system, "Segoe UI", sans-serif` unless it already ends in a generic family (host webfonts do not load in the frame) | system stack |

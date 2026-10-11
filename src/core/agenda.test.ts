@@ -423,3 +423,11 @@ describe("N62: a time of 00:00 is no time", () => {
     expect(withoutMidnight("5 Oct 10:00")).toBe("5 Oct 10:00");
   });
 });
+
+describe("N63: a node carries its Status like a task does", () => {
+  it("the built-in Status value's name (doing, in-review, ...) is the entry's status; none without one", () => {
+    const l = synthetic([["Working", "2026-10-03", "2026-10-09", "Doing"], ["Plain", "2026-10-03", "2026-10-09"]]);
+    expect(entry(l, "today", "Working").status).toBe("doing");
+    expect(entry(l, "today", "Plain").status).toBeNull();
+  });
+});

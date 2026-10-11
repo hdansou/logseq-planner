@@ -119,6 +119,12 @@ function whenText(parts: string[], end: LocalDate | null, late: boolean, today: 
   return late && end ? `${base}, ${dayCount(daysBetween(end.day, today))} late` : base;
 }
 
+/** N63: a node's built-in Status (`:logseq.property/status.doing` → "doing"), the name a task's status icon is drawn from; null without one. */
+const nodeStatus = (node: PlannerNode): string | null => {
+  const v = Object.values(node.choices).find((c) => c.ident?.startsWith(":logseq.property/status."));
+  return v?.ident ? v.ident.split(".").pop()! : null;
+};
+
 /** N62: a time of 00:00 is a date with no time (nobody schedules the stroke of midnight), so it is not shown. */
 export const withoutMidnight = (text: string): string => text.replace(/ 00:00\b/g, "");
 
@@ -171,7 +177,7 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
       span.end, late, today,
     );
     const nodeEntry: AgendaEntry = {
-      kind: "node", uuid: node.uuid, title, node: null, cat, status: null, bucket, at, done, late, when,
+      kind: "node", uuid: node.uuid, title, node: null, cat, status: nodeStatus(node), bucket, at, done, late, when,
       label: [title, when, progress.total ? `${progress.done} of ${progress.total} done` : "", done && "done"].filter(Boolean).join(", "),
     };
     const allTasks = tasks.map((task) => ({ id: task.id, entry: taskEntry(task, title, cat) }));

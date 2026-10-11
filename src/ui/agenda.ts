@@ -71,7 +71,7 @@ function renderGroup(g: AgendaGroup): string {
   const id = `pl-ag-h-${esc(n.uuid)}`;
   const progress = g.progress.total ? `<span class="pl-ag-progress" data-ag-progress>${g.progress.done}/${g.progress.total}</span>` : "";
   const line = `<button type="button" class="pl-ag-entry pl-ag-node-line" data-ag-entry="node" data-ag-open="${esc(n.uuid)}" data-bucket="${esc(n.bucket)}" data-cat="${n.cat}"`
-    + `${flag("data-late", n.late)}${flag("data-done", n.done)} aria-label="${esc(n.label)}" title="${esc(n.label)}">`
+    + `${n.status ? ` data-status="${esc(n.status)}"` : ""}${flag("data-late", n.late)}${flag("data-done", n.done)} aria-label="${esc(n.label)}" title="${esc(n.label)}">`
     + `<span class="pl-ag-icon" aria-hidden="true"></span><span class="pl-ag-title">${esc(n.title)}</span>`
     + (g.meta.length ? `<span class="pl-ag-meta">${esc(g.meta.join(" · "))}</span>` : "")
     + progress + `<span class="pl-ag-when">${whenSpans(n.when)}</span></button>`;

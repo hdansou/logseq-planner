@@ -33,10 +33,9 @@ describe("plVars", () => {
     expect(plVars({ "--lx-gray-03": "  ", "--ls-font-family": undefined })).toEqual({});
   });
 
-  it("maps the highlight set, status and today overrides", () => {
+  it("maps status and today overrides; the node colours are not taken from the host (N63)", () => {
     const out = plVars({ "--ls-highlight-color-blue": "#aaa", "--ls-highlight-color-red": "#bbb", "--ink-green-soft": "#ccc", "--ink-accent": "#ddd" });
-    expect(out["--pl-cat-1-soft"]).toBe("#aaa");
-    expect(out["--pl-cat-7-soft"]).toBe("#bbb");
+    expect(Object.keys(out).filter((k) => k.startsWith("--pl-cat-"))).toEqual([]);
     expect(out["--pl-green-soft"]).toBe("#ccc");
     expect(out["--pl-today"]).toBe("#ddd");
   });
@@ -220,5 +219,22 @@ describe("icon characters in titles and values (N55)", () => {
 
   it("bundles no font file", () => {
     expect(workspaceCss + css).not.toMatch(/@font-face/);
+  });
+});
+
+describe("node colours carry no status meaning (N63)", () => {
+  it("the six node hues are their own tokens, none of the status hues (red, orange, green, blue)", () => {
+    for (let n = 1; n <= 6; n++) {
+      const rule = css.match(new RegExp(`^\\[data-cat="${n}"\\]\\s*\\{([^}]*)\\}`, "m"))![1];
+      expect(rule, `cat ${n}`).toMatch(new RegExp(`--pl-node-hue:\\s*var\\(--pl-cat-${n}\\)`));
+      expect(rule).not.toMatch(/--pl-(red|orange|green|blue)/);
+    }
+    expect(css).not.toMatch(/data-cat="7"/);
+  });
+  it("each hue has a light and a dark value, and its soft fill is derived from it", () => {
+    for (let n = 1; n <= 6; n++) {
+      expect(css.match(new RegExp(`--pl-cat-${n}:`, "g"))).toHaveLength(2);
+      expect(css).toMatch(new RegExp(`--pl-cat-${n}-soft:\\s*color-mix\\(in srgb, var\\(--pl-cat-${n}\\)`));
+    }
   });
 });

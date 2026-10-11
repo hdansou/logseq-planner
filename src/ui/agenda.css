@@ -1,5 +1,5 @@
 /* Agenda (T10; docs/design.md "Panels and cards"). Tokens only: every colour is a --pl-* variable from theme.css; the
-   node's category colour arrives as --pl-node-hue from [data-cat] (theme.css).
+   a node's dot is neutral (N63: a colour here would read as a status).
    By date: one panel per bucket (heading, then the entries). By node: one panel per node (its own line as the heading,
    then its tasks). Every entry is a button. Later, No date and Earlier are folded <details>. */
 .pl-ag { display: grid; gap: 10px; max-width: 920px; }
@@ -37,7 +37,7 @@
 .pl-ag-entry[data-status="canceled"] .pl-ag-title { text-decoration: line-through; }
 
 /* Icons: a dot in the node's hue for a node; the status icon for a task (design.md status icons) */
-.pl-ag-icon { flex: none; box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%; background: var(--pl-node-hue); }
+.pl-ag-icon { flex: none; box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%; background: var(--pl-label-3); }
 .pl-ag-entry[data-status] .pl-ag-icon { background: transparent; border: 1.5px solid var(--pl-label-2); }
 .pl-ag-entry[data-status="backlog"] .pl-ag-icon { border-style: dashed; }
 .pl-ag-entry[data-status="doing"] .pl-ag-icon { border-color: var(--pl-blue); background: conic-gradient(var(--pl-blue) 0 50%, transparent 0); }

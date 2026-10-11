@@ -144,6 +144,14 @@ describe("group by node (default)", () => {
   });
 });
 
+describe("N63: a node's own Status shows as its status icon", () => {
+  it("a node line carries data-status when its Status is set, so the dot is the task icon, not a colour of the node", () => {
+    const lines = $$("[data-ag-group] .pl-ag-node-line");
+    expect(lines.some((l) => l.dataset.status)).toBe(true);
+    for (const l of lines) expect(["todo", "doing", "in-review", "done", "backlog", "canceled", undefined]).toContain(l.dataset.status);
+  });
+});
+
 describe("group by date", () => {
   beforeEach(async () => {
     await click("[data-ag-group-by=date]");
@@ -324,6 +332,11 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*\.pl-ag-entry\s*\{[^}]*flex-wrap:\s*wrap/);
     expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*-webkit-line-clamp:\s*2/);
     expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*\[data-ag-bucket="overdue"\][^{]*\.pl-ag-date[^{]*\{[^}]*display:\s*none/);
+  });
+
+  it("N63: a node's dot is neutral, never a hue that could be read as a status", () => {
+    expect(agendaCss).not.toMatch(/\.pl-ag-icon\s*\{[^}]*--pl-node-hue/);
+    expect(agendaCss).toMatch(/\.pl-ag-icon\s*\{[^}]*var\(--pl-label-3\)/);
   });
 
   it("keeps the fallback stack wherever a font-family is set", () => {

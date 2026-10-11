@@ -12,7 +12,6 @@ export const SHUI: ReadonlySet<string> = new Set(["--background", "--foreground"
 export const FONT_FALLBACK = 'system-ui, -apple-system, "Segoe UI", sans-serif';
 const GENERIC_FONT = /(^|,)\s*(serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+)\s*$/;
 
-const HIGHLIGHTS = ["blue", "green", "yellow", "purple", "pink", "gray", "red"];
 const STATUS = ["green", "orange", "red", "blue", "purple"].flatMap((c) => [c, `${c}-text`, `${c}-soft`]);
 
 /**
@@ -35,7 +34,6 @@ export const PL_MAP: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["--pl-on-tint", ["--primary-foreground"]],
   ["--pl-ring", ["--ring", "--ls-focus-ring-color"]],
   ["--pl-today", ["--ink-accent"]],
-  ...HIGHLIGHTS.map((c, i) => [`--pl-cat-${i + 1}-soft`, [`--ls-highlight-color-${c}`]] as const),
   ...STATUS.map((s) => [`--pl-${s}`, [`--ink-${s}`]] as const),
   ["--pl-font", ["--ls-font-family"]],
 ];
