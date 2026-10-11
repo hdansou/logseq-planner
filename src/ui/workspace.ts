@@ -330,7 +330,7 @@ function renderTopBar(s: State): string {
 const ICONS = {
   focus: `<path d="M6 2.5H2.5V6M10 2.5h3.5V6M6 13.5H2.5V10M10 13.5h3.5V10"/>`,
   unfocus: `<path d="M2.5 6H6V2.5M13.5 6H10V2.5M2.5 10H6v3.5M13.5 10H10v3.5"/>`,
-  gear: `<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>`,
+  gear: `<path d="M2 4.5h6M12 4.5h2M2 11.5h2M8 11.5h6"/><circle cx="10" cy="4.5" r="1.7"/><circle cx="6" cy="11.5" r="1.7"/>`,
   panel: `<path d="M2 3h12L9.5 8.5V13l-3-1.5V8.5z"/>`,
   dock: `<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/>`,
   workspace: `<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.5h12"/>`,
