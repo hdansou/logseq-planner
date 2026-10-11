@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PL_MAP, RERESOLVE_DELAYS_MS, THEME_TOKENS, plVars, watchTheme } from "./theme";
 import type { ThemeDeps } from "../types";
 import css from "./theme.css?inline";
+import workspaceCss from "./workspace.css?inline";
 import agendaCss from "./agenda.css?inline";
 import calendarCss from "./calendar.css?inline";
 import kanbanCss from "./kanban.css?inline";
@@ -206,5 +207,16 @@ describe("--pl-label-done", () => {
     expect(kanbanCss).toMatch(/\.pl-kb-card\[data-done\] \.pl-kb-title \{ color: var\(--pl-label-done\); text-decoration: line-through; \}/);
     expect(kanbanCss).toMatch(/\.pl-kb-head\[data-done\] \.pl-kb-head-title \{ color: var\(--pl-label-done\); \}/);
     expect(calendarCss).toMatch(/\.pl-cal-chip\[data-done\] \.pl-cal-title \{ color: var\(--pl-label-done\); text-decoration: line-through; \}/);
+  });
+});
+
+describe("icon characters in titles and values (N55)", () => {
+  // The host's icon font is borrowed at runtime (src/ui/host-icons.ts) under this family name; every font stack ends with it.
+  it("ends the base font stack with the borrowed icon family, so no text gets a box", () => {
+    expect(css).toMatch(/html, body {[^}]*font:[^;}]*var\(--pl-font\), "Planner Icons"/);
+  });
+
+  it("bundles no font file", () => {
+    expect(workspaceCss + css).not.toMatch(/@font-face/);
   });
 });

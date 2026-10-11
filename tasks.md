@@ -603,6 +603,15 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N55 Icon characters in values and titles** — done 2026-10-11, seen live on the nightly (probe characters in the frame).
+      Owner report: closed values and titles made of tabler-icons characters (private-use code points the host draws with its
+      icon font) showed as boxes in the Agenda. Owner rule (memory: plugins follow the host's style): borrow the host's font,
+      do not bundle one (a 779 KB copy was built first and dropped). `src/ui/host-icons.ts`: `hostIconFontUrl` finds the host's
+      `tabler-icons` @font-face in its stylesheets, `borrowHostIconFont` fetches it with the host's fetch and adds it to the
+      frame as "Planner Icons" (private-use range, from the bytes, so the frame's font-src policy does not apply); called once
+      from `registerApp` when the host document is reachable. The base font stack ends with "Planner Icons". Seen: five icon
+      code points drew as icons in the open frame. Not seen: the real Effort / Priority values on the owner's graph, the stable
+      app, the in-page block (it lives in the host document), the web app (no host document, boxes stay).
 - [x] **N54 Checked on the stable app** — 2026-10-11, Logseq 2.0.2 (revision 533ac43; b09316a in CLAUDE.md is older), fresh profile and a
       throwaway graph (since removed). Seen: the icon header (six tools, dock toggle "Dock to the right" then "Back to the workspace",
       docked frame at the window top, full height), a saved view stored under `planner-view-json` (text, hidden), the views page

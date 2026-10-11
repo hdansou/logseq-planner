@@ -6,6 +6,7 @@ import { blockStyle } from "./ui/block-style";
 import { createChanges, shareFeed } from "./ui/changes";
 import { installNeighbours, type Neighbours } from "./ui/dock-neighbours";
 import { installDockResize } from "./ui/dock-resize";
+import { borrowHostIconFont } from "./ui/host-icons";
 import { installHostKeys } from "./ui/host-keys";
 import type { AppDeps, ModelEvent, Surface } from "./types";
 import { watchTheme } from "./ui/theme";
@@ -196,6 +197,12 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     if (!workspace.escape()) close();
   });
   const offHostKeys = installHostKeys(doc, host, { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
+
+  // N55: the host's icon font for tabler-icons characters in titles and values (desktop app only: the host document is reachable).
+  const hostWin = host?.defaultView as (Window & typeof globalThis) | null | undefined;
+  if (hostWin && doc.defaultView) {
+    void borrowHostIconFont(host as never, { fetch: (u) => hostWin.fetch(u), FontFace: doc.defaultView.FontFace as never, fonts: doc.fonts });
+  }
 
   deps.defer(() => {
     const feed = shareFeed(deps.changes.subscribe); // one DB.onChanged for the workspace and the blocks
