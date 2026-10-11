@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-10-11
+
 ### Changed
 
 - Agenda in a narrow frame (the docked sidebar): each entry is two lines, the title wrapping to two lines with the node, fields and date under it; a time of 00:00 is not shown; the Overdue bucket shows only how late (N62).
