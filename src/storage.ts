@@ -3,10 +3,13 @@
 // The write API resolves null on success AND on failure (docs/probes.md), so every write is read back.
 import { parseViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
+import { findOrRenamePage, fenceJson, pageTitle, propertySchemaFor, propertyText, unfenceJson, type PropertyType } from "logseq-plugin-config";
 import type { StorageDeps, ViewBlock } from "./types";
 
+export { fenceJson, propertyText, unfenceJson };
+
 /** N52: the user's saved views, one block each (docs/plugin-config.md: "Plugin <role>: <plugin>"). */
-export const PAGE_TITLE = "Plugin views: Planner";
+export const PAGE_TITLE = pageTitle("views", "Planner");
 /** The page's title before N52; a graph that has it gets it renamed. */
 export const LEGACY_PAGE_TITLE = "Planner views";
 /** Property name: the host strips spaces and the name is its visible title, so it is specific and hyphenated (gotcha §29). */
@@ -20,7 +23,7 @@ export const CONFIG_KEY = "planner-view-json";
 /** N41: the hidden property on the same page that holds the UI state following the graph (the view on screen, title width). */
 export const STATE_KEY = "planner-ui-state";
 /** N50: the plugin's own hidden page (docs/plugin-config.md): the UI state lives here, apart from the user's saved views. */
-export const STATE_PAGE_TITLE = "Plugin state: Planner";
+export const STATE_PAGE_TITLE = pageTitle("state", "Planner");
 
 export interface SavedView {
   /** The block uuid. */
@@ -40,51 +43,8 @@ export interface InvalidView {
 /** What `list` returns: the readable views and, in page order among them, the unreadable ones. */
 export type ListedView = SavedView | InvalidView;
 
-/**
- * Schema to apply before every config write: create the property hidden when missing, only hide it when it
- * exists (never change an existing type), nothing when already hidden (gotcha §30; same rule as Query Builder).
- * `type` is the type a missing property is created with: "string" (the UI state) or "default" = text (N51).
- */
-export function configSchemaFor(existing: { type?: string; hide?: boolean } | null, type: "string" | "default" = "string"): { type?: "string" | "default"; hide: true } | null {
-  if (!existing) return { type, hide: true };
-  return existing.hide ? null : { hide: true };
-}
-
-/** N51: the config as a fenced, pretty-printed JSON block (a code block with highlighting in the host); throws on text that is not JSON. */
-export function fenceJson(text: string): string {
-  let value: unknown;
-  try {
-    value = JSON.parse(text);
-  } catch {
-    throw new Error("The view config is not JSON, so it cannot be stored as a JSON block");
-  }
-  return "```json\n" + JSON.stringify(value, null, 2) + "\n```";
-}
-
-/**
- * N51: what `fenceJson` wrote, back as the compact text the store compares (`serializeViewConfig`). Takes an unfenced value too
- * (a hand edit, the old string property). Text that does not parse is returned as it is, for `parseViewConfig` to report.
- */
-export function unfenceJson(text: string): string {
-  const m = /^```[\w-]*\n([\s\S]*?)\n?```\s*$/.exec(text.trim());
-  const body = m ? m[1]! : text;
-  try {
-    return JSON.stringify(JSON.parse(body));
-  } catch {
-    return body;
-  }
-}
-
-/** A property value as text: the string of a `string` property, or the `value` (else `title`) of the block a text property holds. */
-export function propertyText(raw: unknown): string | null {
-  if (typeof raw === "string") return raw;
-  if (raw && typeof raw === "object") {
-    const o = raw as { value?: unknown; title?: unknown };
-    if (typeof o.value === "string") return o.value;
-    if (typeof o.title === "string") return o.title;
-  }
-  return null;
-}
+/** The schema to apply before a config write (the package's `propertySchemaFor`; the UI state's property stays a `string`, the config is text, N51). */
+export const configSchemaFor = (existing: { type?: string; hide?: boolean } | null, type: PropertyType = "string") => propertySchemaFor(existing, type);
 
 /**
  * The name a saved view is written with and shown as. Rule: the characters `#`, `[`, `]`, `{` and `}` are dropped, runs
@@ -126,19 +86,8 @@ export function createViewStore(deps: StorageDeps) {
     }
   };
 
-  /** The views page; a page still under its old title is renamed first (the host keeps its blocks), and used as it is when that fails. */
-  async function findViewsPage(): Promise<string | null> {
-    const page = await deps.findPage(PAGE_TITLE);
-    if (page) return page;
-    const old = await deps.findPage(LEGACY_PAGE_TITLE);
-    if (!old) return null;
-    try {
-      await deps.renamePage(old, PAGE_TITLE);
-    } catch {
-      return old;
-    }
-    return (await deps.findPage(PAGE_TITLE)) ?? old;
-  }
+  /** The views page; a page still under its old title is renamed first (the package's `findOrRenamePage`). */
+  const findViewsPage = (): Promise<string | null> => findOrRenamePage(deps, PAGE_TITLE, [LEGACY_PAGE_TITLE]);
 
   async function load(): Promise<ListedView[]> {
     if (cache) return cache;

@@ -91,7 +91,7 @@ section 4 (compact, inline, keeps indentation, hidden or visible), and a child b
 ## 7. Open items
 
 - Saved views stay hidden text properties (N51); child code blocks (section 5) are for visible, user-edited values such as `Plugin settings: <name>`.
-- The shared helper package exists (2026-10-11): `~/Projects/src/github.com/logseq-dev/plugin-dev/logseq-plugin-config` (local repo, no remote yet; it holds a copy of this doc as its convention). Planner still carries its own copies of `fenceJson`, `unfenceJson`, `propertyText`, the schema rule and the state / rename logic; switching it to import the package is not done.
+- The shared helper package exists (2026-10-11): `~/Projects/src/github.com/logseq-dev/plugin-dev/logseq-plugin-config` (local repo, no remote yet; it holds a copy of this doc as its convention). Planner imports it since N53 (a local `file:` dependency): `fenceJson`, `unfenceJson`, `propertyText`, the schema rule, the rename and the hidden state store come from the package; `src/sdk.ts` holds the one `ConfigSdk` adapter.
 - A skill that sets a new plugin up to this standard (names, hidden state page, text property, secrets rules), written once a second plugin has used it.
 - `Plugin settings: Planner` does not exist yet: Planner has no editable defaults.
 - Not tested: the stable app (b09316a) for any of sections 2 to 5, and a hand edit of a code-block value.

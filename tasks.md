@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N53 Planner uses the logseq-plugin-config package** — done 2026-10-11, seen live on the nightly (throwaway graph).
+      Owner request. `package.json` depends on the sibling repo (`file:../logseq-dev/plugin-dev/logseq-plugin-config`, source
+      consumed as is); `src/storage.ts` re-exports `fenceJson` / `unfenceJson` / `propertyText`, `configSchemaFor` wraps
+      `propertySchemaFor`, the views page goes through `findOrRenamePage`; `src/sdk.ts` has one `configSdk()` adapter and
+      `graphStateDeps` is `createStateStore`. No behaviour change: all 1,176 tests pass unchanged. Seen live: saved view
+      listed, state page hidden, no error. The cost: a build needs the sibling repo checked out. Not seen: the stable app.
 - [x] **N52 Views page renamed "Plugin views: Planner"** — done 2026-10-11, seen live on the nightly (throwaway graph).
       Owner decision (option 3, docs/plugin-config.md): one page per role, `Plugin <role>: <plugin>`. `PAGE_TITLE` is now
       "Plugin views: Planner"; a graph whose page still has the old title (`LEGACY_PAGE_TITLE`) gets it renamed on the first

@@ -3,7 +3,8 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { CONFIG_KEY, configSchemaFor, fenceJson, LEGACY_CONFIG_KEY, LEGACY_PAGE_TITLE, PAGE_TITLE, propertyText, STATE_KEY, STATE_PAGE_TITLE, unfenceJson } from "./storage";
+import { createStateStore, ensureHiddenProperty, type ConfigSdk, type PropertyType } from "logseq-plugin-config";
+import { CONFIG_KEY, fenceJson, LEGACY_CONFIG_KEY, LEGACY_PAGE_TITLE, PAGE_TITLE, propertyText, STATE_KEY, unfenceJson } from "./storage";
 import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -199,53 +200,8 @@ export const uiStateDeps = (): UiStateDeps => ({
 });
 
 /** Makes sure `key` exists as a hidden string property (never changes an existing type); before every write of it. */
-async function ensureHiddenString(key: string, type: "string" | "default" = "string"): Promise<void> {
-  const existing = (await logseq.Editor.getProperty(key).catch(() => null)) as Record<string, unknown> | null;
-  const schema = configSchemaFor(existing ? { type: existing.type as string | undefined, hide: existing["hide?"] === true || existing.hide === true } : null, type);
-  // Host `upsert_property` takes these keys; the typings are narrower (Query Builder src/sdk.ts).
-  if (schema) await logseq.Editor.upsertProperty(key, schema as never);
-}
-
-/**
- * N41 / N50: the UI state that follows the graph, a hidden string property on the plugin's own hidden page
- * (`STATE_PAGE_TITLE`, `:logseq.property/hide?`; docs/plugin-config.md), apart from the user's saved views. Before N50 it
- * lived on the "Planner views" page: a read falls back to that value, a write moves it. The page entity takes
- * `upsertBlockProperty` by uuid (probed live on the nightly 2026-10-09 and 2026-10-11). Written only after a change, read back every time.
- */
-export const HIDE_KEY = ":logseq.property/hide?";
-export const graphStateDeps = (): GraphStateDeps => {
-  const find = async (title: string) => {
-    const rows = (await datascriptQuery(pageQuery(title))) as unknown[][];
-    return rows.length > 0 ? String(rows[0][0]) : null;
-  };
-  const readFrom = async (title: string) => {
-    const page = await find(title);
-    const raw = page ? await logseq.Editor.getBlockProperty(page, STATE_KEY) : null;
-    return typeof raw === "string" ? raw : null;
-  };
-  return {
-    read: async () => (await readFrom(STATE_PAGE_TITLE)) ?? (await readFrom(PAGE_TITLE)) ?? (await readFrom(LEGACY_PAGE_TITLE)),
-    write: async (text) => {
-      let page = await find(STATE_PAGE_TITLE);
-      if (!page) {
-        await logseq.Editor.createPage(STATE_PAGE_TITLE, {}, { redirect: false, createFirstBlock: false });
-        page = await find(STATE_PAGE_TITLE);
-      }
-      if (!page) throw new Error(`Page "${STATE_PAGE_TITLE}" could not be created (is it in Recycle?)`);
-      await ensureHiddenString(STATE_KEY);
-      await logseq.Editor.upsertBlockProperty(page, HIDE_KEY, true);
-      await logseq.Editor.upsertBlockProperty(page, STATE_KEY, text);
-      if ((await logseq.Editor.getBlockProperty(page, STATE_KEY) as unknown) !== text) throw new Error("UI state was not stored (read back differs)");
-      for (const title of [PAGE_TITLE, LEGACY_PAGE_TITLE]) {
-        const old = await find(title);
-        if (old && typeof (await logseq.Editor.getBlockProperty(old, STATE_KEY)) === "string") await logseq.Editor.removeBlockProperty(old, STATE_KEY);
-      }
-    },
-  };
-};
-
-export const storageDeps = (): StorageDeps => ({
-  // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
+/** The package's SDK seam over this plugin's `logseq.Editor` / `logseq.DB` (src/sdk.ts is the only place that calls them). */
+const configSdk = (): ConfigSdk => ({
   findPage: async (title) => {
     const rows = (await datascriptQuery(pageQuery(title))) as unknown[][];
     return rows.length > 0 ? String(rows[0][0]) : null;
@@ -256,6 +212,31 @@ export const storageDeps = (): StorageDeps => ({
     const done = await (logseq.Editor as unknown as { renamePage(a: string, b: string): Promise<unknown> }).renamePage(uuid, title);
     if (done === false) throw new Error(`Page ${uuid} could not be renamed to "${title}"`);
   },
+  getProperty: async (key) => {
+    const p = (await logseq.Editor.getProperty(key)) as Record<string, unknown> | null;
+    return p ? { type: p.type as string | undefined, hide: p["hide?"] === true || p.hide === true } : null;
+  },
+  // Host `upsert_property` takes these keys; the typings are narrower (Query Builder src/sdk.ts).
+  upsertProperty: async (key, schema) => void (await logseq.Editor.upsertProperty(key, schema as never)),
+  getBlockProperty: (uuid, key) => logseq.Editor.getBlockProperty(uuid, key),
+  upsertBlockProperty: async (uuid, key, value) => void (await logseq.Editor.upsertBlockProperty(uuid, key, value)),
+  removeBlockProperty: async (uuid, key) => void (await logseq.Editor.removeBlockProperty(uuid, key)),
+});
+
+const ensureHiddenString = (key: string, type: PropertyType = "string"): Promise<void> => ensureHiddenProperty(configSdk(), key, type);
+
+/**
+ * N41 / N50: the UI state that follows the graph, a hidden string property on the plugin's own hidden page
+ * (`STATE_PAGE_TITLE`; docs/plugin-config.md), kept by the package's `createStateStore`. Before N50 it lived on the views page,
+ * under its old title or the new one: a read falls back to those, a write moves it. Written only after a change, read back every time.
+ */
+export const graphStateDeps = (): GraphStateDeps => createStateStore(configSdk(), { plugin: "Planner", key: STATE_KEY, legacyPages: [PAGE_TITLE, LEGACY_PAGE_TITLE] });
+
+export const storageDeps = (): StorageDeps => ({
+  // Strict lookup (gotcha §4): title match plus Page class membership, never getPage; recycled pages are excluded.
+  findPage: (title) => configSdk().findPage(title),
+  createPage: (title) => configSdk().createPage(title),
+  renamePage: (uuid, title) => configSdk().renamePage(uuid, title),
   ensureConfigProperty: () => ensureHiddenString(CONFIG_KEY, "default"),
   listBlocks: async (pageUuid) => {
     const tree = (await logseq.Editor.getPageBlocksTree(pageUuid)) ?? [];
