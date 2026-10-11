@@ -3,7 +3,7 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { CONFIG_KEY, configSchemaFor, PAGE_TITLE, STATE_KEY } from "./storage";
+import { CONFIG_KEY, configSchemaFor, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -205,31 +205,37 @@ async function ensureHiddenString(key: string): Promise<void> {
 }
 
 /**
- * N41: the UI state that follows the graph, a hidden string property on the "Planner views" page (the page entity takes
- * `upsertBlockProperty` by uuid; probed live on the nightly 2026-10-09: write, read back, remove, and the page's blocks
- * are unchanged). Written only after a change, read back every time.
+ * N41 / N50: the UI state that follows the graph, a hidden string property on the plugin's own hidden page
+ * (`STATE_PAGE_TITLE`, `:logseq.property/hide?`; docs/plugin-config.md), apart from the user's saved views. Before N50 it
+ * lived on the "Planner views" page: a read falls back to that value, a write moves it. The page entity takes
+ * `upsertBlockProperty` by uuid (probed live on the nightly 2026-10-09 and 2026-10-11). Written only after a change, read back every time.
  */
+export const HIDE_KEY = ":logseq.property/hide?";
 export const graphStateDeps = (): GraphStateDeps => {
-  const find = async () => {
-    const rows = (await datascriptQuery(pageQuery(PAGE_TITLE))) as unknown[][];
+  const find = async (title: string) => {
+    const rows = (await datascriptQuery(pageQuery(title))) as unknown[][];
     return rows.length > 0 ? String(rows[0][0]) : null;
   };
+  const readFrom = async (title: string) => {
+    const page = await find(title);
+    const raw = page ? await logseq.Editor.getBlockProperty(page, STATE_KEY) : null;
+    return typeof raw === "string" ? raw : null;
+  };
   return {
-    read: async () => {
-      const page = await find();
-      const raw = page ? await logseq.Editor.getBlockProperty(page, STATE_KEY) : null;
-      return typeof raw === "string" ? raw : null;
-    },
+    read: async () => (await readFrom(STATE_PAGE_TITLE)) ?? (await readFrom(PAGE_TITLE)),
     write: async (text) => {
-      let page = await find();
+      let page = await find(STATE_PAGE_TITLE);
       if (!page) {
-        await logseq.Editor.createPage(PAGE_TITLE, {}, { redirect: false, createFirstBlock: false });
-        page = await find();
+        await logseq.Editor.createPage(STATE_PAGE_TITLE, {}, { redirect: false, createFirstBlock: false });
+        page = await find(STATE_PAGE_TITLE);
       }
-      if (!page) throw new Error(`Page "${PAGE_TITLE}" could not be created (is it in Recycle?)`);
+      if (!page) throw new Error(`Page "${STATE_PAGE_TITLE}" could not be created (is it in Recycle?)`);
       await ensureHiddenString(STATE_KEY);
+      await logseq.Editor.upsertBlockProperty(page, HIDE_KEY, true);
       await logseq.Editor.upsertBlockProperty(page, STATE_KEY, text);
       if ((await logseq.Editor.getBlockProperty(page, STATE_KEY) as unknown) !== text) throw new Error("UI state was not stored (read back differs)");
+      const old = await find(PAGE_TITLE);
+      if (old && typeof (await logseq.Editor.getBlockProperty(old, STATE_KEY)) === "string") await logseq.Editor.removeBlockProperty(old, STATE_KEY);
     },
   };
 };

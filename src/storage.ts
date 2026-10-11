@@ -10,6 +10,8 @@ export const PAGE_TITLE = "Planner views";
 export const CONFIG_KEY = "planner-view-config";
 /** N41: the hidden property on the same page that holds the UI state following the graph (the view on screen, title width). */
 export const STATE_KEY = "planner-ui-state";
+/** N50: the plugin's own hidden page (docs/plugin-config.md): the UI state lives here, apart from the user's saved views. */
+export const STATE_PAGE_TITLE = "Plugin state: Planner";
 
 export interface SavedView {
   /** The block uuid. */

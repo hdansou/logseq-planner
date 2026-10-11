@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N50 UI state on its own hidden page** — done 2026-10-11, seen live on the nightly (throwaway graph).
+      Owner request (docs/plugin-config.md). `STATE_PAGE_TITLE` "Plugin state: Planner" holds `planner-ui-state` and
+      `:logseq.property/hide?` true, so it is out of All pages and search; "Planner views" keeps only the user's views.
+      `graphStateDeps` reads the new page, falls back to the old value on "Planner views", and a write removes that one.
+      Seen live: the page is hidden, holds the property, the old page is untouched in a fresh graph. Not seen: a real
+      pre-N50 graph's migration (unit tests only), the stable app.
 - [x] **N49 Docked Planner from the window top; the way back is named** — done 2026-10-11, seen live on the nightly.
       Owner request: reclaim the strip above the docked frame (on macOS; elsewhere the window controls sit at the right, so it
       stays under the header; `dockTop()` in app.ts, a unitless `0` would make the `calc` height invalid, so `0px`). The dock

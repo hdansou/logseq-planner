@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, graphStateDeps } from "./sdk";
+import { PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -298,5 +299,61 @@ describe("date writes (N06c; write probe 2026-10-04)", () => {
     await expect(dateWriteDeps().readDate(UUID, START, "date")).rejects.toThrow(/not found/);
     expect(() => dateReadQuery("user.property/start", "date")).toThrow(/ident/);
     await expect(dateWriteDeps().readDate("not-a-uuid", START, "datetime")).rejects.toThrow(/uuid/);
+  });
+});
+
+describe("graph UI state on its own hidden page (N50)", () => {
+  /** A fake host: pages by title, properties by page uuid, every call recorded. */
+  function host(initial: Record<string, Record<string, unknown>> = {}) {
+    const pages = new Map<string, { uuid: string; props: Record<string, unknown> }>();
+    Object.entries(initial).forEach(([title, props], i) => pages.set(title, { uuid: `p${i}`, props: { ...props } }));
+    const byUuid = (u: string) => [...pages.values()].find((p) => p.uuid === u)!;
+    const calls: string[] = [];
+    vi.stubGlobal("logseq", {
+      DB: { datascriptQuery: async (q: string) => {
+        const title = /:block\/title "([^"]*)"/.exec(q)![1]!;
+        return pages.has(title) ? [[pages.get(title)!.uuid]] : [];
+      } },
+      Editor: {
+        createPage: async (title: string) => (calls.push(`create ${title}`), void pages.set(title, { uuid: `p${pages.size}`, props: {} })),
+        getProperty: async () => ({ type: "string", hide: true }),
+        upsertProperty: async () => undefined,
+        getBlockProperty: async (u: string, k: string) => byUuid(u).props[k] ?? null,
+        upsertBlockProperty: async (u: string, k: string, v: unknown) => (calls.push(`set ${k} on ${[...pages].find(([, p]) => p.uuid === u)![0]}`), void (byUuid(u).props[k] = v)),
+        removeBlockProperty: async (u: string, k: string) => (calls.push(`remove ${k} from ${[...pages].find(([, p]) => p.uuid === u)![0]}`), void delete byUuid(u).props[k]),
+      },
+    });
+    return { pages, calls };
+  }
+
+  it("writes the state on the state page, which is hidden, and not on the views page", async () => {
+    const h = host({ [PAGE_TITLE]: {} });
+    await graphStateDeps().write('{"v":1}');
+    expect(h.pages.get(STATE_PAGE_TITLE)!.props).toEqual({ [STATE_KEY]: '{"v":1}', ":logseq.property/hide?": true });
+    expect(h.pages.get(PAGE_TITLE)!.props).toEqual({});
+  });
+
+  it("moves a state written by an earlier version: read falls back to the views page, a write removes it there", async () => {
+    const h = host({ [PAGE_TITLE]: { [STATE_KEY]: '{"v":0}' } });
+    expect(await graphStateDeps().read()).toBe('{"v":0}');
+    await graphStateDeps().write('{"v":1}');
+    expect(h.pages.get(PAGE_TITLE)!.props[STATE_KEY]).toBeUndefined();
+    expect(await graphStateDeps().read()).toBe('{"v":1}');
+  });
+
+  it("the state page wins over the views page, and nothing is created by a read", async () => {
+    const h = host({ [PAGE_TITLE]: { [STATE_KEY]: "old" }, [STATE_PAGE_TITLE]: { [STATE_KEY]: "new" } });
+    expect(await graphStateDeps().read()).toBe("new");
+    const none = host();
+    expect(await graphStateDeps().read()).toBeNull();
+    expect(none.calls).toEqual([]);
+    void h;
+  });
+
+  it("fails when the write cannot be read back", async () => {
+    host();
+    const real = (globalThis as unknown as { logseq: { Editor: { getBlockProperty: unknown } } }).logseq;
+    real.Editor.getBlockProperty = async () => "something else";
+    await expect(graphStateDeps().write("x")).rejects.toThrow(/read back/);
   });
 });

@@ -1,8 +1,7 @@
 # Plugin config convention
 
 Where a Logseq DB plugin keeps its own data, and how to tell it from the user's. Written for Planner, meant to be reused by
-the owner's other plugins. Status: a proposal (2026-10-11); Planner still follows the older layout (one visible page
-"Planner views" holding the views and the UI state). What was tested is marked "tested"; the rest is source reading or inference.
+the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it for the UI state since N50 (hidden page "Plugin state: Planner"); the saved views are still blocks with a property on the visible "Planner views" page. What was tested is marked "tested"; the rest is source reading or inference.
 
 ## 1. Three places, by kind of data
 
@@ -72,6 +71,5 @@ For values the user may read or edit, a child code block is a better editor than
 
 ## 6. Open items
 
-- Build the split for Planner: move the UI state to a hidden `Plugin state: Planner` page, migrate the existing property once.
 - Decide whether saved views become child code blocks (section 4) or stay properties.
 - A shared helper package for the owner's plugins, so the names, the envelope and the tolerant read live in one place.
