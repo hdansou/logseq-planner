@@ -329,8 +329,9 @@ Planner reads, through Logseq's database queries:
 
 Planner writes three things, and nothing else:
 
-1. **Saved views.** One block per view on the page "Planner views", with the view's JSON in
-   the hidden string property `planner-view-config`. Planner creates the page and the
+1. **Saved views.** One block per view on the page "Plugin views: Planner", with the view's JSON in
+   the hidden text property `planner-view-json` (an older "Planner views" page and `planner-view-config` property are
+   renamed and moved when Planner first reads them; Planner also keeps its UI state on the hidden page "Plugin state: Planner"). Planner creates the page and the
    property when you first save.
 2. **Kanban moves.** The column or swimlane property of the card you moved.
 3. **Timeline date edits** (only with Edit dates on). The Start and/or End property of the bar you moved or resized.
@@ -384,7 +385,7 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 - Deleting a tag does not trigger a refresh. The tag stays listed until the next graph change
   or the 30-second check. Planner then falls back to the default view and shows a message.
   A created tag appears at once.
-- If the page "Planner views" is in Recycle, saving fails with a message. Restore the page or
+- If the page "Plugin views: Planner" is in Recycle, saving fails with a message. Restore the page or
   delete it in Recycle (More menu), then save again. Planner does not restore it for you.
 - Reopening Planner after it was hidden with stale data runs two reloads; the second changes
   nothing.

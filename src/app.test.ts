@@ -61,6 +61,7 @@ function fakeDeps() {
     storage: {
       findPage: async () => null,
       createPage: async () => {},
+      renamePage: async () => {},
       ensureConfigProperty: async () => {},
       listBlocks: async () => [],
       readBlock: async () => null,

@@ -5,7 +5,10 @@ import { parseViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
 import type { StorageDeps, ViewBlock } from "./types";
 
-export const PAGE_TITLE = "Planner views";
+/** N52: the user's saved views, one block each (docs/plugin-config.md: "Plugin <role>: <plugin>"). */
+export const PAGE_TITLE = "Plugin views: Planner";
+/** The page's title before N52; a graph that has it gets it renamed. */
+export const LEGACY_PAGE_TITLE = "Planner views";
 /** Property name: the host strips spaces and the name is its visible title, so it is specific and hyphenated (gotcha §29). */
 export const LEGACY_CONFIG_KEY = "planner-view-config";
 /**
@@ -123,9 +126,23 @@ export function createViewStore(deps: StorageDeps) {
     }
   };
 
+  /** The views page; a page still under its old title is renamed first (the host keeps its blocks), and used as it is when that fails. */
+  async function findViewsPage(): Promise<string | null> {
+    const page = await deps.findPage(PAGE_TITLE);
+    if (page) return page;
+    const old = await deps.findPage(LEGACY_PAGE_TITLE);
+    if (!old) return null;
+    try {
+      await deps.renamePage(old, PAGE_TITLE);
+    } catch {
+      return old;
+    }
+    return (await deps.findPage(PAGE_TITLE)) ?? old;
+  }
+
   async function load(): Promise<ListedView[]> {
     if (cache) return cache;
-    pageUuid = await deps.findPage(PAGE_TITLE);
+    pageUuid = await findViewsPage();
     const blocks = pageUuid ? await deps.listBlocks(pageUuid) : [];
     cache = blocks.filter((b) => b.config !== null).map(toView);
     return cache;
@@ -141,7 +158,7 @@ export function createViewStore(deps: StorageDeps) {
    * page still missing afterwards means Recycle.
    */
   async function livePage(create: boolean): Promise<string> {
-    let page = await deps.findPage(PAGE_TITLE);
+    let page = await findViewsPage();
     if (!page && create) {
       await deps.createPage(PAGE_TITLE);
       page = await deps.findPage(PAGE_TITLE);

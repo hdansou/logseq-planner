@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N52 Views page renamed "Plugin views: Planner"** — done 2026-10-11, seen live on the nightly (throwaway graph).
+      Owner decision (option 3, docs/plugin-config.md): one page per role, `Plugin <role>: <plugin>`. `PAGE_TITLE` is now
+      "Plugin views: Planner"; a graph whose page still has the old title (`LEGACY_PAGE_TITLE`) gets it renamed on the first
+      read or save (`renamePage` with the uuid, blocks kept), and the old page is used as it is when the rename is refused.
+      The UI-state fallback looks on both titles. Seen live: a "Planner views" page with a saved view renamed itself and the
+      view listed. Not seen: the stable app, a real pre-N52 graph.
 - [x] **N51 Saved-view config in a hidden text property** — done 2026-10-11, seen live on the nightly (throwaway graph).
       Owner request (docs/plugin-config.md). The `string` property stayed visible on the page; a text (`default`) property
       with `hide: true` is hidden and can hold a code block. A property's type cannot change once it has data, so the config

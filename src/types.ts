@@ -288,6 +288,8 @@ export interface StorageDeps {
   /** uuid of the page with exactly this title (strict datascript query), or null. */
   findPage(title: string): Promise<string | null>;
   createPage(title: string): Promise<void>;
+  /** Renames the page with this uuid (N52: the views page changed its title). Throws when the host refuses. */
+  renamePage(uuid: string, title: string): Promise<void>;
   /** Makes sure the hidden string config property exists; called right before every config write. */
   ensureConfigProperty(): Promise<void>;
   /** Top-level blocks of the page, in order, each with its raw config property. */

@@ -20,10 +20,13 @@ the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it f
   - `<plugin>-view-config` one saved view's config
   - `<plugin>-ui-state` machine state (open panel, last view)
   - `<plugin>-settings` defaults the user may edit
-- **Pages**: `Plugin settings: <Plugin name>` (for example `Plugin settings: Planner`) for the editable defaults, and
-  `Plugin state: <Plugin name>` for the hidden machine state. The shared prefix groups every plugin's pages together and is distinctive
+- **Pages**: `Plugin <role>: <Plugin name>`, one page per role (owner decision 2026-10-11): `Plugin views: Planner` (the user's saved
+  views, visible), `Plugin settings: Planner` (editable defaults, visible), `Plugin state: Planner` (machine state, hidden). The shared prefix groups every plugin's pages together and is distinctive
   enough that a user page will not collide. No `/` namespaces (they create a visible parent page). The host's own `$$$` prefix
   hides a page by name, but it is the host's internal convention, not a documented plugin one: do not rely on it.
+
+Renaming a page is `renamePage(uuid, newTitle)`: it takes the page uuid (a title fails with "Invalid page uuid"), keeps the blocks and
+resolves true (tested 2026-10-11). Planner renamed "Planner views" to "Plugin views: Planner" that way, on first read.
 
 ## 3. Hiding the machine state (tested 2026-10-11, nightly d24abc9, throwaway graph)
 

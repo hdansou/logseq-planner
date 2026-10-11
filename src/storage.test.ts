@@ -4,7 +4,7 @@ import propsFixture from "./core/__fixtures__/class-properties.json";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
-import { configSchemaFor, createViewStore, fenceJson, PAGE_TITLE, propertyText, sanitizeViewName, unfenceJson, type SavedView } from "./storage";
+import { configSchemaFor, createViewStore, fenceJson, LEGACY_PAGE_TITLE, PAGE_TITLE, propertyText, sanitizeViewName, unfenceJson, type SavedView } from "./storage";
 import type { StorageDeps, ViewBlock } from "./types";
 import { hostTags, hostTitle } from "./ui/test-fakes";
 
@@ -15,12 +15,19 @@ const timeline = defaultViewConfig(project) as Extract<ViewConfig, { kind: "time
 const calendar = defaultViewConfig(meeting, "calendar");
 
 /** In-memory graph. `silent` makes the named writes resolve without changing anything, like the real API on failure. */
-function fakeGraph(opts: { silent?: Array<"createPage" | "appendBlock" | "setConfig" | "removeBlock"> } = {}) {
+function fakeGraph(opts: { silent?: Array<"createPage" | "appendBlock" | "setConfig" | "removeBlock" | "renamePage"> } = {}) {
   const log: string[] = [];
-  const g = { page: null as string | null, blocks: [] as ViewBlock[], tags: new Map<string, number>(), n: 0, ensured: 0, onWrite: (_: string) => {} };
+  const g = { page: null as string | null, legacyPage: null as string | null, blocks: [] as ViewBlock[], tags: new Map<string, number>(), n: 0, ensured: 0, onWrite: (_: string) => {} };
   const silent = (k: string) => (opts.silent ?? []).includes(k as never);
   const deps: StorageDeps = {
-    findPage: async (title) => (log.push(`findPage ${title}`), g.page),
+    findPage: async (title) => (log.push(`findPage ${title}`), title === LEGACY_PAGE_TITLE ? g.legacyPage : g.page),
+    renamePage: async (uuid, title) => {
+      log.push(`renamePage ${uuid} ${title}`);
+      g.onWrite("renamePage");
+      if (silent("renamePage")) throw new Error("rename refused");
+      g.page = g.legacyPage;
+      g.legacyPage = null;
+    },
     createPage: async (title) => {
       log.push(`createPage ${title}`);
       g.onWrite("createPage");
@@ -97,12 +104,48 @@ describe("config text in a text property (N51)", () => {
   });
 });
 
+describe("the views page was renamed (N52)", () => {
+  it("a graph with only the old page: list renames it to the new title, then reads its blocks", async () => {
+    const { g, deps, log } = fakeGraph();
+    g.legacyPage = "old-page";
+    g.blocks.push({ uuid: "b-0", name: "Roadmap", config: serializeViewConfig(timeline) });
+    const views = await createViewStore(deps).list();
+    expect(views.map((v) => v.name)).toEqual(["Roadmap"]);
+    expect(log).toContain(`renamePage old-page ${PAGE_TITLE}`);
+    expect(log).toContain("listBlocks old-page");
+    expect(g.legacyPage).toBeNull();
+  });
+
+  it("when the rename is refused the views are still listed from the old page", async () => {
+    const { g, deps } = fakeGraph({ silent: ["renamePage"] });
+    g.legacyPage = "old-page";
+    g.blocks.push({ uuid: "b-0", name: "Roadmap", config: serializeViewConfig(timeline) });
+    expect((await createViewStore(deps).list()).map((v) => v.name)).toEqual(["Roadmap"]);
+  });
+
+  it("saving with only the old page renames it instead of creating a second page", async () => {
+    const { g, deps, log } = fakeGraph();
+    g.legacyPage = "old-page";
+    await createViewStore(deps).create("New view", timeline);
+    expect(log.some((l) => l.startsWith("createPage"))).toBe(false);
+    expect(log).toContain(`renamePage old-page ${PAGE_TITLE}`);
+  });
+
+  it("the new page wins and nothing is renamed", async () => {
+    const { g, deps, log } = fakeGraph();
+    g.page = "page-1";
+    g.legacyPage = "old-page";
+    await createViewStore(deps).list();
+    expect(log.some((l) => l.startsWith("renamePage"))).toBe(false);
+  });
+});
+
 describe("list", () => {
   it("is empty and creates nothing when the page does not exist", async () => {
     const { deps, log } = fakeGraph();
     const store = createViewStore(deps);
     expect(await store.list()).toEqual([]);
-    expect(log).toEqual([`findPage ${PAGE_TITLE}`]);
+    expect(log).toEqual([`findPage ${PAGE_TITLE}`, `findPage ${LEGACY_PAGE_TITLE}`]);
   });
 
   it("reads the page once, skips blocks without config, then serves the cache", async () => {
@@ -234,7 +277,9 @@ describe("create", () => {
     expect(view).toEqual({ id: "b-1", name: "Roadmap", config: timeline });
     expect(log).toEqual([
       `findPage ${PAGE_TITLE}`, // load
+      `findPage ${LEGACY_PAGE_TITLE}`, // (no page under the old title either)
       `findPage ${PAGE_TITLE}`, // live page, looked up right before the append
+      `findPage ${LEGACY_PAGE_TITLE}`,
       `createPage ${PAGE_TITLE}`,
       `findPage ${PAGE_TITLE}`, // read-back of the page
       "appendBlock page-1 Roadmap",
@@ -283,7 +328,7 @@ describe("create", () => {
   it("throws when the page was not really created", async () => {
     const { deps } = fakeGraph({ silent: ["createPage"] });
     const store = createViewStore(deps);
-    await expect(store.create("Roadmap", timeline)).rejects.toThrow('Page "Planner views" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
+    await expect(store.create("Roadmap", timeline)).rejects.toThrow('Page "Plugin views: Planner" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
     expect(store.cached()).toEqual([]);
   });
 
@@ -294,7 +339,7 @@ describe("create", () => {
     const store = createViewStore(deps);
     await store.create("Roadmap", timeline);
     g.page = null; // moved to Recycle: findPage no longer sees it, appendBlock("page-1") would still succeed
-    await expect(store.create("Meetings", calendar)).rejects.toThrow('Page "Planner views" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
+    await expect(store.create("Meetings", calendar)).rejects.toThrow('Page "Plugin views: Planner" could not be created. If it is in Recycle (More menu → Recycle), restore it or delete it there, then save again.');
     expect(log.filter((l) => l.startsWith("appendBlock"))).toHaveLength(1);
     expect(store.cached()).toEqual([]); // the views on the recycled page are gone from the cache too
     expect(await store.list()).toEqual([]);

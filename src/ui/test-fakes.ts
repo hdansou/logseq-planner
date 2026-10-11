@@ -276,6 +276,7 @@ export function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {
   return {
     findPage: async () => page,
     createPage: async () => void (page = "page-1"),
+    renamePage: async () => {},
     ensureConfigProperty: async () => {},
     listBlocks: async () => blocks.map((b) => ({ ...b })),
     readBlock: async (u) => blocks.find((b) => b.uuid === u) ?? null,

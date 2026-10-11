@@ -3,7 +3,7 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { CONFIG_KEY, configSchemaFor, fenceJson, LEGACY_CONFIG_KEY, PAGE_TITLE, propertyText, STATE_KEY, STATE_PAGE_TITLE, unfenceJson } from "./storage";
+import { CONFIG_KEY, configSchemaFor, fenceJson, LEGACY_CONFIG_KEY, LEGACY_PAGE_TITLE, PAGE_TITLE, propertyText, STATE_KEY, STATE_PAGE_TITLE, unfenceJson } from "./storage";
 import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -224,7 +224,7 @@ export const graphStateDeps = (): GraphStateDeps => {
     return typeof raw === "string" ? raw : null;
   };
   return {
-    read: async () => (await readFrom(STATE_PAGE_TITLE)) ?? (await readFrom(PAGE_TITLE)),
+    read: async () => (await readFrom(STATE_PAGE_TITLE)) ?? (await readFrom(PAGE_TITLE)) ?? (await readFrom(LEGACY_PAGE_TITLE)),
     write: async (text) => {
       let page = await find(STATE_PAGE_TITLE);
       if (!page) {
@@ -236,8 +236,10 @@ export const graphStateDeps = (): GraphStateDeps => {
       await logseq.Editor.upsertBlockProperty(page, HIDE_KEY, true);
       await logseq.Editor.upsertBlockProperty(page, STATE_KEY, text);
       if ((await logseq.Editor.getBlockProperty(page, STATE_KEY) as unknown) !== text) throw new Error("UI state was not stored (read back differs)");
-      const old = await find(PAGE_TITLE);
-      if (old && typeof (await logseq.Editor.getBlockProperty(old, STATE_KEY)) === "string") await logseq.Editor.removeBlockProperty(old, STATE_KEY);
+      for (const title of [PAGE_TITLE, LEGACY_PAGE_TITLE]) {
+        const old = await find(title);
+        if (old && typeof (await logseq.Editor.getBlockProperty(old, STATE_KEY)) === "string") await logseq.Editor.removeBlockProperty(old, STATE_KEY);
+      }
     },
   };
 };
@@ -249,6 +251,11 @@ export const storageDeps = (): StorageDeps => ({
     return rows.length > 0 ? String(rows[0][0]) : null;
   },
   createPage: async (title) => void (await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false })),
+  // The DB host takes the page's uuid (a title gives "Invalid page uuid", probed live 2026-10-11); it resolves true when renamed.
+  renamePage: async (uuid, title) => {
+    const done = await (logseq.Editor as unknown as { renamePage(a: string, b: string): Promise<unknown> }).renamePage(uuid, title);
+    if (done === false) throw new Error(`Page ${uuid} could not be renamed to "${title}"`);
+  },
   ensureConfigProperty: () => ensureHiddenString(CONFIG_KEY, "default"),
   listBlocks: async (pageUuid) => {
     const tree = (await logseq.Editor.getPageBlocksTree(pageUuid)) ?? [];
