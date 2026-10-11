@@ -111,3 +111,16 @@
 .pl-cg-block .pl-cal-node { flex-basis: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; }
 .pl-cg-block[data-late] { background: var(--pl-red-soft); color: var(--pl-red-text); }
 .pl-cg-block[data-done] .pl-cg-title { color: var(--pl-label-done); text-decoration: line-through; font-weight: 500; }
+
+/* Edit dates in the grid (N46): edges to resize, the dragged block above the others, pending and locked blocks */
+.pl-cg-block[data-cg-editable] { cursor: grab; touch-action: none; }
+.pl-cg-block[data-cg-dragging] { cursor: grabbing; z-index: 4; box-shadow: inset 3px 0 0 var(--pl-node-hue), var(--pl-shadow-float); opacity: .92; }
+.pl-cg-block[data-cg-pending] { opacity: .6; cursor: progress; }
+.pl-cg-block[data-cg-locked] { cursor: default; }
+.pl-cg-handle { position: absolute; left: 0; right: 0; height: 6px; cursor: ns-resize; touch-action: none; }
+.pl-cg-handle[data-cg-handle="start"] { top: 0; }
+.pl-cg-handle[data-cg-handle="end"] { bottom: 0; }
+.pl-cg-block[data-cg-editable]:hover .pl-cg-handle::after { content: ""; position: absolute; left: 50%; width: 18px; height: 3px; margin-left: -9px;
+  border-radius: 2px; background: var(--pl-node-hue); opacity: .7; }
+.pl-cg-handle[data-cg-handle="start"]::after { top: 1px; }
+.pl-cg-handle[data-cg-handle="end"]::after { bottom: 1px; }

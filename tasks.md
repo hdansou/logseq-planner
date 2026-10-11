@@ -598,6 +598,18 @@ Live-check method (web app):
       at the focus minute), Week 7 columns, Day one, Today keeps the user's scroll. Not done: dragging blocks (edit
       dates in the grid), hour zoom, working-hours collapse; overlapping blocks, a Scheduled block and the all-day row
       on real data (unit tests only); the now line's look; the workspace (wide) surface; the stable app; real-mouse use.
+- [x] **N47 Edit dates in the Calendar time grids** — done 2026-10-10, seen live on the nightly (planner-project, docked).
+      Owner request ("do drag and edit first"). `CalendarInput.edit` / `pending`, `GridBlock.edit` / `span` / `pending`,
+      `TimeGrid.editing`, pure `gridDelta(block, mode, range, days, quarters)` (days stay on the range, a move stays inside its
+      day, a resize keeps 15 minutes); `src/ui/grid-edit.ts` (`installGridEdit`: pointer drag with a transform for a move and
+      the minute variables for a resize, Alt+Arrow keys), the Edit dates toggle `data-cal-edit` in the grid toolbar (the Timeline's
+      session state), blocks `data-cg-editable` / `data-cg-move` / `data-cg-locked` / `data-cg-pending`, handles
+      `data-cg-handle`, `#pl-cg-edit-help`; the workspace writes through `editDates` (`EditTarget`: a Timeline row or a
+      block, 96 steps per day). Seen live: a real-mouse drag of N05 down 30 minutes wrote and read back (11:30 – 13:30),
+      two Alt+Up put it back (11:00 – 13:00). Not seen: resize edges with the real mouse and on real data (no DateTime span
+      block on screen besides these; unit tests with a hand-made grid), the stable app, the wide workspace surface. Note:
+      while checking, N34's End read 10:00 (earlier screenshots 11:00); its last update predates the drag, so it is not
+      this item's write, but it was not traced.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

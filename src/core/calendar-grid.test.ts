@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { loadTagInfos } from "./schema";
 import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
-import { calendarRange, layoutCalendar, shiftCalendarAnchor, type CalendarInput, type CalendarView, type TimeGrid } from "./calendar-layout";
+import { calendarRange, gridDelta, layoutCalendar, shiftCalendarAnchor, type CalendarInput, type CalendarView, type GridBlock, type TimeGrid } from "./calendar-layout";
 import { fixtureDq } from "../ui/test-fakes";
-import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { DateProp, LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
 const tags = await loadTagInfos(fixtureDq());
 const project: TagInfo = tags.find((t) => t.title === "Project")!;
@@ -184,5 +184,77 @@ describe("the all-day row", () => {
       weekStart: 0, statusValues, titles: titlesByUuid(nodes),
     });
     expect(l.undated.map((u) => u.title)).toEqual(["Floating"]);
+  });
+});
+
+describe("editing dates in the grid (N46)", () => {
+  const dt = (ident: string, title: string) => ({ id: 1, ident, title, type: "datetime" as const });
+  const START = dt(startIdent, "Start");
+  const END = dt(endIdent, "End");
+  const edit = (props: { start: DateProp | null; end: DateProp | null } = { start: START, end: END }) => ({ edit: () => props });
+
+  it("without the edit input nothing is editable and the grid is not editing", () => {
+    const g = grid("day", [{ title: "Learn", start: d(TODAY, "20:35"), end: d(TODAY, "21:05") }]);
+    expect(g.editing).toBe(false);
+    expect(g.blocks[0]).toMatchObject({ edit: null, pending: false });
+  });
+
+  it("a span block of two DateTime properties can move and resize either edge; its dates are the span the edit works on", () => {
+    const g = grid("day", [{ title: "Learn", start: d(TODAY, "20:35"), end: d(TODAY, "21:05") }], edit());
+    expect(g.editing).toBe(true);
+    expect(g.blocks[0].edit).toEqual({ start: START, end: END, point: false, move: true, resizeStart: true, resizeEnd: true });
+    expect(g.blocks[0].span).toEqual({ start: d(TODAY, "20:35"), end: d(TODAY, "21:05") });
+  });
+
+  it("a one-date block moves only, through the property it is mapped as", () => {
+    const g = grid("day", [{ title: "Review", start: d(TODAY, "16:15") }], edit());
+    expect(g.blocks[0].edit).toEqual({ start: START, end: null, point: true, move: true, resizeStart: false, resizeEnd: false });
+    expect(g.blocks[0].span).toEqual({ start: d(TODAY, "16:15"), end: d(TODAY, "16:15") });
+  });
+
+  it("task blocks are locked; a Date-typed property is never editable here; a pending node has no edit and is flagged", () => {
+    const tasks = [task(1, "Draft", { deadline: d(TODAY, "17:00") })];
+    const g = grid("day", [{ title: "Site", start: d("2026-09-01"), end: d("2026-12-01") }], edit(), tasks);
+    expect(g.blocks[0]).toMatchObject({ kind: "deadline", edit: null, span: null });
+    const dated = grid("day", [{ title: "Learn", start: d(TODAY, "20:35"), end: d(TODAY, "21:05") }], edit({ start: { ...START, type: "date" }, end: END }));
+    expect(dated.blocks[0].edit).toBeNull();
+    const pending = grid("day", [{ title: "Learn", start: d(TODAY, "20:35"), end: d(TODAY, "21:05") }], { ...edit(), pending: new Set(["u1"]) });
+    expect(pending.blocks[0]).toMatchObject({ edit: null, pending: true });
+  });
+});
+
+describe("gridDelta: what a drag of days and quarter hours can do to a block (N46)", () => {
+  const range = { start: "2026-10-02", end: "2026-10-04", label: "" };
+  const blockAt = (start: string, end: string, day = TODAY, point = false): GridBlock => ({
+    kind: point ? "point" : "span", uuid: "u1", title: "B", day, startMin: 0, endMin: 0, timeLabel: "", cat: 1, node: null, status: null, done: false, late: false, label: "",
+    col: 0, cols: 1, pending: false,
+    edit: { start: null, end: null, point, move: true, resizeStart: !point, resizeEnd: !point },
+    span: { start: d(day, start), end: d(day, end) },
+  });
+
+  it("a move is days times 96 plus quarters, as 15-minute tracks", () => {
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, 1, 4)).toEqual({ days: 1, quarters: 4, delta: 100 });
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, -1, -2)).toEqual({ days: -1, quarters: -2, delta: -98 });
+  });
+
+  it("days stay inside the range", () => {
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, 5, 0).days).toBe(1);
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, -5, 0).days).toBe(-1);
+  });
+
+  it("a move keeps the block inside its day: not before 00:00, not past 23:59", () => {
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, 0, -100).quarters).toBe(-36);
+    expect(gridDelta(blockAt("09:00", "10:00"), "move", range, 0, 100).quarters).toBe(55); // the end stops at 23:45
+  });
+
+  it("resizing the end keeps at least 15 minutes and the day; the start likewise", () => {
+    expect(gridDelta(blockAt("09:00", "10:00"), "end", range, 3, -9)).toMatchObject({ days: 0, quarters: -3, delta: -3 });
+    expect(gridDelta(blockAt("09:00", "10:00"), "end", range, 0, 200).quarters).toBe(55);
+    expect(gridDelta(blockAt("09:00", "10:00"), "start", range, 0, 9)).toMatchObject({ quarters: 3 });
+    expect(gridDelta(blockAt("09:00", "10:00"), "start", range, 0, -100).quarters).toBe(-36);
+  });
+
+  it("a one-date block moves a quarter at a time too, to the last minute of the day", () => {
+    expect(gridDelta(blockAt("16:15", "16:15", TODAY, true), "move", range, 0, 100).quarters).toBe(30);
   });
 });

@@ -18,18 +18,19 @@ import {
   type ViewConfig, type ViewKind,
 } from "../core/view-config";
 import { clampDelta, clampLabelWidth, editedBar, LABEL_W, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
-import { dateChanges, writeDates, type DateChange, type EditMode } from "../core/date-edit";
+import { dateChanges, writeDates, type DateChange, type EditMode, type SpanEdit } from "../core/date-edit";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } from "../storage";
 import type { UiPrefs, UiStore } from "../ui-state";
-import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
+import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, LocalDate, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, errorText, esc, flag, menu as menuHtml, options } from "./html";
 import { calendarAction, gridScrollTop } from "./calendar";
+import { installGridEdit } from "./grid-edit";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { empty, kanbanLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { calendarLayoutOf, empty, kanbanLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -184,6 +185,15 @@ interface State {
 export const CLICK_PX = 4;
 
 /** A Timeline bar or point being dragged (N06c): only its inline grid placement changes until the drop. */
+/** What `editDates` writes: a Timeline row, or a Calendar grid block (N46). */
+interface EditTarget {
+  edit: SpanEdit | null;
+  start: LocalDate;
+  end: LocalDate;
+  title: string;
+  node: { uuid: string };
+}
+
 interface TlDrag {
   el: HTMLElement;
   pointerId: number;
@@ -532,7 +542,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** The time grid (N46) range the view was last scrolled for (`data-cg-key`): a new one opens at the grid's focus minute. */
   let gridScrolled: string | null = null;
   /** Something the user is in the middle of that a redraw must not disturb. */
-  const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null || s.datePending.size > 0 || tlDrag !== null;
+  const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null || s.datePending.size > 0 || tlDrag !== null || gridEdit.dragging();
 
   const message = errorText;
 
@@ -541,7 +551,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    * when that fails too, a bare shell with the error, Dismiss and Close is drawn, so the user can always leave.
    */
   const render = (focus?: string, keep = false) => {
-    if (dragging !== null || tlDrag !== null) {
+    if (dragging !== null || tlDrag !== null || gridEdit.dragging()) {
       drawOwed = true; // never replace the DOM under an active drag (T14, N06c): drawn when it ends
       return;
     }
@@ -1062,7 +1072,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
    * not, the view is reloaded from the graph, so a failed write puts the bar back where the graph has it and the error
    * shows in the error bar.
    */
-  function editDates(row: TimelineRow, mode: EditMode, delta: number, perDay: 1 | 96, focus?: string) {
+  function editDates(row: EditTarget, mode: EditMode, delta: number, perDay: 1 | 96, focus?: string) {
     const changes = dateChanges(row.edit!, row, mode, delta, perDay);
     if (!changes.length) return void render(focus);
     const uuid = row.node.uuid;
@@ -1080,6 +1090,26 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (failure) throw failure;
     }, () => focus);
   }
+
+  /** N46: the Calendar time grids' drag and Alt+Arrow edits, written like a Timeline edit (`editDates`, 96 steps per day). */
+  const gridEdit = installGridEdit(root, {
+    enabled: () => s.editDates,
+    target: (el) => {
+      if (s.config?.kind !== "calendar") return null;
+      const layout = calendarLayoutOf(areaOf(s, tagOf(s.config)), now());
+      const block = layout.grid?.blocks.find((b) => b.uuid === el.dataset.calOpen && b.edit !== null);
+      return block ? { block, range: layout.range } : null;
+    },
+    commit: (block, mode, delta, focus) => void editDates({ edit: block.edit, start: block.span!.start, end: block.span!.end, title: block.title, node: { uuid: block.uuid } }, mode, delta, 96, focus),
+    swallowClick: () => void (swallowClick = true),
+    ended: () => {
+      if (drawOwed) {
+        drawOwed = false;
+        render();
+      }
+      refreshWhenFree();
+    },
+  });
 
   /** A drag is over without a write: the bar goes back to where it was drawn; a render it held up runs. */
   const endTlDrag = (g: TlDrag) => {
@@ -1186,6 +1216,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => void (s.anchor = shiftCalendarAnchor(s.anchor ?? now().today, c.layout, a.dir)));
       case "today":
         return void run(() => void (s.anchor = null));
+      case "edit":
+        return void run(() => void (s.editDates = !s.editDates), () => "[data-cal-edit]");
       case "more":
         // "+N more" opens the Week layout on that day's week; the button is gone after the render, so focus the Week switch.
         return void run(() => {
@@ -1479,6 +1511,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   return {
     open,
     escape() {
+      if (gridEdit.abort()) return true;
       if (tlDrag) {
         swallowClick = true; // the release that follows opens nothing
         endTlDrag(tlDrag);

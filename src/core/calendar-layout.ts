@@ -5,7 +5,9 @@
 // their day. Month shows `MONTH_SLOTS` item rows per day and counts the rest; Week shows everything, chips stacked
 // below the bands. Positions are day indices 0–6 in a week row and 0-based item rows, so the UI places everything on
 // one CSS grid per week.
-import type { ClosedValue, LocalDate, PlannerNode } from "../types";
+import type { ClosedValue, DateProp, LocalDate, PlannerNode } from "../types";
+import type { EditMode, SpanEdit } from "./date-edit";
+import type { EditProps } from "./timeline-layout";
 import { displayTitle } from "./display-title";
 import {
   addDays, categoryOf, daysBetween, firstOfMonth, formatDay, formatMonth, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState,
@@ -135,6 +137,15 @@ export interface GridBlock {
   /** Column among the blocks it overlaps, and how many columns that cluster has. */
   col: number;
   cols: number;
+  /**
+   * Date edits (N46), while the grid edits dates: what of this block can be edited. Only node blocks (a span of two
+   * DateTime properties, or a one-date node); null for tasks, Date values, a write pending and outside edit mode.
+   */
+  edit: SpanEdit | null;
+  /** The node's dates the edit works on (a one-date node: that date on both ends); null when `edit` is. */
+  span: { start: LocalDate; end: LocalDate } | null;
+  /** A date edit of this node is being written: it shows at its new place, without handles. */
+  pending: boolean;
 }
 
 export interface TimeGrid {
@@ -147,6 +158,8 @@ export interface TimeGrid {
   now: { day: string; minute: number } | null;
   /** The minute the grid opens scrolled to. */
   focusMinute: number;
+  /** The grid edits dates (the session's Edit dates toggle): its blocks carry `edit`. */
+  editing: boolean;
 }
 
 export interface CalendarLayout {
@@ -170,6 +183,10 @@ export interface CalendarInput {
   today: string;
   /** `HH:MM` now (the grid's now line); absent: no line. */
   time?: string;
+  /** Edit dates on (N46): each node's mapped Start / End properties; absent = read-only blocks. */
+  edit?: EditProps;
+  /** Node uuids whose date edit is being written. */
+  pending?: ReadonlySet<string>;
   /** 0 = Sunday … 6 = Saturday. */
   weekStart: number;
   /** Task Status closed values (built-in flags decide done). */
@@ -313,7 +330,23 @@ function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout 
   const blocks: GridBlock[] = [];
   const seenTasks = new Set<number>();
   const inRange = (day: string) => range.start <= day && day <= range.end;
-  const block = (b: Omit<GridBlock, "endMin" | "col" | "cols"> & { endMin: number }) => blocks.push({ ...b, endMin: Math.max(b.endMin, b.startMin + MIN_BLOCK_MIN), col: 0, cols: 1 });
+  const block = (b: Omit<GridBlock, "endMin" | "col" | "cols" | "edit" | "span" | "pending"> & { endMin: number; edit?: SpanEdit | null; span?: GridBlock["span"]; pending?: boolean }) =>
+    blocks.push({ edit: null, span: null, pending: false, ...b, endMin: Math.max(b.endMin, b.startMin + MIN_BLOCK_MIN), col: 0, cols: 1 });
+  /** A node block's edit: only DateTime properties (a Date has no time to move); a pending node is shown at its new place. */
+  const nodeEdit = (node: PlannerNode, point: boolean, span: NonNullable<GridBlock["span"]>) => {
+    const pending = input.pending?.has(node.uuid) ?? false;
+    if (!input.edit || pending) return { pending, edit: null, span: null };
+    const props = input.edit(node);
+    const ok = (p: DateProp | null): p is DateProp => p !== null && p.type === "datetime";
+    if (point) {
+      const viaStart = props.start !== null && node.dates[props.start.ident] !== undefined;
+      const prop = viaStart ? props.start : props.end;
+      return ok(prop) ? { pending, span, edit: { start: viaStart ? prop : null, end: viaStart ? null : prop, point: true, move: true, resizeStart: false, resizeEnd: false } } : { pending, edit: null, span: null };
+    }
+    return ok(props.start) && ok(props.end)
+      ? { pending, span, edit: { start: props.start, end: props.end, point: false, move: true, resizeStart: true, resizeEnd: true } }
+      : { pending, edit: null, span: null };
+  };
   for (const { node, span, tasks, progress } of input.items) {
     const title = displayTitle(node.title, input.titles);
     const cat = categoryOf(node.uuid);
@@ -327,7 +360,8 @@ function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout 
       if (inRange(start!.day)) {
         if (start!.time) {
           const startMin = minuteOf(start!.time);
-          block({ kind: "point", uuid: node.uuid, title, day: start!.day, startMin, endMin: startMin + DEFAULT_BLOCK_MIN, timeLabel: start!.time, cat, node: null, status: null, done: false, late: false, label });
+          block({ kind: "point", uuid: node.uuid, title, day: start!.day, startMin, endMin: startMin + DEFAULT_BLOCK_MIN, timeLabel: start!.time, cat, node: null, status: null, done: false, late: false, label,
+            ...nodeEdit(node, true, { start: start!, end: start! }) });
         } else {
           chips.push({ kind: "point", uuid: node.uuid, title, date: start!, time: null, cat, node: null, status: null, done: false, late: false, label });
         }
@@ -335,7 +369,8 @@ function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout 
     } else if (span.kind === "mapped" && start!.time && end!.time && start!.day === end!.day) {
       if (inRange(start!.day)) {
         const startMin = minuteOf(start!.time);
-        block({ kind: "span", uuid: node.uuid, title, day: start!.day, startMin, endMin: minuteOf(end!.time), timeLabel: `${start!.time} – ${end!.time}`, cat, node: null, status: null, done: false, late: false, label });
+        block({ kind: "span", uuid: node.uuid, title, day: start!.day, startMin, endMin: minuteOf(end!.time), timeLabel: `${start!.time} – ${end!.time}`, cat, node: null, status: null, done: false, late: false, label,
+          ...nodeEdit(node, false, { start: start!, end: end! }) });
       }
     } else {
       spans.push({ node, title, kind: span.kind, start: start!.day, end: end!.day, cat, label });
@@ -378,7 +413,7 @@ function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout 
   undated.sort((a, b) => a.title.localeCompare(b.title));
   return {
     view: input.layout, range, weeks: [], weekdays: [], undated,
-    grid: { days, allDay: { bands, chips: placed, rows: Math.max(bandRows, ...placed.map((c) => c.row + 1)) }, blocks, now, focusMinute },
+    grid: { days, allDay: { bands, chips: placed, rows: Math.max(bandRows, ...placed.map((c) => c.row + 1)) }, blocks, now, focusMinute, editing: input.edit !== undefined },
   };
 }
 
@@ -427,4 +462,33 @@ export function layoutCalendar(input: CalendarInput): CalendarLayout {
     view: input.layout, range, weeks, undated, grid: null,
     weekdays: weeks[0].days.map((d) => weekdayName(d.day)),
   };
+}
+
+// ---------------------------------------------------------------- date edits (N46)
+
+/** One drag step in the grid: 15 minutes, as `date-edit.ts` counts them with 96 tracks per day. */
+export const GRID_STEP_MIN = 15;
+const MAX_MINUTE = 24 * 60 - 1;
+
+/**
+ * What a drag of `days` columns and `quarters` quarter hours can do to an editable block (N46): the days stay on the
+ * range, a move keeps the block inside its day (not before 00:00, not past 23:59), a resize keeps at least 15 minutes and
+ * the day (a resize never changes the day). `delta` is the step count `dateChanges` takes with 96 tracks per day.
+ */
+export function gridDelta(block: GridBlock, mode: EditMode, range: CalendarRange, days: number, quarters: number): { days: number; quarters: number; delta: number } {
+  const { start, end } = block.span!;
+  const s = minuteOf(start.time!);
+  const e = minuteOf(end.time!);
+  const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(Math.trunc(v), Math.ceil(lo)), Math.floor(hi));
+  let d = 0;
+  let q: number;
+  if (mode === "move") {
+    d = clamp(days, daysBetween(block.day, range.start), daysBetween(block.day, range.end));
+    q = clamp(quarters, -s / GRID_STEP_MIN, (MAX_MINUTE - e) / GRID_STEP_MIN);
+  } else if (mode === "start") {
+    q = clamp(quarters, -s / GRID_STEP_MIN, (e - GRID_STEP_MIN - s) / GRID_STEP_MIN);
+  } else {
+    q = clamp(quarters, (s + GRID_STEP_MIN - e) / GRID_STEP_MIN, (MAX_MINUTE - e) / GRID_STEP_MIN);
+  }
+  return { days: d, quarters: q, delta: d * 96 + q };
 }

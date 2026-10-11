@@ -4,13 +4,14 @@
 // row of the layout (`grid-row: row + 2`), then the "+N more" row in Month. Day cells span every row as the backdrop.
 import { formatDay } from "../core/layout-common";
 import type { CalendarBand, CalendarChip, CalendarDay, CalendarLayout, CalendarView, CalendarWeek, GridBlock, TimeGrid } from "../core/calendar-layout";
-import { esc, flag, segmented, viewNav } from "./html";
+import { esc, flag, segmented, toggleButton, viewNav } from "./html";
 
 export type CalendarAction =
   | { type: "layout"; layout: CalendarView }
   | { type: "nav"; dir: -1 | 1 }
   | { type: "today" }
   | { type: "more"; day: string }
+  | { type: "edit" }
   | { type: "open"; uuid: string };
 
 const LAYOUTS: [CalendarView, string][] = [["day", "Day"], ["3days", "3 days"], ["week", "Week"], ["month", "Month"]];
@@ -28,8 +29,14 @@ export const gridScrollTop = (minute: number, bodyTop: number, stickyHeight: num
 /** An hour label is centred on its line: this much room above the focus minute keeps the label under the head in view. */
 export const LABEL_ROOM_PX = 8;
 
+/** The id of the one description the editable blocks point at (N46). */
+export const GRID_EDIT_HELP_ID = "pl-cg-edit-help";
+
 export function renderCalendarToolbar(layout: CalendarLayout): string {
-  return viewNav("cal", layout.range.label) + `<span class="pl-spacer"></span>` + segmented("Layout", "cal-layout", LAYOUTS, layout.view);
+  const grid = layout.grid;
+  const edit = grid ? toggleButton("Edit dates", "cal-edit", grid.editing)
+    + (grid.editing ? `<span class="pl-hint" data-cal-edit-hint>Drag a block to move it, drag an edge to resize it</span>` : "") : "";
+  return viewNav("cal", layout.range.label) + `<span class="pl-spacer"></span>` + edit + segmented("Layout", "cal-layout", LAYOUTS, layout.view);
 }
 
 function renderDay(d: CalendarDay, i: number): string {
@@ -73,15 +80,19 @@ function renderWeek(w: CalendarWeek, week: boolean): string {
     + w.days.map(renderDay).join("") + w.bands.map((b) => renderBand(b)).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
 }
 
-function renderBlock(b: GridBlock): string {
+function renderBlock(b: GridBlock, editing: boolean): string {
+  const mark = b.edit ? `${flag("data-cg-editable", true)}${flag("data-cg-move", b.edit.move)} aria-describedby="${GRID_EDIT_HELP_ID}"` : "";
+  const handles = b.edit && !b.edit.point
+    ? `<span class="pl-cg-handle" data-cg-handle="start" aria-hidden="true"></span><span class="pl-cg-handle" data-cg-handle="end" aria-hidden="true"></span>` : "";
+  const locked = editing && !b.edit && !b.pending ? flag("data-cg-locked", true) : "";
   return `<button type="button" class="pl-cg-block" data-cg-block="${b.kind}" data-cal-open="${esc(b.uuid)}" data-cat="${b.cat}"`
-    + ` data-status="${esc(b.status ?? "none")}"${flag("data-late", b.late)}${flag("data-done", b.done)}`
+    + ` data-status="${esc(b.status ?? "none")}"${flag("data-late", b.late)}${flag("data-done", b.done)}${mark}${locked}${flag("data-cg-pending", b.pending)}${b.pending ? ' aria-busy="true"' : ""}`
     + ` style="--pl-start: ${b.startMin}; --pl-len: ${b.endMin - b.startMin}; --pl-col: ${b.col}; --pl-cols: ${b.cols}"`
     + ` aria-label="${esc(b.label)}" title="${esc(b.label)}">`
     + `<span class="pl-cg-title">${b.kind === "deadline" ? `<span aria-hidden="true">⚑ </span>` : ""}${esc(b.title)}</span>`
     + `<span class="pl-cg-time" data-cg-time>${esc(b.timeLabel)}</span>`
     + (b.node ? `<span class="pl-cal-node" data-cal-node>${esc(b.node)}</span>` : "")
-    + `</button>`;
+    + handles + `</button>`;
 }
 
 /** The time grids (N46): sticky day heads and all-day row over a 24-hour body, one column per day after the hour axis. */
@@ -96,10 +107,14 @@ function renderGrid(g: TimeGrid): string {
     + g.allDay.bands.map((b) => renderBand(b, 2, 1)).join("") + g.allDay.chips.map((c) => renderChip(c, true, 2, 1)).join("") + `</div>`;
   const hours = Array.from({ length: 24 }, (_, h) => `<span class="pl-cg-hour" data-cg-hour style="--pl-start: ${h * 60}">${String(h).padStart(2, "0")}:00</span>`).join("");
   const cols = g.days.map((d) => `<div class="pl-cg-col" data-cg-col="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}>`
-    + g.blocks.filter((b) => b.day === d.day).map(renderBlock).join("")
+    + g.blocks.filter((b) => b.day === d.day).map((b) => renderBlock(b, g.editing)).join("")
     + (g.now?.day === d.day ? `<div class="pl-cg-now" data-cg-now style="--pl-start: ${g.now.minute}" aria-hidden="true"></div>` : "") + `</div>`).join("");
   const mark = g.now ? `<span class="pl-cg-now-mark" data-cg-now-mark style="--pl-start: ${g.now.minute}" aria-hidden="true">▸</span>` : "";
-  return `<div class="pl-cg-sticky" data-cg-sticky><div class="pl-cg-head" style="--pl-cg-days: ${n}"><span></span>${head}</div>${allDay}</div>`
+  const help = g.editing
+    ? `<p id="${GRID_EDIT_HELP_ID}" data-cg-edit-help hidden>Dates can be edited: drag a block to move it, or drag its top or bottom edge to change its start or end. `
+      + `Alt+Left and Alt+Right move it a day; Alt+Up and Alt+Down move it 15 minutes; Alt+Shift+Up and Alt+Shift+Down change its end by 15 minutes.</p>`
+    : "";
+  return help + `<div class="pl-cg-sticky" data-cg-sticky><div class="pl-cg-head" style="--pl-cg-days: ${n}"><span></span>${head}</div>${allDay}</div>`
     + `<div class="pl-cg-body" data-cg-body data-cg-focus="${g.focusMinute}" style="--pl-cg-days: ${n}"><div class="pl-cg-axis">${hours}${mark}</div>${cols}</div>`;
 }
 
@@ -120,11 +135,12 @@ export function renderCalendar(layout: CalendarLayout, heading: string): string 
 
 /** The action a click on `target` asks for, or null when it is not a Calendar control. */
 export function calendarAction(target: Element): CalendarAction | null {
-  const el = target.closest<HTMLElement>("[data-cal-layout], [data-cal-nav], [data-cal-more], [data-cal-open]");
+  const el = target.closest<HTMLElement>("[data-cal-layout], [data-cal-nav], [data-cal-more], [data-cal-edit], [data-cal-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.calLayout) return { type: "layout", layout: d.calLayout as CalendarView };
   if (d.calNav) return d.calNav === "today" ? { type: "today" } : { type: "nav", dir: d.calNav === "prev" ? -1 : 1 };
   if (d.calMore) return { type: "more", day: d.calMore };
+  if (el.hasAttribute("data-cal-edit")) return { type: "edit" };
   return { type: "open", uuid: d.calOpen! };
 }

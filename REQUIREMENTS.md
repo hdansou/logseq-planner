@@ -197,7 +197,13 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   A block shows its title and its time ("20:35 – 21:05"); a done task's title is struck through, a late one is red.
   A line marks the current time in today's column (a marker on the axis). The grid opens scrolled to the current time
   (today in range), else an hour above the earliest block, else 08:00. Clicking opens the node (Shift+click: the
-  sidebar). Read-only: dragging blocks to move or resize them is not in this item.
+  sidebar).
+- **Edit dates in the grid** (N47; the Timeline's **Edit dates** toggle, one session switch for both): drag a node's block
+  to move it (across day columns, 15-minute steps), drag its top or bottom edge to change its Start or End; Alt+Left /
+  Right move it a day, Alt+Up / Down 15 minutes, Alt+Shift+Up / Down change its end. Editable: a block from a span of two
+  DateTime properties (move and both edges) and a one-date DateTime node (move only). A block stays inside its day and
+  inside the range, a resize keeps 15 minutes. Task blocks, Date values and derived spans are not editable. Written and
+  read back like the Timeline's edits (a failed write puts the block back and shows the error).
 - Scheduled dates of tasks show in the time grids (all-day chips without a time); Month still shows deadlines only.
 
 ### Agenda

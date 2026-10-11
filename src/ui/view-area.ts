@@ -177,12 +177,18 @@ function calendarLayout(a: ViewAreaInput, now: Now, shown: Shown): CalendarLayou
   const c = a.config;
   if (c.kind !== "calendar") throw new Error(`calendarLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(a.tags);
+  const edit = a.session.editDates ? { edit: editProps(a) } : {};
+  const pending = a.session.datePending.size ? { pending: new Set(a.session.datePending.keys()) } : {};
   return layoutCalendar({
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
     layout: c.layout, anchor: a.session.anchor ?? now.today, today: now.today, time: now.time, weekStart: now.weekStart, statusValues,
-    titles: a.titles,
+    titles: a.titles, ...edit, ...pending,
   });
 }
+
+/** The Calendar layout on screen (the view is a Calendar): what a time-grid date edit starts from (N46). */
+export const calendarLayoutOf = (a: ViewAreaInput, now: Now): CalendarLayout =>
+  calendarLayout(a, now, visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks));
 
 /** The Agenda layout for the visible nodes. */
 function agendaLayout(a: ViewAreaInput, now: Now, shown: Shown): AgendaLayout {
