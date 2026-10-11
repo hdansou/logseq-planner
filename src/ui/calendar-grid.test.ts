@@ -5,7 +5,7 @@ import { createViewStore } from "../storage";
 import type { TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
 import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
-import { HOUR_PX, LABEL_ROOM_PX } from "./calendar";
+import { HOUR_PX, LABEL_ROOM_PX, SHORT_BLOCK_MIN } from "./calendar";
 import calendarCss from "./calendar.css?inline";
 
 const TODAY = "2026-10-03"; // a Saturday
@@ -81,6 +81,16 @@ describe("3 days (N46)", () => {
     expect(style(kick)).toContain("--pl-cols: 1");
     expect(kick.getAttribute("aria-label")).toBe("Kickoff, 3 Oct 10:30");
     expect($(`[data-cg-col="2026-10-04"] [data-cg-block]`)!.textContent).toContain("Late review");
+  });
+
+  it("a short block (a point or deadline: 30 minutes, 23 px) is marked, so its title and time share one line instead of the title being clipped", () => {
+    const blocks = $$("[data-cg-block]");
+    expect(blocks.length).toBeGreaterThan(1);
+    for (const b of blocks) {
+      const len = Number(/--pl-len:\s*(\d+)/.exec(style(b))![1]);
+      expect(b.hasAttribute("data-cg-short"), `${b.textContent} (${len} min)`).toBe(len <= SHORT_BLOCK_MIN);
+    }
+    expect($(`[data-cg-col="${TODAY}"] [data-cg-block]`)!.hasAttribute("data-cg-short")).toBe(true);
   });
 
   it("the now line is in today's column at the current time, with a marker on the axis", () => {
@@ -164,5 +174,12 @@ describe("keeping the scroll", () => {
 describe("stylesheet", () => {
   it("keeps the hour height equal to the constant the scroll uses", () => {
     expect(calendarCss).toMatch(new RegExp(`--pl-cg-hour:\\s*${HOUR_PX}px`));
+  });
+
+  it("lays a short block out as one row, title taking what is left and the time never shrinking", () => {
+    const rule = /\.pl-cg-block\[data-cg-short\]\s*{([^}]*)}/.exec(calendarCss)?.[1] ?? "";
+    expect(rule).toMatch(/flex-direction:\s*row/);
+    expect(calendarCss).toMatch(/\.pl-cg-block\[data-cg-short\]\s+\.pl-cg-time[^{]*{[^}]*flex:\s*none/);
+    expect(calendarCss).toMatch(/\.pl-cg-block\[data-cg-short\]\s+\.pl-cg-title\s*{[^}]*flex:\s*1 1 auto/);
   });
 });

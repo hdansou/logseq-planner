@@ -80,12 +80,16 @@ function renderWeek(w: CalendarWeek, week: boolean): string {
     + w.days.map(renderDay).join("") + w.bands.map((b) => renderBand(b)).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
 }
 
+/** A block this short (minutes: a point or deadline, 30 minutes = 23 px) has room for one line, so its title and time share it (N56). */
+export const SHORT_BLOCK_MIN = 30;
+
 function renderBlock(b: GridBlock, editing: boolean): string {
   const mark = b.edit ? `${flag("data-cg-editable", true)}${flag("data-cg-move", b.edit.move)} aria-describedby="${GRID_EDIT_HELP_ID}"` : "";
   const handles = b.edit && !b.edit.point
     ? `<span class="pl-cg-handle" data-cg-handle="start" aria-hidden="true"></span><span class="pl-cg-handle" data-cg-handle="end" aria-hidden="true"></span>` : "";
   const locked = editing && !b.edit && !b.pending ? flag("data-cg-locked", true) : "";
-  return `<button type="button" class="pl-cg-block" data-cg-block="${b.kind}" data-cal-open="${esc(b.uuid)}" data-cat="${b.cat}"`
+  const short = flag("data-cg-short", b.endMin - b.startMin <= SHORT_BLOCK_MIN);
+  return `<button type="button" class="pl-cg-block" data-cg-block="${b.kind}"${short} data-cal-open="${esc(b.uuid)}" data-cat="${b.cat}"`
     + ` data-status="${esc(b.status ?? "none")}"${flag("data-late", b.late)}${flag("data-done", b.done)}${mark}${locked}${flag("data-cg-pending", b.pending)}${b.pending ? ' aria-busy="true"' : ""}`
     + ` style="--pl-start: ${b.startMin}; --pl-len: ${b.endMin - b.startMin}; --pl-col: ${b.col}; --pl-cols: ${b.cols}"`
     + ` aria-label="${esc(b.label)}" title="${esc(b.label)}">`

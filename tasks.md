@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N56 Short Calendar blocks show their title** — done 2026-10-11, seen live on the nightly (planner-project, 3 days, 1–3 Oct).
+      Owner report: an item with one date (a point or deadline, a 30-minute block = 23 px) lost its title in the time grids: the
+      stacked title and time did not fit and the flex column squeezed the title out. Blocks of `SHORT_BLOCK_MIN` (30) minutes or
+      less carry `data-cg-short` and lay out as one row (title takes the rest, time and node never shrink). Seen: "Tasks with
+      only a deadline" and "08:00" on one line, title 14 px high, not clipped. Not seen: the stable app, the 20-minute minimum
+      block (15 px) on real data.
 - [x] **N55 Icon characters in values and titles** — done 2026-10-11, seen live on the nightly (probe characters in the frame).
       Owner report: closed values and titles made of tabler-icons characters (private-use code points the host draws with its
       icon font) showed as boxes in the Agenda. Owner rule (memory: plugins follow the host's style): borrow the host's font,
