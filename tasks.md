@@ -603,6 +603,15 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N51 Saved-view config in a hidden text property** — done 2026-10-11, seen live on the nightly (throwaway graph).
+      Owner request (docs/plugin-config.md). The `string` property stayed visible on the page; a text (`default`) property
+      with `hide: true` is hidden and can hold a code block. A property's type cannot change once it has data, so the config
+      moved to a new key, `planner-view-json` (`CONFIG_KEY`; the old `planner-view-config` is `LEGACY_CONFIG_KEY`). Written
+      as pretty JSON in a json fence (`fenceJson`), read back compact (`unfenceJson`; an unfenced value is accepted),
+      `propertyText` takes a string or a text property's value object. A read falls back to the old key; a write removes
+      it, only after the new value reads back. Seen live: a saved view stored under the new key with the property hidden;
+      a view with only the old property listed, opened and updated, the old property gone. Not seen: the stable app, a real
+      pre-N51 graph (the throwaway graph was set up to look like one).
 - [x] **N50 UI state on its own hidden page** — done 2026-10-11, seen live on the nightly (throwaway graph).
       Owner request (docs/plugin-config.md). `STATE_PAGE_TITLE` "Plugin state: Planner" holds `planner-ui-state` and
       `:logseq.property/hide?` true, so it is out of All pages and search; "Planner views" keeps only the user's views.

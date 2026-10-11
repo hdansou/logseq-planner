@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, graphStateDeps } from "./sdk";
-import { PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
+import { CONFIG_KEY, LEGACY_CONFIG_KEY, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -355,5 +355,62 @@ describe("graph UI state on its own hidden page (N50)", () => {
     const real = (globalThis as unknown as { logseq: { Editor: { getBlockProperty: unknown } } }).logseq;
     real.Editor.getBlockProperty = async () => "something else";
     await expect(graphStateDeps().write("x")).rejects.toThrow(/read back/);
+  });
+});
+
+describe("saved-view config in a text property (N51)", () => {
+  const compact = '{"v":1,"config":{"k":"kanban"}}';
+  /** Properties by block uuid; `string` values stay strings, a text property reads back as the host's value object. */
+  function host(props: Record<string, Record<string, unknown>>) {
+    const calls: string[] = [];
+    const upserted: Record<string, unknown>[] = [];
+    vi.stubGlobal("logseq", {
+      Editor: {
+        getBlockProperty: async (u: string, k: string) => props[u]?.[k] ?? null,
+        upsertBlockProperty: async (u: string, k: string, v: unknown) => (calls.push(`set ${k}`), void ((props[u] ??= {})[k] = { value: v })),
+        removeBlockProperty: async (u: string, k: string) => (calls.push(`remove ${k}`), void delete props[u]![k]),
+        getBlock: async (u: string) => ({ uuid: u, content: "Roadmap" }),
+        getProperty: async () => null,
+        upsertProperty: async (k: string, schema: unknown) => void upserted.push({ k, schema }),
+      },
+    });
+    return { calls, upserted };
+  }
+
+  it("reads the new property (the value object, unfenced), else the old string one", async () => {
+    host({ a: { [CONFIG_KEY]: { id: 1, value: "```json\n{\n  \"v\": 1,\n  \"config\": { \"k\": \"kanban\" }\n}\n```" } }, b: { [LEGACY_CONFIG_KEY]: compact }, c: {} });
+    expect((await storageDeps().readBlock("a"))!.config).toBe(compact);
+    expect((await storageDeps().readBlock("b"))!.config).toBe(compact);
+    expect((await storageDeps().readBlock("c"))!.config).toBeNull();
+  });
+
+  it("writes the new property as a fenced block and removes the old one on the block", async () => {
+    const props = { a: { [LEGACY_CONFIG_KEY]: compact } as Record<string, unknown> };
+    const h = host(props);
+    await storageDeps().setConfig("a", compact);
+    expect(h.calls).toEqual([`set ${CONFIG_KEY}`, `remove ${LEGACY_CONFIG_KEY}`]);
+    expect((props.a![CONFIG_KEY] as { value: string }).value.startsWith("```json\n")).toBe(true);
+    expect((await storageDeps().readBlock("a"))!.config).toBe(compact);
+  });
+
+  it("keeps the old property when the new write did not take (the host resolves null on failure)", async () => {
+    const props = { a: { [LEGACY_CONFIG_KEY]: compact } as Record<string, unknown> };
+    const h = host(props);
+    (globalThis as unknown as { logseq: { Editor: { upsertBlockProperty: unknown } } }).logseq.Editor.upsertBlockProperty = async () => void h.calls.push("set (silently failed)");
+    await storageDeps().setConfig("a", compact);
+    expect(h.calls).toEqual(["set (silently failed)"]);
+    expect(props.a![LEGACY_CONFIG_KEY]).toBe(compact);
+  });
+
+  it("a write on a block without the old property removes nothing", async () => {
+    const h = host({ a: {} });
+    await storageDeps().setConfig("a", compact);
+    expect(h.calls).toEqual([`set ${CONFIG_KEY}`]);
+  });
+
+  it("creates the property as a hidden text property", async () => {
+    const h = host({});
+    await storageDeps().ensureConfigProperty();
+    expect(h.upserted).toEqual([{ k: CONFIG_KEY, schema: { type: "default", hide: true } }]);
   });
 });

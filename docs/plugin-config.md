@@ -34,7 +34,18 @@ the owner's other plugins. Status: a proposal (2026-10-11); Planner follows it f
 - Not tested: opening a hidden page by link, the stable app (b09316a).
 - Hiding applies to the whole page: never put something the user must reach on the same page as the machine state.
 
-## 4. The value: JSON in an envelope
+## 4. The property type: text, not string (tested 2026-10-11)
+
+- Create config properties as `{ type: "default", hide: true }`. `default` is the host's "text" type; its value is a block, so it
+  can show as a code block, and a hidden one stays hidden. `string` is an internal type: a `string` property with `hide: true`
+  still showed on the page. The schema key is `hide`; `hide?` is ignored.
+- A property's type cannot change once it holds data ("can't be changed because it has existing data"): a wrong type costs a new
+  key. Planner moved from `planner-view-config` (string) to `planner-view-json` (text), reading the old one as a fallback.
+- `getBlockProperty` returns the string for a `string` property and an object (`value`, `title`, `id`) for a text one.
+- A fenced string written to a text property renders as a highlighted code block and keeps its indentation; the stored text
+  keeps the fences, so strip them when reading.
+
+## 4b. The value: JSON in an envelope
 
 ```json
 { "v": 1, "config": { } }

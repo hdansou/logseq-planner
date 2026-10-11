@@ -3,7 +3,7 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { CONFIG_KEY, configSchemaFor, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
+import { CONFIG_KEY, configSchemaFor, fenceJson, LEGACY_CONFIG_KEY, PAGE_TITLE, propertyText, STATE_KEY, STATE_PAGE_TITLE, unfenceJson } from "./storage";
 import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";
 
@@ -171,8 +171,10 @@ export const pageQuery = (title: string) =>
   `[:find ?u :where [?p :block/title ${quote(title)}] [?p :block/tags ?t] [?t :db/ident :logseq.class/Page] (not [?p :logseq.property/deleted-at _]) [?p :block/uuid ?u]]`;
 
 const toViewBlock = async (b: { uuid: string; content?: string; title?: string }): Promise<ViewBlock> => {
-  const raw = await logseq.Editor.getBlockProperty(b.uuid, CONFIG_KEY);
-  return { uuid: b.uuid, name: b.content ?? b.title ?? "", config: typeof raw === "string" ? raw : null };
+  // N51: the text property first (a block value, fenced), else the string property of an earlier version.
+  const text = propertyText(await logseq.Editor.getBlockProperty(b.uuid, CONFIG_KEY));
+  const config = text !== null ? unfenceJson(text) : propertyText(await logseq.Editor.getBlockProperty(b.uuid, LEGACY_CONFIG_KEY));
+  return { uuid: b.uuid, name: b.content ?? b.title ?? "", config };
 };
 
 /**
@@ -197,9 +199,9 @@ export const uiStateDeps = (): UiStateDeps => ({
 });
 
 /** Makes sure `key` exists as a hidden string property (never changes an existing type); before every write of it. */
-async function ensureHiddenString(key: string): Promise<void> {
+async function ensureHiddenString(key: string, type: "string" | "default" = "string"): Promise<void> {
   const existing = (await logseq.Editor.getProperty(key).catch(() => null)) as Record<string, unknown> | null;
-  const schema = configSchemaFor(existing ? { type: existing.type as string | undefined, hide: existing["hide?"] === true || existing.hide === true } : null);
+  const schema = configSchemaFor(existing ? { type: existing.type as string | undefined, hide: existing["hide?"] === true || existing.hide === true } : null, type);
   // Host `upsert_property` takes these keys; the typings are narrower (Query Builder src/sdk.ts).
   if (schema) await logseq.Editor.upsertProperty(key, schema as never);
 }
@@ -247,7 +249,7 @@ export const storageDeps = (): StorageDeps => ({
     return rows.length > 0 ? String(rows[0][0]) : null;
   },
   createPage: async (title) => void (await logseq.Editor.createPage(title, {}, { redirect: false, createFirstBlock: false })),
-  ensureConfigProperty: () => ensureHiddenString(CONFIG_KEY),
+  ensureConfigProperty: () => ensureHiddenString(CONFIG_KEY, "default"),
   listBlocks: async (pageUuid) => {
     const tree = (await logseq.Editor.getPageBlocksTree(pageUuid)) ?? [];
     return Promise.all(tree.map((b) => toViewBlock(b as never)));
@@ -257,7 +259,13 @@ export const storageDeps = (): StorageDeps => ({
     return b ? toViewBlock(b as never) : null;
   },
   appendBlock: async (pageUuid, name) => (await logseq.Editor.appendBlockInPage(pageUuid, name))?.uuid ?? null,
-  setConfig: async (uuid, text) => void (await logseq.Editor.upsertBlockProperty(uuid, CONFIG_KEY, text)),
+  setConfig: async (uuid, text) => {
+    await logseq.Editor.upsertBlockProperty(uuid, CONFIG_KEY, fenceJson(text));
+    // N51: the value moves from the old string property, removed only once the new one reads back (a write resolves null on failure too).
+    const stored = propertyText(await logseq.Editor.getBlockProperty(uuid, CONFIG_KEY));
+    if (stored === null || unfenceJson(stored) !== unfenceJson(text)) return;
+    if (propertyText(await logseq.Editor.getBlockProperty(uuid, LEGACY_CONFIG_KEY)) !== null) await logseq.Editor.removeBlockProperty(uuid, LEGACY_CONFIG_KEY);
+  },
   // Pull by `#uuid` input, as `readChoice` (verified live in T11); `:block/tags` comes back as `tags: [{id}]`.
   blockTags: async (uuid) => {
     if (!UUID_RE.test(uuid)) throw new Error(`Not a block uuid: ${uuid}`);

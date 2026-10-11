@@ -4,7 +4,7 @@ import propsFixture from "./core/__fixtures__/class-properties.json";
 import { buildTagInfos } from "./core/schema";
 import { defaultViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
-import { configSchemaFor, createViewStore, PAGE_TITLE, sanitizeViewName, type SavedView } from "./storage";
+import { configSchemaFor, createViewStore, fenceJson, PAGE_TITLE, propertyText, sanitizeViewName, unfenceJson, type SavedView } from "./storage";
 import type { StorageDeps, ViewBlock } from "./types";
 import { hostTags, hostTitle } from "./ui/test-fakes";
 
@@ -59,6 +59,41 @@ describe("configSchemaFor", () => {
     expect(configSchemaFor(null)).toEqual({ type: "string", hide: true });
     expect(configSchemaFor({ type: "default", hide: false })).toEqual({ hide: true });
     expect(configSchemaFor({ type: "string", hide: true })).toBeNull();
+  });
+
+  it("a text property (N51) is created as the host's default type, hidden", () => {
+    expect(configSchemaFor(null, "default")).toEqual({ type: "default", hide: true });
+    expect(configSchemaFor({ type: "default", hide: true }, "default")).toBeNull();
+  });
+});
+
+describe("config text in a text property (N51)", () => {
+  const compact = '{"v":1,"config":{"a":[1,2]}}';
+
+  it("fenceJson writes pretty JSON in a json fence; unfenceJson gives the compact text back", () => {
+    const fenced = fenceJson(compact);
+    expect(fenced).toBe('```json\n{\n  "v": 1,\n  "config": {\n    "a": [\n      1,\n      2\n    ]\n  }\n}\n```');
+    expect(unfenceJson(fenced)).toBe(compact);
+  });
+
+  it("unfenceJson takes an unfenced value (a hand edit, the old string property) and compacts it when it parses", () => {
+    expect(unfenceJson(compact)).toBe(compact);
+    expect(unfenceJson('{ "v": 1 }')).toBe('{"v":1}');
+    expect(unfenceJson("not json")).toBe("not json"); // left for parseViewConfig to name the problem
+    expect(unfenceJson("```json\nnot json\n```")).toBe("not json");
+  });
+
+  it("fenceJson refuses text that is not JSON", () => {
+    expect(() => fenceJson("not json")).toThrow(/JSON/);
+  });
+
+  it("propertyText takes a string (the string type) or the value object of a text property", () => {
+    expect(propertyText("x")).toBe("x");
+    expect(propertyText({ id: 1, value: "y", title: "z" })).toBe("y");
+    expect(propertyText({ id: 1, title: "z" })).toBe("z");
+    expect(propertyText(null)).toBeNull();
+    expect(propertyText(undefined)).toBeNull();
+    expect(propertyText(5)).toBeNull();
   });
 });
 
