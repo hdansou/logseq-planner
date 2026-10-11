@@ -785,6 +785,7 @@ Live-check method (web app):
       and matters more.
 - [x] **N07 Query Builder follow-up (other repo)** — its theme code has the same
       theme-switch race fixed here in 2c90798; not checked there.
+- [x] **N62 Agenda in a narrow frame** — done 2026-10-11 (owner: the docked Agenda truncated every title). Under 640 px an entry is two lines (title up to two lines, node chip / meta / date under it); "00:00" is no time (`withoutMidnight`); the Overdue bucket keeps only "N days late" (date in the tooltip). Seen in the nightly (d24abc9), docked, `planner-project`: long title clamped to two lines, Overdue by date shows lateness only; not seen on the stable app.
 
 ## v1
 

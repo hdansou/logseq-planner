@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Agenda in a narrow frame (the docked sidebar): each entry is two lines, the title wrapping to two lines with the node, fields and date under it; a time of 00:00 is not shown; the Overdue bucket shows only how late (N62).
+
 ## [1.0.0] - 2026-10-11
 
 First release. The workspace, the sidebar surface and the four views (Timeline, Calendar, Agenda, Kanban) are built and were

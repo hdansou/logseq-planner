@@ -55,3 +55,14 @@
 
 /* Node grouping renders a page of groups at a time (T13a): the next page's button sits under the last group */
 .pl-ag-more { justify-self: start; }
+
+/* N62: in a narrow frame (the docked sidebar) an entry is two lines: icon and title (two lines at most) over the node chip,
+   the meta and the date, indented under the title. The Overdue bucket keeps only how late; the date stays in the tooltip. */
+@container (max-width: 639px) {
+  .pl-ag-entry { flex-wrap: wrap; align-items: baseline; row-gap: 2px; }
+  .pl-ag-entry .pl-ag-icon { align-self: flex-start; margin-top: 4px; }
+  .pl-ag-entry .pl-ag-title { flex: 1 1 calc(100% - 19px); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .pl-ag-entry::before { content: ""; order: 1; flex: 0 0 11px; }
+  .pl-ag-entry .pl-ag-node, .pl-ag-entry .pl-ag-meta, .pl-ag-entry .pl-ag-progress, .pl-ag-entry .pl-ag-when { order: 2; }
+  .pl-ag-bucket[data-ag-bucket="overdue"] .pl-ag-date, .pl-ag-bucket[data-ag-bucket="overdue"] .pl-ag-sep { display: none; }
+}

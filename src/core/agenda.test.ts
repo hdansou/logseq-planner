@@ -3,7 +3,7 @@ import { loadTagInfos } from "./schema";
 import { loadNodesAndTasks } from "./queries";
 import { titlesByUuid } from "./display-title";
 import { nestItems, viewItems } from "./layout-common";
-import { HORIZON_DAYS, layoutAgenda, type AgendaInput, type AgendaLayout } from "./agenda";
+import { HORIZON_DAYS, layoutAgenda, withoutMidnight, type AgendaInput, type AgendaLayout } from "./agenda";
 import { fixtureDq } from "../ui/test-fakes";
 import type { LocalDate, PlannerNode, PlannerTask, TagInfo } from "../types";
 
@@ -411,5 +411,15 @@ describe("by node, nested (N14 step 2)", () => {
     const flat = await nestedAgenda({ nest: undefined });
     expect(flat.groups.map((g) => g.node.title)).toContain("Acme contract");
     expect(flat.groups.find((g) => g.node.title === "Website relaunch")!.tasks).toEqual([]); // node tasks are not task entries
+  });
+});
+
+describe("N62: a time of 00:00 is no time", () => {
+  it("is left out of a date, kept for a real time", () => {
+    expect(withoutMidnight("7 Oct 00:00, 734 days late")).toBe("7 Oct, 734 days late");
+    expect(withoutMidnight("due 7 Oct 00:00")).toBe("due 7 Oct");
+    expect(withoutMidnight("7 Oct 00:00 – 9 Oct 08:00")).toBe("7 Oct – 9 Oct 08:00");
+    expect(withoutMidnight("21 Mar 08:00, 569 days late")).toBe("21 Mar 08:00, 569 days late");
+    expect(withoutMidnight("5 Oct 10:00")).toBe("5 Oct 10:00");
   });
 });

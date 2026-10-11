@@ -115,9 +115,12 @@ function file(start: LocalDate | null, end: LocalDate | null, done: boolean, can
 
 /** "2 Oct 12:00" / "23 Sep – 23 Oct" for a node, "due …" / "scheduled …" for a task; ", N days late" when overdue. */
 function whenText(parts: string[], end: LocalDate | null, late: boolean, today: string): string {
-  const base = parts.join(", ") || "no date";
+  const base = withoutMidnight(parts.join(", ") || "no date");
   return late && end ? `${base}, ${dayCount(daysBetween(end.day, today))} late` : base;
 }
+
+/** N62: a time of 00:00 is a date with no time (nobody schedules the stroke of midnight), so it is not shown. */
+export const withoutMidnight = (text: string): string => text.replace(/ 00:00\b/g, "");
 
 const bucketLabel = (key: BucketKey, today: string): string => {
   switch (key) {

@@ -312,6 +312,20 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     for (const c of colours) expect(c.replace(/var\([^)]*\)/g, "")).not.toMatch(/\b(?:red|green|blue|black|white|gray|grey)\b/);
   });
 
+  it("N62: the date, its separator and the lateness are separate spans, the text unchanged", () => {
+    const w = entry(CONTRACT).querySelector(".pl-ag-when")!;
+    expect(w.querySelector(".pl-ag-date")!.textContent).toBe("due 2 Oct 12:00");
+    expect(w.querySelector(".pl-ag-sep")!.textContent).toBe(", ");
+    expect(w.querySelector(".pl-ag-late")!.textContent).toBe("1 day late");
+    expect(entry(DRAFT).querySelector(".pl-ag-late")).toBeNull();
+  });
+
+  it("N62: a narrow frame stacks an entry (title over two lines, the rest under it); Overdue keeps only how late", () => {
+    expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*\.pl-ag-entry\s*\{[^}]*flex-wrap:\s*wrap/);
+    expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*-webkit-line-clamp:\s*2/);
+    expect(agendaCss).toMatch(/@container \(max-width: 639px\)[\s\S]*\[data-ag-bucket="overdue"\][^{]*\.pl-ag-date[^{]*\{[^}]*display:\s*none/);
+  });
+
   it("keeps the fallback stack wherever a font-family is set", () => {
     for (const m of agendaCss.matchAll(/font-family:\s*([^;}]+)/g)) expect(m[1]).toMatch(/var\(--pl-font\)|sans-serif|monospace/);
   });

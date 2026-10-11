@@ -34,6 +34,12 @@ export function renderAgendaToolbar(groupBy: AgendaGroupBy, showDone: boolean): 
   return segmented("Group by", "ag-group-by", GROUPS, groupBy) + `<span class="pl-spacer"></span>` + toggleButton("Show done", "ag-show-done", showDone);
 }
 
+/** N62: the date, its separator and "N days late" as spans, so a narrow frame can keep only the last; the text is `when`. */
+function whenSpans(when: string): string {
+  const m = /^(.*?)(, )([^,]+ late)$/.exec(when);
+  return m ? `<span class="pl-ag-date">${esc(m[1])}</span><span class="pl-ag-sep">${m[2]}</span><span class="pl-ag-late">${esc(m[3])}</span>` : esc(when);
+}
+
 /** The entry's button; `chip` adds the node's name (a task listed by date). */
 function renderEntry(e: AgendaEntry, chip: boolean): string {
   return `<button type="button" class="pl-ag-entry" data-ag-entry="${e.kind}" data-ag-open="${esc(e.uuid)}" data-bucket="${esc(e.bucket)}" data-cat="${e.cat}"`
@@ -41,7 +47,7 @@ function renderEntry(e: AgendaEntry, chip: boolean): string {
     + ` aria-label="${esc(e.label)}" title="${esc(e.label)}">`
     + `<span class="pl-ag-icon" aria-hidden="true"></span><span class="pl-ag-title">${esc(e.title)}</span>`
     + (chip && e.node ? `<span class="pl-chip pl-ag-node" data-ag-node data-cat="${e.cat}">${esc(e.node)}</span>` : "")
-    + `<span class="pl-ag-when">${esc(e.when)}</span></button>`;
+    + `<span class="pl-ag-when">${whenSpans(e.when)}</span></button>`;
 }
 
 const items = (entries: AgendaEntry[], chip: boolean) => `<ul class="pl-ag-list">${entries.map((e) => `<li>${renderEntry(e, chip)}</li>`).join("")}</ul>`;
@@ -68,7 +74,7 @@ function renderGroup(g: AgendaGroup): string {
     + `${flag("data-late", n.late)}${flag("data-done", n.done)} aria-label="${esc(n.label)}" title="${esc(n.label)}">`
     + `<span class="pl-ag-icon" aria-hidden="true"></span><span class="pl-ag-title">${esc(n.title)}</span>`
     + (g.meta.length ? `<span class="pl-ag-meta">${esc(g.meta.join(" · "))}</span>` : "")
-    + progress + `<span class="pl-ag-when">${esc(n.when)}</span></button>`;
+    + progress + `<span class="pl-ag-when">${whenSpans(n.when)}</span></button>`;
   return `<section class="pl-ag-group" data-ag-group="${esc(n.uuid)}" data-cat="${n.cat}"${flag("data-late", n.late)} aria-labelledby="${id}">`
     + `<h2 class="pl-ag-group-head" id="${id}">${line}</h2>${g.tasks.length ? items(g.tasks, false) : ""}</section>`;
 }
