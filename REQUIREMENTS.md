@@ -268,7 +268,9 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   N06c). Nothing else.
 - Performance target: up to ~2,000 nodes of the chosen tags (their union), loaded at once and filtered in
   the plugin. First view < 1 s; redraw after a change < 300 ms.
-- Workspace frame per the skill's ui-positioning recipe, but starting at the host header's lower edge (top and
+- Workspace frame (N57, owner 2026-10-11: in the workspace Planner is the only thing on screen, Escape goes back, the sidebar is
+  for working beside the page): on macOS it covers the whole window including the host header, whose controls would act on the
+  page behind Planner, and the top rows leave room for the window buttons; other platforms keep the earlier rule: per the skill's ui-positioning recipe, but starting at the host header's lower edge (top and
   height from `--ls-headbar-height`, fallback 3rem), so the window moves by the header, zooms on a header
   double-click and resizes by its edges as usual (N15); registrations deferred out of
   `main()`; debounced `DB.onChanged` plus a slow poll because hidden iframes throttle timers.

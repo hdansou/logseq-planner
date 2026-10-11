@@ -7,6 +7,7 @@ import { serializeViewConfig } from "../core/view-config";
 import { createViewStore } from "../storage";
 import type { Surface, TagInfo } from "../types";
 import { createWorkspace, type Workspace } from "./workspace";
+import workspaceCss from "./workspace.css?inline";
 import { fakeStorage, fixtureDq, noDateWrites, noWrites } from "./test-fakes";
 
 let tags: TagInfo[];
@@ -163,5 +164,12 @@ describe("focus mode (N39)", () => {
     await ws.refresh();
     expect($("[data-region=topbar]")!.hasAttribute("hidden")).toBe(true);
     expect(serializeViewConfig(ws.config()!)).not.toMatch(/focus/i);
+  });
+});
+
+describe("window buttons (N57)", () => {
+  it("the top rows leave room at the left for the window buttons when the workspace covers the header", () => {
+    expect(workspaceCss).toMatch(/\[data-window-controls="left"\]\s+\.pl-top[^{]*{[^}]*padding-left:\s*(8\d|9\d|1\d\d)px/);
+    expect(workspaceCss).toMatch(/\[data-window-controls="left"\]\s+\.pl-strip/);
   });
 });

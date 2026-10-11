@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, graphStateDeps } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, workspaceFrame, graphStateDeps } from "./sdk";
 import { CONFIG_KEY, LEGACY_CONFIG_KEY, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("workspace frame (N57)", () => {
+  it("is the default frame under the host header, or the whole window for another top", () => {
+    expect(workspaceFrame(HEADBAR)).toEqual(WORKSPACE_FRAME);
+    expect(workspaceFrame("0px")).toEqual({ position: "fixed", zIndex: "999", top: "0px", left: "0", right: "auto", width: "100vw", height: "calc(100vh - 0px)" });
+  });
+});
 
 describe("strict views page query", () => {
   it("matches title and Page tag and excludes recycled pages", () => {

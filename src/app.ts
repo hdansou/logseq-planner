@@ -1,4 +1,4 @@
-import { clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME } from "./sdk";
+import { clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
 import { createViewStore } from "./storage";
 import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
@@ -69,7 +69,20 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
    * N49: docked, the host's header ends where the reserved strip starts, so on macOS (window buttons at the left) the strip
    * above Planner is empty: Planner starts at the window's top. Elsewhere the window controls sit at the right: stay under the header.
    */
-  const dockTop = () => (/Mac/.test(host?.defaultView?.navigator.userAgent ?? "") ? "0px" : HEADBAR);
+  const isMac = () => /Mac/.test(host?.defaultView?.navigator.userAgent ?? "");
+  const dockTop = () => (isMac() ? "0px" : HEADBAR);
+  /**
+   * N57: the workspace frame. On macOS it covers the host header too (its controls would act on the page behind Planner), and the
+   * root says so (`data-window-controls`) so the top rows leave room for the window buttons; docked, they are far away.
+   */
+  const workspaceNow = () => {
+    if (!isMac()) {
+      root.removeAttribute("data-window-controls");
+      return WORKSPACE_FRAME;
+    }
+    root.setAttribute("data-window-controls", "left");
+    return workspaceFrame("0px");
+  };
   /** N44: the room other plugins' docked frames take on the right edge; Planner docks to the left of it. */
   let offsetPx = 0;
   let rankN = 0;
@@ -108,6 +121,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     }
     measure();
     docked = true;
+    root.removeAttribute("data-window-controls");
     wantedPx ??= dockWidth();
     applyDock(dockWidth(), true);
   };
@@ -149,7 +163,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     surface = next;
     if (next === "sidebar") return dock();
     stopDock();
-    deps.setFrame(WORKSPACE_FRAME); // the host's sidebar is left as it is
+    deps.setFrame(workspaceNow()); // the host's sidebar is left as it is
   };
   const views = createViewStore(deps.storage); // one store for the workspace and the in-page blocks
   const openNode = nodeOpener({ ...deps, hideMainUI: close }, () => surface === "sidebar");
@@ -168,7 +182,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const open = () => {
     visible = true;
     if (surface === "sidebar") dock();
-    else deps.setFrame(WORKSPACE_FRAME);
+    else deps.setFrame(workspaceNow());
     deps.showMainUI();
     const shownBefore = loaded;
     changes?.setVisible(true);

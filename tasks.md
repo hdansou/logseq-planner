@@ -603,6 +603,14 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N57 The workspace covers the whole window (macOS)** — done 2026-10-11, seen live on the nightly.
+      Owner request, reversing N15: the host controls above the workspace were clickable but acted on the page behind it.
+      `workspaceFrame(top)`; on macOS `app.ts` uses `workspaceFrame("0px")` and sets `data-window-controls="left"` on the root (removed
+      when docked), `workspace.css` gives `.pl-top` and `.pl-strip` 84 px of left padding for the window buttons. Seen: the frame at
+      0,0 over the whole window, the first tab at 86 px, a point at (120, 24) lands on Planner's frame, Escape closes it. Cost: the
+      window cannot be moved by the strip above Planner (only by the window's frame outside it), and a double-click there no
+      longer zooms. Not seen: Windows / Linux (they keep the header: window controls at the right, unchecked), the stable app,
+      macOS native full screen (no window buttons; the 84 px stays).
 - [x] **N56 Short Calendar blocks show their title** — done 2026-10-11, seen live on the nightly (planner-project, 3 days, 1–3 Oct).
       Owner report: an item with one date (a point or deadline, a 30-minute block = 23 px) lost its title in the time grids: the
       stacked title and time did not fit and the flex column squeezed the title out. Blocks of `SHORT_BLOCK_MIN` (30) minutes or

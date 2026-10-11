@@ -150,3 +150,7 @@ html, body, #app { height: 100%; }
 .pl-dates-field { display: grid; gap: 2px; align-content: start; }
 .pl-dates-field > .pl-field-label { padding: 2px 10px 0; }
 .pl-popover[data-popover="dates"] { min-width: 360px; }
+
+/* N57: on macOS the workspace covers the host header, so the window buttons sit over Planner's top-left corner */
+[data-window-controls="left"] .pl-top { padding-left: 84px; }
+[data-window-controls="left"] .pl-strip { padding-left: 84px; }

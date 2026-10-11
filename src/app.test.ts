@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { nodeOpener, registerApp } from "./app";
-import { dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME } from "./sdk";
+import { dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
 import type { AppDeps, MacroSlotEvent, StorageDeps } from "./types";
 import tagsFixture from "./core/__fixtures__/tags.json";
 import propsFixture from "./core/__fixtures__/class-properties.json";
@@ -624,6 +624,24 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     switchTo("workspace");
     modelOf(d.deps)[OPEN_NODE]({ dataset: { uuid: "u-2" } });
     expect(d.deps.hideMainUI).toHaveBeenCalledTimes(1);
+  });
+
+  it("on macOS the workspace covers the whole window, so the host controls behind it cannot be clicked, and the header leaves room for the window buttons (N57)", async () => {
+    const MAC = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Electron/30";
+    const mac = docked([], MAC);
+    modelHandler(mac.deps)();
+    expect(mac.lastFrame()).toEqual(workspaceFrame("0px"));
+    expect(root.getAttribute("data-window-controls")).toBe("left");
+    await vi.waitFor(() => expect(root.querySelector("[data-action=toggle-surface]")).not.toBeNull());
+    switchTo("sidebar"); // docked on the right edge: the window buttons are far away
+    expect(root.hasAttribute("data-window-controls")).toBe(false);
+    switchTo("workspace");
+    expect(mac.lastFrame()).toEqual(workspaceFrame("0px"));
+    expect(root.getAttribute("data-window-controls")).toBe("left");
+    const other = docked([], "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Electron/30");
+    modelHandler(other.deps)();
+    expect(other.lastFrame()).toEqual(WORKSPACE_FRAME);
+    expect(root.hasAttribute("data-window-controls")).toBe(false);
   });
 
   it("opening in the workspace mode applies the workspace frame and reserves nothing", async () => {

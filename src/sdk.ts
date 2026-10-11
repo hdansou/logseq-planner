@@ -16,9 +16,14 @@ import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, Storag
  * the window edges stay free for resizing.
  */
 export const HEADBAR = "var(--ls-headbar-height, 3rem)";
-export const WORKSPACE_FRAME: Frame = {
-  position: "fixed", zIndex: "999", top: HEADBAR, left: "0", right: "auto", width: "100vw", height: `calc(100vh - ${HEADBAR})`,
-};
+export const workspaceFrame = (top: string): Frame =>
+  ({ position: "fixed", zIndex: "999", top, left: "0", right: "auto", width: "100vw", height: `calc(100vh - ${top})` });
+export const WORKSPACE_FRAME: Frame = workspaceFrame(HEADBAR);
+/*
+ * N57 (owner, 2026-10-11) reverses N15 on macOS: with the header left visible, its controls looked usable but acted on the page
+ * behind Planner. There the workspace starts at the window's top (`workspaceFrame("0px")`); the window can then only be moved
+ * by the part of the window outside Planner, and the header leaves room for the window buttons (workspace.css).
+ */
 
 /** N40: the docked width in px: its minimum, and the room the page keeps beside it (the page next to a docked Planner). */
 export const DOCK_MIN_PX = 320;
