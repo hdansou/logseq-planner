@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N58 Security audit hardening** — done 2026-10-11 (skill security-audit on the whole repo: risk low, 0 `npm audit` findings).
+      SEC-001: `assertPluginId` (letters, digits, `.`, `_`, `-`) before the plugin id goes into a `[data-pid="…"]` selector
+      (`dockHostStyle`, the frame lookups). SEC-002: `hostIconFontUrl` only follows a font URL on the stylesheet's own origin
+      (the fetch runs with the host's privileges). The SEC-002 test was written together with its code, not seen red first.
+      Left as informational: `style-src 'unsafe-inline'` (inline styles carry numbers only), `^` ranges and the local `file:`
+      package dependency (pin or publish before release).
 - [x] **N57 The workspace covers the whole window (macOS)** — done 2026-10-11, seen live on the nightly.
       Owner request, reversing N15: the host controls above the workspace were clickable but acted on the page behind it.
       `workspaceFrame(top)`; on macOS `app.ts` uses `workspaceFrame("0px")` and sets `data-window-controls="left"` on the root (removed

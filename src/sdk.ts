@@ -45,6 +45,12 @@ export const clampDockWidth = (px: number, viewport: number): number =>
 export const dockFrame = (width: number, headbar: string, offset = 0): Frame =>
   ({ position: "fixed", zIndex: "999", top: headbar, height: `calc(100vh - ${headbar})`, right: offset ? `${offset}px` : "0", left: "auto", width: `${width}px` });
 
+/** The plugin id goes into an attribute selector: letters, digits, dot, underscore and hyphen only, so it can never close the selector (SEC-001). */
+export function assertPluginId(id: string): string {
+  if (!/^[\w.-]+$/.test(id)) throw new Error(`Not a usable plugin id: ${JSON.stringify(id)}`);
+  return id;
+}
+
 /**
  * Host CSS that makes room for the docked frame (the approach of the Outline Canvas plugin, "mirror" mode): the app's
  * wrapper gets `margin-right`, and Logseq's right sidebar, which lives inside it, opens to the left of Planner and
@@ -52,6 +58,7 @@ export const dockFrame = (width: number, headbar: string, offset = 0): Frame =>
  * Planner gives the room back. `animate` false while the width is being dragged, so the host follows the pointer 1:1.
  */
 export function dockHostStyle(pluginId: string, width: number, animate: boolean, offset = 0, rank = 0): string {
+  assertPluginId(pluginId);
   // N44: `offset` = the room another plugin's docked frame takes; the strip is both widths, and `:root` makes this
   // rule outrank the other plugin's own margin rule on the same wrapper (a tie goes to the later rule), one more for
   // every frame docked before this one, so the innermost plugin, whose strip is the widest, wins.
@@ -68,7 +75,7 @@ export function dockHostStyle(pluginId: string, width: number, animate: boolean,
 function setContainerStyle(style: Frame): void {
   let el: HTMLElement | null = null;
   try {
-    el = parent.document.querySelector<HTMLElement>(`.lsp-iframe-sandbox-container[data-pid="${logseq.baseInfo.id}"]`);
+    el = parent.document.querySelector<HTMLElement>(`.lsp-iframe-sandbox-container[data-pid="${assertPluginId(logseq.baseInfo.id)}"]`);
   } catch {
     // cross-origin: parent.document is not readable
   }

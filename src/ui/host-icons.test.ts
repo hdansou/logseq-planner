@@ -16,6 +16,14 @@ describe("hostIconFontUrl (N55: the host's tabler icon font)", () => {
     expect(hostIconFontUrl(sheets([]))).toBeNull();
   });
 
+  it("only takes a font from the stylesheet's own origin (SEC-002): another host, a data: URL or a scheme-relative one is skipped", () => {
+    const own = face("tabler-icons", 'url("./own.woff2") format("woff2")');
+    expect(hostIconFontUrl(sheets([face("tabler-icons", 'url("https://evil.example/t.woff2") format("woff2")')]))).toBeNull();
+    expect(hostIconFontUrl(sheets([face("tabler-icons", 'url("//evil.example/t.woff2") format("woff2")')]))).toBeNull();
+    expect(hostIconFontUrl(sheets([face("tabler-icons", 'url("data:font/woff2;base64,AAAA") format("woff2")')]))).toBeNull();
+    expect(hostIconFontUrl(sheets([face("tabler-icons", 'url("https://evil.example/t.woff2") format("woff2")'), own]))).toBe("lsp://logseq.com/css/own.woff2");
+  });
+
   it("skips a stylesheet that cannot be read (cross-origin rules throw)", () => {
     const bad = { href: "https://cdn/x.css", get cssRules(): never { throw new Error("SecurityError"); } };
     const good = { href: "lsp://logseq.com/s.css", cssRules: [face("tabler-icons", 'url("t.woff2") format("woff2")')] as never[] };

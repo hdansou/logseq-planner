@@ -1,8 +1,21 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, workspaceFrame, graphStateDeps } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, workspaceFrame, graphStateDeps, assertPluginId } from "./sdk";
 import { CONFIG_KEY, LEGACY_CONFIG_KEY, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe("plugin id in a CSS selector (SEC-001)", () => {
+  it("dockHostStyle takes an id of letters, digits, dot, underscore and hyphen, and refuses anything that could close the selector", () => {
+    expect(dockHostStyle("logseq-planner", 600, false)).toContain('[data-pid="logseq-planner"]');
+    expect(dockHostStyle("a.b_c-1", 600, false)).toContain('[data-pid="a.b_c-1"]');
+    for (const bad of ['a"]', "a b", "", 'x"] body { display:none } y[z="', "a\\"]) expect(() => dockHostStyle(bad, 600, false), JSON.stringify(bad)).toThrow(/plugin id/);
+  });
+
+  it("assertPluginId returns the id it accepted", () => {
+    expect(assertPluginId("logseq-planner")).toBe("logseq-planner");
+    expect(() => assertPluginId('a"b')).toThrow(/plugin id/);
+  });
+});
 
 describe("workspace frame (N57)", () => {
   it("is the default frame under the host header, or the whole window for another top", () => {

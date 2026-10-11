@@ -24,7 +24,7 @@ const FONT_FACE_RULE = 5;
 const FAMILY = /font-family:\s*["']?tabler-icons["']?\s*[;}]/;
 const WOFF2_SRC = /url\(\s*["']?([^"')]+)["']?\s*\)\s*format\(\s*["']woff2["']\s*\)/;
 
-/** The absolute URL of the host's `tabler-icons` woff2 file, or null when no readable stylesheet declares it. */
+/** The absolute URL of the host's `tabler-icons` woff2 file, or null when no readable stylesheet declares it from its own origin. */
 export function hostIconFontUrl(doc: HostStyles): string | null {
   for (const sheet of doc.styleSheets) {
     let rules: RuleLike[];
@@ -36,7 +36,11 @@ export function hostIconFontUrl(doc: HostStyles): string | null {
     for (const rule of rules) {
       if (rule.type !== FONT_FACE_RULE || !rule.cssText || !FAMILY.test(rule.cssText)) continue;
       const src = WOFF2_SRC.exec(rule.cssText)?.[1];
-      if (src) return new URL(src, sheet.href ?? doc.baseURI).href;
+      if (!src) continue;
+      const base = new URL(sheet.href ?? doc.baseURI);
+      const url = new URL(src, base);
+      // Only the host's own origin: the fetch uses the host's privileges, so a font the CSS points elsewhere is not followed (SEC-002).
+      if (`${url.protocol}//${url.host}` === `${base.protocol}//${base.host}`) return url.href;
     }
   }
   return null;

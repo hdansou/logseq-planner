@@ -1,4 +1,4 @@
-import { clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
+import { assertPluginId, clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
 import { createViewStore } from "./storage";
 import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
@@ -142,7 +142,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     width: () => shownPx,
     viewport,
     host: host?.defaultView ?? undefined,
-    frameLeft: () => host?.querySelector(`.lsp-iframe-sandbox-container[data-pid="${deps.pluginId()}"]`)?.getBoundingClientRect().left ?? null,
+    frameLeft: () => host?.querySelector(`.lsp-iframe-sandbox-container[data-pid="${assertPluginId(deps.pluginId())}"]`)?.getBoundingClientRect().left ?? null,
     apply: (px, animate) => docked && applyDock(px, animate),
     commit: (px) => {
       if (!docked) return;
