@@ -607,9 +607,8 @@ Live-check method (web app):
       `data-cg-handle`, `#pl-cg-edit-help`; the workspace writes through `editDates` (`EditTarget`: a Timeline row or a
       block, 96 steps per day). Seen live: a real-mouse drag of N05 down 30 minutes wrote and read back (11:30 – 13:30),
       two Alt+Up put it back (11:00 – 13:00). Not seen: resize edges with the real mouse and on real data (no DateTime span
-      block on screen besides these; unit tests with a hand-made grid), the stable app, the wide workspace surface. Note:
-      while checking, N34's End read 10:00 (earlier screenshots 11:00); its last update predates the drag, so it is not
-      this item's write, but it was not traced.
+      block on screen besides these; unit tests with a hand-made grid), the stable app, the wide workspace surface. N34's End
+      read 10:00 while checking: the owner had changed it from 11:00, not this item's write.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
