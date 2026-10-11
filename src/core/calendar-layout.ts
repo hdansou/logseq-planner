@@ -1,4 +1,5 @@
-// Calendar layout: Month (whole weeks covering the anchor's month) and Week (the anchor's seven days), all-day only.
+// Calendar layout: Month (whole weeks covering the anchor's month, all-day only) and the time grids Week, 3 days and Day
+// (N46: a 24-hour axis, blocks by minute, an all-day row; see `layoutGrid`).
 // Pure: no DOM, no SDK, no clock (`today` is injected). Span nodes (mapped or derived) are bands with one lane for the
 // whole visible range, split per week row with continuation flags; point nodes and linked tasks' deadlines are chips on
 // their day. Month shows `MONTH_SLOTS` item rows per day and counts the rest; Week shows everything, chips stacked
@@ -7,11 +8,20 @@
 import type { ClosedValue, LocalDate, PlannerNode } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, daysBetween, firstOfMonth, formatMonth, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState,
+  addDays, categoryOf, daysBetween, firstOfMonth, formatDay, formatMonth, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState,
   weekday, weekdayName, type ViewItem,
 } from "./layout-common";
 
-export type CalendarView = "month" | "week";
+export type CalendarView = "month" | "week" | "3days" | "day";
+/** The layouts drawn as a time grid (N46). */
+export type GridView = Exclude<CalendarView, "month">;
+export const isGridView = (v: CalendarView): v is GridView => v !== "month";
+
+/** Time grid blocks: a point or task block lasts this long; no block is drawn shorter than the minimum (minutes). */
+export const DEFAULT_BLOCK_MIN = 30;
+export const MIN_BLOCK_MIN = 20;
+/** The grid opens at this minute when there is neither now nor a block to show (08:00). */
+const DEFAULT_FOCUS_MIN = 8 * 60;
 
 /** Item rows per day in Month (REQUIREMENTS: up to 3 items per day, then "+N more"). */
 export const MONTH_SLOTS = 3;
@@ -58,7 +68,7 @@ export interface CalendarBand {
 
 export interface CalendarChip {
   /** A one-date node, or a linked task's Deadline. */
-  kind: "point" | "deadline";
+  kind: "point" | "deadline" | "scheduled";
   /** What a click opens: the node, or the task block. */
   uuid: string;
   title: string;
@@ -94,12 +104,60 @@ export interface CalendarWeek {
   rows: number;
 }
 
+/** One column of a time grid. */
+export interface GridDay {
+  day: string;
+  /** "Sat 3". */
+  label: string;
+  today: boolean;
+  weekend: boolean;
+}
+
+/** An item with a time, placed on its day by minute (0–1440). */
+export interface GridBlock {
+  kind: "span" | "point" | "scheduled" | "deadline";
+  /** What a click opens: the node, or the task block. */
+  uuid: string;
+  title: string;
+  day: string;
+  startMin: number;
+  /** Drawn end: at least `MIN_BLOCK_MIN` after the start. */
+  endMin: number;
+  /** "20:35 – 21:05" for a span, "16:15" for the others. */
+  timeLabel: string;
+  cat: number;
+  /** Task blocks: the node's title; null otherwise. */
+  node: string | null;
+  status: string | null;
+  done: boolean;
+  late: boolean;
+  label: string;
+  /** Column among the blocks it overlaps, and how many columns that cluster has. */
+  col: number;
+  cols: number;
+}
+
+export interface TimeGrid {
+  days: GridDay[];
+  /** Items without a time: bands over day indices `from`…`to` (exclusive) and chips at `at`, rows as in a week row. */
+  allDay: { bands: CalendarBand[]; chips: CalendarChip[]; rows: number };
+  /** By day, then start time. */
+  blocks: GridBlock[];
+  /** The current time when today is in range. */
+  now: { day: string; minute: number } | null;
+  /** The minute the grid opens scrolled to. */
+  focusMinute: number;
+}
+
 export interface CalendarLayout {
   view: CalendarView;
   range: CalendarRange;
-  /** Weekday names in column order ("Sun" … "Sat" for a Sunday start). */
+  /** Month: weekday names in column order ("Sun" … "Sat" for a Sunday start); empty in a time grid. */
   weekdays: string[];
+  /** Month: the week rows; empty in a time grid. */
   weeks: CalendarWeek[];
+  /** The time grids (Week, 3 days, Day); null in Month. */
+  grid: TimeGrid | null;
   /** Nodes without any date, by title. */
   undated: { node: PlannerNode; title: string }[];
 }
@@ -110,6 +168,8 @@ export interface CalendarInput {
   /** Any day of the month (Month) or week (Week) to show. */
   anchor: string;
   today: string;
+  /** `HH:MM` now (the grid's now line); absent: no line. */
+  time?: string;
   /** 0 = Sunday … 6 = Saturday. */
   weekStart: number;
   /** Task Status closed values (built-in flags decide done). */
@@ -126,13 +186,21 @@ export function calendarRange(view: CalendarView, anchor: string, weekStart: num
     const end = addDays(start, 6);
     return { start, end, label: formatRange(start, end) };
   }
+  if (view === "3days") {
+    const start = addDays(anchor, -1);
+    const end = addDays(anchor, 1);
+    return { start, end, label: formatRange(start, end).replace(/^(\d+) \w+ – /, (m, d) => (start.slice(0, 7) === end.slice(0, 7) ? `${d} – ` : m)) };
+  }
+  if (view === "day") return { start: anchor, end: anchor, label: `${weekdayName(anchor)} ${formatDay(anchor, true)}` };
   const last = addDays(firstOfMonth(anchor, 1), -1);
   return { start: startOfWeek(firstOfMonth(anchor), weekStart), end: addDays(startOfWeek(last, weekStart), 6), label: formatMonth(anchor) };
 }
 
-/** The anchor one step earlier (-1) or later (1): the 1st of the adjacent month (Month) or a week away (Week). */
+const STEP_DAYS: Record<GridView, number> = { day: 1, "3days": 3, week: 7 };
+
+/** The anchor one step earlier (-1) or later (1): the 1st of the adjacent month (Month), or a day, three days or a week away. */
 export const shiftCalendarAnchor = (anchor: string, view: CalendarView, dir: -1 | 1): string =>
-  view === "month" ? firstOfMonth(anchor, dir) : addDays(anchor, dir * 7);
+  view === "month" ? firstOfMonth(anchor, dir) : addDays(anchor, dir * STEP_DAYS[view]);
 
 // ---------------------------------------------------------------- layout
 
@@ -207,8 +275,116 @@ function layoutWeek(start: string, spans: Span[], chips: Chip[], input: Calendar
   return { start, days, bands: bands.sort((a, b) => a.lane - b.lane), chips: placed, rows };
 }
 
+const minuteOf = (time: string): number => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+
+/** Overlapping blocks of a day side by side: a cluster is a run of blocks that overlap in turn; each takes the first free column. */
+function packBlocks(blocks: GridBlock[]): void {
+  let cluster: GridBlock[] = [];
+  let clusterEnd = -1;
+  let colEnds: number[] = [];
+  const close = () => cluster.forEach((b) => (b.cols = colEnds.length));
+  for (const b of blocks) {
+    if (b.startMin >= clusterEnd) {
+      close();
+      cluster = [];
+      colEnds = [];
+      clusterEnd = -1;
+    }
+    let col = colEnds.findIndex((end) => end <= b.startMin);
+    if (col < 0) col = colEnds.length;
+    colEnds[col] = b.endMin;
+    b.col = col;
+    cluster.push(b);
+    clusterEnd = Math.max(clusterEnd, b.endMin);
+  }
+  close();
+}
+
+/** The time grids (N46): timed items are blocks on their day by minute, the rest the all-day row. */
+function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout {
+  const days: GridDay[] = [];
+  for (let day = range.start; day <= range.end; day = addDays(day, 1)) {
+    const wd = weekday(day);
+    days.push({ day, label: `${weekdayName(day)} ${Number(day.slice(8))}`, today: day === input.today, weekend: wd === 0 || wd === 6 });
+  }
+  const undated: CalendarLayout["undated"] = [];
+  const spans: Omit<Span, "lane">[] = [];
+  const chips: Chip[] = [];
+  const blocks: GridBlock[] = [];
+  const seenTasks = new Set<number>();
+  const inRange = (day: string) => range.start <= day && day <= range.end;
+  const block = (b: Omit<GridBlock, "endMin" | "col" | "cols"> & { endMin: number }) => blocks.push({ ...b, endMin: Math.max(b.endMin, b.startMin + MIN_BLOCK_MIN), col: 0, cols: 1 });
+  for (const { node, span, tasks, progress } of input.items) {
+    const title = displayTitle(node.title, input.titles);
+    const cat = categoryOf(node.uuid);
+    if (span.kind === "undated") {
+      undated.push({ node, title });
+      continue;
+    }
+    const label = nodeLabel(title, span, progress);
+    const { start, end } = span;
+    if (span.kind === "point") {
+      if (inRange(start!.day)) {
+        if (start!.time) {
+          const startMin = minuteOf(start!.time);
+          block({ kind: "point", uuid: node.uuid, title, day: start!.day, startMin, endMin: startMin + DEFAULT_BLOCK_MIN, timeLabel: start!.time, cat, node: null, status: null, done: false, late: false, label });
+        } else {
+          chips.push({ kind: "point", uuid: node.uuid, title, date: start!, time: null, cat, node: null, status: null, done: false, late: false, label });
+        }
+      }
+    } else if (span.kind === "mapped" && start!.time && end!.time && start!.day === end!.day) {
+      if (inRange(start!.day)) {
+        const startMin = minuteOf(start!.time);
+        block({ kind: "span", uuid: node.uuid, title, day: start!.day, startMin, endMin: minuteOf(end!.time), timeLabel: `${start!.time} – ${end!.time}`, cat, node: null, status: null, done: false, late: false, label });
+      }
+    } else {
+      spans.push({ node, title, kind: span.kind, start: start!.day, end: end!.day, cat, label });
+    }
+    for (const task of tasks) {
+      if (seenTasks.has(task.id)) continue;
+      const { status, done } = taskState(task, input.statusValues);
+      const taskTitle = displayTitle(task.title, input.titles);
+      const dated = (["scheduled", "deadline"] as const).filter((k) => task[k] && inRange(task[k]!.day));
+      if (!dated.length) continue;
+      seenTasks.add(task.id);
+      for (const kind of dated) {
+        const date = task[kind]!;
+        const late = kind === "deadline" && isLate(task, done, input.today);
+        const text = [taskLabel(task, taskTitle), late && "late", title].filter(Boolean).join(", ");
+        if (date.time) {
+          const startMin = minuteOf(date.time);
+          block({ kind, uuid: task.uuid, title: taskTitle, day: date.day, startMin, endMin: startMin + DEFAULT_BLOCK_MIN, timeLabel: date.time, cat, node: title, status, done, late, label: text });
+        } else {
+          chips.push({ kind, uuid: task.uuid, title: taskTitle, date, time: null, cat, node: title, status, done, late, label: text });
+        }
+      }
+    }
+  }
+  const laned = assignLanes(spans, range);
+  const bands: CalendarBand[] = laned.map((sp) => ({
+    node: sp.node, title: sp.title, kind: sp.kind, cat: sp.cat, lane: sp.lane,
+    from: Math.max(0, daysBetween(range.start, sp.start)), to: Math.min(days.length, daysBetween(range.start, sp.end) + 1),
+    continuesBefore: sp.start < range.start, continuesAfter: sp.end > range.end,
+    label: [sp.label, sp.start < range.start && "continues from before", sp.end > range.end && "continues after"].filter(Boolean).join(", "),
+  }));
+  const bandRows = bands.reduce((n, b) => Math.max(n, b.lane + 1), 0);
+  const placed: CalendarChip[] = [];
+  days.forEach((dy, i) => chips.filter((c) => c.date.day === dy.day).sort(byTime).forEach((c, k) => placed.push({ ...c, at: i, row: bandRows + k })));
+  const dayIndex = new Map(days.map((dy, i) => [dy.day, i]));
+  blocks.sort((a, b) => dayIndex.get(a.day)! - dayIndex.get(b.day)! || a.startMin - b.startMin || b.endMin - a.endMin || a.title.localeCompare(b.title));
+  for (const dy of days) packBlocks(blocks.filter((b) => b.day === dy.day));
+  const now = input.time && inRange(input.today) ? { day: input.today, minute: minuteOf(input.time) } : null;
+  const focusMinute = now ? Math.max(0, now.minute - 90) : blocks.length ? Math.max(0, Math.min(...blocks.map((b) => b.startMin)) - 60) : DEFAULT_FOCUS_MIN;
+  undated.sort((a, b) => a.title.localeCompare(b.title));
+  return {
+    view: input.layout, range, weeks: [], weekdays: [], undated,
+    grid: { days, allDay: { bands, chips: placed, rows: Math.max(bandRows, ...placed.map((c) => c.row + 1)) }, blocks, now, focusMinute },
+  };
+}
+
 export function layoutCalendar(input: CalendarInput): CalendarLayout {
   const range = calendarRange(input.layout, input.anchor, input.weekStart);
+  if (isGridView(input.layout)) return layoutGrid(input, range);
   const undated: CalendarLayout["undated"] = [];
   const spans: Omit<Span, "lane">[] = [];
   const chips: Chip[] = [];
@@ -248,7 +424,7 @@ export function layoutCalendar(input: CalendarInput): CalendarLayout {
   for (let w = range.start; w <= range.end; w = addDays(w, 7)) weeks.push(layoutWeek(w, laned, chips, input, month));
   undated.sort((a, b) => a.title.localeCompare(b.title));
   return {
-    view: input.layout, range, weeks, undated,
+    view: input.layout, range, weeks, undated, grid: null,
     weekdays: weeks[0].days.map((d) => weekdayName(d.day)),
   };
 }

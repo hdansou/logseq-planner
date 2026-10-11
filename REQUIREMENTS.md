@@ -184,11 +184,21 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   rows made most of the Timeline's DOM).
 
 ### Calendar
-- **Month** and **Week** layouts, all-day only (no hour grid, no day view).
-- Span nodes as bands with stable lanes; point nodes as chips; **linked tasks' deadlines**
-  as chips in their node's colour (Scheduled dates not shown).
-- Week: one column per day, items sorted by time, DateTime time shown as a label.
-- Month: up to 3 items per day, then "+N more" (opens that week). Prev / next / today.
+- Layouts: **Month**, and the time grids **Week**, **3 days** and **Day** (N46; owner 2026-10-10: the Week layout
+  becomes a time grid too). Prev / next / Today; Month moves a month, Week 7 days, **3 days** (yesterday, today, tomorrow
+  around the anchor) three days, Day one day.
+- **Month** (all-day only): span nodes as bands with stable lanes; point nodes as chips; **linked tasks' deadlines** as
+  chips in their node's colour; up to 3 items per day, then "+N more" (opens that week).
+- **Time grid** (Week, 3 days, Day): one column per day, a 24-hour axis with an hour label per line, and a sticky
+  day header. Items with a time sit where they belong: a span whose Start and End are DateTimes on the same day is a block
+  from Start to End; a one-date node, a task's Scheduled and a task's Deadline with a time are 30-minute blocks at that
+  time (the Deadline with ⚑). Blocks that overlap share the column side by side. Everything without a time (Date values,
+  spans over several days, derived spans) is in an **all-day** row above the hours: bands with stable lanes and chips.
+  A block shows its title and its time ("20:35 – 21:05"); a done task's title is struck through, a late one is red.
+  A line marks the current time in today's column (a marker on the axis). The grid opens scrolled to the current time
+  (today in range), else an hour above the earliest block, else 08:00. Clicking opens the node (Shift+click: the
+  sidebar). Read-only: dragging blocks to move or resize them is not in this item.
+- Scheduled dates of tasks show in the time grids (all-day chips without a time); Month still shows deadlines only.
 
 ### Agenda
 - **Overdue**, then each of the **next 14 days**, then collapsed **Later** and **No date**
@@ -262,7 +272,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
 - A detail/edit panel. (Dragging or resizing to change dates was a v1 non-goal; it is in scope since N06c, behind the
   Timeline's Edit dates toggle.)
 - Views defined by a free query; different filters per tag.
-- Repeating tasks; the Calendar's day view and hour grid (the Timeline's Day zoom is in scope); Timeline year zoom.
+- Repeating tasks; Timeline year zoom.
 - Kanban manual card order; Agenda ranges other than 14 days.
 - Creating properties on the user's tags (e.g. a one-click "add Start/End").
 - Marketplace release (prepared after v1 works).

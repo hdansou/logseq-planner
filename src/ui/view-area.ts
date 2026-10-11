@@ -179,7 +179,7 @@ function calendarLayout(a: ViewAreaInput, now: Now, shown: Shown): CalendarLayou
   const statusValues = taskStatusValues(a.tags);
   return layoutCalendar({
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    layout: c.layout, anchor: a.session.anchor ?? now.today, today: now.today, weekStart: now.weekStart, statusValues,
+    layout: c.layout, anchor: a.session.anchor ?? now.today, today: now.today, time: now.time, weekStart: now.weekStart, statusValues,
     titles: a.titles,
   });
 }

@@ -57,9 +57,9 @@ const chip = (uuid: string) => $(`[data-cal-chip][data-cal-open="${uuid}"]`);
 beforeEach(() => setup());
 
 describe("toolbar", () => {
-  it("shows the Month / Week switch (Month by default), prev / today / next and the month as the range label", () => {
+  it("shows the Day / 3 days / Week / Month switch (Month by default), prev / today / next and the month as the range label", () => {
     expect($$("[data-region=view-toolbar] [data-cal-layout]").map((b) => [b.textContent, b.getAttribute("aria-pressed")]))
-      .toEqual([["Month", "true"], ["Week", "false"]]);
+      .toEqual([["Day", "false"], ["3 days", "false"], ["Week", "false"], ["Month", "true"]]);
     for (const nav of ["prev", "today", "next"]) expect($(`[data-region=view-toolbar] [data-cal-nav=${nav}]`)!.tagName).toBe("BUTTON");
     expect($("[data-cal-nav=next]")!.getAttribute("aria-label")).toBe("Next");
     expect(text("[data-cal-range]")).toBe("October 2026");
@@ -205,43 +205,42 @@ describe("'+N more' (Month)", () => {
     await click("[data-cal-more='2026-10-02']");
     expect(ws.config()).toMatchObject({ kind: "calendar", layout: "week" });
     expect(text("[data-cal-range]")).toBe("27 Sep – 3 Oct 2026");
-    expect($$("[data-cal-week='2026-09-27'] [data-cal-band]").map((b) => b.dataset.lane)).toEqual(["0", "1", "2", "3", "4"]);
-    expect(chip(CONTRACT)).not.toBeNull();
+    expect($$("[data-cg-allday] [data-cal-band]").map((b) => b.dataset.lane)).toEqual(["0", "1", "2", "3", "4"]);
+    expect($(`[data-cg-block][data-cal-open="${CONTRACT}"]`)).not.toBeNull();
     expect($("[data-cal-more]")).toBeNull();
     expect(document.activeElement).toBe($("[data-cal-layout=week]"));
   });
 });
 
-describe("Week", () => {
+describe("Week (a time grid since N46)", () => {
   it("week of 27 Sep: seven day columns labelled with weekday and day, today marked", async () => {
     await click("[data-cal-layout=week]");
     expect(text("[data-cal-range]")).toBe("27 Sep – 3 Oct 2026");
     expect($("[data-cal-weekdays]")).toBeNull();
-    expect($$("[data-cal-day]").map((d) => d.querySelector(".pl-cal-num")!.textContent)).toEqual(["Sun 27", "Mon 28", "Tue 29", "Wed 30", "Thu 1", "Fri 2", "Sat 3"]);
-    expect($$("[data-cal-day][data-outside]")).toHaveLength(0);
-    expect($("[data-cal-day][data-today]")!.dataset.calDay).toBe(TODAY);
-    expect(chip(CONTRACT)!.querySelector("[data-cal-time]")!.textContent).toBe("12:00");
+    expect($$("[data-cg-day]").map((d) => d.querySelector(".pl-cal-num")!.textContent)).toEqual(["Sun 27", "Mon 28", "Tue 29", "Wed 30", "Thu 1", "Fri 2", "Sat 3"]);
+    expect($("[data-cg-day][data-today]")!.dataset.cgDay).toBe(TODAY);
+    expect($(`[data-cg-block][data-cal-open="${CONTRACT}"]`)!.textContent).toContain("12:00");
   });
 
-  it("week of 4 Oct: Acme band continues from the previous week, chips carry time labels and the node", async () => {
+  it("week of 4 Oct: Acme band continues from the previous week in the all-day row, a task block carries its time and node", async () => {
     await click("[data-cal-layout=week]");
     await click("[data-cal-nav=next]");
     expect(text("[data-cal-range]")).toBe("4 Oct – 10 Oct 2026");
-    const acme = bandsIn("2026-10-04", ACME)[0];
+    const acme = $(`[data-cg-allday] [data-cal-band][data-cal-open="${ACME}"]`)!;
     expect(acme.hasAttribute("data-cont-before")).toBe(true);
-    expect(style(acme)).toContain("grid-column: 1 / 6");
-    const draft = chip(DRAFT)!;
-    expect(draft.querySelector("[data-cal-time]")!.textContent).toBe("17:00");
+    expect(style(acme)).toContain("grid-column: 2 / 7"); // the hour axis takes column 1
+    const draft = $(`[data-cg-block][data-cal-open="${DRAFT}"]`)!;
+    expect(draft.querySelector("[data-cg-time]")!.textContent).toBe("17:00");
     expect(draft.querySelector("[data-cal-node]")!.textContent).toBe("Website relaunch");
-    expect(chip(MOBILE)!.querySelector("[data-cal-time]")).toBeNull(); // a Date, no time
+    expect($(`[data-cg-allday] [data-cal-chip][data-cal-open="${MOBILE}"]`)).not.toBeNull(); // a Date, no time: the all-day row
   });
 
-  it("Meeting: chips sorted by time with their time label", async () => {
+  it("Meeting: the timed meeting is a block with its time", async () => {
     await setup({ tagTitle: "Meeting" });
     await click("[data-cal-layout=week]");
-    const kick = $("[data-cal-chip][data-cal-open]")!;
+    const kick = $("[data-cg-block]")!;
     expect(kick.textContent).toContain("Kickoff");
-    expect(kick.querySelector("[data-cal-time]")!.textContent).toBe("10:30");
+    expect(kick.querySelector("[data-cg-time]")!.textContent).toBe("10:30");
     expect(text("[data-cal-undated]")).toBe("No dates: Untimed meeting");
   });
 });
@@ -295,7 +294,7 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(num + margins[0] + margins[2]).toBeLessThanOrEqual(head);
     // today only recolours and bolds the number: no size, margin or padding change
     expect(calendarCss).not.toMatch(/\[data-today\][^{]*\.pl-cal-num\s*\{[^}]*(?:height|margin|padding|font-size)/);
-    for (const layout of ["month", "week"]) {
+    for (const layout of ["month"]) {
       await click(`[data-cal-layout=${layout}]`);
       const weeks = $$("[data-cal-week]");
       expect(weeks.length).toBeGreaterThan(0);

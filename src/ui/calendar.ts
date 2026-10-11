@@ -3,7 +3,7 @@
 // Each week row is one CSS grid (calendar.css): seven equal columns; row 1 holds the day numbers, then one row per item
 // row of the layout (`grid-row: row + 2`), then the "+N more" row in Month. Day cells span every row as the backdrop.
 import { formatDay } from "../core/layout-common";
-import type { CalendarBand, CalendarChip, CalendarDay, CalendarLayout, CalendarView, CalendarWeek } from "../core/calendar-layout";
+import type { CalendarBand, CalendarChip, CalendarDay, CalendarLayout, CalendarView, CalendarWeek, GridBlock, TimeGrid } from "../core/calendar-layout";
 import { esc, flag, segmented, viewNav } from "./html";
 
 export type CalendarAction =
@@ -13,7 +13,20 @@ export type CalendarAction =
   | { type: "more"; day: string }
   | { type: "open"; uuid: string };
 
-const LAYOUTS: [CalendarView, string][] = [["month", "Month"], ["week", "Week"]];
+const LAYOUTS: [CalendarView, string][] = [["day", "Day"], ["3days", "3 days"], ["week", "Week"], ["month", "Month"]];
+
+/** The hour height in a time grid, px (N46); equals `--pl-cg-hour` in calendar.css (a test keeps them equal). */
+export const HOUR_PX = 48;
+
+/**
+ * The scrollTop that puts `minute` of the grid just under the sticky head: the grid body starts `bodyTop` px down the
+ * scrolling view content and the head, which stays on screen, is `stickyHeight` tall.
+ */
+export const gridScrollTop = (minute: number, bodyTop: number, stickyHeight: number): number =>
+  Math.max(0, Math.round(bodyTop + (minute / 60) * HOUR_PX - stickyHeight - LABEL_ROOM_PX));
+
+/** An hour label is centred on its line: this much room above the focus minute keeps the label under the head in view. */
+export const LABEL_ROOM_PX = 8;
 
 export function renderCalendarToolbar(layout: CalendarLayout): string {
   return viewNav("cal", layout.range.label) + `<span class="pl-spacer"></span>` + segmented("Layout", "cal-layout", LAYOUTS, layout.view);
@@ -24,20 +37,21 @@ function renderDay(d: CalendarDay, i: number): string {
     + ` style="grid-column: ${i + 1}"><span class="pl-cal-num"${d.today ? ' aria-current="date"' : ""}>${esc(d.label)}</span></div>`;
 }
 
-function renderBand(b: CalendarBand): string {
+/** `col` / `row`: the first grid column / row items sit in (the all-day row of a time grid has the hour axis as column 1). */
+function renderBand(b: CalendarBand, col = 1, row = 2): string {
   return `<button type="button" class="pl-cal-band" data-cal-band data-cal-open="${esc(b.node.uuid)}" data-kind="${b.kind}" data-cat="${b.cat}" data-lane="${b.lane}"`
     + `${flag("data-cont-before", b.continuesBefore)}${flag("data-cont-after", b.continuesAfter)}`
-    + ` style="grid-column: ${b.from + 1} / ${b.to + 1}; grid-row: ${b.lane + 2}" aria-label="${esc(b.label)}" title="${esc(b.label)}">`
+    + ` style="grid-column: ${b.from + col} / ${b.to + col}; grid-row: ${b.lane + row}" aria-label="${esc(b.label)}" title="${esc(b.label)}">`
     + (b.continuesBefore ? `<span class="pl-cal-cont" aria-hidden="true">‹</span>` : "")
     + `<span class="pl-cal-title">${esc(b.title)}</span>`
     + (b.continuesAfter ? `<span class="pl-cal-cont" aria-hidden="true">›</span>` : "")
     + `</button>`;
 }
 
-function renderChip(c: CalendarChip, week: boolean): string {
+function renderChip(c: CalendarChip, week: boolean, col = 1, row = 2): string {
   return `<button type="button" class="pl-cal-chip" data-cal-chip="${c.kind}" data-cal-open="${esc(c.uuid)}" data-cat="${c.cat}"`
     + ` data-status="${esc(c.status ?? "none")}"${flag("data-late", c.late)}${flag("data-done", c.done)}`
-    + ` style="grid-column: ${c.at + 1}; grid-row: ${c.row + 2}" aria-label="${esc(c.label)}" title="${esc(c.label)}">`
+    + ` style="grid-column: ${c.at + col}; grid-row: ${c.row + row}" aria-label="${esc(c.label)}" title="${esc(c.label)}">`
     + `<span class="pl-cal-dot" aria-hidden="true"></span>`
     + (c.time ? `<span class="pl-cal-time" data-cal-time>${esc(c.time)}</span>` : "")
     + `<span class="pl-cal-title">${c.kind === "deadline" ? `<span aria-hidden="true">⚑ </span>` : ""}${esc(c.title)}</span>`
@@ -56,18 +70,52 @@ function renderWeek(w: CalendarWeek, week: boolean): string {
   const rows = w.rows + (more ? 1 : 0);
   const template = `var(--pl-cal-head-h)${rows ? ` repeat(${rows}, minmax(var(--pl-cal-item-h), auto))` : ""} 1fr`;
   return `<div class="pl-cal-week" data-cal-week="${w.start}" role="group" aria-label="Week of ${formatDay(w.start)}" style="grid-template-rows: ${template}">`
-    + w.days.map(renderDay).join("") + w.bands.map(renderBand).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
+    + w.days.map(renderDay).join("") + w.bands.map((b) => renderBand(b)).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
+}
+
+function renderBlock(b: GridBlock): string {
+  return `<button type="button" class="pl-cg-block" data-cg-block="${b.kind}" data-cal-open="${esc(b.uuid)}" data-cat="${b.cat}"`
+    + ` data-status="${esc(b.status ?? "none")}"${flag("data-late", b.late)}${flag("data-done", b.done)}`
+    + ` style="--pl-start: ${b.startMin}; --pl-len: ${b.endMin - b.startMin}; --pl-col: ${b.col}; --pl-cols: ${b.cols}"`
+    + ` aria-label="${esc(b.label)}" title="${esc(b.label)}">`
+    + `<span class="pl-cg-title">${b.kind === "deadline" ? `<span aria-hidden="true">⚑ </span>` : ""}${esc(b.title)}</span>`
+    + `<span class="pl-cg-time" data-cg-time>${esc(b.timeLabel)}</span>`
+    + (b.node ? `<span class="pl-cal-node" data-cal-node>${esc(b.node)}</span>` : "")
+    + `</button>`;
+}
+
+/** The time grids (N46): sticky day heads and all-day row over a 24-hour body, one column per day after the hour axis. */
+function renderGrid(g: TimeGrid): string {
+  const n = g.days.length;
+  const head = g.days.map((d, i) => `<div class="pl-cg-dayhead" data-cg-day="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}`
+    + ` style="grid-column: ${i + 2}"><span class="pl-cal-num"${d.today ? ' aria-current="date"' : ""}>${esc(d.label)}</span></div>`).join("");
+  const rows = `repeat(${Math.max(1, g.allDay.rows)}, minmax(var(--pl-cal-item-h), auto))`;
+  const allDay = `<div class="pl-cg-allday" data-cg-allday style="--pl-cg-days: ${n}; grid-template-rows: ${rows}">`
+    + `<span class="pl-cg-axis-label">all-day</span>`
+    + g.days.map((_, i) => `<div class="pl-cg-allday-cell" style="grid-column: ${i + 2}"></div>`).join("")
+    + g.allDay.bands.map((b) => renderBand(b, 2, 1)).join("") + g.allDay.chips.map((c) => renderChip(c, true, 2, 1)).join("") + `</div>`;
+  const hours = Array.from({ length: 24 }, (_, h) => `<span class="pl-cg-hour" data-cg-hour style="--pl-start: ${h * 60}">${String(h).padStart(2, "0")}:00</span>`).join("");
+  const cols = g.days.map((d) => `<div class="pl-cg-col" data-cg-col="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}>`
+    + g.blocks.filter((b) => b.day === d.day).map(renderBlock).join("")
+    + (g.now?.day === d.day ? `<div class="pl-cg-now" data-cg-now style="--pl-start: ${g.now.minute}" aria-hidden="true"></div>` : "") + `</div>`).join("");
+  const mark = g.now ? `<span class="pl-cg-now-mark" data-cg-now-mark style="--pl-start: ${g.now.minute}" aria-hidden="true">▸</span>` : "";
+  return `<div class="pl-cg-sticky" data-cg-sticky><div class="pl-cg-head" style="--pl-cg-days: ${n}"><span></span>${head}</div>${allDay}</div>`
+    + `<div class="pl-cg-body" data-cg-body data-cg-focus="${g.focusMinute}" style="--pl-cg-days: ${n}"><div class="pl-cg-axis">${hours}${mark}</div>${cols}</div>`;
 }
 
 /** The calendar grid plus the undated list. `heading` names the nodes (the tag, e.g. "#Project"). */
 export function renderCalendar(layout: CalendarLayout, heading: string): string {
-  const week = layout.view === "week";
-  const weekdays = week ? "" : `<div class="pl-cal-weekdays" data-cal-weekdays aria-hidden="true">${layout.weekdays.map((d) => `<span>${d}</span>`).join("")}</div>`;
   const undated = layout.undated.length
     ? `<p class="pl-cal-undated" data-cal-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-cal-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
     : "";
-  return `<section class="pl-cal" data-calendar data-layout="${layout.view}" aria-label="${esc(`${heading} calendar, ${layout.range.label}`)}">`
-    + weekdays + layout.weeks.map((w) => renderWeek(w, week)).join("") + `</section>` + undated;
+  const label = esc(`${heading} calendar, ${layout.range.label}`);
+  if (layout.grid) {
+    return `<section class="pl-cal pl-cg" data-calendar data-layout="${layout.view}" data-cg-key="${layout.view}|${layout.range.start}" aria-label="${label}">`
+      + renderGrid(layout.grid) + `</section>` + undated;
+  }
+  const weekdays = `<div class="pl-cal-weekdays" data-cal-weekdays aria-hidden="true">${layout.weekdays.map((d) => `<span>${d}</span>`).join("")}</div>`;
+  return `<section class="pl-cal" data-calendar data-layout="${layout.view}" aria-label="${label}">`
+    + weekdays + layout.weeks.map((w) => renderWeek(w, false)).join("") + `</section>` + undated;
 }
 
 /** The action a click on `target` asks for, or null when it is not a Calendar control. */

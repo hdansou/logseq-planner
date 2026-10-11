@@ -65,3 +65,49 @@
 
 /* Undated list */
 .pl-cal-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }
+
+/* ---------------------------------------------------------------------------------------------------------------------
+   Time grids: Day, 3 days, Week (N46). A sticky head (day labels, then the all-day row) over a body of one hour axis
+   and one column per day. Everything placed by minute uses --pl-start / --pl-len (minutes); the hour is --pl-cg-hour
+   tall (kept equal to HOUR_PX in calendar.ts by a test). Overlapping blocks share a column: --pl-col of --pl-cols. */
+/* Bleeds over the view's 12px 16px padding so the sticky head sits at the very top of the scroll area */
+.pl-cg { --pl-cg-hour: 48px; --pl-cg-axis-w: 52px; min-width: 0; margin: -12px -16px; }
+.pl-cg[data-layout="week"] { min-width: 560px; }
+/* top -12px: a sticky box stops at the scroll area's padding edge, and the view has 12px of padding */
+.pl-cg-sticky { position: sticky; top: -12px; z-index: 3; background: var(--pl-surface); border-bottom: 1px solid var(--pl-line-soft);
+  max-height: 40vh; overflow-y: auto; }
+.pl-cg-head, .pl-cg-allday, .pl-cg-body { display: grid; grid-template-columns: var(--pl-cg-axis-w) repeat(var(--pl-cg-days), minmax(0, 1fr)); }
+.pl-cg-dayhead { min-width: 0; text-align: center; border-left: 1px solid var(--pl-line-soft); padding: 2px 0; }
+.pl-cg-dayhead .pl-cal-num { font-weight: 600; color: var(--pl-label-2); }
+.pl-cg-dayhead[data-today] .pl-cal-num { color: var(--pl-today); font-weight: 700; }
+.pl-cg-allday { row-gap: 2px; padding-bottom: 4px; }
+.pl-cg-axis-label { grid-column: 1; grid-row: 1; align-self: center; padding-right: 6px; text-align: right; font-size: 10.5px; color: var(--pl-label-2); }
+.pl-cg-allday-cell { grid-row: 1 / -1; border-left: 1px solid var(--pl-line-soft); }
+.pl-cg-allday .pl-cal-chip, .pl-cg-allday .pl-cal-band { z-index: 1; }
+
+.pl-cg-body { position: relative; height: calc(var(--pl-cg-hour) * 24); }
+.pl-cg-axis { position: relative; grid-column: 1; }
+.pl-cg-hour { position: absolute; left: 0; right: 6px; top: calc(var(--pl-start) / 60 * var(--pl-cg-hour)); transform: translateY(-50%);
+  text-align: right; font-size: 10.5px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-cg-hour:first-child { transform: none; }
+.pl-cg-now-mark { position: absolute; right: -4px; top: calc(var(--pl-start) / 60 * var(--pl-cg-hour)); transform: translateY(-52%); z-index: 2;
+  font-size: 11px; line-height: 1; color: var(--pl-today); }
+.pl-cg-col { position: relative; min-width: 0; border-left: 1px solid var(--pl-line-soft);
+  background-image: repeating-linear-gradient(to bottom, var(--pl-line-soft) 0, var(--pl-line-soft) 1px, transparent 1px, transparent var(--pl-cg-hour)); }
+.pl-cg-col[data-weekend] { background-color: var(--pl-fill); }
+.pl-cg-now { position: absolute; left: 0; right: 0; top: calc(var(--pl-start) / 60 * var(--pl-cg-hour)); height: 2px; margin-top: -1px;
+  background: var(--pl-today); z-index: 2; pointer-events: none; }
+
+/* A block: the node's fill and a hue stroke at the start edge; title, time, node; side by side when overlapping */
+.pl-cg-block { all: unset; box-sizing: border-box; position: absolute; z-index: 1; overflow: hidden; cursor: pointer;
+  top: calc(var(--pl-start) / 60 * var(--pl-cg-hour)); height: calc(var(--pl-len) / 60 * var(--pl-cg-hour) - 1px);
+  left: calc(var(--pl-col) / var(--pl-cols) * 100% + 2px); width: calc(100% / var(--pl-cols) - 4px);
+  display: flex; flex-direction: column; gap: 1px; padding: 2px 6px; border-radius: 5px;
+  background: var(--pl-node-fill); box-shadow: inset 3px 0 0 var(--pl-node-hue); color: var(--pl-label); font-size: 11.5px; line-height: 14px; }
+.pl-cg-block:hover { background: var(--pl-fill-strong); }
+.pl-cg-block:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+.pl-cg-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.pl-cg-time { font-size: 10.5px; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-cg-block .pl-cal-node { flex-basis: auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10.5px; }
+.pl-cg-block[data-late] { background: var(--pl-red-soft); color: var(--pl-red-text); }
+.pl-cg-block[data-done] .pl-cg-title { color: var(--pl-label-done); text-decoration: line-through; font-weight: 500; }

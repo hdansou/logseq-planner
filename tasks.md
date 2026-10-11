@@ -582,6 +582,22 @@ Live-check method (web app):
       of it (margin 1034 = 546 + 488); canvas stamped later → Planner back on the edge (margin 488); stamped earlier
       → left of it again; closing Planner removes its stamp. Not done: Outline Canvas running with the contract
       beside Planner in a real app, the stable app, real-mouse resize of either plugin.
+- [x] **N46 Calendar time grids: Week, 3 days, Day** — done 2026-10-10, seen live on the nightly (planner-project, docked).
+      Owner request (reference: a time-box widget: day columns, hour axis, blocks with times, a now line, done
+      struck through). Owner's choices: 3 days = yesterday, today, tomorrow, arrows move 3 days; Week and Day are time
+      grids too; 24 hours; tasks' Scheduled and Deadline shown. Requirement in REQUIREMENTS.md, Calendar. Built:
+      `CalendarView` = month | week | 3days | day (config `layout`; a stored `week` now draws the grid), `calendarRange`
+      / `shiftCalendarAnchor` (1 / 3 / 7 days), `layoutCalendar` → `CalendarLayout.grid: TimeGrid` for the grids
+      (`weeks` empty): `GridBlock`s by minute (a same-day timed span, a timed point, a task's timed Scheduled /
+      Deadline; 30 min default, 20 min minimum), overlap columns (`col` / `cols`), the all-day row (bands with lanes,
+      chips: untimed items and multi-day spans), `now`, `focusMinute`; `src/ui/calendar.ts` `renderGrid` (sticky head +
+      all-day row over a 24-hour body, `--pl-start` / `--pl-len` minutes, `HOUR_PX` 48 kept equal to the CSS), the
+      workspace scrolls a new range to its focus minute (`scrollGrid`, `gridScrollTop`) and keeps the scroll on a redraw
+      of the same range. Seen live: 3 days 9 – 11 Oct and 6 – 8 Oct (four DateTime nodes as blocks 09:00 – 17:00, hour
+      axis, sticky head flush at the top (found live: the sticky box stopped 12 px low under the view's padding), opens
+      at the focus minute), Week 7 columns, Day one, Today keeps the user's scroll. Not done: dragging blocks (edit
+      dates in the grid), hour zoom, working-hours collapse; overlapping blocks, a Scheduled block and the all-day row
+      on real data (unit tests only); the now line's look; the workspace (wide) surface; the stable app; real-mouse use.
 - [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`

@@ -25,7 +25,7 @@ import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } fro
 import type { UiPrefs, UiStore } from "../ui-state";
 import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, errorText, esc, flag, menu as menuHtml, options } from "./html";
-import { calendarAction } from "./calendar";
+import { calendarAction, gridScrollTop } from "./calendar";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
@@ -529,6 +529,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let drawnClock = "";
   /** The day the Timeline's Day zoom last opened its scroll for (N10); null while the Day zoom is not shown. */
   let dayScrolled: string | null = null;
+  /** The time grid (N46) range the view was last scrolled for (`data-cg-key`): a new one opens at the grid's focus minute. */
+  let gridScrolled: string | null = null;
   /** Something the user is in the middle of that a redraw must not disturb. */
   const busy = () => s.popover !== null || s.pending.size > 0 || dragging !== null || s.datePending.size > 0 || tlDrag !== null;
 
@@ -563,6 +565,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
     const folds = keep ? [...root.querySelectorAll<HTMLDetailsElement>("details")].map((d) => [selectorOf(d), d.open] as const) : [];
     const viewLeft = root.querySelector<HTMLElement>("[data-region=view]")?.scrollLeft ?? 0;
+    const viewTop = root.querySelector<HTMLElement>("[data-region=view]")?.scrollTop ?? 0;
     drawnClock = clockOf(s.config, todayNow());
     root.innerHTML = renderWorkspace(s, now);
     savePrefs();
@@ -575,6 +578,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (el) Object.assign(el, { scrollTop: scrolls[i]!.top, scrollLeft: scrolls[i]!.left });
     });
     scrollDay(viewLeft, keep);
+    scrollGrid(viewTop);
     drawTimelineLinks();
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
@@ -594,6 +598,25 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (day !== dayScrolled) view.scrollLeft = Number(tl.dataset.tlScrollLeft);
     else if (!keep) view.scrollLeft = left;
     dayScrolled = day;
+  };
+
+  /**
+   * Calendar time grids (N46): 24 hours are taller than the view, so a grid drawn for a new range (layout switch, Prev /
+   * Next / Today, a new tag) opens scrolled to its focus minute (now, else the earliest block, else 08:00). A redraw of the
+   * same range keeps the scroll the user has (`top`, read before the redraw replaced the view).
+   */
+  const scrollGrid = (top: number) => {
+    const cal = root.querySelector<HTMLElement>("[data-calendar][data-cg-key]");
+    const view = root.querySelector<HTMLElement>("[data-region=view]");
+    const body = cal?.querySelector<HTMLElement>("[data-cg-body]");
+    if (!cal || !view || !body) return void (gridScrolled = null);
+    const key = cal.dataset.cgKey!;
+    if (key !== gridScrolled) {
+      const bodyTop = body.getBoundingClientRect().top - view.getBoundingClientRect().top + view.scrollTop;
+      const sticky = cal.querySelector<HTMLElement>("[data-cg-sticky]")?.getBoundingClientRect().height ?? 0;
+      view.scrollTop = gridScrollTop(Number(body.dataset.cgFocus), bodyTop, sticky);
+    } else view.scrollTop = top;
+    gridScrolled = key;
   };
 
   /**

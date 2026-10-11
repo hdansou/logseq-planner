@@ -10,7 +10,7 @@ export const VIEW_KINDS = ["timeline", "calendar", "agenda", "kanban"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
 const ZOOMS = ["day", "week", "month", "quarter"] as const;
-const LAYOUTS = ["month", "week"] as const;
+const LAYOUTS = ["month", "week", "3days", "day"] as const;
 const GROUPS = ["node", "date"] as const;
 const SORTS = ["due", "priority", "title"] as const;
 /** Timeline row order with two or more tags (N14): by date, a heading per tag, or children nested under their parent. */

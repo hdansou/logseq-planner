@@ -116,9 +116,8 @@ describe("week grid", () => {
   it("seven day columns of the anchor's week, labelled with weekday and day", async () => {
     const l = await layout("Project", "week");
     expect(l.range).toEqual({ start: "2026-09-27", end: "2026-10-03", label: "27 Sep – 3 Oct 2026" });
-    expect(l.weeks).toHaveLength(1);
-    expect(l.weeks[0].days.map((x) => x.label)).toEqual(["Sun 27", "Mon 28", "Tue 29", "Wed 30", "Thu 1", "Fri 2", "Sat 3"]);
-    expect(l.weeks[0].days.every((x) => !x.outside)).toBe(true);
+    expect(l.weeks).toEqual([]); // a time grid (N46), not week rows
+    expect(l.grid!.days.map((x) => x.label)).toEqual(["Sun 27", "Mon 28", "Tue 29", "Wed 30", "Thu 1", "Fri 2", "Sat 3"]);
   });
 
   it("follows the week start (Monday)", () => {
@@ -223,14 +222,14 @@ describe("chips", () => {
 
   it("Meeting, week of 27 Sep: Kickoff carries its time; Late review 4 Oct 23:45 is in the next week", async () => {
     const l = await layout("Meeting", "week");
-    const [kick] = chipsOn(l, TODAY);
-    expect(kick).toMatchObject({ kind: "point", title: "Kickoff", time: "10:30", row: 0 });
+    const kick = l.grid!.blocks.find((b) => b.day === TODAY)!;
+    expect(kick).toMatchObject({ kind: "point", title: "Kickoff", timeLabel: "10:30", startMin: 630 });
     expect(kick.label).toBe("Kickoff, 3 Oct 10:30");
     const next = await layout("Meeting", "week", { anchor: "2026-10-04" });
-    expect(chipsOn(next, "2026-10-04")[0]).toMatchObject({ title: "Late review", time: "23:45" });
+    expect(next.grid!.blocks.find((b) => b.day === "2026-10-04")).toMatchObject({ title: "Late review", timeLabel: "23:45" });
   });
 
-  it("Week: untimed chips first, then by time (then title); rows stack below the bands", () => {
+  it("Week: untimed chips by title in the all-day row below the bands; timed ones are blocks by time", () => {
     const p = tag("Project");
     const s = dateIdent(p, "Start");
     const e = dateIdent(p, "End");
@@ -242,12 +241,10 @@ describe("chips", () => {
       node(4, "Untimed b", d("2026-09-30")), node(5, "Untimed a", d("2026-09-30")),
     ];
     const l = layoutCalendar({ items: viewItems(nodes, [], () => ({ start: s, end: e }), statusValues), layout: "week", anchor: TODAY, today: TODAY, weekStart: 0, statusValues, titles: new Map() });
-    const chips = chipsOn(l, "2026-09-30");
-    expect(chips.map((c) => [c.title, c.time, c.row])).toEqual([
-      ["Untimed a", null, 1], ["Untimed b", null, 2], ["Early one", "08:15", 3], ["Late one", "16:00", 4],
-    ]);
-    expect(l.weeks[0].rows).toBe(5);
-    expect(dayOf(l, "2026-09-30").more).toBe(0);
+    const grid = l.grid!;
+    expect(grid.allDay.chips.filter((c) => c.at === 3).map((c) => [c.title, c.time, c.row])).toEqual([["Untimed a", null, 1], ["Untimed b", null, 2]]);
+    expect(grid.blocks.map((b) => [b.title, b.timeLabel])).toEqual([["Early one", "08:15"], ["Late one", "16:00"]]);
+    expect(grid.allDay.rows).toBe(3);
   });
 });
 
@@ -278,9 +275,8 @@ describe("Month overflow", () => {
 
   it("Week shows everything: all lanes, no '+N more'", () => {
     const l = synthetic(spec, "week", { anchor: "2026-10-06" });
-    expect(l.weeks[0].bands.map((b) => b.lane)).toEqual([0, 1, 2, 3]);
-    expect(chipsOn(l, "2026-10-06").map((c) => [c.title, c.row])).toEqual([["P1", 4], ["P2", 5]]);
-    expect(l.weeks[0].days.every((x) => x.more === 0)).toBe(true);
+    expect(l.grid!.allDay.bands.map((b) => b.lane)).toEqual([0, 1, 2, 3]);
+    expect(l.grid!.allDay.chips.filter((c) => c.at === 2).map((c) => [c.title, c.row])).toEqual([["P1", 4], ["P2", 5]]);
   });
 });
 
