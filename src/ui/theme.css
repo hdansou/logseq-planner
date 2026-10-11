@@ -40,7 +40,7 @@ html.dark {
 
 /* `hidden` always hides: component display rules (and `all: unset`) otherwise beat the UA rule (seen live, T07 D6). */
 [hidden] { display: none !important; }
-html, body { margin: 0; background: var(--pl-surface); color: var(--pl-label); font: 14px/1.4 var(--pl-font), "Planner Icons"; }
+html, body { margin: 0; background: var(--pl-surface); color: var(--pl-label); font: 14px/1.4 "Planner Icons", var(--pl-font); }
 /* Focus: a 2px ring in --pl-ring on every control (tint-soft alone is too faint on borderless controls);
    inputs and selects add the tint border and the soft halo (below). */
 :focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 1px; }

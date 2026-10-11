@@ -211,9 +211,11 @@ describe("--pl-label-done", () => {
 });
 
 describe("icon characters in titles and values (N55)", () => {
-  // The host's icon font is borrowed at runtime (src/ui/host-icons.ts) under this family name; every font stack ends with it.
-  it("ends the base font stack with the borrowed icon family, so no text gets a box", () => {
-    expect(css).toMatch(/html, body {[^}]*font:[^;}]*var\(--pl-font\), "Planner Icons"/);
+  // The host's icon font is borrowed at runtime (src/ui/host-icons.ts) under this family name. It comes FIRST in the stack: it
+  // only covers the private-use range, and a system fallback font (the generic family) would otherwise claim those code
+  // points and draw a CJK or Latin glyph instead (seen live: pacman U+EEBC drew as a CJK character).
+  it("puts the borrowed icon family before the base font stack", () => {
+    expect(css).toMatch(/html, body {[^}]*font:[^;}]*"Planner Icons", var\(--pl-font\)/);
   });
 
   it("bundles no font file", () => {
