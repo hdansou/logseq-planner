@@ -9,6 +9,26 @@ All notable changes to this project are documented here. The format follows
 Version 0.1.0 is in progress: the workspace and the four views are built and were checked in the Logseq web app
 (see the limits in README.md). It has not been released.
 
+### Added (N39 to N60)
+
+- **Icon header and Focus** (N39, N48): one row of view tabs and six icon buttons (Focus, View settings, Panel with a filter
+  badge, a dock button, Saved views, Close), no ⋯ menu; under 480 px the icons wrap under the tabs. The settings bar opens from the
+  sliders button and starts folded. Focus hides the top rows behind a one-line strip.
+- **Sidebar surface** (N06a, N40, N43 to N45): Planner docks on the window's right edge beside Logseq's own sidebar, with its own
+  resize handle; a click on a node keeps it open; it docks beside other docked plugins by the shared dock-order contract
+  (docs/dock-order.md). On macOS it starts at the window top.
+- **Calendar time grids** (N46, N47, N56): Day, 3 days and Week as 24-hour grids with an all-day row, a now line, Scheduled and
+  Deadline of tasks, overlapping blocks side by side, and drag, resize and Alt+Arrow editing of dates with Edit dates on. A
+  one-date block shows its title and time on one line.
+- **Icon characters in values** (N55): tabler-icons characters in choice values and titles draw with the host's own icon font
+  instead of boxes.
+- **Where Planner stores its data** (N41, N50 to N52, N60): the view on screen follows the graph on a hidden page "Plugin state:
+  Planner"; saved views live on "Plugin views: Planner" in a hidden text property `planner-view-json` as pretty JSON. A graph
+  with the older "Planner views" page or `planner-view-config` property is migrated on first read; nothing is lost if the rename
+  is refused. The convention is written up in docs/plugin-config.md.
+- **Hardening** (N58): the plugin id is validated before it goes into a CSS selector, and the host icon font is only followed from
+  the host's own origin.
+
 ### Changed
 
 - The tag and filter panel is on the right of the view (N13): the body is the view, then the panel (`1fr 220px`), in
@@ -25,6 +45,7 @@ Version 0.1.0 is in progress: the workspace and the four views are built and wer
   default. Escape closes an open menu, then the drawer, then Planner (each prevented, so never forwarded to the host);
   a click on the view closes it too. Wide and narrow keep their own open state; the width listener is removed on
   unload (`stop()`).
+- (Reversed on macOS by N57, with N59: the workspace covers the whole window, its frame is `no-drag`, and the top row leaves room for the window buttons.)
 - The workspace starts under the app header instead of covering the whole window (N15): the frame's top and height
   come from the host's `--ls-headbar-height` (fallback 3rem), so the window moves by the host header, zooms on a
   header double-click and resizes by its edges as usual. The toolbar button now toggles Planner (opens, and hides

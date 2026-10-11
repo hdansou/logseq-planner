@@ -603,6 +603,15 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N61 Pre-release docs pass** — done 2026-10-11 (production-readiness review C1, C2, C3, E).
+      README: top bar icons, Workspace / Sidebar section rewritten (macOS full window, dock toggle, dock order), four writes,
+      Calendar time grids and their editing, the UI state in the graph, the one host font read. CHANGELOG `[Unreleased]`: an
+      "Added (N39 to N60)" block and a note that N57 reverses N15 on macOS. Screenshots retaken on the nightly (planner-project):
+      kanban, timeline-nested, day-zoom, sidebar (docked, with a page open) and a new calendar-3days; in-page-block.png is
+      unchanged (a page block, no Planner chrome). C3 (manifest): left as it is. The host (`handler/plugin.cljs`) lists marketplace
+      packages on the web app only when `web` is true or `effect` is not true, so Planner, with neither, is listed everywhere;
+      adding `effect: true` would hide it from the web marketplace unless `web: true` is also set, and none of the owner's other
+      plugins declare either. Not done: the in-page-block screenshot, the push of the shared repo (see below).
 - [x] **N60 The shared config package is vendored (release blocker)** — done 2026-10-11.
       Production-readiness review D1: the `file:../logseq-dev/plugin-dev/logseq-plugin-config` dependency (N53) made `npm ci` fail in
       CI and in the release workflow (the sibling folder is not there). The package's sources and tests are copied into

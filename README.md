@@ -4,17 +4,20 @@ Planner shows the nodes of any tag in a Logseq DB graph as a Timeline, a Calenda
 Agenda or a Kanban board. It works with built-in tags such as #Task and with tags you create.
 It runs in three places:
 
-- **Workspace**: a full-window view under the app header (the window moves and resizes as usual).
-- **Sidebar** (desktop app): docked over Logseq's right sidebar, beside the page you are reading.
+- **Workspace**: Planner alone on screen. On macOS it covers the whole window, app header included; Escape goes back to the page.
+  On other systems it fills the window under the app header.
+- **Sidebar** (desktop app): docked on the window's right edge, beside the page you are reading and beside Logseq's own right sidebar.
 - **In a page**: a read-only copy of a saved view, in a block (`/Planner view`).
 
 ![The Timeline in Nested arrangement: milestones with their tasks as indented rows, bars with progress, and dependency arrows.](docs/screenshots/timeline-nested.png)
 
-![The Timeline in Day zoom: DateTime spans placed by their times, with a now line.](docs/screenshots/day-zoom.png)
+![The Timeline in Day zoom: DateTime spans placed by their times, with dependency arrows.](docs/screenshots/day-zoom.png)
 
 ![The Kanban board: one column per Status value, cards with due dates, and the Show menu that hides columns.](docs/screenshots/kanban.png)
 
-![Planner docked in Logseq's right sidebar, next to an open page.](docs/screenshots/sidebar.png)
+![The Calendar in its 3 days grid: timed blocks placed by their minutes, overlapping blocks side by side, a one-date item on one line.](docs/screenshots/calendar-3days.png)
+
+![Planner docked on the right edge of the window, next to an open page.](docs/screenshots/sidebar.png)
 
 ![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
 
@@ -73,21 +76,31 @@ so its own keys work again.
 
 ### Workspace or sidebar
 
-On the desktop app the top bar has a **Workspace | Sidebar** switch, before **Saved views**.
-**Workspace** (the default) fills the window under the app header. **Sidebar** opens Logseq's
-right sidebar and puts Planner in it, so the page and Planner are side by side:
+The top bar has six icon buttons at the right, each named by its tooltip: **Focus**, **View settings**, **Panel**, a dock
+button, **Saved views** and **Close**. In a narrow frame (under 480 px) they wrap to a second row under the view tabs.
 
-- Drag Logseq's own handle on the sidebar's left edge to make Planner wider or narrower; it
-  follows, and it follows the window too.
-- While Planner is there it covers the sidebar's own content. Close Planner (Close, Escape or the
-  toolbar button) and the sidebar's content shows again; the sidebar stays open.
-- If you close Logseq's sidebar, Planner closes with it. The next time you open Planner it opens
-  the sidebar again and docks in it.
-- Switch back to **Workspace** for the full window; the sidebar stays as it is.
+On the desktop app the dock button switches between the two places. It reads **Dock to the right** in the workspace and
+**Back to the workspace** when docked.
 
-The choice lasts until Logseq reloads the plugin. In a narrow sidebar the top bar wraps and,
-under 640 px, the panel is a drawer (see **Panel** below). The web app has no switch: Planner's
-frame there cannot reach the sidebar.
+- **Workspace** (the default) is Planner alone. On macOS it covers the app header too, because the header's controls would
+  act on the page behind Planner. The window buttons sit at the top left, so Planner's top row starts after them; the strip
+  above Planner no longer moves the window (move it by its edge). Escape or **Close** returns to the page.
+- **Sidebar** docks Planner on the right edge of the window, from the very top on macOS. Logseq's own right sidebar opens
+  beside it and neither moves the other: Planner reserves its strip in the layout, so the page and Planner are side by side.
+
+When docked:
+
+- Drag the handle on Planner's left edge to make it wider or narrower (double-click: 40% of the window; the arrow keys also
+  work). The width is remembered on this device.
+- Clicking a node opens it in the page and keeps Planner open. In the workspace a click opens the node and hides Planner;
+  Shift+click opens it in Logseq's right sidebar and keeps Planner open in both places.
+- Closing Planner (**Close**, Escape or the toolbar button) gives the strip back. The place you chose is kept.
+- If another plugin is docked on the right edge too (such as Outline Canvas with the same dock-order contract,
+  [docs/dock-order.md](docs/dock-order.md)), Planner docks beside it instead of over it, and follows it when it resizes or hides.
+
+The place you chose is remembered per graph. The web app has no dock button: Planner's frame there cannot reach the host.
+
+**Focus** hides the top bar, settings and view toolbar behind a one-line strip that names the view; its button brings them back.
 
 ### A Planner view in a page
 
@@ -130,13 +143,15 @@ have no dependencies.
 
 ### Settings bar and filters
 
+The **View settings** button (sliders icon) in the top bar opens the settings bar below it, which starts folded.
+
 | Control | What it does |
 |---|---|
 | **Start**, **End** | The Date or DateTime properties that give a node its span. The defaults are the properties named Start and End; if the tag has none, Scheduled and Deadline; if it has none, its first date property. **End** can be set to None. |
 | **Dates** | With several tags, in place of Start and End: one menu ("Dates: 2 tags") with a row per tag, each with that tag's Start and End lists and the same defaults. |
 | **Depends on** | Shown when the tag (with several tags: any of them) has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None, and it follows the view's tags until you choose one. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
-| **Panel** | The last control in the settings bar. Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, it shows how many values are ticked, for example **Panel · 2**. Planner keeps the choice until Logseq restarts. When Planner is narrower than 640 px, the panel starts closed and opens as a drawer over the view; Escape or a click on the view closes it. |
+| **Panel** (funnel icon, top bar) | Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, a badge on the button shows how many values are ticked, for example 2. Planner keeps the choice until Logseq restarts. When Planner is narrower than 640 px, the panel starts closed and opens as a drawer over the view; Escape or a click on the view closes it. |
 | Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. With several tags, a **Tag** group comes first: tick tags to show only their nodes. |
 
 How a node gets its dates:
@@ -195,14 +210,18 @@ previous and next buttons and **Today** move the period.
   each other: the later one goes under the earlier. A reference through the **Depends on**
   property does not nest.
 
-**Calendar.** All-day items only.
+**Calendar.** Month, or a time grid for a day, three days or a week.
 
-- **Layout**: Month or Week. Month shows the whole weeks of the anchor's month.
-- Span nodes are bands that keep the same lane across weeks. One-date nodes and the
-  Deadline of linked tasks are chips, red when the task is late. Scheduled dates are not shown.
-- Month shows three item rows per day, then **+N more**, which opens that week.
-- Week lists items by time and shows the time of DateTime values.
-- The first day of the week follows Logseq's start-of-week setting.
+- **Layout**: Day, 3 days (yesterday, today and tomorrow around the anchor; the arrows move three days), Week or Month.
+  The first day of the week follows Logseq's start-of-week setting.
+- **Month** shows the whole weeks of the anchor's month. Span nodes are bands that keep the same lane across weeks. One-date
+  nodes and the Deadline of linked tasks are chips, red when the task is late. Scheduled dates are not shown. It shows three
+  item rows per day, then **+N more**, which opens that week.
+- **Day, 3 days and Week** are time grids of 24 hours, opening around the current time. Items with a time are blocks placed by
+  their minutes (a point or deadline is a 30-minute block, drawn on one line; overlapping blocks sit side by side); items
+  without a time are in the all-day row, spans as bands. Tasks' Scheduled and Deadline dates are shown too. A line marks now.
+- With **Edit dates** on, drag a block to move it (to another day or time, in 15-minute steps), drag its top or bottom edge to
+  change its start or end, or use Alt+Arrow keys (Alt+Shift+Up and Down change the end). Each edit is written and read back.
 
 **Agenda.** A list of what is overdue and what is coming. A task is overdue when it is late
 (open, and its Deadline, or its Scheduled date when it has no Deadline, is before today); it
@@ -304,9 +323,10 @@ write is running.
 When you open another graph in the same Logseq session, Planner loads the new graph and opens it as you left
 it (see below); a graph you never used opens with the default view, and the surface stays as it is.
 
-Planner remembers, per graph: the view on screen (tags, kind and settings, and the saved view it belongs to),
-whether the side panel is open, Workspace or Sidebar, and Edit dates. This is kept in the plugin's settings on
-this device, not in the graph, so it does not sync. The period you are looking at and expanded rows are not
+Planner remembers, per graph: the view on screen (tags, kind and settings, and the saved view it belongs to) and the
+Timeline's title width, which are stored in the graph (hidden page "Plugin state: Planner") and follow it to your other
+devices; and whether the side panel is open, Workspace or Sidebar, and Edit dates, which are kept in the plugin's settings on
+this device. The period you are looking at and expanded rows are not
 remembered.
 Planner also checks the graph every 30 seconds while it is visible. While hidden, it only
 notes that data may be stale and reloads once when you open it again.
@@ -327,17 +347,19 @@ Planner reads, through Logseq's database queries:
 - the titles of blocks that those titles link to;
 - Logseq's start-of-week setting and theme values.
 
-Planner writes three things, and nothing else:
+Planner writes four things, and nothing else:
 
 1. **Saved views.** One block per view on the page "Plugin views: Planner", with the view's JSON in
    the hidden text property `planner-view-json` (an older "Planner views" page and `planner-view-config` property are
    renamed and moved when Planner first reads them; Planner also keeps its UI state on the hidden page "Plugin state: Planner"). Planner creates the page and the
    property when you first save.
 2. **Kanban moves.** The column or swimlane property of the card you moved.
-3. **Timeline date edits** (only with Edit dates on). The Start and/or End property of the bar you moved or resized.
-   For a Date property this can create the journal page of the new day.
+3. **Date edits** (only with Edit dates on). The Start and/or End property of the bar or block you moved or resized, in the
+   Timeline and in the Calendar's Day, 3 days and Week grids. For a Date property this can create the journal page of the new day.
+4. **Its UI state.** The view on screen and the Timeline's title width, in the hidden property `planner-ui-state` of the hidden page
+   "Plugin state: Planner" (it does not show in All pages or search).
 
-Planner makes no network calls.
+Planner makes no network calls. On the desktop app it reads one file from Logseq itself, the icon font the app already loads, so that icon characters in your values draw as they do in the page.
 
 ## Limits and known issues
 
@@ -346,13 +368,12 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 **Scope**
 
-- Planner writes only Kanban moves and, with Edit dates on, Timeline date edits. Calendar, Agenda and the in-page view
-  never edit dates.
+- Planner writes only Kanban moves, its UI state and, with Edit dates on, date edits in the Timeline and the Calendar grids. Month,
+  Agenda and the in-page view never edit dates.
 - Edit dates was checked live on the desktop app (move and resize of a DateTime and a Date span, Day zoom, Escape,
   Alt+Arrow keys). Not checked: a diamond, a failed write, the sidebar surface, the block staying read-only (unit-tested
   only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.
-- No view defined by a free query, no filters per tag. No day view or hour grid in the Calendar (the Timeline has a Day zoom),
-  no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
+- No view defined by a free query, no filters per tag. No zoom of the Calendar's hour height or collapsing of working hours, no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - The sidebar surface is desktop only. It was checked live there, with a real-mouse drag of Logseq's sidebar handle
   on the stable app; not the narrow drawer while docked, and not the web app (which shows no switch).
 - The in-page block was checked live on the desktop app, but not the slash command (the caret lands after `}}`), the
