@@ -118,7 +118,7 @@ describe("per-graph UI state (N21)", () => {
     const desktop = fakePrefs({ surface: "sidebar" });
     await setup({ prefs: desktop.prefs, setSurface });
     expect(setSurface).toHaveBeenCalledWith("sidebar");
-    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("workspace");
     expect(desktop.state.stored.surface).toBe("sidebar");
 
     const web = fakePrefs({ surface: "sidebar" });

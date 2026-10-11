@@ -88,17 +88,18 @@ describe("compact header (N39)", () => {
     expect(document.activeElement).toBe($("[data-control=saved-views]"));
   });
 
-  it("the dock button is one toggle: pressed in the docked mode", async () => {
+  it("the dock button names where it goes: Dock to the right, then Back to the workspace", async () => {
     const setSurface = vi.fn();
     const ws = await setup({ setSurface });
-    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
+    expect($("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("sidebar");
     await click("[data-action=toggle-surface]", ws);
     expect(setSurface).toHaveBeenLastCalledWith("sidebar");
-    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("workspace");
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-label")).toBe("Back to the workspace");
     expect(document.activeElement).toBe($("[data-action=toggle-surface]"));
     await click("[data-action=toggle-surface]", ws);
     expect(setSurface).toHaveBeenLastCalledWith("workspace");
-    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
+    expect($("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("sidebar");
   });
 
   it("the Panel button is an icon named Panel; hidden, it shows the ticked filters as a badge", async () => {

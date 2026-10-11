@@ -641,7 +641,7 @@ describe("surface switch (N06a)", () => {
   it("a dock toggle in the top bar (N48), not pressed in the Workspace mode", async () => {
     await setup({ setSurface: vi.fn() });
     const dock = $("[data-region=topbar] [data-action=toggle-surface]")!;
-    expect([dock.getAttribute("aria-pressed"), dock.getAttribute("aria-label"), (dock as HTMLButtonElement).type]).toEqual(["false", "Dock to the right", "button"]);
+    expect([dock.getAttribute("data-surface-to"), dock.getAttribute("aria-label"), (dock as HTMLButtonElement).type]).toEqual(["sidebar", "Dock to the right", "button"]);
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
 
@@ -651,7 +651,7 @@ describe("surface switch (N06a)", () => {
     $("[data-action=toggle-surface]")!.focus();
     await click(ws, "[data-action=toggle-surface]");
     expect(setSurface).toHaveBeenCalledWith("sidebar");
-    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("workspace");
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
     expect(document.activeElement).toBe($("[data-action=toggle-surface]"));
     await click(ws, "[data-action=toggle-surface]");

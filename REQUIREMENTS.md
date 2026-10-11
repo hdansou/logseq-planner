@@ -78,7 +78,7 @@ Calendar, Agenda or Kanban board, in a workspace that fills the window under the
   Cmd+Shift+P and `t t` work with Planner open; not available in the web app (cross-origin frame).
 - **Compact header and focus mode** (N39, owner 2026-10-09; both surfaces). The header is one row: icon tabs for the
   four views (the pressed one named; all named from 640 px), then six icon buttons, each named by its tooltip (N48,
-  owner 2026-10-11, no ⋯ menu): focus (corner brackets), ⚙ settings, Panel (funnel), dock (on / off, lit while docked),
+  owner 2026-10-11, no ⋯ menu): focus (corner brackets), ⚙ settings, Panel (funnel), dock (one button that names where it goes: "Dock to the right" with a side-pane icon, then "Back to the workspace" with a window icon),
   Saved views (bookmark, opens its menu) and Close (×). Under 480 px the six wrap to a second row under the tabs. ⚙ opens
   the settings bar (Tag, Dates, Depends on, Done when) in place; it starts folded. Focus hides the header, the settings bar and the view toolbar behind one strip that names the view and its
   tags; its corner-brackets button brings them back. Both are session state: not saved with a view, not remembered per graph.

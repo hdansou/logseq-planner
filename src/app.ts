@@ -64,6 +64,11 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   let shownPx = 0;
   let keptPx: number | null = null;
   const windowPx = () => host?.defaultView?.innerWidth ?? 0;
+  /**
+   * N49: docked, the host's header ends where the reserved strip starts, so on macOS (window buttons at the left) the strip
+   * above Planner is empty: Planner starts at the window's top. Elsewhere the window controls sit at the right: stay under the header.
+   */
+  const dockTop = () => (/Mac/.test(host?.defaultView?.navigator.userAgent ?? "") ? "0px" : HEADBAR);
   /** N44: the room other plugins' docked frames take on the right edge; Planner docks to the left of it. */
   let offsetPx = 0;
   let rankN = 0;
@@ -75,7 +80,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
   const dockWidth = () => clampDockWidth(keptPx ?? deps.dockWidth.read() ?? wantedPx ?? defaultDockWidth(viewport()), viewport());
   const applyDock = (px: number, animate: boolean) => {
     shownPx = px;
-    deps.setFrame(dockFrame(px, HEADBAR, offsetPx));
+    deps.setFrame(dockFrame(px, dockTop(), offsetPx));
     deps.provideStyle({ key: DOCK_STYLE_KEY, style: dockHostStyle(deps.pluginId(), px, animate, offsetPx, rankN) });
   };
   const measure = () => {

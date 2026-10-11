@@ -603,6 +603,11 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N49 Docked Planner from the window top; the way back is named** — done 2026-10-11, seen live on the nightly.
+      Owner request: reclaim the strip above the docked frame (on macOS; elsewhere the window controls sit at the right, so it
+      stays under the header; `dockTop()` in app.ts, a unitless `0` would make the `calc` height invalid, so `0px`). The dock
+      button now shows where it goes (side-pane icon "Dock to the right", window icon "Back to the workspace", `data-surface-to`)
+      because the lit icon was not read as the way back. The strip above Planner is no longer a window drag area.
 - [x] **N47 Edit dates in the Calendar time grids** — done 2026-10-10, seen live on the nightly (planner-project, docked).
       Owner request ("do drag and edit first"). `CalendarInput.edit` / `pending`, `GridBlock.edit` / `span` / `pending`,
       `TimeGrid.editing`, pure `gridDelta(block, mode, range, days, quarters)` (days stay on the range, a move stays inside its

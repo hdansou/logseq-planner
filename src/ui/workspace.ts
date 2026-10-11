@@ -318,7 +318,9 @@ function renderTopBar(s: State): string {
     + ibtn("toggle-focus", "Focus: hide the controls", "focus", ` aria-pressed="${s.focus}"`)
     + ibtn("toggle-settings", "View settings", "gear", ` aria-expanded="${s.settingsOpen}" aria-controls="pl-settings"`)
     + renderPanelToggle(s)
-    + (s.canDock ? ibtn("toggle-surface", "Dock to the right", "dock", ` aria-pressed="${s.surface === "sidebar"}"`) : "")
+    + (s.canDock ? (s.surface === "sidebar"
+      ? ibtn("toggle-surface", "Back to the workspace", "workspace", ` data-surface-to="workspace"`)
+      : ibtn("toggle-surface", "Dock to the right", "dock", ` data-surface-to="sidebar"`)) : "")
     + savedViews
     + ibtn("close", "Close", "close")
     + `</div></header>`;
@@ -331,6 +333,7 @@ const ICONS = {
   gear: `<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>`,
   panel: `<path d="M2 3h12L9.5 8.5V13l-3-1.5V8.5z"/>`,
   dock: `<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/>`,
+  workspace: `<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M2 6.5h12"/>`,
   bookmark: `<path d="M4.5 2.5h7v11L8 11l-3.5 2.5z"/>`,
   close: `<path d="M4 4l8 8M12 4l-8 8"/>`,
 };

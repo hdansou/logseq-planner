@@ -581,13 +581,13 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
   });
 
   /** A second window as the host (1500 px wide), with Logseq's own right sidebar in it, which Planner must leave alone. */
-  function docked(views: ViewBlock[] = []) {
+  function docked(views: ViewBlock[] = [], userAgent?: string) {
     const f = fakeDeps();
     if (views.length) {
       f.deps.storage = fakeStorage({ blocks: views });
       f.deps.dq.mockImplementation(fixtureDq() as never);
     }
-    const win = new Window();
+    const win = new Window(userAgent ? { settings: { navigator: { userAgent } } } : undefined);
     win.happyDOM.setViewport({ width: 1500, height: 900 });
     const host = win.document as unknown as HostDocument & Document;
     host.body.innerHTML = `<div id="right-sidebar" class="cp__right-sidebar closed"><div class="resizer"></div></div>`;
@@ -603,7 +603,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
   const DOCKED = (width: number, offset = 0) => dockFrame(width, HEADBAR, offset);
   const switchTo = (surface: "workspace" | "sidebar") => {
     const dock = root.querySelector<HTMLButtonElement>("[data-action=toggle-surface]")!;
-    if ((dock.getAttribute("aria-pressed") === "true") !== (surface === "sidebar")) dock.click();
+    if (dock.getAttribute("data-surface-to") === surface) dock.click();
   };
   const opened = async (d: ReturnType<typeof docked>) => {
     modelHandler(d.deps)();
@@ -634,6 +634,17 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     expect(root.querySelector("[data-dock-resize]")).toBeNull();
   });
 
+  it("on macOS the docked frame starts at the top of the window, where the header has nothing to show beside it (N49); elsewhere it stays under the header", async () => {
+    const mac = docked([], "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Electron/30");
+    await opened(mac);
+    switchTo("sidebar");
+    expect(mac.lastFrame()).toEqual(dockFrame(600, "0px"));
+    const other = docked([], "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Electron/30");
+    await opened(other);
+    switchTo("sidebar");
+    expect(other.lastFrame()).toEqual(dockFrame(600, HEADBAR));
+  });
+
   it("Sidebar docks at the right edge, 40% of the window, and reserves that strip in the host layout; the host's sidebar is not touched", async () => {
     const d = docked();
     await opened(d);
@@ -641,7 +652,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     expect(d.lastFrame()).toEqual(DOCKED(600));
     expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
     expect(d.sidebar.className).toBe("cp__right-sidebar closed");
-    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("workspace");
     expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
     expect(root.querySelector("[data-dock-resize]")!.getAttribute("role")).toBe("separator");
   });
@@ -651,7 +662,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     d.deps.prefs.read.mockReturnValue({ logseq_db_test: { ...DEFAULT_PREFS, surface: "sidebar" } });
     await opened(d);
     await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600)));
-    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("workspace");
     switchTo("workspace");
     await vi.waitFor(() => expect(d.deps.prefs.write.mock.lastCall![1].surface).toBe("workspace"));
     expect(d.deps.prefs.write.mock.lastCall![0]).toBe("logseq_db_test");
@@ -802,7 +813,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
     expect(d.lastStyle()).toBe("");
     await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.getAttribute("aria-label")).toContain("Roadmap"));
-    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("data-surface-to")).toBe("sidebar");
   });
 
   it("dragging the handle widens the frame and the reserved strip together without animation, and keeps the width on release", async () => {
