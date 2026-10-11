@@ -704,7 +704,8 @@ Live-check method (web app):
       two Alt+Up put it back (11:00 – 13:00). Not seen: resize edges with the real mouse and on real data (no DateTime span
       block on screen besides these; unit tests with a hand-made grid), the stable app, the wide workspace surface. N34's End
       read 10:00 while checking: the owner had changed it from 11:00, not this item's write.
-- [ ] **N05 Release** — prepared locally on 2026-10-04, NOT published; waits for the owner's
+- [ ] **N05 Release** — 2026-10-11: the owner said go; version 1.0.0, the author email rewritten to the GitHub noreply address
+      before the first push (backup bundle `../logseq-planner-before-rewrite.bundle`), CHANGELOG cut. Earlier note: prepared locally on 2026-10-04, NOT published; waits for the owner's
       go-ahead. Done: MIT LICENSE; `package.json` marketplace metadata (repository
       `hdansou/logseq-planner`, `private` removed, version still 0.1.0); `.github/workflows`
       ci.yml and publish.yml (Node 24; the zip holds README, LICENSE, package.json, icon.svg,

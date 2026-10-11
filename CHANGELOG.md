@@ -6,8 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-Version 0.1.0 is in progress: the workspace and the four views are built and were checked in the Logseq web app
-(see the limits in README.md). It has not been released.
+## [1.0.0] - 2026-10-11
+
+First release. The workspace, the sidebar surface and the four views (Timeline, Calendar, Agenda, Kanban) are built and were
+checked in the Logseq desktop app (nightly and stable 2.0.2) and partly in the web app; see the limits in README.md.
 
 ### Added (N39 to N60)
 
