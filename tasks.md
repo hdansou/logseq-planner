@@ -603,6 +603,12 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N60 The shared config package is vendored (release blocker)** — done 2026-10-11.
+      Production-readiness review D1: the `file:../logseq-dev/plugin-dev/logseq-plugin-config` dependency (N53) made `npm ci` fail in
+      CI and in the release workflow (the sibling folder is not there). The package's sources and tests are copied into
+      `src/vendor/plugin-config` (README there: source commit, change upstream first), the dependency and its lockfile
+      entries are gone, imports are relative. `npm ci --dry-run`, typecheck, 1,214 tests and the build pass. The shared repo keeps
+      its own copy for the owner's other plugins.
 - [x] **N59 The workspace's top bar is clickable (macOS)** — done 2026-10-11, seen live with a REAL mouse click on the nightly.
       Owner report after N57: the view tabs could not be switched. The host header is a window drag region
       (`-webkit-app-region: drag`, the reason for N15) and Electron swallows real clicks on what is drawn over it; CDP clicks

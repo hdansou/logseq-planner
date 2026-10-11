@@ -3,7 +3,7 @@
 import { isPropertyIdent, type Dq } from "./core/schema";
 import { weekStartFromHost } from "./core/layout-common";
 import type { HostDocument } from "./ui/host-keys";
-import { createStateStore, ensureHiddenProperty, type ConfigSdk, type PropertyType } from "logseq-plugin-config";
+import { createStateStore, ensureHiddenProperty, type ConfigSdk, type PropertyType } from "./vendor/plugin-config";
 import { CONFIG_KEY, fenceJson, LEGACY_CONFIG_KEY, LEGACY_PAGE_TITLE, PAGE_TITLE, propertyText, STATE_KEY, unfenceJson } from "./storage";
 import type { GraphStateDeps, UiStateDeps } from "./ui-state";
 import type { AppDeps, ChangesSdk, DateWriteDeps, Frame, KanbanWriteDeps, StorageDeps, ViewBlock } from "./types";

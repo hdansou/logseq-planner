@@ -51,8 +51,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
-    "@logseq/libs": "^0.3.4",
-    "logseq-plugin-config": "file:../logseq-dev/plugin-dev/logseq-plugin-config"
+    "@logseq/libs": "^0.3.4"
   },
   "overrides": {
     "dompurify": "^3.4.16",

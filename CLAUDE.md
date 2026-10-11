@@ -6,7 +6,7 @@ docs/design.md before changing UI.
 
 ## Stack
 
-TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for DOM tests), `logseq-plugin-config` (N53: the owner's config helpers, a local `file:../logseq-dev/plugin-dev/logseq-plugin-config` dependency consumed from source: a build needs that sibling repo; docs/plugin-config.md),
+TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for DOM tests), the owner's config helpers vendored in `src/vendor/plugin-config` (N53, vendored by N60: a copy of the shared `logseq-plugin-config` repo, no dependency, CI needs nothing else; change the shared repo first, then copy; docs/plugin-config.md),
 `@logseq/libs` from the `next` dist-tag (floor ^0.3.4). DB graphs only.
 
 ## Layout

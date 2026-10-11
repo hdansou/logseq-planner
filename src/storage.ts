@@ -3,7 +3,7 @@
 // The write API resolves null on success AND on failure (docs/probes.md), so every write is read back.
 import { parseViewConfig, serializeViewConfig } from "./core/view-config";
 import type { ViewConfig } from "./core/view-config";
-import { findOrRenamePage, fenceJson, pageTitle, propertySchemaFor, propertyText, unfenceJson, type PropertyType } from "logseq-plugin-config";
+import { findOrRenamePage, fenceJson, pageTitle, propertySchemaFor, propertyText, unfenceJson, type PropertyType } from "./vendor/plugin-config";
 import type { StorageDeps, ViewBlock } from "./types";
 
 export { fenceJson, propertyText, unfenceJson };
