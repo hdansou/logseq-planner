@@ -603,6 +603,11 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N54 Checked on the stable app** — 2026-10-11, Logseq 2.0.2 (revision 533ac43; b09316a in CLAUDE.md is older), fresh profile and a
+      throwaway graph (since removed). Seen: the icon header (six tools, dock toggle "Dock to the right" then "Back to the workspace",
+      docked frame at the window top, full height), a saved view stored under `planner-view-json` (text, hidden), the views page
+      and the hidden "Plugin state: Planner", and the views page renamed back to "Planner views" and renamed forward again on the
+      next open with the view still listed. No error bar. Not seen: a real pre-N50 graph.
 - [x] **N53 Planner uses the logseq-plugin-config package** — done 2026-10-11, seen live on the nightly (throwaway graph).
       Owner request. `package.json` depends on the sibling repo (`file:../logseq-dev/plugin-dev/logseq-plugin-config`, source
       consumed as is); `src/storage.ts` re-exports `fenceJson` / `unfenceJson` / `propertyText`, `configSchemaFor` wraps
