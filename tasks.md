@@ -611,7 +611,7 @@ Live-check method (web app):
       unchanged (a page block, no Planner chrome). C3 (manifest): left as it is. The host (`handler/plugin.cljs`) lists marketplace
       packages on the web app only when `web` is true or `effect` is not true, so Planner, with neither, is listed everywhere;
       adding `effect: true` would hide it from the web marketplace unless `web: true` is also set, and none of the owner's other
-      plugins declare either. Not done: the in-page-block screenshot, the push of the shared repo (see below).
+      plugins declare either. Not done: the in-page-block screenshot. The shared repo was pushed afterwards as private: `hdansou/logseq-plugin-config` (main, 55f922a).
 - [x] **N60 The shared config package is vendored (release blocker)** — done 2026-10-11.
       Production-readiness review D1: the `file:../logseq-dev/plugin-dev/logseq-plugin-config` dependency (N53) made `npm ci` fail in
       CI and in the release workflow (the sibling folder is not there). The package's sources and tests are copied into
