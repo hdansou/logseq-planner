@@ -599,7 +599,8 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     const lastFrame = () => f.deps.setFrame.mock.lastCall?.[0];
     const styles = () => f.deps.provideStyle.mock.calls.map(([x]) => x).filter((x) => x.key === "planner-dock");
     const lastStyle = () => styles()[styles().length - 1]?.style;
-    return { ...f, win, host, sidebar, lastFrame, lastStyle, styles };
+    const noDrag = () => f.deps.provideStyle.mock.calls.map(([x]) => x).filter((x) => x.key === "planner-no-drag");
+    return { ...f, win, host, sidebar, lastFrame, lastStyle, styles, noDrag };
   }
   const DOCKED = (width: number, offset = 0) => dockFrame(width, HEADBAR, offset);
   const switchTo = (surface: "workspace" | "sidebar") => {
@@ -631,16 +632,21 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     const mac = docked([], MAC);
     modelHandler(mac.deps)();
     expect(mac.lastFrame()).toEqual(workspaceFrame("0px"));
+    // N59: the host header is a window drag region and swallows real clicks on what is drawn over it: no-drag while Planner covers it
+    expect(mac.noDrag().slice(-1)[0]!.style).toContain("-webkit-app-region: no-drag");
     expect(root.getAttribute("data-window-controls")).toBe("left");
     await vi.waitFor(() => expect(root.querySelector("[data-action=toggle-surface]")).not.toBeNull());
     switchTo("sidebar"); // docked on the right edge: the window buttons are far away
     expect(root.hasAttribute("data-window-controls")).toBe(false);
+    expect(mac.noDrag().slice(-1)[0]!.style).toBe(""); // the header is not under Planner any more
     switchTo("workspace");
     expect(mac.lastFrame()).toEqual(workspaceFrame("0px"));
+    expect(mac.noDrag().slice(-1)[0]!.style).toContain("no-drag");
     expect(root.getAttribute("data-window-controls")).toBe("left");
     const other = docked([], "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Electron/30");
     modelHandler(other.deps)();
     expect(other.lastFrame()).toEqual(WORKSPACE_FRAME);
+    expect(other.noDrag()).toEqual([]);
     expect(root.hasAttribute("data-window-controls")).toBe(false);
   });
 

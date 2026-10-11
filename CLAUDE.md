@@ -80,7 +80,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
   `setMainUIInlineStyle` position/size). N57 (owner, 2026-10-11) reverses N15 on macOS: the workspace and the docked frame start at
   the window top (`workspaceFrame("0px")`, `dockTop()`), because a visible host header acted on the page behind Planner; the
   window then moves only by what is outside Planner, and `data-window-controls="left"` on the root leaves 84 px for the window
-  buttons. Other platforms keep N15 (below the header: their window controls are at the right, not checked).
+  buttons; N59: the frame container is `-webkit-app-region: no-drag` (`noDragStyle`) while it covers the header, or real clicks on the top bar are swallowed by the drag region (a CDP click does not show it: check with `click.swift`). Other platforms keep N15 (below the header: their window controls are at the right, not checked).
 - Dark mode: mirror onto `<html class="dark">`; CSS keys off `html.dark`, never
   `prefers-color-scheme`. Host tokens via `resolveThemeCssPropsVals`, re-resolved on theme
   change; shui values are channels → `hsl()`; never `hsl(#hex)`.

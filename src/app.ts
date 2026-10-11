@@ -1,4 +1,4 @@
-import { assertPluginId, clampDockWidth, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
+import { assertPluginId, clampDockWidth, NO_DRAG_STYLE_KEY, noDragStyle, defaultDockWidth, DOCK_STYLE_KEY, dockFrame, dockHostStyle, HEADBAR, WORKSPACE_FRAME, workspaceFrame } from "./sdk";
 import { createViewStore } from "./storage";
 import { createUiStore } from "./ui-state";
 import { createBlocks, MACRO_TEXT, OPEN_NODE, OPEN_VIEW } from "./ui/block";
@@ -81,6 +81,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
       return WORKSPACE_FRAME;
     }
     root.setAttribute("data-window-controls", "left");
+    deps.provideStyle({ key: NO_DRAG_STYLE_KEY, style: noDragStyle(deps.pluginId()) }); // N59
     return workspaceFrame("0px");
   };
   /** N44: the room other plugins' docked frames take on the right edge; Planner docks to the left of it. */
@@ -122,6 +123,7 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     measure();
     docked = true;
     root.removeAttribute("data-window-controls");
+    if (isMac()) deps.provideStyle({ key: NO_DRAG_STYLE_KEY, style: "" }); // docked, no header is under Planner
     wantedPx ??= dockWidth();
     applyDock(dockWidth(), true);
   };

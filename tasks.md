@@ -603,6 +603,13 @@ Live-check method (web app):
       six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
       bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
       button's label. Unit tests plus live; not seen: the stable app.
+- [x] **N59 The workspace's top bar is clickable (macOS)** — done 2026-10-11, seen live with a REAL mouse click on the nightly.
+      Owner report after N57: the view tabs could not be switched. The host header is a window drag region
+      (`-webkit-app-region: drag`, the reason for N15) and Electron swallows real clicks on what is drawn over it; CDP clicks
+      bypass it, so unit and CDP checks of N57 missed this. `noDragStyle(pluginId)` (`NO_DRAG_STYLE_KEY`) is provided while the
+      workspace covers the header and emptied when docked. Seen: computed `-webkit-app-region` is `no-drag` on the frame
+      container (`drag` on `#head`), and a real left click on the Calendar tab at its screen point switched Timeline to
+      Calendar. Not seen: the click failing without the style (the owner's report stands for that), the stable app.
 - [x] **N58 Security audit hardening** — done 2026-10-11 (skill security-audit on the whole repo: risk low, 0 `npm audit` findings).
       SEC-001: `assertPluginId` (letters, digits, `.`, `_`, `-`) before the plugin id goes into a `[data-pid="…"]` selector
       (`dockHostStyle`, the frame lookups). SEC-002: `hostIconFontUrl` only follows a font URL on the stylesheet's own origin

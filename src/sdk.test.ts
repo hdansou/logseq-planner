@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, workspaceFrame, graphStateDeps, assertPluginId } from "./sdk";
+import { appDeps, BLOCK_TAGS_QUERY, choiceReadQuery, clampDockWidth, dateReadQuery, dateWriteDeps, defaultDockWidth, dockFrame, dockHostStyle, DOCK_MIN_PX, DOCK_PAGE_MIN_PX, HEADBAR, hostWeekStart, journalDayOfArg, journalPageQuery, kanbanWriteDeps, pageQuery, storageDeps, WORKSPACE_FRAME, workspaceFrame, graphStateDeps, assertPluginId, noDragStyle } from "./sdk";
 import { CONFIG_KEY, LEGACY_CONFIG_KEY, PAGE_TITLE, STATE_KEY, STATE_PAGE_TITLE } from "./storage";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -14,6 +14,15 @@ describe("plugin id in a CSS selector (SEC-001)", () => {
   it("assertPluginId returns the id it accepted", () => {
     expect(assertPluginId("logseq-planner")).toBe("logseq-planner");
     expect(() => assertPluginId('a"b')).toThrow(/plugin id/);
+  });
+});
+
+describe("no-drag frame (N59)", () => {
+  it("names the plugin's container and turns the window drag region off under it", () => {
+    const css = noDragStyle("logseq-planner");
+    expect(css).toContain('.lsp-iframe-sandbox-container[data-pid="logseq-planner"]');
+    expect(css).toMatch(/-webkit-app-region:\s*no-drag\s*!important/);
+    expect(() => noDragStyle('a"]')).toThrow(/plugin id/);
   });
 });
 

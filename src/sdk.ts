@@ -57,6 +57,14 @@ export function assertPluginId(id: string): string {
  * closes on its own button without moving Planner. Applies only while Planner's container is visible, so a hidden
  * Planner gives the room back. `animate` false while the width is being dragged, so the host follows the pointer 1:1.
  */
+/**
+ * N59: the host header is a window drag region (`-webkit-app-region: drag`), and Electron swallows real mouse clicks on anything drawn
+ * over it. While the workspace covers the header (macOS, N57) the plugin's container is marked `no-drag`, so Planner's top bar works.
+ */
+export const NO_DRAG_STYLE_KEY = "planner-no-drag";
+export const noDragStyle = (pluginId: string): string =>
+  `.lsp-iframe-sandbox-container[data-pid="${assertPluginId(pluginId)}"] { -webkit-app-region: no-drag !important; }`;
+
 export function dockHostStyle(pluginId: string, width: number, animate: boolean, offset = 0, rank = 0): string {
   assertPluginId(pluginId);
   // N44: `offset` = the room another plugin's docked frame takes; the strip is both widths, and `:root` makes this
