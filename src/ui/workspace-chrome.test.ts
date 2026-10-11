@@ -16,10 +16,10 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const created: Workspace[] = [];
 const tag = (title: string) => tags.find((t) => t.title === title)!;
 
-async function setup() {
+async function setup(opts: { setSurface?: (s: Surface) => void } = {}) {
   const store = createViewStore(fakeStorage());
   const ws = createWorkspace(root, { dq: fixtureDq(), views: store, onClose: vi.fn(), openNode: vi.fn(), zone: () => -300, today: () => "2026-10-03", time: () => "13:30",
-    kanban: noWrites, dates: noDateWrites, weekStart: async () => 0, setSurface: vi.fn((_: Surface) => {}) });
+    kanban: noWrites, dates: noDateWrites, weekStart: async () => 0, setSurface: opts.setSurface ?? vi.fn((_: Surface) => {}) });
   created.push(ws);
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`, ws);
@@ -54,33 +54,61 @@ describe("compact header (N39)", () => {
     expect(tabs.filter((t) => t.getAttribute("aria-pressed") === "true")).toHaveLength(1);
   });
 
-  it("the surface switch, Saved views, Panel and Close are in the ⋯ menu: shut until it opens, shut again on Escape", async () => {
-    const ws = await setup();
-    const more = $("[data-region=more]")!;
-    expect(more.hasAttribute("hidden")).toBe(true);
-    expect($("[data-control=more]")!.getAttribute("aria-expanded")).toBe("false");
-    for (const sel of ["[data-surface=workspace]", "[data-surface=sidebar]", "[data-control=saved-views]", "[data-action=toggle-panel]", "[data-action=close]"]) {
-      expect(more.querySelector(sel), sel).not.toBeNull();
+  it("no ⋯ menu: focus, settings, Panel, dock, Saved views and Close are icon buttons in the top bar, each named", async () => {
+    await setup();
+    expect($("[data-control=more]")).toBeNull();
+    expect($("[data-region=more]")).toBeNull();
+    const bar = $("[data-region=topbar]")!;
+    for (const sel of ["[data-action=toggle-focus]", "[data-action=toggle-settings]", "[data-action=toggle-panel]", "[data-action=toggle-surface]", "[data-control=saved-views]", "[data-action=close]"]) {
+      const b = bar.querySelector(sel);
+      expect(b, sel).not.toBeNull();
+      expect(b!.classList.contains("pl-ibtn"), sel).toBe(true);
+      expect(b!.querySelector("svg") ?? b!.textContent, sel).toBeTruthy();
+      expect(b!.getAttribute("aria-label"), sel).toBeTruthy();
+      expect(b!.getAttribute("title"), sel).toBe(b!.getAttribute("aria-label"));
     }
-    await click("[data-control=more]", ws);
-    expect($("[data-region=more]")!.hasAttribute("hidden")).toBe(false);
-    expect($("[data-control=more]")!.getAttribute("aria-expanded")).toBe("true");
-    expect(ws.escape()).toBe(true);
-    await ws.idle();
-    expect($("[data-region=more]")!.hasAttribute("hidden")).toBe(true);
-    expect(document.activeElement).toBe($("[data-control=more]"));
   });
 
-  it("Saved views opens inside the ⋯ menu and keeps it open; Panel closes it and still toggles the panel", async () => {
+  it("the icons sit in their own group, which the narrow layout wraps under the tabs", async () => {
+    await setup();
+    const group = $("[data-region=topbar] .pl-tools")!;
+    expect(group.querySelectorAll(".pl-ibtn")).toHaveLength(6);
+    expect($("[data-region=topbar] .pl-tabs")!.contains(group)).toBe(false);
+  });
+
+  it("Saved views is its own popover from the top bar: opens on click, shuts on Escape with focus back on the button", async () => {
     const ws = await setup();
-    await click("[data-control=more]", ws);
+    expect($("[data-popover=views]")).toBeNull();
     await click("[data-control=saved-views]", ws);
-    expect($("[data-region=more]")!.hasAttribute("hidden")).toBe(false);
-    expect($("[data-region=more] [data-popover=views]")).not.toBeNull();
-    const before = $("[data-action=toggle-panel]")!.getAttribute("aria-expanded");
+    expect($("[data-region=topbar] [data-popover=views]")).not.toBeNull();
+    expect($("[data-control=saved-views]")!.getAttribute("aria-expanded")).toBe("true");
+    expect(ws.escape()).toBe(true);
+    await ws.idle();
+    expect($("[data-popover=views]")).toBeNull();
+    expect(document.activeElement).toBe($("[data-control=saved-views]"));
+  });
+
+  it("the dock button is one toggle: pressed in the docked mode", async () => {
+    const setSurface = vi.fn();
+    const ws = await setup({ setSurface });
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
+    await click("[data-action=toggle-surface]", ws);
+    expect(setSurface).toHaveBeenLastCalledWith("sidebar");
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(document.activeElement).toBe($("[data-action=toggle-surface]"));
+    await click("[data-action=toggle-surface]", ws);
+    expect(setSurface).toHaveBeenLastCalledWith("workspace");
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("the Panel button is an icon named Panel; hidden, it shows the ticked filters as a badge", async () => {
+    const ws = await setup();
+    const btn = () => $("[data-action=toggle-panel]")!;
+    expect(btn().getAttribute("aria-label")).toBe("Panel");
+    expect(btn().querySelector(".pl-badge")).toBeNull();
     await click("[data-action=toggle-panel]", ws);
-    expect($("[data-action=toggle-panel]")!.getAttribute("aria-expanded")).not.toBe(before);
-    expect($("[data-region=more]")!.hasAttribute("hidden")).toBe(true);
+    expect(btn().getAttribute("aria-expanded")).toBe("false");
+    expect(btn().querySelector(".pl-badge")).toBeNull(); // nothing ticked
   });
 });
 

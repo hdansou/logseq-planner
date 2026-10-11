@@ -14,7 +14,7 @@ html, body, #app { height: 100%; }
 .pl-dock-resize { position: absolute; z-index: 30; top: 0; bottom: 0; left: 0; width: 7px; cursor: col-resize; touch-action: none; }
 .pl-dock-resize:hover, .pl-dock-resize:focus-visible { background: var(--pl-ring); opacity: .45; outline: none; }
 /* N39 compact header: one row. Icon tabs (the pressed one named; all named from 640 px), then focus, settings and the
-   ⋯ menu that holds the surface switch, Saved views, Panel and Close. The title stays for assistive technology. */
+   the tools (N48: focus, settings, Panel, dock, Saved views, Close). The title stays for assistive technology. */
 .pl-top { display: flex; align-items: center; gap: 4px; padding: 8px 10px 6px 12px; border-bottom: 1px solid var(--pl-line-soft); }
 .pl-tabs { flex: none; }
 .pl-tab { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; }
@@ -27,13 +27,13 @@ html, body, #app { height: 100%; }
 .pl-ibtn:hover { background: var(--pl-fill); color: var(--pl-label); }
 .pl-ibtn[aria-pressed="true"], .pl-ibtn[aria-expanded="true"] { background: var(--pl-tint-soft); color: var(--pl-label); }
 .pl-ibtn:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 0; }
-.pl-more { right: 0; left: auto; display: grid; gap: 8px; padding: 10px; min-width: 260px; max-height: calc(100vh - 80px); }
-.pl-more[hidden] { display: none; }
-.pl-more .pl-anchor { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
-.pl-more .pl-field-label { white-space: nowrap; }
-.pl-more .pl-popover { position: static; flex: 1 1 100%; box-shadow: none; padding: 6px 0 0; max-height: none; min-width: 0; background: transparent; }
-.pl-more-row { display: flex; gap: 8px; }
-.pl-more-row > * { flex: 1; text-align: center; justify-content: center; }
+.pl-tools { display: flex; align-items: center; gap: 2px; margin-left: auto; }
+.pl-tools > .pl-ibtn, .pl-tools .pl-anchor > .pl-ibtn { display: grid; place-items: center; padding: 0; }
+.pl-ibtn { position: relative; }
+.pl-badge { position: absolute; top: 0; right: 0; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; box-sizing: border-box;
+  display: grid; place-items: center; font-size: 9.5px; font-weight: 700; line-height: 1; background: var(--pl-tint); color: var(--pl-on-tint); }
+/* Narrow: the tools wrap under the tabs instead of squeezing them. */
+@container (max-width: 479px) { .pl-top { flex-wrap: wrap; } .pl-tools { flex: 1 1 100%; margin-left: 0; justify-content: space-between; } }
 .pl-strip { display: flex; align-items: center; gap: 8px; padding: 6px 10px 6px 16px; border-bottom: 1px solid var(--pl-line-soft); }
 .pl-strip-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-strip-text i { font-style: normal; color: var(--pl-label-2); }

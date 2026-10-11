@@ -29,6 +29,7 @@ const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 /** Nodes the Timeline shows: rows plus the undated footnote. */
 const shownNodes = () => $$("[data-tl-row]").length + $$("[data-tl-undated] [data-tl-open]").length;
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
+const label = (sel: string) => $(sel)?.getAttribute("aria-label") ?? "";
 
 async function setup(opts: { dq?: Dq; storage?: StorageDeps; weekStart?: () => Promise<number>; time?: () => string; setSurface?: (surface: Surface) => void } = {}) {
   const store = createViewStore(opts.storage ?? fakeStorage());
@@ -449,14 +450,14 @@ describe("panel (N13)", () => {
     for (const css of [workspaceCss, themeCss]) expect(css).not.toMatch(/sidebar/i);
   });
 
-  it("a Panel toggle, in the ⋯ menu (N39), hides and shows the panel; the view then takes the full width; focus stays on it", async () => {
+  it("a Panel icon button (N48) hides and shows the panel; the view then takes the full width; focus stays on it", async () => {
     const { ws } = await setup();
     const btn = () => $("[data-action=toggle-panel]")!;
     expect(btn().tagName).toBe("BUTTON");
-    expect($("[data-region=more]")!.contains(btn())).toBe(true);
+    expect($("[data-region=topbar]")!.contains(btn())).toBe(true);
     expect(btn().getAttribute("aria-controls")).toBe("pl-panel");
     expect(btn().getAttribute("aria-expanded")).toBe("true");
-    expect(text("[data-action=toggle-panel]")).toBe("Panel");
+    expect(btn().getAttribute("aria-label")).toBe("Panel");
     expect($("[data-region=panel]")!.hidden).toBe(false);
     expect($(".pl-body")!.classList.contains("is-panel-closed")).toBe(false);
 
@@ -491,10 +492,10 @@ describe("panel (N13)", () => {
     const owner = choice(tag("Project"), "Owner");
     await click(ws, `input[data-filter-prop="${status.ident}"][data-filter-value="${status.values[0]!.uuid}"]`);
     await click(ws, `input[data-filter-prop="${owner.ident}"][data-filter-value=""]`);
-    expect(text("[data-action=toggle-panel]")).toBe("Panel"); // the panel shows them
-    expect($("[data-action=toggle-panel]")!.hasAttribute("aria-label")).toBe(false);
+    expect($("[data-action=toggle-panel]")!.getAttribute("aria-label")).toBe("Panel"); // the panel shows them
+    expect($("[data-action=toggle-panel] .pl-badge")).toBeNull();
     await click(ws, "[data-action=toggle-panel]");
-    expect(text("[data-action=toggle-panel]")).toBe("Panel · 2");
+    expect(text("[data-action=toggle-panel] .pl-badge")).toBe("2");
     expect($("[data-action=toggle-panel]")!.getAttribute("aria-label")).toBe("Panel · 2 filters active");
   });
 
@@ -637,36 +638,27 @@ describe("surface switch (N06a)", () => {
     expect($(".pl-ws")!.hasAttribute("data-surface-mode")).toBe(false);
   });
 
-  it("a Workspace | Sidebar segmented control in the ⋯ menu (N39), before Saved views, Workspace pressed", async () => {
+  it("a dock toggle in the top bar (N48), not pressed in the Workspace mode", async () => {
     await setup({ setSurface: vi.fn() });
-    const group = $("[data-region=more] [role=group][aria-label=Surface]")!;
-    expect(group.classList.contains("pl-seg")).toBe(true);
-    const buttons = [...group.querySelectorAll<HTMLButtonElement>("button")];
-    expect(buttons.map((b) => [b.dataset.surface, b.textContent, b.getAttribute("aria-pressed"), b.type])).toEqual([
-      ["workspace", "Workspace", "true", "button"],
-      ["sidebar", "Sidebar", "false", "button"],
-    ]);
-    const top = [...$("[data-region=more]")!.children];
-    expect(top.indexOf(group)).toBeLessThan(top.indexOf($("[data-control=saved-views]")!.closest(".pl-anchor")!));
+    const dock = $("[data-region=topbar] [data-action=toggle-surface]")!;
+    expect([dock.getAttribute("aria-pressed"), dock.getAttribute("aria-label"), (dock as HTMLButtonElement).type]).toEqual(["false", "Dock to the right", "button"]);
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
 
-  it("a click switches: the app is told, the pressed button and the root's mode follow, focus stays on it; the pressed one does nothing", async () => {
+  it("a click toggles: the app is told, the pressed state and the root's mode follow, focus stays on it", async () => {
     const setSurface = vi.fn();
     const { ws } = await setup({ setSurface });
-    $("[data-surface=sidebar]")!.focus();
-    await click(ws, "[data-surface=sidebar]");
+    $("[data-action=toggle-surface]")!.focus();
+    await click(ws, "[data-action=toggle-surface]");
     expect(setSurface).toHaveBeenCalledWith("sidebar");
-    expect($("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
-    expect($("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("false");
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
-    expect(document.activeElement).toBe($("[data-surface=sidebar]"));
-    await click(ws, "[data-surface=sidebar]");
-    expect(setSurface).toHaveBeenCalledTimes(1);
-    await click(ws, "[data-surface=workspace]");
+    expect(document.activeElement).toBe($("[data-action=toggle-surface]"));
+    await click(ws, "[data-action=toggle-surface]");
     expect(setSurface).toHaveBeenLastCalledWith("workspace");
     expect($(".pl-ws")!.getAttribute("data-surface-mode")).toBe("workspace");
   });
+
 
   it("the header is one row that never wraps (N39: icon tabs, the rest in the ⋯ menu), tab names shown from 640 px (stylesheet; happy-dom does not lay out)", () => {
     const top = workspaceCss.match(/\.pl-top\s*\{[^}]*\}/)![0];
@@ -722,7 +714,7 @@ describe("saved views", () => {
     await pickTag(ws, "Project");
     await save(ws, "Roadmap");
     expect(create).toHaveBeenCalledWith("Roadmap", ws.config());
-    expect(text("[data-control=saved-views]")).toContain("Roadmap");
+    expect(label("[data-control=saved-views]")).toContain("Roadmap");
 
     await pickTag(ws, "Meeting");
     await click(ws, "[data-control=saved-views]");
@@ -789,7 +781,7 @@ describe("saved views", () => {
     expect(update).toHaveBeenCalledWith(id, ws.config());
     expect(create).toHaveBeenCalledTimes(1);
     expect($("[data-popover=views]")).toBeNull(); // closed, as after Save
-    expect(text("[data-control=saved-views]")).toContain("Roadmap");
+    expect(label("[data-control=saved-views]")).toContain("Roadmap");
     const stored = await store.list();
     expect(stored.map((v) => v.name)).toEqual(["Roadmap"]);
     expect("config" in stored[0] && stored[0].config.kind).toBe("kanban");
@@ -815,7 +807,7 @@ describe("saved views", () => {
     expect($<HTMLInputElement>("[data-field=view-name]")!.value).toBe("Project timeline");
     await click(ws, "[data-control=saved-views]");
     await save(ws, "#Project [[kanban]]");
-    expect(text("[data-control=saved-views]")).toBe("Project kanban▾");
+    expect(label("[data-control=saved-views]")).toBe("Saved views: Project kanban");
     expect((await store.list()).map((v) => v.name)).toEqual(["Project kanban"]);
   });
 
@@ -842,7 +834,7 @@ describe("saved views", () => {
     await save(ws, "Second");
     expect(text("[data-region=error]")).toContain("If it is in Recycle");
     expect(text("[data-popover=views]")).toContain("No saved views yet"); // still open after the failed save
-    expect(text("[data-control=saved-views]")).toContain("None");
+    expect(label("[data-control=saved-views]")).toContain("None");
   });
 
   it("an unreadable saved view is listed greyed with its reason, can be deleted, and cannot be opened (T14)", async () => {

@@ -422,7 +422,7 @@ describe("live updates (T12)", () => {
       f.graphChanged[0]();
       await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")!.textContent).not.toContain("Project"));
       expect(root.querySelector("[data-region=error]")).toBeNull();
-      expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("None");
+      expect(root.querySelector("[data-control=saved-views]")!.getAttribute("aria-label")).toContain("None");
       (root.querySelector("[data-control=saved-views]") as HTMLElement).click();
       await vi.waitFor(() => expect(root.querySelector("[data-popover=views]")!.textContent).toContain("No saved views yet"));
     });
@@ -435,7 +435,7 @@ describe("live updates (T12)", () => {
       modelHandler(f.deps)(); // show
       await vi.waitFor(() => expect(root.querySelector("[data-control=tag]")!.textContent).not.toContain("Project"));
       expect(root.querySelector("[data-region=error]")).toBeNull();
-      expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("None");
+      expect(root.querySelector("[data-control=saved-views]")!.getAttribute("aria-label")).toContain("None");
     });
 
     it("the in-page blocks forget the old graph's slots", async () => {
@@ -601,10 +601,13 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     return { ...f, win, host, sidebar, lastFrame, lastStyle, styles };
   }
   const DOCKED = (width: number, offset = 0) => dockFrame(width, HEADBAR, offset);
-  const switchTo = (surface: "workspace" | "sidebar") => root.querySelector<HTMLButtonElement>(`[data-surface=${surface}]`)!.click();
+  const switchTo = (surface: "workspace" | "sidebar") => {
+    const dock = root.querySelector<HTMLButtonElement>("[data-action=toggle-surface]")!;
+    if ((dock.getAttribute("aria-pressed") === "true") !== (surface === "sidebar")) dock.click();
+  };
   const opened = async (d: ReturnType<typeof docked>) => {
     modelHandler(d.deps)();
-    await vi.waitFor(() => expect(root.querySelector("[data-surface=sidebar]")).not.toBeNull());
+    await vi.waitFor(() => expect(root.querySelector("[data-action=toggle-surface]")).not.toBeNull());
   };
   const ptr = (type: string, clientX: number) =>
     root.querySelector("[data-dock-resize]")!.dispatchEvent(new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }));
@@ -638,7 +641,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     expect(d.lastFrame()).toEqual(DOCKED(600));
     expect(d.lastStyle()).toBe(dockHostStyle("planner-test", 600, true));
     expect(d.sidebar.className).toBe("cp__right-sidebar closed");
-    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
     expect(root.querySelector(".pl-ws")!.getAttribute("data-surface-mode")).toBe("sidebar");
     expect(root.querySelector("[data-dock-resize]")!.getAttribute("role")).toBe("separator");
   });
@@ -648,7 +651,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     d.deps.prefs.read.mockReturnValue({ logseq_db_test: { ...DEFAULT_PREFS, surface: "sidebar" } });
     await opened(d);
     await vi.waitFor(() => expect(d.lastFrame()).toEqual(DOCKED(600)));
-    expect(root.querySelector("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
     switchTo("workspace");
     await vi.waitFor(() => expect(d.deps.prefs.write.mock.lastCall![1].surface).toBe("workspace"));
     expect(d.deps.prefs.write.mock.lastCall![0]).toBe("logseq_db_test");
@@ -798,8 +801,8 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     modelOf(d.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
     expect(d.lastFrame()).toEqual(WORKSPACE_FRAME);
     expect(d.lastStyle()).toBe("");
-    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
-    expect(root.querySelector("[data-surface=workspace]")!.getAttribute("aria-pressed")).toBe("true");
+    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.getAttribute("aria-label")).toContain("Roadmap"));
+    expect(root.querySelector("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("false");
   });
 
   it("dragging the handle widens the frame and the reserved strip together without animation, and keeps the width on release", async () => {
@@ -838,7 +841,7 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
     f.flush();
     modelHandler(f.deps)();
     await vi.waitFor(() => expect(root.querySelector("[data-tag-group=own]")).not.toBeNull());
-    expect(root.querySelector("[data-surface]")).toBeNull();
+    expect(root.querySelector("[data-action=toggle-surface]")).toBeNull();
   });
 });
 
@@ -917,7 +920,7 @@ describe("in-page block (N06b)", () => {
     const f = withView();
     modelOf(f.deps)[OPEN_VIEW]({ dataset: { viewId: "v1" } });
     expect(f.deps.showMainUI).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.textContent).toContain("Roadmap"));
+    await vi.waitFor(() => expect(root.querySelector("[data-control=saved-views]")!.getAttribute("aria-label")).toContain("Roadmap"));
     expect(root.querySelector("[data-view-kind=timeline]")!.getAttribute("aria-pressed")).toBe("true");
     expect(() => modelOf(f.deps)[OPEN_VIEW]({ dataset: {} })).toThrow(/view id/);
   });

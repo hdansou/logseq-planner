@@ -115,7 +115,7 @@ export interface Workspace {
   stop(): void;
 }
 
-type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move" | "more";
+type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move";
 
 interface State {
   loading: boolean;
@@ -307,19 +307,38 @@ function renderTopBar(s: State): string {
       : "";
     return rows + update + save;
   };
-  // N39: one row. Icon tabs (the pressed one named), then focus, settings and the ⋯ menu with what is used less often.
-  const moreOpen = s.popover === "more" || s.popover === "views";
+  // N39 / N48: one row. Icon tabs (the pressed one named), then the tools: focus, settings, Panel, dock, Saved views, Close.
+  // Under 480 px the tools wrap to a second row (workspace.css).
+  const views = current ? esc(current.name) : "None";
+  const savedViews = `<span class="pl-anchor"><button type="button" class="pl-ibtn" data-control="saved-views" aria-haspopup="true" aria-expanded="${s.popover === "views"}" aria-label="Saved views: ${views}" title="Saved views: ${views}">${icon("bookmark")}</button>`
+    + (s.popover === "views" ? `<div class="pl-popover" data-popover="views">${viewsPopover()}</div>` : "") + `</span>`;
   return `<header class="pl-top" data-region="topbar"${s.focus ? " hidden" : ""}><h1 class="pl-title">Planner</h1>`
-    + `<div class="pl-seg pl-tabs" role="group" aria-label="View">${seg}</div><span class="pl-spacer"></span>`
-    + `<button type="button" class="pl-ibtn" data-action="toggle-focus" aria-pressed="${s.focus}" aria-label="Focus: hide the controls" title="Focus: hide the controls">⤢</button>`
-    + `<button type="button" class="pl-ibtn" data-action="toggle-settings" aria-expanded="${s.settingsOpen}" aria-controls="pl-settings" aria-label="View settings" title="View settings">⚙</button>`
-    + `<span class="pl-anchor"><button type="button" class="pl-ibtn" id="pl-more-btn" data-control="more" aria-haspopup="true" aria-expanded="${moreOpen}" aria-controls="pl-more" aria-label="More" title="More">⋯</button>`
-    + `<div class="pl-more pl-popover" id="pl-more" data-region="more" role="group" aria-label="More"${moreOpen ? "" : " hidden"}>`
-    + renderSurfaceSwitch(s)
-    + `<div class="pl-more-row">${renderPanelToggle(s)}<button type="button" class="pl-btn" data-action="close">Close</button></div>`
-    + menu("views", s, "Saved views", current ? esc(current.name) : "None", viewsPopover, "saved-views")
-    + `</div></span></header>`;
+    + `<div class="pl-seg pl-tabs" role="group" aria-label="View">${seg}</div>`
+    + `<div class="pl-tools" role="group" aria-label="Controls">`
+    + ibtn("toggle-focus", "Focus: hide the controls", "focus", ` aria-pressed="${s.focus}"`)
+    + ibtn("toggle-settings", "View settings", "gear", ` aria-expanded="${s.settingsOpen}" aria-controls="pl-settings"`)
+    + renderPanelToggle(s)
+    + (s.canDock ? ibtn("toggle-surface", "Dock to the right", "dock", ` aria-pressed="${s.surface === "sidebar"}"`) : "")
+    + savedViews
+    + ibtn("close", "Close", "close")
+    + `</div></header>`;
 }
+
+/** N48: the top bar's icons (16 px, stroke = the text colour). */
+const ICONS = {
+  focus: `<path d="M6 2.5H2.5V6M10 2.5h3.5V6M6 13.5H2.5V10M10 13.5h3.5V10"/>`,
+  unfocus: `<path d="M2.5 6H6V2.5M13.5 6H10V2.5M2.5 10H6v3.5M13.5 10H10v3.5"/>`,
+  gear: `<circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v1.6M8 12.6v1.6M1.8 8h1.6M12.6 8h1.6M3.6 3.6l1.1 1.1M11.3 11.3l1.1 1.1M3.6 12.4l1.1-1.1M11.3 4.7l1.1-1.1"/>`,
+  panel: `<path d="M2 3h12L9.5 8.5V13l-3-1.5V8.5z"/>`,
+  dock: `<rect x="2" y="3" width="12" height="10" rx="2"/><path d="M10 3v10"/>`,
+  bookmark: `<path d="M4.5 2.5h7v11L8 11l-3.5 2.5z"/>`,
+  close: `<path d="M4 4l8 8M12 4l-8 8"/>`,
+};
+const icon = (name: keyof typeof ICONS): string =>
+  `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+/** An icon button named by `label` (aria-label and title); `attrs` is more attributes as HTML. */
+const ibtn = (action: string, label: string, name: keyof typeof ICONS, attrs = "", extra = ""): string =>
+  `<button type="button" class="pl-ibtn" data-action="${action}"${attrs} aria-label="${esc(label)}" title="${esc(label)}">${icon(name)}${extra}</button>`;
 
 /** N39: the view tabs' icons (16 px, stroke = the text colour). */
 const KIND_ICON: Record<ViewKind, string> = {
@@ -328,15 +347,6 @@ const KIND_ICON: Record<ViewKind, string> = {
   agenda: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.1M2.5 8h.1M2.5 12h.1"/></svg>`,
   kanban: `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="2" y="2.5" width="3.4" height="11" rx="1"/><rect x="6.3" y="2.5" width="3.4" height="7" rx="1"/><rect x="10.6" y="2.5" width="3.4" height="9" rx="1"/></svg>`,
 };
-
-const SURFACES: [Surface, string][] = [["workspace", "Workspace"], ["sidebar", "Sidebar"]];
-
-/** Workspace | Sidebar (N06a): where Planner shows; only when the app can dock it (desktop app). */
-function renderSurfaceSwitch(s: State): string {
-  if (!s.canDock) return "";
-  return `<div class="pl-seg" role="group" aria-label="Surface">${SURFACES.map(([k, label]) =>
-    `<button type="button" data-surface="${k}" aria-pressed="${k === s.surface}">${label}</button>`).join("")}</div>`;
-}
 
 function renderSettings(s: State, view: ViewTags): string {
   const c = s.config!;
@@ -400,12 +410,11 @@ function renderSettings(s: State, view: ViewTags): string {
 /** How many filter values are ticked in the view. */
 const tickedFilters = (c: ViewConfig) => Object.values(c.filters).reduce((n, values) => n + values.length, 0);
 
-/** The settings bar's last control (N13): hides and shows the panel; while it is hidden, it counts the ticked filter values. */
+/** The Panel icon button (N13, N48): hides and shows the panel; while it is hidden, a badge counts the ticked filter values. */
 function renderPanelToggle(s: State): string {
   const ticked = panelShown(s) || !s.config ? 0 : tickedFilters(s.config);
-  const text = ticked ? `Panel · ${ticked}` : "Panel";
-  const label = ticked ? ` aria-label="${text} filter${ticked === 1 ? "" : "s"} active"` : "";
-  return `<button type="button" class="pl-menu-btn" data-action="toggle-panel" aria-expanded="${panelShown(s)}" aria-controls="pl-panel"${label}>${text}</button>`;
+  const label = ticked ? `Panel · ${ticked} filter${ticked === 1 ? "" : "s"} active` : "Panel";
+  return ibtn("toggle-panel", label, "panel", ` aria-expanded="${panelShown(s)}" aria-controls="pl-panel"`, ticked ? `<span class="pl-badge" aria-hidden="true">${ticked}</span>` : "");
 }
 
 /**
@@ -480,7 +489,7 @@ function renderFocusStrip(s: State): string {
   const c = s.config;
   const text = c ? `<b>${KIND_LABEL[c.kind]}</b> <i>· ${esc(tagsTitle(c.tags.map((id) => s.tags.find((t) => t.ident === id)).filter((t): t is TagInfo => !!t)))}</i>` : "<b>Planner</b>";
   return `<div class="pl-strip" data-region="focus-strip"${s.focus ? "" : " hidden"}><span class="pl-strip-text">${text}</span>`
-    + `<button type="button" class="pl-ibtn" data-action="toggle-focus" data-focus-show aria-label="Show the controls" title="Show the controls">⌄</button></div>`;
+    + `<button type="button" class="pl-ibtn" data-action="toggle-focus" data-focus-show aria-label="Show the controls" title="Show the controls">${icon("unfocus")}</button></div>`;
 }
 
 function renderWorkspace(s: State, now: () => Now): string {
@@ -770,7 +779,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
-  const firstInPopover = (p: Popover) => p === "more" ? "[data-region=more] button" : `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" ? "input" : "[aria-selected=true]"}`;
+  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" ? "input" : "[aria-selected=true]"}`;
 
   async function openBody() {
     s.loading = true;
@@ -936,7 +945,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (kb) return void kanban(kb, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane", more: "more" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         s.viewDeleting = null;
@@ -981,13 +990,6 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
     if (d.viewKind) return void run(() => setConfig(switchKind(s.config!, tagOf(s.config!), d.viewKind as ViewKind)));
     if (d.viewOpen) return void run(() => openSaved(d.viewOpen!), () => trigger("views"));
-    if (d.surface) {
-      const next = d.surface as Surface;
-      if (next === s.surface) return;
-      s.surface = next;
-      render(`[data-surface="${next}"]`);
-      return deps.setSurface!(next);
-    }
     // Deleting asks first (N23): × turns the row into the question, Cancel has the focus.
     if (d.viewDelete) return void run(() => void (s.viewDeleting = d.viewDelete!), () => "[data-view-delete-cancel]");
     if (d.viewDeleteCancel) return void run(() => void (s.viewDeleting = null), () => `[data-view-delete="${d.viewDeleteCancel}"]`);
@@ -1003,8 +1005,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "toggle-panel":
         return void run(() => {
           s.panelOpen[s.narrow ? "narrow" : "wide"] = !panelShown(s);
-          if (s.popover === "more" || s.popover === "views") s.popover = null; // the ⋯ menu has done its job (N39)
+          if (s.popover === "views") s.popover = null;
         }, () => "[data-action=toggle-panel]");
+      case "toggle-surface": {
+        const next: Surface = s.surface === "sidebar" ? "workspace" : "sidebar";
+        s.surface = next;
+        render("[data-action=toggle-surface]");
+        return deps.setSurface!(next);
+      }
       case "toggle-settings":
         return void run(() => void (s.settingsOpen = !s.settingsOpen), () => "[data-action=toggle-settings]");
       case "toggle-focus":

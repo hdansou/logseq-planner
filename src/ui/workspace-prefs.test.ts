@@ -19,6 +19,7 @@ const tag = (title: string) => {
 let root: HTMLElement;
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel);
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
+const label = (sel: string) => $(sel)?.getAttribute("aria-label") ?? "";
 
 const created: Workspace[] = [];
 async function setup(opts: { storage?: StorageDeps; setSurface?: (surface: Surface) => void; prefs?: UiStore } = {}) {
@@ -65,7 +66,7 @@ describe("per-graph UI state (N21)", () => {
     const { ws } = await setup({ prefs, storage: fakeStorage({ blocks: [{ uuid: "v1", name: "Meetings", config }] }) });
     expect(prefs.load).toHaveBeenCalledTimes(1);
     expect(ws.config()!.tags).toEqual([tag("Meeting").ident]);
-    expect(text("[data-control=saved-views]")).toContain("Meetings");
+    expect(label("[data-control=saved-views]")).toContain("Meetings");
     expect($("[data-action=toggle-panel]")!.getAttribute("aria-expanded")).toBe("false");
     expect($("[data-tl-edit]")!.getAttribute("aria-pressed")).toBe("true");
     expect($("[data-region=error]")).toBeNull();
@@ -76,13 +77,13 @@ describe("per-graph UI state (N21)", () => {
     const { ws } = await setup({ prefs });
     expect(ws.config()).toEqual(kanbanOfMeeting());
     expect($("[data-view-kind=kanban]")!.getAttribute("aria-pressed")).toBe("true");
-    expect(text("[data-control=saved-views]")).toContain("None");
+    expect(label("[data-control=saved-views]")).toContain("None");
   });
 
   it("a saved view that is gone leaves the settings; unreadable settings or a gone tag give the default view, without an error", async () => {
     const gone = await setup({ prefs: fakePrefs({ view: { id: "v9", config: serializeViewConfig(kanbanOfMeeting()) } }).prefs });
     expect(gone.ws.config()).toEqual(kanbanOfMeeting());
-    expect(text("[data-control=saved-views]")).toContain("None");
+    expect(label("[data-control=saved-views]")).toContain("None");
     const unknown = { ...defaultViewConfig(tag("Meeting")), tags: [":user.class/gone"], dates: {} };
     for (const config of ["{nope", serializeViewConfig(unknown as never)]) {
       const { ws } = await setup({ prefs: fakePrefs({ view: { id: null, config } }).prefs });
@@ -117,7 +118,7 @@ describe("per-graph UI state (N21)", () => {
     const desktop = fakePrefs({ surface: "sidebar" });
     await setup({ prefs: desktop.prefs, setSurface });
     expect(setSurface).toHaveBeenCalledWith("sidebar");
-    expect($("[data-surface=sidebar]")!.getAttribute("aria-pressed")).toBe("true");
+    expect($("[data-action=toggle-surface]")!.getAttribute("aria-pressed")).toBe("true");
     expect(desktop.state.stored.surface).toBe("sidebar");
 
     const web = fakePrefs({ surface: "sidebar" });
@@ -130,7 +131,7 @@ describe("per-graph UI state (N21)", () => {
     const { prefs, state } = fakePrefs();
     const { ws } = await setup({ prefs, setSurface: vi.fn() });
     expect(state.stored.surface).toBe("workspace");
-    await click(ws, "[data-surface=sidebar]");
+    await click(ws, "[data-action=toggle-surface]");
     expect(state.stored.surface).toBe("sidebar");
   });
 

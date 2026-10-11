@@ -598,6 +598,11 @@ Live-check method (web app):
       at the focus minute), Week 7 columns, Day one, Today keeps the user's scroll. Not done: dragging blocks (edit
       dates in the grid), hour zoom, working-hours collapse; overlapping blocks, a Scheduled block and the all-day row
       on real data (unit tests only); the now line's look; the workspace (wide) surface; the stable app; real-mouse use.
+- [x] **N48 Header controls as icons** — done 2026-10-11, seen live on the nightly (planner-project: wide, docked, 320 px).
+      Owner request, option C of the mockups (artifact "Planner header options"): the ⋯ menu is gone. `.pl-tools` holds
+      six icon buttons (focus corner brackets, ⚙, Panel funnel + `.pl-badge`, dock toggle `toggle-surface`, Saved views
+      bookmark menu, Close ×), wrapping under the tabs below 480 px. The open saved view's name is in the Saved views
+      button's label. Unit tests plus live; not seen: the stable app.
 - [x] **N47 Edit dates in the Calendar time grids** — done 2026-10-10, seen live on the nightly (planner-project, docked).
       Owner request ("do drag and edit first"). `CalendarInput.edit` / `pending`, `GridBlock.edit` / `span` / `pending`,
       `TimeGrid.editing`, pure `gridDelta(block, mode, range, days, quarters)` (days stay on the range, a move stays inside its
