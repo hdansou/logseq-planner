@@ -21,7 +21,7 @@ It runs in three places:
 
 ![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
 
-Status: version 1.0.1. Planner was validated in the Logseq desktop app
+Status: version 1.0.2. Planner was validated in the Logseq desktop app
 (Logseq-DB nightly builds of 2026-10-01 to 2026-10-11, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
 pass on build b09316a) and partly in the Logseq web app. See [Limits and known issues](#limits-and-known-issues)
 for what was and was not checked.

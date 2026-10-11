@@ -6,6 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-10-11
 ### Changed
 
 - Node colours (bars, bands, chips, dots) are six identity hues with no red, orange, green or blue, so they are not read as late, priority or done; the Agenda shows a node's Status as the same icon a task has instead of a coloured dot (N63).
