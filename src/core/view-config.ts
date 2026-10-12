@@ -2,11 +2,12 @@
 // Everything stored is graph-portable: tags and properties by ident, closed values by uuid (entity ids differ per device).
 import type { ChoiceFilters, ChoiceProp, NodeProp, TagInfo } from "../types";
 import { priorityProp } from "./kanban";
+import { defaultMatrixAxes, MATRIX_MODES, type MatrixAxisConfig } from "./matrix";
 import { mergeTags, TAG_KEY, type ViewTags } from "./schema";
 
 export { TAG_KEY };
 
-export const VIEW_KINDS = ["timeline", "calendar", "agenda", "kanban"] as const;
+export const VIEW_KINDS = ["timeline", "calendar", "agenda", "kanban", "matrix"] as const;
 export type ViewKind = (typeof VIEW_KINDS)[number];
 
 const ZOOMS = ["day", "week", "month", "quarter"] as const;
@@ -66,6 +67,12 @@ export type ViewConfig = CommonConfig &
      * the default (the shared choice properties less `hiddenFields`).
      */
     | { kind: "kanban"; columnProp: string | null; laneProp: string | null; sort: (typeof SORTS)[number]; hiddenColumns: Record<string, string[]>; hiddenFields: string[]; cardFields: Record<string, string[]> }
+    /**
+     * N64: two choice properties as axes (`x` across, `y` down; both null when the view's tags share fewer than two),
+     * `mode` quadrants (each axis in two bands) or every value; done cards shown or not; `labels` = the four quadrant
+     * names, top left to bottom right, "" = the default (core/matrix.ts).
+     */
+    | { kind: "matrix"; x: MatrixAxisConfig | null; y: MatrixAxisConfig | null; mode: (typeof MATRIX_MODES)[number]; showDone: boolean; labels: string[] }
   );
 
 const VERSION = 1;
@@ -120,6 +127,8 @@ export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "ti
       return { ...common, kind, groupBy: "node", showDone: false };
     case "kanban":
       return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {}, hiddenFields: [], cardFields: {} };
+    case "matrix":
+      return { ...common, kind, ...(defaultMatrixAxes(view.choiceProps) ?? { x: null, y: null }), mode: "quadrants", showDone: false, labels: ["", "", "", ""] };
   }
 }
 
@@ -153,6 +162,10 @@ export function withTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
   } as ViewConfig;
   if (common.kind === "timeline") {
     return (config.tags.length > 1) === multi ? common : { ...common, arrange: defaultArrange(idents.length) };
+  }
+  if (common.kind === "matrix") {
+    const kept = common.x !== null && common.y !== null && shared.has(common.x.prop) && shared.has(common.y.prop);
+    return kept ? common : { ...common, ...(defaultMatrixAxes(view.choiceProps) ?? { x: null, y: null }) };
   }
   if (common.kind !== "kanban") return common;
   const columnProp = common.columnProp !== null && shared.has(common.columnProp) ? common.columnProp : defaultColumn(view.choiceProps);
@@ -190,6 +203,10 @@ export function withDefaults(config: ViewConfig, view: ViewTags): ViewConfig {
   if (next.kind === "kanban" && next.columnProp === null) {
     const column = defaultColumn(view.choiceProps);
     if (column !== null) next = { ...next, columnProp: column };
+  }
+  if (next.kind === "matrix" && (next.x === null || next.y === null)) {
+    const axes = defaultMatrixAxes(view.choiceProps);
+    if (axes) next = { ...next, ...axes };
   }
   return next;
 }
@@ -254,6 +271,21 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
       if (!Array.isArray(config.hiddenFields) || !config.hiddenFields.every((f) => typeof f === "string")) throw invalid("hiddenFields must be a list of property idents");
       if (!isObject(config.cardFields) || !Object.values(config.cardFields).every((l) => Array.isArray(l) && l.every((f) => typeof f === "string"))) throw invalid("cardFields must be an object of lists of property idents");
       return;
+    case "matrix": {
+      oneOf("matrix mode", MATRIX_MODES, config.mode);
+      bool("showDone", config.showDone);
+      if (!Array.isArray(config.labels) || config.labels.length !== 4 || !config.labels.every((l) => typeof l === "string")) throw invalid("labels must be a list of four strings");
+      for (const which of ["x", "y"] as const) {
+        const a = config[which];
+        if (a === null) continue;
+        if (!isObject(a)) throw invalid(`${which} must be an axis object or null`);
+        if (typeof a.prop !== "string") throw invalid(`${which}.prop must be a property ident`);
+        bool(`${which}.reverse`, a.reverse);
+        if (!Array.isArray(a.first) || !a.first.every((u) => typeof u === "string")) throw invalid(`${which}.first must be a list of value uuids`);
+      }
+      if ((config.x === null) !== (config.y === null)) throw invalid("x and y must both be set or both be null");
+      return;
+    }
   }
 }
 
@@ -300,6 +332,12 @@ export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): ViewTag
     if (config.laneProp === TAG_KEY) {
       if (!multi) throw new Error("Invalid view config: Tag swimlanes need two or more tags");
     } else if (config.laneProp !== null) choice(config.laneProp);
+  }
+  // N64: a first band's uuids are not checked: a value that is gone is ignored there (core/matrix.ts).
+  if (config.kind === "matrix" && config.x && config.y) {
+    choice(config.x.prop);
+    choice(config.y.prop);
+    if (config.x.prop === config.y.prop) throw new Error("Invalid view config: the Matrix axes use the same property");
   }
   return view;
 }

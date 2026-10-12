@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Matrix view (prototype, N64): two choice properties as axes, in quadrants or a cell per value; cards move by drag or their ⋯ menu, which writes the properties; cards without a value wait in an Unplaced list; quadrant labels can be renamed.
+
 ## [1.0.2] - 2026-10-11
 
 ### Changed

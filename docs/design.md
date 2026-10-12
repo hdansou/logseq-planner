@@ -67,6 +67,7 @@ key Planner's own defaults off `html.dark`, never `prefers-color-scheme`.
   group headers 11.5px/600 in label-2, not uppercase.
 - **Tags:** 22px pill on `fill-strong`, 12.5px/500, label text. **Category chips:** same
   shape on the node's highlight colour.
+- **Matrix (N64):** cells on `fill`, radius 12, as Kanban cells; quadrants have no colour of their own (a label names them; a hue would read as a status); the Unplaced list is outlined under the grid.
 - **Groups and cards:** Agenda groups and Kanban cells on `fill`, radius 12; Kanban cards on
   surface, radius 10, hairline `line` ring, no shadow.
 - **Checkboxes:** `accent-color: tint`.

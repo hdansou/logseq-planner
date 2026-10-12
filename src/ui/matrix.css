@@ -1,0 +1,73 @@
+/* Matrix (N64; docs/design.md "Panels and cards"). Tokens only: every colour is a --pl-* variable from theme.css.
+   Quadrants carry no colour of their own: a quadrant's meaning is its label, never a hue (red, green or blue would read
+   as a status).
+   One grid: a corner, a head per band across, then per band down a head and one cell per band across. Cells are at least
+   220px wide; a grid with many bands scrolls sideways inside .pl-view, never the page. The Unplaced list sits below the
+   grid. In a frame under 640px (the docked sidebar) the cells stack in one column and name themselves. */
+.pl-mx { display: grid; grid-template-columns: max-content repeat(var(--pl-mx-cols), minmax(220px, 1fr)); gap: 8px 10px; align-items: stretch;
+  min-width: 100%; width: max-content; max-width: none; }
+.pl-mx[data-mx-layout="quadrants"] { width: 100%; }
+
+.pl-mx-corner { display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding: 4px 6px; font-size: 11.5px; line-height: 16px;
+  color: var(--pl-label-2); }
+.pl-mx-xhead { position: sticky; top: 0; z-index: 2; align-self: end; padding: 4px 8px; background: var(--pl-surface); font-size: 12.5px; font-weight: 600;
+  line-height: 18px; color: var(--pl-label-2); overflow-wrap: anywhere; }
+.pl-mx-yhead { display: flex; align-items: center; justify-content: center; max-width: 160px; padding: 6px; font-size: 12.5px; font-weight: 600; line-height: 18px;
+  color: var(--pl-label-2); text-align: center; overflow-wrap: anywhere; writing-mode: vertical-rl; transform: rotate(180deg); }
+.pl-mx[data-mx-layout="values"] .pl-mx-yhead { writing-mode: horizontal-tb; transform: none; justify-content: flex-start; text-align: left; }
+
+/* Cells: fill, radius 12, the drop target tinted; a cell whose band has no values takes no card */
+.pl-mx-cell { display: grid; gap: 6px; align-content: start; min-width: 0; min-height: 120px; padding: 8px; background: var(--pl-fill); border-radius: 12px;
+  transition: background-color .12s; }
+.pl-mx-cell[data-mx-over] { background: var(--pl-tint-soft); }
+.pl-mx-cell[data-mx-closed] { background: transparent; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
+.pl-mx-cell-head { display: flex; align-items: baseline; gap: 6px; min-height: 20px; }
+.pl-mx-label { min-width: 0; font-size: 13px; font-weight: 600; line-height: 18px; color: var(--pl-label); overflow-wrap: anywhere; }
+.pl-mx-count { margin-left: auto; padding: 0 7px; border-radius: 980px; background: var(--pl-fill-strong); color: var(--pl-label-2);
+  font-size: 12px; font-weight: 500; line-height: 18px; font-variant-numeric: tabular-nums; }
+
+/* Unplaced: outlined, below the grid; its cards wrap in columns */
+.pl-mx-unplaced { display: grid; gap: 6px; margin-top: 12px; padding: 10px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--pl-line-soft);
+  transition: background-color .12s; }
+.pl-mx-unplaced[data-mx-over] { background: var(--pl-tint-soft); }
+.pl-mx-unplaced .pl-hint { margin: 0; }
+.pl-mx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; align-items: start; }
+
+/* Cards: as the Kanban's (surface, radius 10, hairline ring); the open button fills the card, the Move button sits top right */
+.pl-mx-card { position: relative; min-width: 0; background: var(--pl-surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--pl-line); cursor: grab; }
+.pl-mx-card[data-mx-dragging] { opacity: .45; }
+.pl-mx-card[data-mx-pending] { cursor: progress; opacity: .7; }
+.pl-mx-open { all: unset; box-sizing: border-box; display: grid; gap: 3px; width: 100%; padding: 7px 34px 7px 10px; border-radius: 10px;
+  font-size: 13px; color: var(--pl-label); cursor: inherit; transition: background-color .12s; }
+.pl-mx-open:hover { background: var(--pl-fill); }
+.pl-mx-open:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
+.pl-mx-title { min-width: 0; font-size: 14px; font-weight: 600; line-height: 20px; overflow: hidden; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.pl-mx-card[data-done] .pl-mx-title { color: var(--pl-label-done); text-decoration: line-through; }
+.pl-mx-meta { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 12px; line-height: 18px; color: var(--pl-label-2); }
+.pl-mx-meta > span { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-mx-card[data-late] .pl-mx-meta > span:last-child { color: var(--pl-red-text); font-weight: 600; }
+.pl-mx-move-anchor { position: absolute; top: 5px; right: 5px; }
+.pl-mx-move { background: transparent; color: var(--pl-label-2); }
+.pl-mx-move:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 0; }
+.pl-mx-move:disabled { cursor: progress; }
+.pl-mx-move-menu { left: auto; right: 0; min-width: 220px; cursor: default; }
+.pl-mx-more { justify-self: center; }
+
+/* Toolbar popovers: Bands (an axis's values in order, the first band tinted, a bar at the split) and Labels */
+.pl-mx-axis { display: grid; gap: 6px; min-width: 240px; }
+.pl-mx-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px; }
+.pl-mx-chip { position: relative; padding: 1px 8px; border-radius: 980px; background: var(--pl-fill); font-size: 12px; line-height: 18px; color: var(--pl-label-2); }
+.pl-mx-chip[data-first] { background: var(--pl-tint-soft); color: var(--pl-label); }
+.pl-mx-chip[data-cut] { margin-left: 8px; }
+.pl-mx-chip[data-cut]::before { content: ""; position: absolute; left: -7px; top: -2px; bottom: -2px; border-left: 2px solid var(--pl-tint); }
+.pl-mx-step { display: flex; align-items: center; gap: 8px; padding: 0 10px; font-size: 12.5px; color: var(--pl-label-2); }
+.pl-mx-step b { font-weight: 600; color: var(--pl-label); font-variant-numeric: tabular-nums; }
+.pl-mx-label-field { display: grid; gap: 2px; padding: 2px 10px; font-size: 12px; color: var(--pl-label-2); }
+
+/* A narrow frame (the docked sidebar): one column of cells, each naming itself; the heads go */
+@container (max-width: 639px) {
+  .pl-mx, .pl-mx[data-mx-layout="quadrants"] { grid-template-columns: 1fr; width: 100%; }
+  .pl-mx-corner, .pl-mx-xhead, .pl-mx-yhead { display: none; }
+  .pl-mx-cell { min-height: 0; }
+}

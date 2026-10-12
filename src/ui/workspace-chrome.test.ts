@@ -46,7 +46,7 @@ describe("compact header (N39)", () => {
   it("the view tabs carry an icon, a name for assistive technology and a label span; one is pressed", async () => {
     await setup();
     const tabs = $$("[data-view-kind]");
-    expect(tabs.map((t) => t.dataset.viewKind)).toEqual(["timeline", "calendar", "agenda", "kanban"]);
+    expect(tabs.map((t) => t.dataset.viewKind)).toEqual(["timeline", "calendar", "agenda", "kanban", "matrix"]);
     for (const t of tabs) {
       expect(t.querySelector("svg")).not.toBeNull();
       expect(t.getAttribute("aria-label")).toBe(t.querySelector(".pl-tab-label")!.textContent);

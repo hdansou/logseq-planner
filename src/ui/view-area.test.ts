@@ -37,6 +37,11 @@ describe("renderViewArea (N06b: shared by the workspace and the in-page block)",
     const ws = createWorkspace(root, { dq: fixtureDq(), views: createViewStore(fakeStorage()), onClose: vi.fn(), openNode: vi.fn(), zone: () => -300,
       today: () => NOW.today, time: () => NOW.time, kanban: noWrites, dates: noDateWrites, weekStart: async () => NOW.weekStart });
     await ws.open();
+    // The first tag (#Meeting) has one choice property; a Matrix needs two (N64): #Project has Status and Owner.
+    if (kind === "matrix") {
+      root.querySelector<HTMLElement>(`[data-tag-id="${tag("Project").id}"]`)!.click();
+      await ws.idle();
+    }
     root.querySelector<HTMLElement>(`[data-view-kind=${kind}]`)!.click();
     await ws.idle();
     const config = ws.config()!;

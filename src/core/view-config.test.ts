@@ -453,3 +453,58 @@ describe("Kanban card fields (N38)", () => {
     }
   });
 });
+
+describe("Matrix views (N64)", () => {
+  const t = tag("Task");
+  const status = choice(t, "Status");
+  const priority = choice(t, "Priority");
+  const matrix = () => defaultViewConfig(t, "matrix") as Extract<ViewConfig, { kind: "matrix" }>;
+
+  it("start with Priority down (high end first), the other property across, quadrants, done hidden and no labels of their own", () => {
+    expect(matrix()).toMatchObject({
+      kind: "matrix", mode: "quadrants", showDone: false, labels: ["", "", "", ""],
+      x: { prop: status.ident, reverse: false }, y: { prop: priority.ident, reverse: true },
+    });
+  });
+
+  it("have no axes when the tags share fewer than two choice properties", () => {
+    expect(defaultViewConfig(tag("Page"), "matrix")).toMatchObject({ kind: "matrix", x: null, y: null });
+  });
+
+  it("round trip, and are validated: both axes are choice properties of the view, and not the same one", () => {
+    const c = matrix();
+    expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+    expect(validateViewConfig(c, tags).tags).toEqual([t]);
+    expect(() => validateViewConfig({ ...c, x: { ...c.x!, prop: ":x/y" } }, tags)).toThrow(/unknown choice property/i);
+    expect(() => validateViewConfig({ ...c, x: c.y }, tags)).toThrow(/same property/i);
+  });
+
+  it("a first band naming a value that is gone does not make the view invalid", () => {
+    const c = matrix();
+    expect(validateViewConfig({ ...c, y: { ...c.y!, first: ["gone-uuid"] } }, tags).tags).toEqual([t]);
+  });
+
+  it("strict shape: mode, Show done, four labels, axes as objects or null", () => {
+    const c = matrix();
+    const bad = (over: object) => () => parseViewConfig(JSON.stringify({ v: 1, config: { ...c, ...over } }));
+    expect(bad({ mode: "grid" })).toThrow(/matrix mode/i);
+    expect(bad({ showDone: "yes" })).toThrow(/showDone/);
+    expect(bad({ labels: ["a"] })).toThrow(/labels/);
+    expect(bad({ x: { prop: status.ident, reverse: false } })).toThrow(/first/);
+    expect(bad({ x: null, y: null })).not.toThrow();
+  });
+
+  it("switching tags keeps an axis the new tags still have, else takes the defaults", () => {
+    const c = matrix();
+    expect(withTags(c, [t])).toMatchObject({ x: c.x, y: c.y });
+    const p = tag("Project");
+    const moved = withTags(c, [p]) as typeof c;
+    expect([moved.x?.prop, moved.y?.prop].every((ident) => p.choiceProps.some((q) => q.ident === ident))).toBe(true);
+    expect(withTags(c, [tag("Page")])).toMatchObject({ x: null, y: null });
+  });
+
+  it("a view without axes takes the defaults once its tags have two choice properties", () => {
+    const c = { ...matrix(), x: null, y: null };
+    expect(withDefaults(c, validateViewConfig(c, tags))).toMatchObject({ x: { prop: status.ident }, y: { prop: priority.ident } });
+  });
+});

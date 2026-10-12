@@ -15,11 +15,13 @@ import { editedNode, type DateChange } from "../core/date-edit";
 import { layoutCalendar, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, type PropertyWrite } from "../core/kanban";
+import { layoutMatrix, type MatrixLayout } from "../core/matrix";
 import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc } from "./html";
 import { renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { renderKanban, renderKanbanToolbar } from "./kanban";
+import { renderMatrix, renderMatrixToolbar } from "./matrix";
 import { renderTimeline, renderTimelineToolbar } from "./timeline";
 
 /** What the clock and the host week start say right now: injected so renders stay pure; asked only when a view needs it. */
@@ -44,11 +46,11 @@ export interface ViewSession {
   agendaGroups: number;
   /** Agenda by date: how many Overdue entries render. */
   agendaOverdue: number;
-  /** Kanban: cards rendered per cell by `cellKey` (absent = the first page). */
+  /** Kanban and Matrix (N64): cards rendered per cell by `cellKey` / `matrixCellKey` (absent = the first page). */
   kbShown: ReadonlyMap<string, number>;
-  /** Kanban moves being written, by node uuid: the card shows where the writes put it. */
+  /** Kanban and Matrix moves being written, by node uuid: the card shows where the writes put it. */
   pending: ReadonlyMap<string, PropertyWrite[]>;
-  /** The Kanban card whose Move menu is open; null when none. */
+  /** The Kanban or Matrix card whose Move menu is open; null when none. */
   moveOpen: string | null;
   /** The open workspace popover (the Kanban toolbar's menus); null when none. */
   popover: string | null;
@@ -229,8 +231,27 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   });
 }
 
+/** A Matrix view's axes with their properties (the view has axes). */
+export function matrixAxes(a: ViewAreaInput) {
+  const c = a.config;
+  if (c.kind !== "matrix" || !c.x || !c.y) throw new Error(`matrixAxes called for a ${c.kind} view without axes`);
+  const prop = (ident: string) => a.view.choiceProps.find((p) => p.ident === ident)!;
+  return { x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first }, y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first } };
+}
+
+/** The Matrix layout of the visible nodes (N64; the view has axes). */
+export function matrixLayout(a: ViewAreaInput, now: Now): MatrixLayout {
+  const c = a.config;
+  if (c.kind !== "matrix") throw new Error(`matrixLayout called for a ${c.kind} view`);
+  const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  return layoutMatrix({
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a),
+    mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
+  });
+}
+
 /**
- * The view (an empty state, or the Timeline, Calendar, Agenda or Kanban) and its toolbar, for a config with its loaded
+ * The view (an empty state, or the Timeline, Calendar, Agenda, Kanban or Matrix) and its toolbar, for a config with its loaded
  * data. `now` is asked only when a view is drawn.
  */
 export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string; toolbar: string } {
@@ -244,7 +265,11 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
       ? empty("no-choice", `${name} share no choice property`, "Kanban columns come from a choice property every selected tag has, like Status. Add one to the tags in Logseq, or choose other tags.")
       : empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
   }
-  if (c.kind !== "kanban" && !view.tags.some((t) => t.dateProps.length)) {
+  if (c.kind === "matrix" && (c.x === null || c.y === null)) {
+    return only(empty("no-axes", `${name} ${multi ? "share" : "has"} fewer than two choice properties`,
+      `A Matrix needs two choice properties${multi ? " every selected tag has" : ""}, like Priority and Status, or Impact and Effort. Add them to the ${multi ? "tags" : "tag"} in Logseq, or choose ${multi ? "other tags" : "another tag"}.`));
+  }
+  if (c.kind !== "kanban" && c.kind !== "matrix" && !view.tags.some((t) => t.dateProps.length)) {
     return only(multi
       ? empty("no-dates", `${name} have no date properties`, "Add a Date or DateTime property to one of the tags in Logseq and pick it under Dates, or choose other tags.")
       : empty("no-dates", `${name} has no date properties`, "Add a Date or DateTime property to the tag in Logseq and pick it as Start or End, or choose another tag."));
@@ -266,6 +291,16 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   if (c.kind === "agenda") {
     const layout = agendaLayout(a, now(), shown);
     return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
+  }
+  if (c.kind === "matrix") {
+    const layout = matrixLayout(a, now());
+    const axes = matrixAxes(a);
+    const defaults = layout.mode === "quadrants" ? layoutMatrix({ ...matrixAxes(a), items: [], mode: "quadrants", showDone: false, labels: ["", "", "", ""], today: "", doneValues: {}, titles: new Map(), pending: new Set() }).rows.flat().map((cell) => cell.label ?? "") : [];
+    return {
+      view: renderMatrix(layout, heading, session.moveOpen, session.kbShown),
+      toolbar: renderMatrixToolbar({ layout, choiceProps: view.choiceProps, labels: c.labels, defaults, showDone: c.showDone, popover: session.popover,
+        axes }),
+    };
   }
   const layout = kanbanLayout(a, now());
   return {

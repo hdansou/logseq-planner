@@ -56,7 +56,7 @@ export const failedViewBlock = (name: string, reason: string): string =>
   messageBlock(`<b>${quoted(name)}</b> cannot be shown: ${esc(reason)}`);
 
 /** Elements that open a node in the workspace, by the attribute that carries the uuid. */
-const OPEN_ATTRS = ["data-tl-open", "data-cal-open", "data-ag-open", "data-kb-open"];
+const OPEN_ATTRS = ["data-tl-open", "data-cal-open", "data-ag-open", "data-kb-open", "data-mx-open"];
 
 /**
  * The view's HTML made read-only for the host page (no script runs there): connectors, the Kanban Move menus, drag,
@@ -75,7 +75,7 @@ export function readOnly(html: string, doc: Document): string {
     e.textContent = text;
     return e;
   };
-  all("[data-tl-links], .pl-kb-move-anchor, [data-action]").forEach((e) => e.remove());
+  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-action]").forEach((e) => e.remove());
   all("[draggable]").forEach((e) => e.removeAttribute("draggable"));
   all(".pl-kb-drop").forEach((e) => (e.textContent = "")); // "Drop here": nothing can be dropped in a block
   all("details[open]").forEach((e) => e.removeAttribute("open"));
@@ -83,7 +83,7 @@ export function readOnly(html: string, doc: Document): string {
   all("[data-tl-toggle]").forEach((e) => e.replaceWith(el("span", { class: "pl-tl-toggle", "aria-hidden": "true" }, "")));
   all("[data-tl-jump], [data-cal-more]").forEach((e) =>
     e.replaceWith(el("span", { class: e.className, style: e.getAttribute("style") ?? "", "data-planner-text": "" }, e.textContent ?? "")));
-  all("[data-ag-more], [data-kb-more]").forEach((e) =>
+  all("[data-ag-more], [data-kb-more], [data-mx-more]").forEach((e) =>
     e.replaceWith(el("p", { class: "pl-block-more", "data-planner-text": "" }, `${Number(e.dataset.rest).toLocaleString("en-US")} more`)));
   for (const attr of OPEN_ATTRS) {
     all(`[${attr}]`).forEach((e) => {

@@ -139,7 +139,7 @@ function setup(opts: { blocks?: ViewBlock[]; dq?: Dq; host?: boolean } = {}) {
   return { blocks, deps, shown, provideUI, slot, loads, dq };
 }
 
-const kinds: ViewKind[] = ["timeline", "calendar", "agenda", "kanban"];
+const kinds: ViewKind[] = ["timeline", "calendar", "agenda", "kanban", "matrix"];
 
 describe("createBlocks: a saved view in a page", () => {
   it.each(kinds)("draws the %s view under a header: name, tags, Open in Planner", async (kind) => {
@@ -153,8 +153,8 @@ describe("createBlocks: a saved view in a page", () => {
     expect([open.textContent, open.dataset.viewId]).toEqual(["Open in Planner", "v-1"]);
     // The view itself, read-only: openers hooked, nothing to drag, no menus, no toolbar.
     expect(block.querySelector(`[data-on-click="${OPEN_NODE}"][data-uuid]`)).not.toBeNull();
-    expect(block.querySelector("[draggable], [data-kb-move], [data-popover], [data-control], [data-tl-toggle], [data-tl-links], [data-action]")).toBeNull();
-    expect(block.querySelector("[data-tl-nav], [data-cal-nav], [data-tl-zoom], [data-kb-sort], [data-ag-group-by]")).toBeNull();
+    expect(block.querySelector("[draggable], [data-kb-move], [data-mx-move], [data-mx-more], [data-popover], [data-control], [data-tl-toggle], [data-tl-links], [data-action]")).toBeNull();
+    expect(block.querySelector("[data-tl-nav], [data-cal-nav], [data-tl-zoom], [data-kb-sort], [data-ag-group-by], [data-mx-mode], [data-mx-show-done]")).toBeNull();
     // N06c: never editable in a page: no Edit dates toggle, handles, edit marks or description.
     expect(block.querySelector("[data-tl-edit], [data-tl-handle], [data-tl-editable], [data-tl-locked], [data-tl-pending], [data-tl-edit-help], [aria-describedby]")).toBeNull();
   });

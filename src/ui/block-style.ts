@@ -8,6 +8,7 @@ import timelineCss from "./timeline.css?inline";
 import calendarCss from "./calendar.css?inline";
 import agendaCss from "./agenda.css?inline";
 import kanbanCss from "./kanban.css?inline";
+import matrixCss from "./matrix.css?inline";
 import blockCss from "./block.css?inline";
 
 /** The class of every in-page block's root element. */
@@ -156,5 +157,5 @@ export const HOST_WRAP_CSS = [
  * the defaults. The workspace chrome (workspace.css) is not included.
  */
 export function blockStyle(): string {
-  return HOST_WRAP_CSS + "\n" + scopeCss([themeCss, timelineCss, calendarCss, agendaCss, kanbanCss, blockCss].join("\n")) + hostTokenCss(themeCss);
+  return HOST_WRAP_CSS + "\n" + scopeCss([themeCss, timelineCss, calendarCss, agendaCss, kanbanCss, matrixCss, blockCss].join("\n")) + hostTokenCss(themeCss);
 }
