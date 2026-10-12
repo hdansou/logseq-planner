@@ -1,7 +1,7 @@
 # Planner
 
 Planner shows the nodes of any tag in a Logseq DB graph as a Timeline, a Calendar, an
-Agenda or a Kanban board. It works with built-in tags such as #Task and with tags you create.
+Agenda, a Kanban board or a Matrix. It works with built-in tags such as #Task and with tags you create.
 It runs in three places:
 
 - **Workspace**: Planner alone on screen. On macOS it covers the whole window, app header included; Escape goes back to the page.
@@ -21,8 +21,8 @@ It runs in three places:
 
 ![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
 
-Status: version 1.0.2. Planner was validated in the Logseq desktop app
-(Logseq-DB nightly builds of 2026-10-01 to 2026-10-11, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
+Status: version 1.1.0. Planner was validated in the Logseq desktop app
+(Logseq-DB nightly builds of 2026-10-01 to 2026-10-12, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
 pass on build b09316a) and partly in the Logseq web app. See [Limits and known issues](#limits-and-known-issues)
 for what was and was not checked.
 
@@ -33,6 +33,7 @@ for what was and was not checked.
   (its own or inherited from a parent tag). Planner never creates properties on your tags.
 - For Kanban: a tag with at least one choice property (a property with a closed list of
   values, such as Status).
+- For Matrix: a tag with at least two choice properties.
 
 ## Install
 
@@ -255,6 +256,24 @@ sorts at that date and shows how many days late.
 - Each cell shows its first 50 cards, then **Show 50 more of N**. The counts in the headers
   are the real totals.
 
+**Matrix.** A priority matrix: two choice properties of the tag as axes, such as Urgency and Importance
+(Eisenhower) or Effort and Impact. Use it to triage: cards without a value wait under the grid until you place them.
+
+- **Across** and **Down**: the two properties. A new view picks Urgency and Importance, or Effort (or Size) and
+  Impact (or Value), when the tag has properties with those names; otherwise Priority goes down and the next
+  choice property goes across. Picking the property the other axis uses swaps the axes.
+- **Quadrants** splits each axis into two bands; **Every value** gives a row and a column per value (a wide grid
+  scrolls sideways).
+- **Bands**: per axis, **Reverse** flips the order of its values, and **−** / **+** move the split. A new view puts
+  the smaller half first when a property has an odd number of values. Priority starts reversed, Urgent first. A
+  value added to the property later joins the second band.
+- **Labels**: rename the four quadrants. An empty name shows the default: "Do first", "Schedule", "Delegate",
+  "Eliminate" for Urgency and Importance; "Quick wins", "Big bets", "Fill-ins", "Money pits" for Effort and
+  Impact; otherwise the values of the two bands. Quadrants have no colour of their own.
+- **Unplaced**, under the grid: the cards that lack a value on either axis, by due date.
+- **Show done** includes done and canceled cards; otherwise the toolbar says how many are hidden.
+- Each cell shows its first 50 cards, then **Show 50 more of N**. Under 640 px the cells stack in one column.
+
 Click a card, bar, chip or entry to open the node in the main area. Planner hides. Shift+click
 opens the node in the right sidebar and Planner stays open.
 
@@ -272,6 +291,10 @@ A move writes to the node:
 The card shows the new place at once and cannot be dragged while the write runs. Planner then
 reads the value back from the graph. If the graph does not hold it, the card returns to its
 column and an error shows in the error bar. Undo in Logseq reverted a move in the live test.
+
+In the Matrix, drag a card to another cell or to **Unplaced**, or use its **⋯** menu. A move writes, for each axis
+whose band changes, the first value of the new band (in the axis's order); a card that stays in its band keeps its
+value. To **Unplaced** removes both values. The write is read back as for Kanban.
 
 ### Edit dates in the Timeline
 
@@ -308,7 +331,7 @@ current settings in that view, under the same name. **×** asks first: the row t
 **Delete "name"?** with **Cancel** and **Delete**. In this menu, and in **Done when** and the
 Kanban **Show** menu, Arrow Up and Down move through the entries. A saved view stores the tags, child tags, each tag's Start and End,
 done values, filters and the view settings: Timeline zoom and arrangement, Calendar layout, Agenda Group by
-and Show done, Kanban columns, shown columns, swimlanes and sort. It does not store the period you are
+and Show done, Kanban columns, shown columns, swimlanes and sort, Matrix axes, bands, mode, labels and Show done. It does not store the period you are
 looking at.
 A name loses the characters `#`, `[`, `]`, `{` and `}`, and runs of `(` or `)` become one, so
 Logseq cannot turn it into a tag, a link, a macro or a block ref ("#Project kanban" is saved as
@@ -368,11 +391,14 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 **Scope**
 
-- Planner writes only Kanban moves, its UI state and, with Edit dates on, date edits in the Timeline and the Calendar grids. Month,
+- Planner writes only Kanban and Matrix moves, its UI state and, with Edit dates on, date edits in the Timeline and the Calendar grids. Month,
   Agenda and the in-page view never edit dates.
 - Edit dates was checked live on the desktop app (move and resize of a DateTime and a Date span, Day zoom, Escape,
   Alt+Arrow keys). Not checked: a diamond, a failed write, the sidebar surface, the block staying read-only (unit-tested
   only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.
+- The Matrix was checked live on the stable Logseq.app 2.0.2 and a nightly (2026-10-12): quadrants, Every value, a
+  drag and a ⋯ menu move (both read back), dark mode, the narrow layout and the in-page block. The drag used in-app
+  input over CDP, not a real mouse. It has no date range yet: it shows every node of the tag that is not done.
 - No view defined by a free query, no filters per tag. No zoom of the Calendar's hour height or collapsing of working hours, no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - The sidebar surface is desktop only. It was checked live there, with a real-mouse drag of Logseq's sidebar handle
   on the stable app; not the narrow drawer while docked, and not the web app (which shows no switch).

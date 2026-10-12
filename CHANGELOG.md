@@ -8,7 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- Matrix view (prototype, N64): two choice properties as axes, in quadrants or a cell per value; cards move by drag or their ⋯ menu, which writes the properties; cards without a value wait in an Unplaced list; quadrant labels can be renamed.
+- Matrix view (N64): two choice properties as axes, such as Urgency and Importance or Effort and Impact, in quadrants or a cell per value; cards move by drag or their ⋯ menu, which writes the properties; cards without a value wait in an Unplaced list; the split and direction of each axis and the quadrant labels can be changed. A saved Matrix view cannot be opened by Planner 1.0.x.
 
 ## [1.0.2] - 2026-10-11
 

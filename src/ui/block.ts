@@ -60,7 +60,7 @@ const OPEN_ATTRS = ["data-tl-open", "data-cal-open", "data-ag-open", "data-kb-op
 
 /**
  * The view's HTML made read-only for the host page (no script runs there): connectors, the Kanban Move menus, drag,
- * workspace actions, Timeline toggles and the empty Kanban cell's "Drop here" are taken out (a toggle leaves the empty placeholder a row without one has);
+ * workspace actions, Timeline toggles, the empty Kanban cell's "Drop here" and the Matrix's drag hint are taken out (a toggle leaves the empty placeholder a row without one has);
  * the Timeline's earlier / later jumps and the Calendar's "+N more" become text; Agenda and Kanban "Show more" become
  * "N more"; folded Agenda buckets are closed (their entries are rendered, so the browser's own toggle shows them);
  * every element that opens a node gets `data-on-click` → `OPEN_NODE` with its uuid in `data-uuid`. `doc` parses it.
@@ -75,7 +75,7 @@ export function readOnly(html: string, doc: Document): string {
     e.textContent = text;
     return e;
   };
-  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-action]").forEach((e) => e.remove());
+  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-mx-drag-hint], [data-action]").forEach((e) => e.remove());
   all("[draggable]").forEach((e) => e.removeAttribute("draggable"));
   all(".pl-kb-drop").forEach((e) => (e.textContent = "")); // "Drop here": nothing can be dropped in a block
   all("details[open]").forEach((e) => e.removeAttribute("open"));
