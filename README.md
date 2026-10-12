@@ -15,6 +15,8 @@ It runs in three places:
 
 ![The Kanban board: one column per Status value, cards with due dates, and the Show menu that hides columns.](docs/screenshots/kanban.png)
 
+![The Matrix over an Idea tag, Effort across and Impact down: the quadrants Quick wins, Big bets, Fill-ins and Money pits, and the Unplaced list under them.](docs/screenshots/matrix.png)
+
 ![The Calendar in its 3 days grid: timed blocks placed by their minutes, overlapping blocks side by side, a one-date item on one line.](docs/screenshots/calendar-3days.png)
 
 ![Planner docked on the right edge of the window, next to an open page.](docs/screenshots/sidebar.png)

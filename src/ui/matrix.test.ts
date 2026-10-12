@@ -92,6 +92,8 @@ describe("Matrix view", () => {
     expect(cardsIn("first", "second")).toEqual([ACME]); // Alice / In Review
     expect(unplaced()).toEqual([ARCHIVE]); // no Owner
     expect($("[data-matrix] + [data-mx-unplaced]")).not.toBeNull();
+    // No "a" before a property name: "a Impact" reads wrong.
+    expect(text("[data-mx-unplaced] .pl-hint")).toBe("Without a value for Owner or Status, by due date. Drag a card into the grid, or use its ⋯ menu.");
   });
 
   it("each quadrant shows its label and count; the axis heads name the values of each band", () => {
