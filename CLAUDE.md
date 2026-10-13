@@ -75,6 +75,13 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 
 ## Repo-specific gotchas (DO NOT UNDO)
 
+- Dev installs load from `lsp://logseq.com/external/...` (the host's origin); marketplace installs load from
+  `lsp://logseq.io/plugins/...` unless the marketplace manifest sets `"effect": true` (logseq/marketplace#931). Cross-origin,
+  `hostDocument()` is null: no dock button, no host keys, no host icon font, no macOS full-window frame. A dev install never
+  shows this: check the plugin iframe's `src` in a marketplace install (N66).
+- Text that asks for a drag or a menu (hints in a view) must carry a marker `readOnly` strips (`data-mx-drag-hint`); the
+  in-page block test checks every view kind for "Drag a card" / "⋯ menu".
+- UI text never puts "a" / "an" before a property name ("a Impact"): write "a value for Effort or Impact".
 - Only `src/index.ts` imports `@logseq/libs`; other files use
   `/// <reference types="@logseq/libs" />` (vitest crashes otherwise).
 - Keep `main()` minimal; defer registrations with `setTimeout(…, 0)`.

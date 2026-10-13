@@ -9,24 +9,20 @@ first (TDD); UI items are accepted on what renders; docs land in the same commit
 code; `npm run typecheck`, `npm test` and `npm run build` pass at every commit. Commit
 subjects are conventional with the item id, e.g. `feat: schema discovery (T02)`.
 
-## Resume here (updated 2026-10-05, end of the session of 2026-10-04)
+## Resume here (updated 2026-10-13, end of the session of 2026-10-12)
 
-State: everything is done except N34 part 1 (the owner's own try of the current build) and
-N05 (the release, on the owner's go-ahead). 1008 unit tests pass at `f71adad` plus the docs
-commits after it. No remote, nothing pushed. Upstream reports filed: logseq/db-test#1399
-(CLI writes leave `:block/refs` empty) and #1400 (`createJournalPage("YYYY-MM-DD")` a day
-early west of UTC); watch them for replies.
-What the session of 2026-10-04 added: curved connectors (N20), saved-view Update and delete
-confirmation (N23), per-graph remembered state (N21), arrow keys in popovers (N29), a
-shared task under each node in the Agenda (N30), a CSP on the built page (N33), and a pass
-on the stable Logseq.app with real mouse input (N19) that found and fixed three bugs
-there (sidebar handle drag, Date edits, "[object Object]"). The owner's decisions (N03,
-N25-N33) are recorded on each item.
-Checked where: the full checklist in the Logseq WEB app (dev build d2ab7726ab); focused
-passes on the desktop nightly (8ffbb22) and on the stable Logseq.app (b09316a): see
-docs/manual-test.md, "Stable app pass". The owner uses both desktop apps. Test graph
-`planner-desktop` (kept; modified by the passes). The `logseq` CLI follows whichever app
-started last: `npm run tracker` may need `--revision <rev>`.
+State: v1.1.0 is released (tag `v1.1.0`, GitHub release with `logseq-planner.zip`); the repo hdansou/logseq-planner
+is public; `main` is pushed and there are no other branches. 1,266 unit tests pass at `bd364b7`. Planner is listed in
+the marketplace (logseq/marketplace#929, merged 2026-10-12). Open: logseq/marketplace#931 adds `"effect": true` to the
+manifest (without it a marketplace install is cross-origin and loses the dock, host keys, the host icon font and the
+macOS full-window frame), then N66 checks a marketplace install. Next feature: N65, the Matrix time range (owner
+decisions recorded on N64 and N65). Upstream reports filed earlier: logseq/db-test#1399 and #1400; watch them for replies.
+What the session of 2026-10-12 added: the Matrix view (N64, mocks on the phone first, then a prototype on a branch, then
+released), the Matrix screenshot in the README, and the marketplace `effect` finding.
+Checked where: the Matrix on the nightly (d24abc9) and the stable Logseq.app 2.0.2; earlier passes are in
+docs/manual-test.md. The owner uses both desktop apps. Test graphs: `planner-desktop` (kept; has a saved view "Task
+matrix"), `planner-project` (the tracker). The `logseq` CLI follows whichever app started last: `npm run tracker` may
+need `--revision <rev>`.
 
 Read in this order: this section, "Next" below, then the Progress log entry of whatever
 you touch (it records what was verified live, the decisions taken and what was not
@@ -786,6 +782,7 @@ Live-check method (web app):
 - [x] **N07 Query Builder follow-up (other repo)** — its theme code has the same
       theme-switch race fixed here in 2c90798; not checked there.
 - [x] **N62 Agenda in a narrow frame** — done 2026-10-11 (owner: the docked Agenda truncated every title). Under 640 px an entry is two lines (title up to two lines, node chip / meta / date under it); "00:00" is no time (`withoutMidnight`); the Overdue bucket keeps only "N days late" (date in the tooltip). Seen in the nightly (d24abc9), docked, `planner-project`: long title clamped to two lines, Overdue by date shows lateness only; not seen on the stable app.
+- [ ] **N66 Check a marketplace install** — after logseq/marketplace#931 merges: install Planner from the marketplace on the stable app, confirm its frame loads from `lsp://logseq.com/plugins/...` (not `lsp://logseq.io`), the dock button shows and docks, `g` shortcuts reach Logseq while Planner has focus, icon characters in titles render, and on macOS the workspace covers the header. Found 2026-10-12 (owner: no dock button in a marketplace install); dev installs never showed it because they load from `lsp://logseq.com/external/...`.
 - [ ] **N65 Matrix time range (phase 2)** — planned (owner, 2026-10-12: release N64 first, plan the rest after). A range control (length chosen by the user: a week, two weeks, a month…, Prev / Next / Today), cards whose span touches the range (the view's Dates mapping, N64 decision), carry-over of unfinished cards from before the range, a done summary for the range (completion rate). Open (owner): where undated cards go while a range is on, Task blocks as cards.
 - [x] **N64 Matrix view** — done 2026-10-12, released in 1.1.0 (phase 2 is N65) (owner: a priority matrix, Eisenhower or Impact × Effort, over any two properties; mocks reviewed on the phone). A fifth view: two choice properties of the view's tags as axes (Across, Down); Quadrants (each axis in two bands: the value uuids of the first band are saved, a value added later joins the second band, a gone uuid is ignored; Reverse flips an axis; − / + move the split) or Every value (a row and a column per value); a card sits in the cell of its two values, a card missing either is in the Unplaced list under the grid; a move (drag, or the card's ⋯ menu) writes each changed axis's band first value, read back, as a Kanban move; to Unplaced removes the values; quadrant labels editable, "" = the default (a preset's when the axes are named Urgency / Importance or Effort / Impact, else the two bands); done cards hidden unless Show done; saved with a view; read-only in a page. Priority defaults to down, high end first. Unit tests (core, config, workspace, block). Seen in the nightly (d24abc9), docked at 975 px, `planner-project`, #Task by Priority and Status: quadrants, Every value (scrolls sideways), the ⋯ menu move wrote Priority Urgent and read it back (undone afterwards). Seen on the stable Logseq.app 2.0.2, `planner-desktop`, #Task: quadrants in light and dark, the narrow layout (< 640 px: one column, heads hidden), a drag (CDP input) from Unplaced to the top left wrote Priority Urgent, read back (removed afterwards), the in-page block read-only (no drag, no ⋯ menu; the Unplaced drag hint was still shown there, fixed: `data-mx-drag-hint` is stripped by `readOnly`). Not seen: a drag with a real mouse. Open items moved to N65. Decided (owner, 2026-10-12): the range reads the view's Dates mapping, the same as the other views: Start / End, else Scheduled / Deadline, else the first date property by default, and any Date or DateTime property of the tag can be chosen in the settings bar; a node is in the range when its span touches it. Decided (owner, 2026-10-12): a move into a band writes that band's first value. Decided (owner, 2026-10-12): with an odd value count the first band starts with the smaller half (− / + moves it).
 - [x] **N63 Node colours carry no status meaning** — done 2026-10-11 (owner: red / green / blue dots read as late / on time / done). The six node hues are their own tokens (teal, indigo, pink, purple, brown, slate), not the host highlights; the Agenda's node dot is its Status icon (as a task's), neutral without one. Seen in the nightly (d24abc9), `planner-project`; all six README screenshots retaken. Not seen: dark mode, the stable app.
