@@ -117,7 +117,7 @@ function renderGroups(groups: AgendaGroup[], shown: number, drag: AgendaDrag | n
 
 /** N68: the strip of periods an entry can be dropped on, shown while one is dragged. */
 function renderDropBar(drag: AgendaDrag): string {
-  return `<div class="pl-ag-dropbar" data-ag-dropbar aria-hidden="true">${drag.targets.map((t) => `<div class="pl-ag-drop" data-ag-drop="${esc(t.key)}">${esc(t.title)}</div>`).join("")}</div>`;
+  return `<div class="pl-ag-dropbar" data-ag-dropbar aria-hidden="true"><div class="pl-ag-dropbar-in">${drag.targets.map((t) => `<div class="pl-ag-drop" data-ag-drop="${esc(t.key)}">${esc(t.title)}</div>`).join("")}</div></div>`;
 }
 
 /**

@@ -62,13 +62,16 @@ beforeEach(async () => {
 afterEach(() => ws.stop());
 
 describe("Agenda: drag an entry to give it a date", () => {
-  it("entries drag (their list item: Chromium starts no drag from a button); while one does, a strip offers the periods with days left and No date", () => {
+  it("entries drag (their list item: Chromium starts no drag from a button); while one does, a strip offers the periods with days left and No date", async () => {
     expect($(`[data-ag-open="${BRIEF}"]`)!.hasAttribute("draggable")).toBe(false);
     expect($(`[data-ag-open="${BRIEF}"]`)!.closest("li")!.getAttribute("draggable")).toBe("true");
     expect($(`[data-ag-open="${BRIEF}"]`)!.closest("li")!.dataset.agDrag).toBe(BRIEF);
     expect($$("[data-ag-dropbar] [data-ag-drop]").map((b) => b.textContent)).toEqual(["Today", "Tomorrow", "Next week", "This month", "This quarter", "No date"]);
     expect($("[data-agenda]")!.hasAttribute("data-ag-dragging")).toBe(false);
     $(`[data-ag-open="${BRIEF}"]`)!.dispatchEvent(ev("dragstart"));
+    // Not during dragstart: Chromium ends a drag at once when its dragstart changes the page (seen with a real mouse).
+    expect($("[data-agenda]")!.hasAttribute("data-ag-dragging")).toBe(false);
+    await new Promise((r) => setTimeout(r, 0));
     expect($("[data-agenda]")!.hasAttribute("data-ag-dragging")).toBe(true);
     $(`[data-ag-open="${BRIEF}"]`)!.dispatchEvent(ev("dragend"));
     expect($("[data-agenda]")!.hasAttribute("data-ag-dragging")).toBe(false);
@@ -97,5 +100,13 @@ describe("Agenda: drag an entry to give it a date", () => {
   it("an overdue task moved to Today is no longer late", async () => {
     await drag(CONTRACT, `[data-ag-dropbar] [data-ag-drop="today"]`);
     expect(bucketOf(CONTRACT)).toBe("today");
+  });
+});
+
+describe("agenda.css (N68)", () => {
+  it("the strip takes no room in the list (a zero-height sticky holder): showing it moves nothing under the pointer", async () => {
+    const css = (await import("./agenda.css?inline")).default as string;
+    expect(css).toMatch(/\.pl-ag-dropbar\s*{[^}]*position:\s*sticky[^}]*height:\s*0/);
+    expect(css).toMatch(/\.pl-ag-dropbar-in\s*{[^}]*position:\s*absolute/);
   });
 });

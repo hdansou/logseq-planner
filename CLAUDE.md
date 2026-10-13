@@ -82,6 +82,9 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
   shows this: check the plugin iframe's `src` in a marketplace install (N66).
 - Text that asks for a drag or a menu (hints in a view) must carry a marker `readOnly` strips (`data-mx-drag-hint`); the
   in-page block test checks every view kind for "Drag a card" / "⋯ menu".
+- HTML5 drag and drop: check it with a real mouse (`drag.swift`). Playwright's and CDP's drags pass where a real one
+  fails: Chromium starts no drag from a `<button>`, and ends a drag at once when its `dragstart` handler changes the
+  page's layout (N68: the Agenda strip, now shown a tick later and floating in a zero-height holder).
 - UI text never puts "a" / "an" before a property name ("a Impact"): write "a value for Effort or Impact".
 - Only `src/index.ts` imports `@logseq/libs`; other files use
   `/// <reference types="@logseq/libs" />` (vitest crashes otherwise).

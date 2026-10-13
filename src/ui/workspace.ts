@@ -1466,9 +1466,12 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const entry = (e.target as Element).closest?.<HTMLElement>("[data-ag-drag]");
     if (entry) {
       // N68: an Agenda entry; the strip of periods shows while it is dragged.
-      dragging = entry.dataset.agDrag!;
+      const uuid = entry.dataset.agDrag!;
+      dragging = uuid;
       dragLane = null;
-      entry.closest("[data-agenda]")?.setAttribute("data-ag-dragging", "");
+      // After dragstart, not in it: Chromium ends a drag at once when its dragstart changes the page (seen with a real mouse).
+      const agenda = entry.closest("[data-agenda]");
+      setTimeout(() => dragging === uuid && agenda?.setAttribute("data-ag-dragging", ""), 0);
       const dt = (e as DragEvent).dataTransfer;
       if (dt) {
         dt.setData("text/plain", dragging);
