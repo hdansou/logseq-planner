@@ -153,7 +153,7 @@ describe("createBlocks: a saved view in a page", () => {
     expect([open.textContent, open.dataset.viewId]).toEqual(["Open in Planner", "v-1"]);
     // The view itself, read-only: openers hooked, nothing to drag, no menus, no toolbar.
     expect(block.querySelector(`[data-on-click="${OPEN_NODE}"][data-uuid]`)).not.toBeNull();
-    expect(block.querySelector("[draggable], [data-kb-move], [data-mx-move], [data-mx-more], [data-popover], [data-control], [data-tl-toggle], [data-tl-links], [data-action]")).toBeNull();
+    expect(block.querySelector("[draggable], [data-kb-move], [data-mx-move], [data-mx-more], [data-ag-dropbar], [data-popover], [data-control], [data-tl-toggle], [data-tl-links], [data-action]")).toBeNull();
     expect(block.querySelector("[data-tl-nav], [data-cal-nav], [data-tl-zoom], [data-kb-sort], [data-ag-group-by], [data-mx-mode], [data-mx-show-done]")).toBeNull();
     // N64: no hint asks for a drag or a ⋯ menu the block does not have.
     expect(block.textContent).not.toMatch(/Drag a card|⋯ menu/);

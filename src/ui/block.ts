@@ -75,7 +75,7 @@ export function readOnly(html: string, doc: Document): string {
     e.textContent = text;
     return e;
   };
-  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-mx-drag-hint], [data-action]").forEach((e) => e.remove());
+  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-mx-drag-hint], [data-ag-dropbar], [data-action]").forEach((e) => e.remove());
   all("[draggable]").forEach((e) => e.removeAttribute("draggable"));
   all(".pl-kb-drop").forEach((e) => (e.textContent = "")); // "Drop here": nothing can be dropped in a block
   all("details[open]").forEach((e) => e.removeAttribute("open"));

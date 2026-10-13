@@ -5,6 +5,10 @@
 // `AGENDA_GROUP_PAGE` groups and a `data-ag-more` button for the next page; the Overdue bucket (by date) renders its
 // entries the same way, `data-ag-more="overdue"` inside the section. Every entry is a button carrying `data-ag-entry` (node | task), `data-ag-open`
 // (uuid), `data-bucket` and the flags `data-late` / `data-done`.
+// N68, with `drag` (the workspace, never the in-page block): an entry's list item (a group's heading) is `draggable`
+// with `data-ag-drag` = its uuid (Chromium starts no drag from a button, seen live), but nodes in `fixed`; Today and the
+// day sections are drop targets (`data-ag-drop` = "today" or the day); a strip `data-ag-dropbar` of the When periods
+// (`data-ag-drop` = period key, "none" = No date) shows while an entry is dragged (`data-ag-dragging` on the root).
 import type { AgendaBucket, AgendaEntry, AgendaGroup, AgendaGroupBy, AgendaLayout } from "../core/agenda";
 import { esc, flag, segmented, toggleButton } from "./html";
 
@@ -40,6 +44,15 @@ function whenSpans(when: string): string {
   return m ? `<span class="pl-ag-date">${esc(m[1])}</span><span class="pl-ag-sep">${m[2]}</span><span class="pl-ag-late">${esc(m[3])}</span>` : esc(when);
 }
 
+/** Where entries can be dropped (N68): the When periods' keys and titles; `fixed` = the node uuids that cannot move. */
+export interface AgendaDrag {
+  targets: { key: string; title: string }[];
+  fixed: ReadonlySet<string>;
+}
+
+/** ` draggable="true" data-ag-drag="<uuid>"` on the element around an entry that can be dragged (N68). */
+const draggable = (uuid: string, drag: AgendaDrag | null) => (drag && !drag.fixed.has(uuid) ? ` draggable="true" data-ag-drag="${esc(uuid)}"` : "");
+
 /** The entry's button; `chip` adds the node's name (a task listed by date). */
 function renderEntry(e: AgendaEntry, chip: boolean): string {
   return `<button type="button" class="pl-ag-entry" data-ag-entry="${e.kind}" data-ag-open="${esc(e.uuid)}" data-bucket="${esc(e.bucket)}" data-cat="${e.cat}"`
@@ -50,23 +63,28 @@ function renderEntry(e: AgendaEntry, chip: boolean): string {
     + `<span class="pl-ag-when">${whenSpans(e.when)}</span></button>`;
 }
 
-const items = (entries: AgendaEntry[], chip: boolean) => `<ul class="pl-ag-list">${entries.map((e) => `<li>${renderEntry(e, chip)}</li>`).join("")}</ul>`;
+const items = (entries: AgendaEntry[], chip: boolean, drag: AgendaDrag | null) =>
+  `<ul class="pl-ag-list">${entries.map((e) => `<li${draggable(e.uuid, drag)}>${renderEntry(e, chip)}</li>`).join("")}</ul>`;
+
+/** Today and the day sections take a drop (N68); Overdue, Later, No date and Earlier do not (No date is in the strip). */
+const dropKey = (key: string) => (key === "today" || /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null);
 
 /** A folded bucket is a `details`; its entries are rendered only while it is open (`open`), the count always. */
-function renderBucket(b: AgendaBucket, shown: AgendaShown): string {
+function renderBucket(b: AgendaBucket, shown: AgendaShown, drag: AgendaDrag | null): string {
   const open = shown.open;
   const id = `pl-ag-h-${esc(b.key)}`;
   const title = `${esc(b.label)} <span class="pl-ag-count" data-ag-count>${b.entries.length}</span>`;
-  const attrs = `class="pl-ag-bucket" data-ag-bucket="${esc(b.key)}"`;
+  const drop = drag ? dropKey(b.key) : null;
+  const attrs = `class="pl-ag-bucket" data-ag-bucket="${esc(b.key)}"${drop ? ` data-ag-drop="${esc(drop)}"` : ""}`;
   const unfolded = open.has(b.key);
   const paged = b.key === "overdue";
-  const list = paged ? items(b.entries.slice(0, shown.overdue), true) + moreButton(b.entries.length - shown.overdue, "overdue") : items(b.entries, true);
+  const list = paged ? items(b.entries.slice(0, shown.overdue), true, drag) + moreButton(b.entries.length - shown.overdue, "overdue") : items(b.entries, true, drag);
   return b.collapsed
     ? `<details ${attrs}${unfolded ? " open" : ""}><summary data-ag-fold="${esc(b.key)}"><h2 class="pl-ag-head" id="${id}">${title}</h2></summary>${unfolded ? list : ""}</details>`
     : `<section ${attrs} aria-labelledby="${id}"><h2 class="pl-ag-head" id="${id}">${title}</h2>${list}</section>`;
 }
 
-function renderGroup(g: AgendaGroup): string {
+function renderGroup(g: AgendaGroup, drag: AgendaDrag | null): string {
   const n = g.node;
   const id = `pl-ag-h-${esc(n.uuid)}`;
   const progress = g.progress.total ? `<span class="pl-ag-progress" data-ag-progress>${g.progress.done}/${g.progress.total}</span>` : "";
@@ -76,7 +94,7 @@ function renderGroup(g: AgendaGroup): string {
     + (g.meta.length ? `<span class="pl-ag-meta">${esc(g.meta.join(" · "))}</span>` : "")
     + progress + `<span class="pl-ag-when">${whenSpans(n.when)}</span></button>`;
   return `<section class="pl-ag-group" data-ag-group="${esc(n.uuid)}" data-cat="${n.cat}"${flag("data-late", n.late)} aria-labelledby="${id}">`
-    + `<h2 class="pl-ag-group-head" id="${id}">${line}</h2>${g.tasks.length ? items(g.tasks, false) : ""}</section>`;
+    + `<h2 class="pl-ag-group-head" id="${id}"${draggable(n.uuid, drag)}>${line}</h2>${g.tasks.length ? items(g.tasks, false, drag) : ""}</section>`;
 }
 
 /** Nothing to list: one message, and the way out (Show done) when it is off. */
@@ -93,15 +111,23 @@ function moreButton(rest: number, scope: string): string {
 }
 
 /** The first `shown` groups, then a button for the next page while some are left. */
-function renderGroups(groups: AgendaGroup[], shown: number): string {
-  return groups.slice(0, shown).map(renderGroup).join("") + moreButton(groups.length - shown, "");
+function renderGroups(groups: AgendaGroup[], shown: number, drag: AgendaDrag | null): string {
+  return groups.slice(0, shown).map((g) => renderGroup(g, drag)).join("") + moreButton(groups.length - shown, "");
 }
 
-/** The agenda. `heading` names the nodes (the tag, e.g. "#Project"); `shown` = the unfolded buckets and the number of groups to render. */
-export function renderAgenda(layout: AgendaLayout, heading: string, showDone: boolean, shown: AgendaShown): string {
+/** N68: the strip of periods an entry can be dropped on, shown while one is dragged. */
+function renderDropBar(drag: AgendaDrag): string {
+  return `<div class="pl-ag-dropbar" data-ag-dropbar aria-hidden="true">${drag.targets.map((t) => `<div class="pl-ag-drop" data-ag-drop="${esc(t.key)}">${esc(t.title)}</div>`).join("")}</div>`;
+}
+
+/**
+ * The agenda. `heading` names the nodes (the tag, e.g. "#Project"); `shown` = the unfolded buckets and the number of
+ * groups to render; `drag` (N68) makes entries draggable and adds the drop targets.
+ */
+export function renderAgenda(layout: AgendaLayout, heading: string, showDone: boolean, shown: AgendaShown, drag: AgendaDrag | null = null): string {
   const body = layout.empty ? renderEmpty(showDone)
-    : layout.groupBy === "date" ? layout.buckets.map((b) => renderBucket(b, shown)).join("") : renderGroups(layout.groups, shown.groups);
-  return `<div class="pl-ag" data-agenda data-group="${layout.groupBy}" role="region" aria-label="${esc(`${heading} agenda`)}">${body}</div>`;
+    : layout.groupBy === "date" ? layout.buckets.map((b) => renderBucket(b, shown, drag)).join("") : renderGroups(layout.groups, shown.groups, drag);
+  return `<div class="pl-ag" data-agenda data-group="${layout.groupBy}" role="region" aria-label="${esc(`${heading} agenda`)}">${drag && !layout.empty ? renderDropBar(drag) : ""}${body}</div>`;
 }
 
 /** The action a click on `target` asks for, or null when it is not an Agenda control. */

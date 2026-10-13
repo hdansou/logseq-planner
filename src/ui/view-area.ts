@@ -12,12 +12,16 @@ import { refUuids, titlesByUuid } from "../core/display-title";
 import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
 import { layoutTimeline, type EditProps, type TimelineLayout } from "../core/timeline-layout";
 import { editedNode, type DateWrite } from "../core/date-edit";
-import { whenColumnProp, whenMove, whenPeriods, WHEN_KEY, type WhenProps } from "../core/when";
+import { dayPeriod, whenColumnProp, whenMove, whenPeriods, WHEN_KEY, type WhenProps } from "../core/when";
+
+const TASK_TAG = ":logseq.class/Task";
+const SCHEDULED = ":logseq.property/scheduled";
+const DEADLINE = ":logseq.property/deadline";
 import { layoutCalendar, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { layoutMatrix, type MatrixLayout } from "../core/matrix";
-import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, NodeSpan, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc } from "./html";
 import { renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, renderAgenda, renderAgendaToolbar } from "./agenda";
@@ -245,17 +249,28 @@ export const whenPropsOf = (a: ViewAreaInput) => (n: PlannerNode): WhenProps => 
 };
 
 /**
- * The date writes that move the card `uuid` of a Kanban by When into the column `column` (a period key, or `NO_VALUE` =
- * No date): `whenMove` on the node as it shows now. Throws as `whenMove` does.
+ * The date writes that move `uuid` to `target` (a When period key, `NO_VALUE` = No date, or a day `YYYY-MM-DD`, N68):
+ * `whenMove` on the node as it shows now, or on a #Task block listed with the nodes (its Scheduled and Deadline as Start
+ * and End). Kanban by When (N67) and Agenda drags (N68). Throws as `whenMove` does, and for an unknown uuid or target.
  */
-export function whenMoveOf(a: ViewAreaInput, now: Now, uuid: string, column: string): DateWrite[] {
+export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: string): { title: string; writes: DateWrite[] } {
   const c = a.config;
+  const period = /^\d{4}-\d{2}-\d{2}$/.test(target) ? dayPeriod(target) : whenPeriods(now.today, now.weekStart).find((p) => p.key === target);
+  if (!period) throw new Error(`No period ${target}`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   const item = viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)).find((i) => i.node.uuid === uuid);
-  if (!item) throw new Error(`No card ${uuid} on the board`);
-  const period = whenPeriods(now.today, now.weekStart).find((p) => p.key === column);
-  if (!period) throw new Error(`No When column ${column}`);
-  return whenMove(item.node, item.span, whenPropsOf(a)(item.node), period);
+  if (item) return { title: item.node.title, writes: whenMove(item.node, item.span, whenPropsOf(a)(item.node), period) };
+  const task = shown.tasks.find((t) => t.uuid === uuid);
+  if (!task) throw new Error(`No node or task ${uuid} in the view`);
+  const props = a.tags.find((t) => t.ident === TASK_TAG)?.dateProps ?? [];
+  const start = props.find((p) => p.ident === SCHEDULED) ?? null;
+  const end = props.find((p) => p.ident === DEADLINE) ?? null;
+  const dates = Object.fromEntries([[SCHEDULED, task.scheduled], [DEADLINE, task.deadline]].filter(([, v]) => v)) as PlannerNode["dates"];
+  const s = task.scheduled ?? task.deadline;
+  const e = task.deadline ?? task.scheduled;
+  const span: NodeSpan = { kind: task.scheduled && task.deadline ? "mapped" : s ? "point" : "undated", start: s, end: e };
+  const node: PlannerNode = { id: task.id, uuid, title: task.title, tagIds: [], tag: TASK_TAG, links: [], dependsOn: [], dates, choices: {} };
+  return { title: task.title, writes: whenMove(node, span, { start, end }, period) };
 }
 
 /** A Matrix view's axes with their properties (the view has axes). */
@@ -316,8 +331,15 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
     return { view: renderCalendar(layout, heading), toolbar: renderCalendarToolbar(layout) };
   }
   if (c.kind === "agenda") {
-    const layout = agendaLayout(a, now(), shown);
-    return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
+    const at = now();
+    const layout = agendaLayout(a, at, shown);
+    // N68: entries drag onto a day heading or a period; a node of a tag with no Start or End cannot.
+    const props = whenPropsOf(a);
+    const drag = {
+      targets: whenPeriods(at.today, at.weekStart).filter((p) => p.drop !== null || p.key === "none").map((p) => ({ key: p.key, title: p.title })),
+      fixed: new Set(shown.nodes.filter((n) => { const p = props(n); return !p.start && !p.end; }).map((n) => n.uuid)),
+    };
+    return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }, drag), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
   }
   if (c.kind === "matrix") {
     const layout = matrixLayout(a, now());

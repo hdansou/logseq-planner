@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Agenda: drag an entry onto a day heading, or onto Today, Tomorrow, This week, Next week, This month, This quarter or No date in a strip that shows while dragging, to give it that date (N68).
 - Kanban columns by **When** (N67): the view's dates in periods from Overdue to No date; dragging a card, or its ⋯ menu, gives it the period's last day, keeping a span's length and a DateTime's time.
 
 ### Fixed

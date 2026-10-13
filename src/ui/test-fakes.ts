@@ -186,7 +186,7 @@ export const fixtureDq = (opts: { noTags?: boolean; projectCopies?: number; edit
     const liveNode = liveFilter(query, "?n");
     const liveTask = liveFilter(query, "?b");
     const ids = new Set(nodeRows(inputs[0]).filter(([n]) => liveNode(n)).map(([n]) => n.id));
-    return taskRows().map(withDepends).filter((t) => liveTask(t) && ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t, taskPull)]);
+    return taskRows().map((t) => edited(t, opts.edits)).map(withDepends).filter((t) => liveTask(t) && ((t.refs as Row[] | undefined) ?? []).some((r) => ids.has(r.id))).map((t) => [narrowTask(t, taskPull)]);
   }
   if (query === TITLES_QUERY) {
     const titles = fixtureTitles();
@@ -382,7 +382,7 @@ export function fakeGraph(opts: { projectCopies?: number } = {}) {
     readDate: async (uuid, ident, type) => {
       calls.push(["readDate", uuid, ident, type]);
       const e = edits.get(uuid)?.[ident];
-      const row = fixtureRows().find((n) => n.uuid === uuid);
+      const row = [...fixtureRows(), ...taskRows()].find((n) => n.uuid === uuid); // N68: task blocks take date writes too
       if (!row) throw new Error(`no node ${uuid}`);
       const v = e === undefined ? row[ident] : e === null ? undefined : (e as { raw: unknown }).raw;
       if (v === undefined) return null;

@@ -20,7 +20,8 @@ import { addDays, daysBetween, firstOfMonth, startOfWeek } from "./layout-common
 /** The When pseudo-property: what the Kanban's Columns menu stores for columns by period. */
 export const WHEN_KEY = "@when";
 
-export type PeriodKey = "overdue" | "today" | "tomorrow" | "week" | "next" | "month" | "quarter" | "later" | "none";
+/** The periods, and "day": one day as a target (N68, an Agenda day heading, `dayPeriod`). */
+export type PeriodKey = "overdue" | "today" | "tomorrow" | "week" | "next" | "month" | "quarter" | "later" | "none" | "day";
 
 export interface Period {
   key: PeriodKey;
@@ -69,6 +70,9 @@ export const whenColumnProp = (periods: Period[]): ChoiceProp => ({
   id: 0, ident: WHEN_KEY, title: "When",
   values: periods.filter((p) => p.key !== "none").map((p) => ({ id: 0, uuid: p.key, title: p.title, ident: null, order: "", checkbox: null, canceled: false })),
 });
+
+/** One day as a move's target (N68: an Agenda day heading): a period of that day alone. */
+export const dayPeriod = (day: string): Period => ({ key: "day", title: day, first: day, last: day, drop: day });
 
 /** The period `day` is in; null = No date. */
 export function periodKey(periods: Period[], day: string | null): PeriodKey {

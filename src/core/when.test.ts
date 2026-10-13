@@ -145,3 +145,12 @@ describe("Kanban card dates", () => {
     expect(findCell(l, "week", null).cards[0].when).toBe("18 Oct");
   });
 });
+
+describe("a day as a target (N68: an Agenda day heading)", () => {
+  it("dayPeriod(day) writes that day, keeping a span's length and a DateTime's time", async () => {
+    const { dayPeriod } = await import("./when");
+    const writes = whenMove(node({ [due.ident]: d("2026-10-20", "17:00") }), { kind: "point", start: d("2026-10-20", "17:00"), end: d("2026-10-20", "17:00") }, { start: null, end: due }, dayPeriod("2026-10-16"));
+    expect(writes).toEqual([{ prop: due, previous: d("2026-10-20", "17:00"), next: d("2026-10-16", "17:00") }]);
+    expect(whenMove(node({ [end.ident]: d("2026-10-16") }), span("point", "2026-10-16", "2026-10-16"), { start, end }, dayPeriod("2026-10-16"))).toEqual([]);
+  });
+});

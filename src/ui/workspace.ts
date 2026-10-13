@@ -33,7 +33,7 @@ import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { calendarLayoutOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, whenMoveOf, type Now, type ViewAreaInput } from "./view-area";
+import { calendarLayoutOf, dateMoveOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -1375,7 +1375,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const { card, cell } = cardCell(layout, uuid);
       if (card.pending) return;
       const target = moveTarget(layout, column, lane);
-      if (target.column.prop.ident === WHEN_KEY) return moveWhen(uuid, card.title, card.fixed || !target.column.drop ? [] : whenMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, column),
+      if (target.column.prop.ident === WHEN_KEY) return moveWhen(uuid, card.title, card.fixed || !target.column.drop ? [] : dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, column).writes,
         moveDescriptor(card, cell, { column: cell.column, lane: target.lane }), focus);
       writes = moveDescriptor(card, cell, target);
     }
@@ -1432,9 +1432,50 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }, () => focus);
   }
 
+  /**
+   * N68: an Agenda entry dropped on a day or a period (`target`: a day, a When period key, or "none"): its date writes
+   * (`dateMoveOf`, then `writeDates`, read back), shown at once for a node, then the view is reloaded.
+   */
+  function moveDate(uuid: string, target: string) {
+    let planned: ReturnType<typeof dateMoveOf>;
+    try {
+      planned = dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, target);
+    } catch (e) {
+      return run(() => { throw e; }); // shown in the error bar
+    }
+    const { title, writes } = planned;
+    if (!writes.length) return void render();
+    s.datePending.set(uuid, writes);
+    render();
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        await writeDates(deps.dates, { uuid, title }, writes, deps.zone ?? systemZone, { shows: "The agenda shows what the graph holds.", unmoved: "the entry has not moved" });
+      } catch (e) {
+        failure = e;
+      }
+      s.datePending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    });
+  }
+
   /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   root.addEventListener("dragstart", (e) => {
+    const entry = (e.target as Element).closest?.<HTMLElement>("[data-ag-drag]");
+    if (entry) {
+      // N68: an Agenda entry; the strip of periods shows while it is dragged.
+      dragging = entry.dataset.agDrag!;
+      dragLane = null;
+      entry.closest("[data-agenda]")?.setAttribute("data-ag-dragging", "");
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt) {
+        dt.setData("text/plain", dragging);
+        dt.effectAllowed = "move";
+      }
+      return;
+    }
     const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
     if (!cardEl) return;
     if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-kb-fixed") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
@@ -1447,9 +1488,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       dt.effectAllowed = "move";
     }
   });
-  /** The cell a drag is over: a Kanban cell, or a Matrix cell or its Unplaced list (N64). */
-  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell]") ?? null;
-  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : "data-kb-over");
+  /** The cell a drag is over: a Kanban cell, a Matrix cell or its Unplaced list (N64), an Agenda day or period (N68). */
+  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop]") ?? null;
+  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : cellEl.hasAttribute("data-ag-drop") ? "data-ag-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {
     const cellEl = dropCell(e);
     if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return; // N67: When's Overdue and Later take no drop
@@ -1460,6 +1501,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (!cellEl.hasAttribute(overAttr(cellEl))) {
       clearMarks("data-kb-over");
       clearMarks("data-mx-over");
+      clearMarks("data-ag-over");
       cellEl.setAttribute(overAttr(cellEl), "");
     }
   });
@@ -1475,6 +1517,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     const uuid = dragging;
     dragging = null;
     if (cellEl.hasAttribute("data-mx-cell")) return void move(uuid, cellEl.dataset.mxX!, cellEl.dataset.mxY!);
+    if (cellEl.hasAttribute("data-ag-drop")) return void moveDate(uuid, cellEl.dataset.agDrop!);
     void move(uuid, cellEl.dataset.kbCol!, cellEl.dataset.kbLane ?? null);
   });
   /**
@@ -1488,6 +1531,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     clearMarks("data-kb-over");
     clearMarks("data-mx-dragging");
     clearMarks("data-mx-over");
+    clearMarks("data-ag-over");
+    clearMarks("data-ag-dragging");
     if (drawOwed) {
       drawOwed = false;
       render();

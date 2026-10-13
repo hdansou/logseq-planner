@@ -240,6 +240,12 @@ sorts at that date and shows how many days late.
   groups render; **Show 100 more of N** adds the next 100. With several tags, a child node
   (as in the Timeline's Nested) is listed in its parent's panel, not in a panel of its own.
 - **Show done** includes done and canceled entries (within 14 days, or under No date).
+- **Drag an entry** to give it a date. While you drag, a strip at the top offers Today, Tomorrow,
+  This week, Next week, This month, This quarter and No date (the Kanban's When periods); by date,
+  the Today and day headings take a drop too, for that exact day. The rules are the Kanban's by
+  When: a period writes its last day, a node with Start and End keeps its length, a DateTime keeps
+  its time, No date removes the dates. A task block moves its Deadline (and its Scheduled date by
+  the same days); one with only a Scheduled date moves that.
 
 **Kanban.** A board of cards.
 
