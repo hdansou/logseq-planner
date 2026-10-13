@@ -12,6 +12,7 @@ export type CalendarAction =
   | { type: "today" }
   | { type: "more"; day: string }
   | { type: "edit" }
+  | { type: "trayMore" }
   | { type: "open"; uuid: string };
 
 const LAYOUTS: [CalendarView, string][] = [["day", "Day"], ["3days", "3 days"], ["week", "Week"], ["month", "Month"]];
@@ -40,33 +41,45 @@ export function renderCalendarToolbar(layout: CalendarLayout): string {
 }
 
 function renderDay(d: CalendarDay, i: number): string {
-  return `<div class="pl-cal-day" data-cal-day="${d.day}"${flag("data-outside", d.outside)}${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}`
+  return `<div class="pl-cal-day" data-cal-day="${d.day}" data-cal-drop="${d.day}"${flag("data-outside", d.outside)}${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}`
     + ` style="grid-column: ${i + 1}"><span class="pl-cal-num"${d.today ? ' aria-current="date"' : ""}>${esc(d.label)}</span></div>`;
 }
 
+/**
+ * N69: the holder a band or chip is dragged by (Chromium starts no drag from a button), placed in the week's grid.
+ * `grab` = the day it stands for (a chip's day; a band's is the day under the pointer, found by the workspace). A node
+ * of a tag with no Start or End (`fixed`) does not drag.
+ */
+function holder(uuid: string, grab: string | null, fixed: ReadonlySet<string>, place: string): string {
+  const drag = fixed.has(uuid) ? "" : ` draggable="true" data-cal-drag="${esc(uuid)}"${grab ? ` data-cal-grab="${grab}"` : ""}`;
+  return `<div class="pl-cal-item"${drag} style="${place}">`;
+}
+
 /** `col` / `row`: the first grid column / row items sit in (the all-day row of a time grid has the hour axis as column 1). */
-function renderBand(b: CalendarBand, col = 1, row = 2): string {
-  return `<button type="button" class="pl-cal-band" data-cal-band data-cal-open="${esc(b.node.uuid)}" data-kind="${b.kind}" data-cat="${b.cat}" data-lane="${b.lane}"`
+function renderBand(b: CalendarBand, fixed: ReadonlySet<string>, col = 1, row = 2): string {
+  return holder(b.node.uuid, null, fixed, `grid-column: ${b.from + col} / ${b.to + col}; grid-row: ${b.lane + row}`)
+    + `<button type="button" class="pl-cal-band" data-cal-band data-cal-open="${esc(b.node.uuid)}" data-kind="${b.kind}" data-cat="${b.cat}" data-lane="${b.lane}"`
     + `${flag("data-cont-before", b.continuesBefore)}${flag("data-cont-after", b.continuesAfter)}`
-    + ` style="grid-column: ${b.from + col} / ${b.to + col}; grid-row: ${b.lane + row}" aria-label="${esc(b.label)}" title="${esc(b.label)}">`
+    + ` aria-label="${esc(b.label)}" title="${esc(b.label)}">`
     + (b.continuesBefore ? `<span class="pl-cal-cont" aria-hidden="true">‹</span>` : "")
     + `<span class="pl-cal-title">${esc(b.title)}</span>`
     + (b.continuesAfter ? `<span class="pl-cal-cont" aria-hidden="true">›</span>` : "")
-    + `</button>`;
+    + `</button></div>`;
 }
 
-function renderChip(c: CalendarChip, week: boolean, col = 1, row = 2): string {
-  return `<button type="button" class="pl-cal-chip" data-cal-chip="${c.kind}" data-cal-open="${esc(c.uuid)}" data-cat="${c.cat}"`
+function renderChip(c: CalendarChip, week: boolean, fixed: ReadonlySet<string>, col = 1, row = 2): string {
+  return holder(c.uuid, c.date.day, fixed, `grid-column: ${c.at + col}; grid-row: ${c.row + row}`)
+    + `<button type="button" class="pl-cal-chip" data-cal-chip="${c.kind}" data-cal-open="${esc(c.uuid)}" data-cat="${c.cat}"`
     + ` data-status="${esc(c.status ?? "none")}"${flag("data-late", c.late)}${flag("data-done", c.done)}`
-    + ` style="grid-column: ${c.at + col}; grid-row: ${c.row + row}" aria-label="${esc(c.label)}" title="${esc(c.label)}">`
+    + ` aria-label="${esc(c.label)}" title="${esc(c.label)}">`
     + `<span class="pl-cal-dot" aria-hidden="true"></span>`
     + (c.time ? `<span class="pl-cal-time" data-cal-time>${esc(c.time)}</span>` : "")
     + `<span class="pl-cal-title">${c.kind === "deadline" ? `<span aria-hidden="true">⚑ </span>` : ""}${esc(c.title)}</span>`
     + (week && c.node ? `<span class="pl-cal-node" data-cal-node>${esc(c.node)}</span>` : "")
-    + `</button>`;
+    + `</button></div>`;
 }
 
-function renderWeek(w: CalendarWeek, week: boolean): string {
+function renderWeek(w: CalendarWeek, week: boolean, fixed: ReadonlySet<string>): string {
   const more = w.days.map((d, i) => d.more
     ? `<button type="button" class="pl-cal-more" data-cal-more="${d.day}" style="grid-column: ${i + 1}; grid-row: ${w.rows + 2}"`
       + ` aria-label="${d.more} more on ${formatDay(d.day)}, show the week">+${d.more} more</button>`
@@ -77,7 +90,7 @@ function renderWeek(w: CalendarWeek, week: boolean): string {
   const rows = w.rows + (more ? 1 : 0);
   const template = `var(--pl-cal-head-h)${rows ? ` repeat(${rows}, minmax(var(--pl-cal-item-h), auto))` : ""} 1fr`;
   return `<div class="pl-cal-week" data-cal-week="${w.start}" role="group" aria-label="Week of ${formatDay(w.start)}" style="grid-template-rows: ${template}">`
-    + w.days.map(renderDay).join("") + w.bands.map((b) => renderBand(b)).join("") + w.chips.map((c) => renderChip(c, week)).join("") + more + `</div>`;
+    + w.days.map(renderDay).join("") + w.bands.map((b) => renderBand(b, fixed)).join("") + w.chips.map((c) => renderChip(c, week, fixed)).join("") + more + `</div>`;
 }
 
 /** A block this short (minutes: a point or deadline, 30 minutes = 23 px) has room for one line, so its title and time share it (N56). */
@@ -100,15 +113,15 @@ function renderBlock(b: GridBlock, editing: boolean): string {
 }
 
 /** The time grids (N46): sticky day heads and all-day row over a 24-hour body, one column per day after the hour axis. */
-function renderGrid(g: TimeGrid): string {
+function renderGrid(g: TimeGrid, fixed: ReadonlySet<string>): string {
   const n = g.days.length;
-  const head = g.days.map((d, i) => `<div class="pl-cg-dayhead" data-cg-day="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}`
+  const head = g.days.map((d, i) => `<div class="pl-cg-dayhead" data-cg-day="${d.day}" data-cal-drop="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}`
     + ` style="grid-column: ${i + 2}"><span class="pl-cal-num"${d.today ? ' aria-current="date"' : ""}>${esc(d.label)}</span></div>`).join("");
   const rows = `repeat(${Math.max(1, g.allDay.rows)}, minmax(var(--pl-cal-item-h), auto))`;
   const allDay = `<div class="pl-cg-allday" data-cg-allday style="--pl-cg-days: ${n}; grid-template-rows: ${rows}">`
     + `<span class="pl-cg-axis-label">all-day</span>`
-    + g.days.map((_, i) => `<div class="pl-cg-allday-cell" style="grid-column: ${i + 2}"></div>`).join("")
-    + g.allDay.bands.map((b) => renderBand(b, 2, 1)).join("") + g.allDay.chips.map((c) => renderChip(c, true, 2, 1)).join("") + `</div>`;
+    + g.days.map((d, i) => `<div class="pl-cg-allday-cell" data-cal-drop="${d.day}" style="grid-column: ${i + 2}"></div>`).join("")
+    + g.allDay.bands.map((b) => renderBand(b, fixed, 2, 1)).join("") + g.allDay.chips.map((c) => renderChip(c, true, fixed, 2, 1)).join("") + `</div>`;
   const hours = Array.from({ length: 24 }, (_, h) => `<span class="pl-cg-hour" data-cg-hour style="--pl-start: ${h * 60}">${String(h).padStart(2, "0")}:00</span>`).join("");
   const cols = g.days.map((d) => `<div class="pl-cg-col" data-cg-col="${d.day}"${flag("data-today", d.today)}${flag("data-weekend", d.weekend)}>`
     + g.blocks.filter((b) => b.day === d.day).map((b) => renderBlock(b, g.editing)).join("")
@@ -122,29 +135,54 @@ function renderGrid(g: TimeGrid): string {
     + `<div class="pl-cg-body" data-cg-body data-cg-focus="${g.focusMinute}" style="--pl-cg-days: ${n}"><div class="pl-cg-axis">${hours}${mark}</div>${cols}</div>`;
 }
 
-/** The calendar grid plus the undated list. `heading` names the nodes (the tag, e.g. "#Project"). */
-export function renderCalendar(layout: CalendarLayout, heading: string): string {
-  const undated = layout.undated.length
-    ? `<p class="pl-cal-undated" data-cal-undated>No dates: ${layout.undated.map((u) => `<button type="button" class="pl-link" data-cal-open="${esc(u.node.uuid)}">${esc(u.title)}</button>`).join(", ")}</p>`
-    : "";
+/** The No date tray's page: this many items, then a "more" button (N69). */
+export const CALENDAR_TRAY_PAGE = 100;
+
+/** What the workspace's Calendar drags need (N69): nodes that cannot move, and how many tray items render. */
+export interface CalendarDrag {
+  fixed: ReadonlySet<string>;
+  tray: number;
+}
+
+/**
+ * N69: the No date tray under the calendar: the undated items (each dragged onto a day to give it that day), and a drop
+ * target that removes a dated item's dates. Shown empty only to take a drop.
+ */
+function renderTray(layout: CalendarLayout, drag: CalendarDrag): string {
+  const items = layout.undated.slice(0, drag.tray);
+  const rest = layout.undated.length - items.length;
+  const list = items.map((u) => `<li class="pl-cal-item"${drag.fixed.has(u.node.uuid) ? "" : ` draggable="true" data-cal-drag="${esc(u.node.uuid)}"`}>`
+    + `<button type="button" class="pl-cal-chip" data-cal-open="${esc(u.node.uuid)}">${esc(u.title)}</button></li>`).join("");
+  return `<section class="pl-cal-tray" data-cal-tray data-cal-drop="none"${flag("data-empty", !layout.undated.length)} aria-label="No date">`
+    + `<h3 class="pl-cal-tray-head">No date <span class="pl-cal-tray-count">${layout.undated.length}</span>`
+    + `<span class="pl-hint" data-cal-drag-hint>Drag onto a day to give it that date; drop a dated item here to remove its dates.</span></h3>`
+    + (list ? `<ul class="pl-cal-tray-list" data-cal-undated>${list}</ul>` : "")
+    + (rest > 0 ? `<button type="button" class="pl-btn pl-cal-tray-more" data-cal-tray-more data-rest="${rest}">Show ${Math.min(rest, CALENDAR_TRAY_PAGE).toLocaleString("en-US")} more${rest > CALENDAR_TRAY_PAGE ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>` : "")
+    + `</section>`;
+}
+
+/** The calendar grid plus the No date tray. `heading` names the nodes (the tag, e.g. "#Project"). */
+export function renderCalendar(layout: CalendarLayout, heading: string, drag: CalendarDrag = { fixed: new Set(), tray: CALENDAR_TRAY_PAGE }): string {
+  const tray = renderTray(layout, drag);
   const label = esc(`${heading} calendar, ${layout.range.label}`);
   if (layout.grid) {
     return `<section class="pl-cal pl-cg" data-calendar data-layout="${layout.view}" data-cg-key="${layout.view}|${layout.range.start}" aria-label="${label}">`
-      + renderGrid(layout.grid) + `</section>` + undated;
+      + renderGrid(layout.grid, drag.fixed) + `</section>` + tray;
   }
   const weekdays = `<div class="pl-cal-weekdays" data-cal-weekdays aria-hidden="true">${layout.weekdays.map((d) => `<span>${d}</span>`).join("")}</div>`;
   return `<section class="pl-cal" data-calendar data-layout="${layout.view}" aria-label="${label}">`
-    + weekdays + layout.weeks.map((w) => renderWeek(w, false)).join("") + `</section>` + undated;
+    + weekdays + layout.weeks.map((w) => renderWeek(w, false, drag.fixed)).join("") + `</section>` + tray;
 }
 
 /** The action a click on `target` asks for, or null when it is not a Calendar control. */
 export function calendarAction(target: Element): CalendarAction | null {
-  const el = target.closest<HTMLElement>("[data-cal-layout], [data-cal-nav], [data-cal-more], [data-cal-edit], [data-cal-open]");
+  const el = target.closest<HTMLElement>("[data-cal-layout], [data-cal-nav], [data-cal-more], [data-cal-edit], [data-cal-tray-more], [data-cal-open]");
   if (!el) return null;
   const d = el.dataset;
   if (d.calLayout) return { type: "layout", layout: d.calLayout as CalendarView };
   if (d.calNav) return d.calNav === "today" ? { type: "today" } : { type: "nav", dir: d.calNav === "prev" ? -1 : 1 };
   if (d.calMore) return { type: "more", day: d.calMore };
   if (el.hasAttribute("data-cal-edit")) return { type: "edit" };
+  if (el.hasAttribute("data-cal-tray-more")) return { type: "trayMore" };
   return { type: "open", uuid: d.calOpen! };
 }

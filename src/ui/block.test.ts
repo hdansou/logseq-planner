@@ -155,8 +155,8 @@ describe("createBlocks: a saved view in a page", () => {
     expect(block.querySelector(`[data-on-click="${OPEN_NODE}"][data-uuid]`)).not.toBeNull();
     expect(block.querySelector("[draggable], [data-kb-move], [data-mx-move], [data-mx-more], [data-ag-dropbar], [data-popover], [data-control], [data-tl-toggle], [data-tl-links], [data-action]")).toBeNull();
     expect(block.querySelector("[data-tl-nav], [data-cal-nav], [data-tl-zoom], [data-kb-sort], [data-ag-group-by], [data-mx-mode], [data-mx-show-done]")).toBeNull();
-    // N64: no hint asks for a drag or a ⋯ menu the block does not have.
-    expect(block.textContent).not.toMatch(/Drag a card|⋯ menu/);
+    // N64: no hint asks for a drag or a ⋯ menu the block does not have (N69: nor a drop).
+    expect(block.textContent).not.toMatch(/Drag a card|⋯ menu|[Dd]rag onto|drop /);
     // N06c: never editable in a page: no Edit dates toggle, handles, edit marks or description.
     expect(block.querySelector("[data-tl-edit], [data-tl-handle], [data-tl-editable], [data-tl-locked], [data-tl-pending], [data-tl-edit-help], [aria-describedby]")).toBeNull();
   });

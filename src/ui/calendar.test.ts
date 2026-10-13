@@ -24,7 +24,8 @@ const tag = (title: string) => tags.find((x) => x.title === title)!;
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel);
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
-const style = (el: Element | null) => el?.getAttribute("style") ?? "";
+/** An item's placement: on its drag holder for a band or chip (N69), else on the element. */
+const style = (el: Element | null) => (el?.closest(".pl-cal-item") ?? el)?.getAttribute("style") ?? "";
 
 async function click(sel: string, init: MouseEventInit = {}) {
   const el = $(sel);
@@ -175,7 +176,7 @@ describe("Month (October 2026, Sunday start)", () => {
   });
 
   it("lists undated nodes apart, with buttons that open them", async () => {
-    expect(text("[data-cal-undated]")).toBe("No dates: Archive cleanup");
+    expect(text("[data-cal-undated]")).toBe("Archive cleanup"); // the No date tray (N69)
     await click("[data-cal-undated] [data-cal-open]");
     expect(openNode).toHaveBeenCalledWith(ARCHIVE, { sidebar: false });
   });
@@ -241,7 +242,7 @@ describe("Week (a time grid since N46)", () => {
     const kick = $("[data-cg-block]")!;
     expect(kick.textContent).toContain("Kickoff");
     expect(kick.querySelector("[data-cg-time]")!.textContent).toBe("10:30");
-    expect(text("[data-cal-undated]")).toBe("No dates: Untimed meeting");
+    expect(text("[data-cal-undated]")).toBe("Untimed meeting");
   });
 });
 

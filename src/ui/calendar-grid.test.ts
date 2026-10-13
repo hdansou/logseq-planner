@@ -18,7 +18,8 @@ let openNode: ReturnType<typeof vi.fn<(uuid: string, opts: { sidebar: boolean })
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => root.querySelector<T>(sel);
 const $$ = (sel: string) => [...root.querySelectorAll<HTMLElement>(sel)];
 const text = (sel: string) => $(sel)?.textContent?.replace(/\s+/g, " ").trim() ?? null;
-const style = (el: Element | null) => el?.getAttribute("style") ?? "";
+/** An item's placement: on its drag holder for a band or chip (N69), else on the element. */
+const style = (el: Element | null) => (el?.closest(".pl-cal-item") ?? el)?.getAttribute("style") ?? "";
 const click = async (sel: string, init: MouseEventInit = {}) => {
   const el = $(sel);
   if (!el) throw new Error(`nothing matches ${sel}`);

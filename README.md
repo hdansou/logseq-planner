@@ -225,6 +225,11 @@ previous and next buttons and **Today** move the period.
   without a time are in the all-day row, spans as bands. Tasks' Scheduled and Deadline dates are shown too. A line marks now.
 - With **Edit dates** on, drag a block to move it (to another day or time, in 15-minute steps), drag its top or bottom edge to
   change its start or end, or use Alt+Arrow keys (Alt+Shift+Up and Down change the end). Each edit is written and read back.
+- **Drag to a day**: in Month, drag a band or chip onto another day; the day you picked it up by lands there and its other
+  dates move with it (a span keeps its length, a DateTime its time). In the grids, drag an all-day band or chip onto another
+  day's heading or all-day cell. The **No date** tray under the calendar lists the items without a date: drag one onto a day to
+  give it that day (its End, else its Start; a DateTime at 00:00), or drop a dated item on the tray to remove its dates. Each
+  write is read back and undone on failure.
 
 **Agenda.** A list of what is overdue and what is coming. A task is overdue when it is late
 (open, and its Deadline, or its Scheduled date when it has no Deadline, is before today); it
@@ -393,8 +398,10 @@ Planner writes four things, and nothing else:
    renamed and moved when Planner first reads them; Planner also keeps its UI state on the hidden page "Plugin state: Planner"). Planner creates the page and the
    property when you first save.
 2. **Kanban moves.** The column or swimlane property of the card you moved.
-3. **Date edits** (only with Edit dates on). The Start and/or End property of the bar or block you moved or resized, in the
-   Timeline and in the Calendar's Day, 3 days and Week grids. For a Date property this can create the journal page of the new day.
+3. **Date edits.** The Start and/or End property (Scheduled and Deadline for a task) of what you moved: with Edit dates on, a
+   bar or block you moved or resized in the Timeline and the Calendar's Day, 3 days and Week grids; a card moved by **When** in
+   the Kanban; an entry dragged in the Agenda; an item dragged onto a day or the No date tray in the Calendar. For a Date
+   property this can create the journal page of the new day.
 4. **Its UI state.** The view on screen and the Timeline's title width, in the hidden property `planner-ui-state` of the hidden page
    "Plugin state: Planner" (it does not show in All pages or search).
 
@@ -407,8 +414,8 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 **Scope**
 
-- Planner writes only Kanban and Matrix moves, its UI state and, with Edit dates on, date edits in the Timeline and the Calendar grids. Month,
-  Agenda and the in-page view never edit dates.
+- Planner writes only Kanban and Matrix moves, date moves (Kanban by When, Agenda and Calendar drags), its UI state and, with
+  Edit dates on, date edits in the Timeline and the Calendar grids. The in-page view never edits anything.
 - Edit dates was checked live on the desktop app (move and resize of a DateTime and a Date span, Day zoom, Escape,
   Alt+Arrow keys). Not checked: a diamond, a failed write, the sidebar surface, the block staying read-only (unit-tested
   only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.

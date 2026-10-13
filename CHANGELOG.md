@@ -8,6 +8,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Calendar: drag a band or chip onto another day (the day you picked it up by lands there), and a **No date** tray under the calendar: drag an undated item onto a day, or a dated one onto the tray to remove its dates (N69).
 - Agenda: drag an entry onto a day heading, or onto Today, Tomorrow, This week, Next week, This month, This quarter or No date in a strip that shows while dragging, to give it that date (N68).
 - Kanban columns by **When** (N67): the view's dates in periods from Overdue to No date; dragging a card, or its ⋯ menu, gives it the period's last day, keeping a span's length and a DateTime's time.
 

@@ -27,13 +27,13 @@ import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } fro
 import type { UiPrefs, UiStore } from "../ui-state";
 import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, LocalDate, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, errorText, esc, flag, menu as menuHtml, options } from "./html";
-import { calendarAction, gridScrollTop } from "./calendar";
+import { CALENDAR_TRAY_PAGE, calendarAction, gridScrollTop } from "./calendar";
 import { installGridEdit } from "./grid-edit";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { calendarLayoutOf, dateMoveOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -576,6 +576,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let dragging: string | null = null;
   /** The lane the dragged card started in: lanes by tag (N14) take no drop from another lane. */
   let dragLane: string | null = null;
+  /** N69: the day a Calendar item was picked up by (`dateMoveOf`'s `grab`). */
+  let dragGrab: string | null = null;
   /** The Timeline bar or point being dragged to edit its dates (N06c). */
   let tlDrag: TlDrag | null = null;
   /** The click that follows a Timeline drag (or one Escape aborted) is not an open (N06c). */
@@ -1273,6 +1275,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
           setConfig({ ...c, layout: "week" });
           s.anchor = a.day;
         }, () => "[data-cal-layout=week]");
+      case "trayMore":
+        return void run(() => void s.kbShown.set(CALENDAR_TRAY_KEY, (s.kbShown.get(CALENDAR_TRAY_KEY) ?? CALENDAR_TRAY_PAGE) + CALENDAR_TRAY_PAGE),
+          () => "[data-cal-tray-more]");
     }
   }
 
@@ -1433,13 +1438,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   }
 
   /**
-   * N68: an Agenda entry dropped on a day or a period (`target`: a day, a When period key, or "none"): its date writes
+   * N68: an Agenda entry (N69: a Calendar item, `grab` its day picked up) dropped on a day or a period (`target`: a day, a When period key, or "none"): its date writes
    * (`dateMoveOf`, then `writeDates`, read back), shown at once for a node, then the view is reloaded.
    */
-  function moveDate(uuid: string, target: string) {
+  function moveDate(uuid: string, target: string, grab: string | null = null) {
     let planned: ReturnType<typeof dateMoveOf>;
     try {
-      planned = dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, target);
+      planned = dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, target, grab);
     } catch (e) {
       return run(() => { throw e; }); // shown in the error bar
     }
@@ -1450,7 +1455,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     return run(async () => {
       let failure: unknown = null;
       try {
-        await writeDates(deps.dates, { uuid, title }, writes, deps.zone ?? systemZone, { shows: "The agenda shows what the graph holds.", unmoved: "the entry has not moved" });
+        const words = s.config?.kind === "calendar"
+          ? { shows: "The calendar shows what the graph holds.", unmoved: "the item has not moved" }
+          : { shows: "The agenda shows what the graph holds.", unmoved: "the entry has not moved" };
+        await writeDates(deps.dates, { uuid, title }, writes, deps.zone ?? systemZone, words);
       } catch (e) {
         failure = e;
       }
@@ -1463,6 +1471,25 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   root.addEventListener("dragstart", (e) => {
+    const item = (e.target as Element).closest?.<HTMLElement>("[data-cal-drag]");
+    if (item) {
+      // N69: a Calendar band, chip or tray item. A band stands for the day under the pointer (its other days move with it).
+      const uuid = item.dataset.calDrag!;
+      dragging = uuid;
+      dragLane = null;
+      const x = (e as MouseEvent).clientX;
+      const under = [...(item.parentElement?.querySelectorAll<HTMLElement>(":scope > [data-cal-drop]") ?? [])]
+        .find((d) => { const r = d.getBoundingClientRect(); return r.width > 0 && x >= r.left && x < r.right; });
+      dragGrab = item.dataset.calGrab ?? under?.dataset.calDrop ?? null;
+      const cal = item.closest("[data-calendar]") ?? root.querySelector("[data-calendar]");
+      setTimeout(() => dragging === uuid && cal?.setAttribute("data-cal-dragging", ""), 0); // not in dragstart (N68)
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt) {
+        dt.setData("text/plain", uuid);
+        dt.effectAllowed = "move";
+      }
+      return;
+    }
     const entry = (e.target as Element).closest?.<HTMLElement>("[data-ag-drag]");
     if (entry) {
       // N68: an Agenda entry; the strip of periods shows while it is dragged.
@@ -1492,8 +1519,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
   });
   /** The cell a drag is over: a Kanban cell, a Matrix cell or its Unplaced list (N64), an Agenda day or period (N68). */
-  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop]") ?? null;
-  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : cellEl.hasAttribute("data-ag-drop") ? "data-ag-over" : "data-kb-over");
+  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop], [data-cal-drop]") ?? null;
+  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : cellEl.hasAttribute("data-ag-drop") ? "data-ag-over"
+    : cellEl.hasAttribute("data-cal-drop") ? "data-cal-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {
     const cellEl = dropCell(e);
     if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return; // N67: When's Overdue and Later take no drop
@@ -1505,6 +1533,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       clearMarks("data-kb-over");
       clearMarks("data-mx-over");
       clearMarks("data-ag-over");
+      clearMarks("data-cal-over");
       cellEl.setAttribute(overAttr(cellEl), "");
     }
   });
@@ -1521,6 +1550,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     dragging = null;
     if (cellEl.hasAttribute("data-mx-cell")) return void move(uuid, cellEl.dataset.mxX!, cellEl.dataset.mxY!);
     if (cellEl.hasAttribute("data-ag-drop")) return void moveDate(uuid, cellEl.dataset.agDrop!);
+    if (cellEl.hasAttribute("data-cal-drop")) return void moveDate(uuid, cellEl.dataset.calDrop!, dragGrab);
     void move(uuid, cellEl.dataset.kbCol!, cellEl.dataset.kbLane ?? null);
   });
   /**
@@ -1536,6 +1566,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     clearMarks("data-mx-over");
     clearMarks("data-ag-over");
     clearMarks("data-ag-dragging");
+    clearMarks("data-cal-over");
+    clearMarks("data-cal-dragging");
     if (drawOwed) {
       drawOwed = false;
       render();

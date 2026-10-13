@@ -9,7 +9,7 @@ import type { ZoneOffset } from "../core/normalize";
 import { tagsTitle, TAG_KEY, type Dq, type ViewTags } from "../core/schema";
 import { dependsOnOf, toChoiceFilters, validateViewConfig, type ViewConfig } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
-import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
+import { addDays, daysBetween, nestItems, viewItems, type ViewItem } from "../core/layout-common";
 import { layoutTimeline, type EditProps, type TimelineLayout } from "../core/timeline-layout";
 import { editedNode, type DateWrite } from "../core/date-edit";
 import { dayPeriod, whenColumnProp, whenMove, whenPeriods, WHEN_KEY, type WhenProps } from "../core/when";
@@ -23,7 +23,7 @@ import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, 
 import { layoutMatrix, type MatrixLayout } from "../core/matrix";
 import type { ChoiceProp, ClosedValue, NodeSpan, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc } from "./html";
-import { renderCalendar, renderCalendarToolbar } from "./calendar";
+import { CALENDAR_TRAY_PAGE, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { renderKanban, renderKanbanToolbar } from "./kanban";
 import { renderMatrix, renderMatrixToolbar } from "./matrix";
@@ -51,7 +51,7 @@ export interface ViewSession {
   agendaGroups: number;
   /** Agenda by date: how many Overdue entries render. */
   agendaOverdue: number;
-  /** Kanban and Matrix (N64): cards rendered per cell by `cellKey` / `matrixCellKey` (absent = the first page). */
+  /** Kanban and Matrix (N64): cards rendered per cell by `cellKey` / `matrixCellKey`; the Calendar's No date tray by `CALENDAR_TRAY_KEY` (N69) (absent = the first page). */
   kbShown: ReadonlyMap<string, number>;
   /** Kanban and Matrix moves being written, by node uuid: the card shows where the writes put it. */
   pending: ReadonlyMap<string, PropertyWrite[]>;
@@ -240,6 +240,9 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   });
 }
 
+/** The Calendar's No date tray in `ViewSession.kbShown` (N69): how many of its items render. */
+export const CALENDAR_TRAY_KEY = "@cal-tray";
+
 /** A node's mapped Start and End properties (the view's Dates for its tag, N14): what a move by When writes (N67). */
 export const whenPropsOf = (a: ViewAreaInput) => (n: PlannerNode): WhenProps => {
   const c = a.config;
@@ -251,15 +254,25 @@ export const whenPropsOf = (a: ViewAreaInput) => (n: PlannerNode): WhenProps => 
 /**
  * The date writes that move `uuid` to `target` (a When period key, `NO_VALUE` = No date, or a day `YYYY-MM-DD`, N68):
  * `whenMove` on the node as it shows now, or on a #Task block listed with the nodes (its Scheduled and Deadline as Start
- * and End). Kanban by When (N67) and Agenda drags (N68). Throws as `whenMove` does, and for an unknown uuid or target.
+ * and End). Kanban by When (N67) and Agenda drags (N68). N69 Calendar: `grab` = the day the item was picked up by (a
+ * band's day under the pointer, a chip's day): the dates move by the days from `grab` to the target day, so that day
+ * lands on the target. Throws as `whenMove` does, and for an unknown uuid or target.
  */
-export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: string): { title: string; writes: DateWrite[] } {
+export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: string, grab: string | null = null): { title: string; writes: DateWrite[] } {
   const c = a.config;
-  const period = /^\d{4}-\d{2}-\d{2}$/.test(target) ? dayPeriod(target) : whenPeriods(now.today, now.weekStart).find((p) => p.key === target);
-  if (!period) throw new Error(`No period ${target}`);
+  const isDay = /^\d{4}-\d{2}-\d{2}$/.test(target);
+  const periodOf = (span: NodeSpan) => {
+    if (!isDay) return whenPeriods(now.today, now.weekStart).find((p) => p.key === target) ?? null;
+    return dayPeriod(grab && span.end ? addDays(span.end.day, daysBetween(grab, target)) : target);
+  };
+  const plan = (node: PlannerNode, span: NodeSpan, props: WhenProps) => {
+    const period = periodOf(span);
+    if (!period) throw new Error(`No period ${target}`);
+    return whenMove(node, span, props, period);
+  };
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   const item = viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)).find((i) => i.node.uuid === uuid);
-  if (item) return { title: item.node.title, writes: whenMove(item.node, item.span, whenPropsOf(a)(item.node), period) };
+  if (item) return { title: item.node.title, writes: plan(item.node, item.span, whenPropsOf(a)(item.node)) };
   const task = shown.tasks.find((t) => t.uuid === uuid);
   if (!task) throw new Error(`No node or task ${uuid} in the view`);
   const props = a.tags.find((t) => t.ident === TASK_TAG)?.dateProps ?? [];
@@ -270,7 +283,7 @@ export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: str
   const e = task.deadline ?? task.scheduled;
   const span: NodeSpan = { kind: task.scheduled && task.deadline ? "mapped" : s ? "point" : "undated", start: s, end: e };
   const node: PlannerNode = { id: task.id, uuid, title: task.title, tagIds: [], tag: TASK_TAG, links: [], dependsOn: [], dates, choices: {} };
-  return { title: task.title, writes: whenMove(node, span, { start, end }, period) };
+  return { title: task.title, writes: plan(node, span, { start, end }) };
 }
 
 /** A Matrix view's axes with their properties (the view has axes). */
@@ -328,7 +341,10 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   }
   if (c.kind === "calendar") {
     const layout = calendarLayout(a, now(), shown);
-    return { view: renderCalendar(layout, heading), toolbar: renderCalendarToolbar(layout) };
+    // N69: items drag onto a day or the No date tray; a node of a tag with no Start or End cannot.
+    const props = whenPropsOf(a);
+    const drag = { fixed: new Set(shown.nodes.filter((n) => { const p = props(n); return !p.start && !p.end; }).map((n) => n.uuid)), tray: session.kbShown.get(CALENDAR_TRAY_KEY) ?? CALENDAR_TRAY_PAGE };
+    return { view: renderCalendar(layout, heading, drag), toolbar: renderCalendarToolbar(layout) };
   }
   if (c.kind === "agenda") {
     const at = now();
