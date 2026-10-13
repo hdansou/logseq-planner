@@ -20,6 +20,23 @@ import { addDays, daysBetween, firstOfMonth, startOfWeek } from "./layout-common
 /** The When pseudo-property: what the Kanban's Columns menu stores for columns by period. */
 export const WHEN_KEY = "@when";
 
+/** Every period that can be a value of When, in order (No date is no value). */
+export const WHEN_KEYS: readonly string[] = ["overdue", "today", "tomorrow", "week", "next", "month", "quarter", "later"];
+
+/** N70: When as a Matrix axis starts with these periods in its first band: up to the end of this week. */
+export const WHEN_FIRST: string[] = ["overdue", "today", "tomorrow", "week"];
+
+/**
+ * N70: a When axis's first band as saved, for the first `count` of the periods `shown` today (in the axis's order): every
+ * period key before the first one left out, so a period with no days today (This week on its last day) keeps its band
+ * on the days it has some.
+ */
+export function whenFirst(shown: readonly string[], count: number, reverse: boolean): string[] {
+  const order = reverse ? [...WHEN_KEYS].reverse() : [...WHEN_KEYS];
+  const cut = shown[count];
+  return cut === undefined ? order : order.slice(0, order.indexOf(cut));
+}
+
 /** The periods, and "day": one day as a target (N68, an Agenda day heading, `dayPeriod`). */
 export type PeriodKey = "overdue" | "today" | "tomorrow" | "week" | "next" | "month" | "quarter" | "later" | "none" | "day";
 

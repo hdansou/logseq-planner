@@ -129,7 +129,7 @@ export function defaultViewConfig(tag: TagInfo | TagInfo[], kind: ViewKind = "ti
     case "kanban":
       return { ...common, kind, columnProp: defaultColumn(view.choiceProps), laneProp: null, sort: "due", hiddenColumns: {}, hiddenFields: [], cardFields: {} };
     case "matrix":
-      return { ...common, kind, ...(defaultMatrixAxes(view.choiceProps) ?? { x: null, y: null }), mode: "quadrants", showDone: false, labels: ["", "", "", ""] };
+      return { ...common, kind, ...(defaultMatrixAxes(view.choiceProps, { when: hasDates(view) }) ?? { x: null, y: null }), mode: "quadrants", showDone: false, labels: ["", "", "", ""] };
   }
 }
 
@@ -165,8 +165,9 @@ export function withTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
     return (config.tags.length > 1) === multi ? common : { ...common, arrange: defaultArrange(idents.length) };
   }
   if (common.kind === "matrix") {
-    const kept = common.x !== null && common.y !== null && shared.has(common.x.prop) && shared.has(common.y.prop);
-    return kept ? common : { ...common, ...(defaultMatrixAxes(view.choiceProps) ?? { x: null, y: null }) };
+    const has = (ident: string) => (ident === WHEN_KEY ? hasDates(view) : shared.has(ident));
+    const kept = common.x !== null && common.y !== null && has(common.x.prop) && has(common.y.prop);
+    return kept ? common : { ...common, ...(defaultMatrixAxes(view.choiceProps, { when: hasDates(view) }) ?? { x: null, y: null }) };
   }
   if (common.kind !== "kanban") return common;
   const keep = common.columnProp === WHEN_KEY ? view.tags.some((t) => t.dateProps.length) : common.columnProp !== null && shared.has(common.columnProp);
@@ -207,11 +208,14 @@ export function withDefaults(config: ViewConfig, view: ViewTags): ViewConfig {
     if (column !== null) next = { ...next, columnProp: column };
   }
   if (next.kind === "matrix" && (next.x === null || next.y === null)) {
-    const axes = defaultMatrixAxes(view.choiceProps);
+    const axes = defaultMatrixAxes(view.choiceProps, { when: hasDates(view) });
     if (axes) next = { ...next, ...axes };
   }
   return next;
 }
+
+/** Any of the view's tags has a Date or DateTime property (When columns and axes, N67 / N70). */
+const hasDates = (view: ViewTags) => view.tags.some((t) => t.dateProps.length);
 
 const oneOf = (what: string, allowed: readonly string[], value: unknown) => {
   if (!allowed.includes(value as string)) throw new Error(`Invalid view config: ${what} "${String(value)}" is not one of ${allowed.join(", ")}`);
@@ -339,8 +343,10 @@ export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): ViewTag
   }
   // N64: a first band's uuids are not checked: a value that is gone is ignored there (core/matrix.ts).
   if (config.kind === "matrix" && config.x && config.y) {
-    choice(config.x.prop);
-    choice(config.y.prop);
+    for (const a of [config.x, config.y]) {
+      if (a.prop !== WHEN_KEY) choice(a.prop);
+      else if (!hasDates(view)) throw new Error("Invalid view config: a When axis needs a Date or DateTime property");
+    }
     if (config.x.prop === config.y.prop) throw new Error("Invalid view config: the Matrix axes use the same property");
   }
   return view;

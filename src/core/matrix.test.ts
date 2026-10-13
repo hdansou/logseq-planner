@@ -4,6 +4,7 @@ import { titlesByUuid } from "./display-title";
 import { viewItems } from "./layout-common";
 import { NO_VALUE } from "./kanban";
 import { axisBands, defaultMatrixAxes, layoutMatrix, matrixMove, MATRIX_PRESETS, type MatrixInput, type MatrixLayout } from "./matrix";
+import { WHEN_FIRST, WHEN_KEY, whenColumnProp, whenPeriods } from "./when";
 import { fixtureDq } from "../ui/test-fakes";
 import type { ChoiceProp, LocalDate, PlannerNode, TagInfo } from "../types";
 
@@ -195,5 +196,58 @@ describe("moves", () => {
   it("a band with no values cannot take a card", () => {
     const l = layout({ y: { prop: priority, reverse: true, first: priority.values.map((v) => v.uuid) } });
     expect(() => matrixMove(l, card(l, "Tidy tags").uuid, "first", "second")).toThrow(/no values/);
+  });
+});
+
+// N70: When as an axis. Today Sat 3 Oct 2026, weeks start Sunday: This week has no day left, so the periods are Overdue,
+// Today, Tomorrow, Next week (5–10 Oct), This month (to 31 Oct), This quarter (to 31 Dec), Later.
+describe("When as an axis (N70)", () => {
+  const periods = whenPeriods(TODAY, 0);
+  const when = whenColumnProp(periods);
+  const whenLayout = (over: Partial<MatrixInput> = {}) => layout({ x: { prop: when, reverse: false, first: WHEN_FIRST }, periods, ...over });
+  const card = (l: MatrixLayout, title: string) => [...l.rows.flat().flatMap((c) => c.cards), ...l.unplaced].find((c) => c.title === title)!;
+
+  it("a new Matrix of a tag with dates puts When across and Priority down; named pairs still win; one choice property is enough", () => {
+    const a = defaultMatrixAxes([status, priority], { when: true })!;
+    expect(a.x).toEqual({ prop: WHEN_KEY, reverse: false, first: WHEN_FIRST });
+    expect([a.y.prop, a.y.reverse]).toEqual([priority.ident, true]);
+    expect(defaultMatrixAxes([status], { when: true })!.y.prop).toBe(status.ident);
+    expect(defaultMatrixAxes([status])).toBeNull();
+    expect(defaultMatrixAxes([status, priority])!.x.prop).toBe(status.ident);
+  });
+
+  it("the first band runs to the end of this week, the second after it; a band's move writes its last day that takes one", () => {
+    const [soon, later] = axisBands({ prop: when, reverse: false, first: WHEN_FIRST }, "quadrants");
+    expect(soon.values.map((v) => v.title)).toEqual(["Overdue", "Today", "Tomorrow"]);
+    expect(later.values.map((v) => v.title)).toEqual(["Next week", "This month", "This quarter", "Later"]);
+    expect([soon.title, later.title]).toEqual(["Overdue – Tomorrow", "Next week – Later"]);
+    expect([soon.drop?.uuid, later.drop?.uuid]).toEqual(["tomorrow", "quarter"]);
+    const each = axisBands({ prop: when, reverse: false, first: [] }, "values");
+    expect(each.map((b) => [b.key, b.drop?.uuid ?? null])).toEqual([
+      ["overdue", null], ["today", "today"], ["tomorrow", "tomorrow"], ["next", "next"], ["month", "month"], ["quarter", "quarter"], ["later", null],
+    ]);
+  });
+
+  it("a card sits in the period of its due date; undated cards are unplaced; Priority down and When across take Eisenhower's labels", () => {
+    const l = whenLayout();
+    expect(titles(l, 0, 0)).toEqual(["Fix outage"]); // Urgent, 4 Oct
+    expect(titles(l, 0, 1)).toEqual(["Plan roadmap"]); // High, 20 Oct
+    expect(titles(l, 1, 0)).toEqual(["Write notes"]); // Medium, 1 Oct (overdue)
+    expect(l.unplaced.map((c) => c.title)).toEqual(["No priority", "Nothing set", "Tidy tags"]);
+    expect(l.rows.flat().map((c) => c.label)).toEqual([...MATRIX_PRESETS.eisenhower.labels]);
+    expect(card(l, "Plan roadmap").x?.title).toBe("This month");
+  });
+
+  it("a move to the other When band writes that band's period (the workspace turns it into dates); to Unplaced removes it", () => {
+    const l = whenLayout();
+    const writes = matrixMove(l, card(l, "Plan roadmap").uuid, "first", "first");
+    expect(writes.map((w) => [w.prop.ident, w.kind === "set" ? w.value.uuid : w.kind, w.previous?.uuid])).toEqual([[WHEN_KEY, "tomorrow", "month"]]);
+    expect(matrixMove(l, card(l, "Write notes").uuid, "first", "first").map((w) => w.prop.title)).toEqual(["Priority"]);
+    expect(matrixMove(l, card(l, "Fix outage").uuid, NO_VALUE, NO_VALUE).map((w) => [w.prop.ident, w.kind])).toEqual([[WHEN_KEY, "remove"], [priority.ident, "remove"]]);
+  });
+
+  it("every value: Overdue and Later take no move", () => {
+    const l = whenLayout({ mode: "values" });
+    expect(() => matrixMove(l, card(l, "Plan roadmap").uuid, "overdue", value(priority, "High").uuid)).toThrow(/cannot move to Overdue/);
   });
 });

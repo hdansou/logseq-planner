@@ -13,6 +13,10 @@
 //   band keeps its own value. To Unplaced (`NO_VALUE` on both axes) removes the values the card has.
 // - A card's date drops a 00:00 time, as the Agenda's does (N62).
 // - Cards sort by due date (the resolved span end), undated last, then title.
+// - N70 When as an axis (`WHEN_KEY`, the periods as values, `whenColumnProp`): a card's value is the period of its due
+//   date (none = unplaced); a band's move writes its last period that takes one ("due by", as the Kanban's When
+//   columns), Overdue and Later take none; the workspace turns that write into dates (`whenMove`). A band of several
+//   periods is titled by its first and last. When across with Priority or Importance down takes Eisenhower's labels.
 import type { ChoiceProp, ClosedValue, LocalDate, Rollup } from "../types";
 import { withoutMidnight } from "./agenda";
 import { displayTitle } from "./display-title";
@@ -20,6 +24,11 @@ import { priorityProp } from "./fields";
 import { NO_VALUE, type PropertyWrite } from "./kanban";
 import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isNodeDone } from "./nodes";
+import { periodKey, WHEN_FIRST, WHEN_KEY, type Period } from "./when";
+
+/** When's periods that take no move (N70). */
+const NO_DROP = new Set(["overdue", "later"]);
+const isWhen = (p: { ident: string }) => p.ident === WHEN_KEY;
 
 export const MATRIX_MODES = ["quadrants", "values"] as const;
 export type MatrixMode = (typeof MATRIX_MODES)[number];
@@ -63,28 +72,34 @@ export function defaultFirst(prop: ChoiceProp, reverse: boolean): string[] {
  * Importance down; Effort across and Impact down), else Priority (or the first property) down and the next one across.
  * Priority runs high end first (the built-in values are ordered Low to Urgent). Null with fewer than two properties.
  */
-export function defaultMatrixAxes(choiceProps: ChoiceProp[]): { x: MatrixAxisConfig; y: MatrixAxisConfig } | null {
-  if (choiceProps.length < 2) return null;
-  let x: ChoiceProp | undefined;
-  let y: ChoiceProp | undefined;
-  for (const preset of Object.values(MATRIX_PRESETS)) {
-    const px = choiceProps.find((p) => named(p, preset.x));
-    const py = choiceProps.find((p) => named(p, preset.y));
-    if (px && py && px !== py) {
-      x = px;
-      y = py;
-      break;
-    }
-  }
-  if (!x || !y) {
-    y = priorityProp({ choiceProps }) ?? choiceProps[0];
-    x = choiceProps.find((p) => p !== y)!;
-  }
+export function defaultMatrixAxes(choiceProps: ChoiceProp[], opts: { when?: boolean } = {}): { x: MatrixAxisConfig; y: MatrixAxisConfig } | null {
   const axis = (p: ChoiceProp): MatrixAxisConfig => {
     const reverse = p === priorityProp({ choiceProps });
     return { prop: p.ident, reverse, first: defaultFirst(p, reverse) };
   };
+  const preset = presetPair(choiceProps);
+  // N70: with dates, Priority (or the first property) down and When across, unless a named pair fits.
+  if (!preset && opts.when && choiceProps.length) {
+    return { x: { prop: WHEN_KEY, reverse: false, first: [...WHEN_FIRST] }, y: axis(priorityProp({ choiceProps }) ?? choiceProps[0]) };
+  }
+  if (choiceProps.length < 2) return null;
+  let x = preset?.x;
+  let y = preset?.y;
+  if (!x || !y) {
+    y = priorityProp({ choiceProps }) ?? choiceProps[0];
+    x = choiceProps.find((p) => p !== y)!;
+  }
   return { x: axis(x), y: axis(y) };
+}
+
+/** The first preset pair the properties are named for (Urgency / Importance, Effort / Impact), or null. */
+function presetPair(choiceProps: ChoiceProp[]): { x: ChoiceProp; y: ChoiceProp } | null {
+  for (const preset of Object.values(MATRIX_PRESETS)) {
+    const x = choiceProps.find((p) => named(p, preset.x));
+    const y = choiceProps.find((p) => named(p, preset.y));
+    if (x && y && x !== y) return { x, y };
+  }
+  return null;
 }
 
 /** A band of an axis: its values in the axis's order; `drop` = the value a move into it writes (null when it has none). */
@@ -104,7 +119,12 @@ export interface MatrixAxis {
 /** The bands of `axis` in `mode` (see the rules above). */
 export function axisBands(axis: MatrixAxisInput, mode: MatrixMode): MatrixBand[] {
   const values = ordered(axis);
-  const band = (key: string, vs: ClosedValue[]): MatrixBand => ({ key, title: vs.map((v) => v.title).join(", "), values: vs, drop: vs[0] ?? null });
+  const when = isWhen(axis.prop);
+  const band = (key: string, vs: ClosedValue[]): MatrixBand => ({
+    key, values: vs,
+    title: when && vs.length > 1 ? `${vs[0].title} – ${vs[vs.length - 1].title}` : vs.map((v) => v.title).join(", "),
+    drop: when ? [...vs].reverse().find((v) => !NO_DROP.has(v.uuid)) ?? null : vs[0] ?? null,
+  });
   if (mode === "values") return values.map((v) => band(v.uuid, [v]));
   const first = new Set(axis.first);
   return [band("first", values.filter((v) => first.has(v.uuid))), band("second", values.filter((v) => !first.has(v.uuid)))];
@@ -159,6 +179,8 @@ export interface MatrixInput {
   doneValues: Record<string, string[]>;
   titles: ReadonlyMap<string, string>;
   pending: ReadonlySet<string>;
+  /** When's periods (`whenPeriods` on `today`): needed when an axis is When (N70). */
+  periods?: Period[];
 }
 
 /** The label a quadrant shows when the user has not named it: the preset's when the axes are named for one, else its two bands. */
@@ -166,6 +188,7 @@ function defaultLabel(input: MatrixInput, y: MatrixBand, x: MatrixBand, i: numbe
   for (const preset of Object.values(MATRIX_PRESETS)) {
     if (named(input.x.prop, preset.x) && named(input.y.prop, preset.y)) return preset.labels[i];
   }
+  if (isWhen(input.x.prop) && named(input.y.prop, ["priorit", "importan"])) return MATRIX_PRESETS.eisenhower.labels[i];
   return `${y.title || "—"} · ${x.title || "—"}`;
 }
 
@@ -192,8 +215,14 @@ export function layoutMatrix(input: MatrixInput): MatrixLayout {
     const late = !done && !!due && due.day < today;
     const point = !!span.start && !!due && span.start.day === due.day && span.start.time === due.time;
     const when = !due ? "no date" : `${point || !span.start ? "" : "ends "}${withoutMidnight(formatDate(due))}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
-    const x = node.choices[input.x.prop.ident] ?? null;
-    const y = node.choices[input.y.prop.ident] ?? null;
+    const valueOf = (a: MatrixAxisInput): ClosedValue | null => {
+      if (!isWhen(a.prop)) return node.choices[a.prop.ident] ?? null;
+      if (!input.periods) throw new Error("layoutMatrix: a When axis needs the periods");
+      const key = periodKey(input.periods, due?.day ?? null);
+      return a.prop.values.find((v) => v.uuid === key) ?? null;
+    };
+    const x = valueOf(input.x);
+    const y = valueOf(input.y);
     const label = [title, when, x && `${input.x.prop.title} ${x.title}`, y && `${input.y.prop.title} ${y.title}`, done && "done"].filter(Boolean).join(", ");
     const card: MatrixCard = { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, x, y, pending: input.pending.has(node.uuid), label };
     const a = bandOf(xBands, x);
@@ -231,6 +260,7 @@ export function matrixMove(layout: MatrixLayout, uuid: string, xKey: string, yKe
     const band = axis.bands.find((b) => b.key === key);
     if (!band) throw new Error(`No ${axis.prop.title} band ${key}`);
     if (current && band.values.some((v) => v.uuid === current.uuid)) return;
+    if (!band.drop && isWhen(axis.prop) && band.values.length) throw new Error(`"${card.title}" cannot move to ${band.title}: it has no day to write.`);
     if (!band.drop) throw new Error(`"${card.title}" cannot move there: that ${axis.prop.title} band has no values.`);
     writes.push({ kind: "set", uuid, node: card.title, prop: axis.prop, value: band.drop, previous: current });
   };

@@ -19,7 +19,7 @@ import {
 } from "../core/view-config";
 import { clampDelta, clampLabelWidth, editedBar, LABEL_W, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
 import { dateChanges, writeDates, type DateChange, type DateWrite, type EditMode, type SpanEdit } from "../core/date-edit";
-import { WHEN_KEY } from "../core/when";
+import { WHEN_FIRST, WHEN_KEY, whenFirst } from "../core/when";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, NO_VALUE, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { defaultFirst, matrixCard, matrixMove, type MatrixLayout } from "../core/matrix";
@@ -33,7 +33,7 @@ import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -252,33 +252,37 @@ export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): 
 }
 
 type MatrixConfig = Extract<ViewConfig, { kind: "matrix" }>;
-/** An axis's values in its order (N64). */
-const axisValues = (view: ViewTags, a: NonNullable<MatrixConfig["x"]>) => {
-  const values = view.choiceProps.find((p) => p.ident === a.prop)!.values;
+/** An axis's values in its order (N64); `props` = what an axis can use (`matrixProps`, N70: When first). */
+const axisValues = (props: ChoiceProp[], a: NonNullable<MatrixConfig["x"]>) => {
+  const values = props.find((p) => p.ident === a.prop)!.values;
   return a.reverse ? [...values].reverse() : values;
 };
+/** The first band of axis `a` holding the first `count` of `values` (N70: When keeps the periods with no days today, `whenFirst`). */
+const firstOf = (a: NonNullable<MatrixConfig["x"]>, values: { uuid: string }[], count: number) =>
+  a.prop === WHEN_KEY ? whenFirst(values.map((v) => v.uuid), count, a.reverse) : values.slice(0, count).map((v) => v.uuid);
 /** `c` with `ident` on axis `which` (N64): its default direction and split; picking the other axis's property swaps the two. */
-function withAxis(c: MatrixConfig, view: ViewTags, which: "x" | "y", ident: string): MatrixConfig {
+function withAxis(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", ident: string): MatrixConfig {
   const other = which === "x" ? "y" : "x";
   if (c[other]?.prop === ident) return { ...c, [which]: c[other], [other]: c[which] };
-  const prop = view.choiceProps.find((p) => p.ident === ident)!;
+  if (ident === WHEN_KEY) return { ...c, [which]: { prop: ident, reverse: false, first: [...WHEN_FIRST] } };
+  const prop = props.find((p) => p.ident === ident)!;
   const reverse = prop.title.trim().toLowerCase() === "priority" || prop.ident === ":logseq.property/priority";
   return { ...c, [which]: { prop: ident, reverse, first: defaultFirst(prop, reverse) } };
 }
 /** `c` with one value more or fewer in axis `which`'s first band (N64): the first band becomes that many values from the start of the axis's order. */
-function withSplit(c: MatrixConfig, view: ViewTags, which: "x" | "y", delta: number): MatrixConfig {
+function withSplit(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", delta: number): MatrixConfig {
   const a = c[which]!;
-  const values = axisValues(view, a);
+  const values = axisValues(props, a);
   const count = values.filter((v) => a.first.includes(v.uuid)).length;
   const next = Math.min(values.length - 1, Math.max(1, count + delta));
-  return { ...c, [which]: { ...a, first: values.slice(0, next).map((v) => v.uuid) } };
+  return { ...c, [which]: { ...a, first: firstOf(a, values, next) } };
 }
 /** `c` with axis `which` reversed or not (N64): the first band keeps its size, taken from the new start. */
-function withReverse(c: MatrixConfig, view: ViewTags, which: "x" | "y", reverse: boolean): MatrixConfig {
+function withReverse(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", reverse: boolean): MatrixConfig {
   const a = c[which]!;
-  const count = axisValues(view, a).filter((v) => a.first.includes(v.uuid)).length;
+  const count = axisValues(props, a).filter((v) => a.first.includes(v.uuid)).length;
   const next = { ...a, reverse };
-  return { ...c, [which]: { ...next, first: axisValues(view, next).slice(0, Math.max(1, count)).map((v) => v.uuid) } };
+  return { ...c, [which]: { ...next, first: firstOf(next, axisValues(props, next), Math.max(1, count)) } };
 }
 
 /** The choice property the done-values control is labelled with: Status, else the first one. */
@@ -1025,7 +1029,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const c = s.config!;
       if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
-      if (c.kind === "matrix" && (p === "mx-x" || p === "mx-y")) return void run(() => setConfig(withAxis(c, tagOf(c), p === "mx-x" ? "x" : "y", value)), () => trigger(p));
+      if (c.kind === "matrix" && (p === "mx-x" || p === "mx-y")) return void run(() => setConfig(withAxis(c, matrixProps(tagOf(c), now()), p === "mx-x" ? "x" : "y", value)), () => trigger(p));
     }
     const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-view-delete-cancel], [data-view-delete-confirm], [data-surface], [data-action]");
     if (!el) return;
@@ -1334,7 +1338,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "showDone":
         return void run(() => setConfig({ ...c, showDone: !c.showDone }));
       case "split":
-        return void run(() => setConfig(withSplit(c, tagOf(c), a.axis, a.delta)), () => `[data-mx-split="${a.axis}:${a.delta}"]`);
+        return void run(() => setConfig(withSplit(c, matrixProps(tagOf(c), now()), a.axis, a.delta)), () => `[data-mx-split="${a.axis}:${a.delta}"]`);
       case "more":
         return void run(() => void s.kbShown.set(a.cell, (s.kbShown.get(a.cell) ?? MATRIX_CELL_PAGE) + MATRIX_CELL_PAGE));
       case "moveMenu": {
@@ -1373,8 +1377,15 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (s.config!.kind === "matrix") {
       // N64: `column` / `lane` are the bands across and down.
       const layout = grid();
-      if (matrixCard(layout, uuid).pending) return;
+      const card = matrixCard(layout, uuid);
+      if (card.pending) return;
       writes = matrixMove(layout, uuid, column, lane ?? NO_VALUE);
+      // N70: a When axis's write is a period: its dates are written as a Kanban move by When, the other axis with them.
+      const when = writes.find((w) => w.prop.ident === WHEN_KEY);
+      if (when) {
+        return moveWhen(uuid, card.title, dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, when.kind === "set" ? when.value.uuid : NO_VALUE).writes,
+          writes.filter((w) => w !== when), focus);
+      }
     } else {
       const layout = board();
       const { card, cell } = cardCell(layout, uuid);
@@ -1697,7 +1708,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return void run(() => {
         const c = s.config!;
         if (c.kind !== "matrix") throw new Error(`Matrix Bands control in a ${c.kind} view`);
-        setConfig(withReverse(c, tagOf(c), d.mxReverse as "x" | "y", t.checked));
+        setConfig(withReverse(c, matrixProps(tagOf(c), now()), d.mxReverse as "x" | "y", t.checked));
       }, () => `[data-mx-reverse="${d.mxReverse}"]`);
     }
     if (d.mxLabel !== undefined) {

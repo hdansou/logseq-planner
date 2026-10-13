@@ -275,8 +275,14 @@ sorts at that date and shows how many days late.
 (Eisenhower) or Effort and Impact. Use it to triage: cards without a value wait under the grid until you place them.
 
 - **Across** and **Down**: the two properties. A new view picks Urgency and Importance, or Effort (or Size) and
-  Impact (or Value), when the tag has properties with those names; otherwise Priority goes down and the next
-  choice property goes across. Picking the property the other axis uses swaps the axes.
+  Impact (or Value), when the tag has properties with those names; otherwise Priority goes down and **When** goes
+  across when the tag has a Date or DateTime property, else the next choice property. Picking the property the other
+  axis uses swaps the axes.
+- **When** as an axis: the periods of the Kanban's When columns (Overdue to Later), by the card's due date. Its first
+  band runs to the end of this week ("Overdue – This week"), the second after it. A move into a When band gives the
+  card the band's last day that takes one (the end of this week, or of the quarter), as a Kanban move by When; a card
+  already in that band keeps its date. In Every value, Overdue and Later take no move. Cards without a date are
+  Unplaced. With Priority (or Importance) down, the quadrants take Eisenhower's labels.
 - **Quadrants** splits each axis into two bands; **Every value** gives a row and a column per value (a wide grid
   scrolls sideways).
 - **Bands**: per axis, **Reverse** flips the order of its values, and **−** / **+** move the split. A new view puts
@@ -315,7 +321,8 @@ Overdue and Later take no drop. The write is read back and undone on failure, as
 
 In the Matrix, drag a card to another cell or to **Unplaced**, or use its **⋯** menu. A move writes, for each axis
 whose band changes, the first value of the new band (in the axis's order); a card that stays in its band keeps its
-value. To **Unplaced** removes both values. The write is read back as for Kanban.
+value. A **When** axis writes dates instead (see Matrix above). To **Unplaced** removes both values (a When axis: the
+dates). The write is read back as for Kanban.
 
 ### Edit dates in the Timeline
 
@@ -400,7 +407,7 @@ Planner writes four things, and nothing else:
 2. **Kanban moves.** The column or swimlane property of the card you moved.
 3. **Date edits.** The Start and/or End property (Scheduled and Deadline for a task) of what you moved: with Edit dates on, a
    bar or block you moved or resized in the Timeline and the Calendar's Day, 3 days and Week grids; a card moved by **When** in
-   the Kanban; an entry dragged in the Agenda; an item dragged onto a day or the No date tray in the Calendar. For a Date
+   the Kanban or the Matrix; an entry dragged in the Agenda; an item dragged onto a day or the No date tray in the Calendar. For a Date
    property this can create the journal page of the new day.
 4. **Its UI state.** The view on screen and the Timeline's title width, in the hidden property `planner-ui-state` of the hidden page
    "Plugin state: Planner" (it does not show in All pages or search).
@@ -414,14 +421,15 @@ These come from the progress log in [tasks.md](tasks.md) and the results in
 
 **Scope**
 
-- Planner writes only Kanban and Matrix moves, date moves (Kanban by When, Agenda and Calendar drags), its UI state and, with
+- Planner writes only Kanban and Matrix moves, date moves (When in the Kanban and the Matrix, Agenda and Calendar drags), its UI state and, with
   Edit dates on, date edits in the Timeline and the Calendar grids. The in-page view never edits anything.
 - Edit dates was checked live on the desktop app (move and resize of a DateTime and a Date span, Day zoom, Escape,
   Alt+Arrow keys). Not checked: a diamond, a failed write, the sidebar surface, the block staying read-only (unit-tested
   only), Logseq's Undo after an edit, and pointer capture when the pointer leaves the frame.
 - The Matrix was checked live on the stable Logseq.app 2.0.2 and a nightly (2026-10-12): quadrants, Every value, a
   drag and a ⋯ menu move (both read back), dark mode, the narrow layout and the in-page block. The drag used in-app
-  input over CDP, not a real mouse. It has no date range yet: it shows every node of the tag that is not done.
+  input over CDP, not a real mouse. When as an axis was checked with a real mouse on a nightly (2026-10-13). It has no
+  date range yet: it shows every node of the tag that is not done.
 - No view defined by a free query, no filters per tag. No zoom of the Calendar's hour height or collapsing of working hours, no year zoom in the Timeline, no manual card order in Kanban, no Agenda range other than 14 days.
 - The sidebar surface is desktop only. It was checked live there, with a real-mouse drag of Logseq's sidebar handle
   on the stable app; not the narrow drawer while docked, and not the web app (which shows no switch).

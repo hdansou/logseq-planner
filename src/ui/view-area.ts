@@ -286,11 +286,21 @@ export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: str
   return { title: task.title, writes: plan(node, span, { start, end }) };
 }
 
+/**
+ * The properties a Matrix axis can use (N70): When first (its periods on `now`) when the view's tags have a Date or
+ * DateTime property, then the shared choice properties.
+ */
+export function matrixProps(view: ViewTags, now: Now): ChoiceProp[] {
+  const when = view.tags.some((t) => t.dateProps.length) ? [whenColumnProp(whenPeriods(now.today, now.weekStart))] : [];
+  return [...when, ...view.choiceProps];
+}
+
 /** A Matrix view's axes with their properties (the view has axes). */
-export function matrixAxes(a: ViewAreaInput) {
+export function matrixAxes(a: ViewAreaInput, now: Now) {
   const c = a.config;
   if (c.kind !== "matrix" || !c.x || !c.y) throw new Error(`matrixAxes called for a ${c.kind} view without axes`);
-  const prop = (ident: string) => a.view.choiceProps.find((p) => p.ident === ident)!;
+  const props = matrixProps(a.view, now);
+  const prop = (ident: string) => props.find((p) => p.ident === ident)!;
   return { x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first }, y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first } };
 }
 
@@ -300,8 +310,9 @@ export function matrixLayout(a: ViewAreaInput, now: Now): MatrixLayout {
   if (c.kind !== "matrix") throw new Error(`matrixLayout called for a ${c.kind} view`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   return layoutMatrix({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a),
-    mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a, now), periods: whenPeriods(now.today, now.weekStart),
+    mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles,
+    pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
   });
 }
 
@@ -319,6 +330,10 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
     return only(multi
       ? empty("no-choice", `${name} share no choice property`, "Kanban columns come from a choice property every selected tag has, like Status. Add one to the tags in Logseq, or choose other tags.")
       : empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
+  }
+  if (c.kind === "matrix" && (c.x === null || c.y === null) && view.tags.some((t) => t.dateProps.length)) {
+    return only(empty("no-axes", `${name} ${multi ? "share" : "has"} no choice properties`,
+      `A Matrix needs a choice property${multi ? " every selected tag has" : ""}, like Priority, to go with When. Add one to the ${multi ? "tags" : "tag"} in Logseq, or choose ${multi ? "other tags" : "another tag"}.`));
   }
   if (c.kind === "matrix" && (c.x === null || c.y === null)) {
     return only(empty("no-axes", `${name} ${multi ? "share" : "has"} fewer than two choice properties`,
@@ -358,12 +373,13 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
     return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }, drag), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
   }
   if (c.kind === "matrix") {
-    const layout = matrixLayout(a, now());
-    const axes = matrixAxes(a);
-    const defaults = layout.mode === "quadrants" ? layoutMatrix({ ...matrixAxes(a), items: [], mode: "quadrants", showDone: false, labels: ["", "", "", ""], today: "", doneValues: {}, titles: new Map(), pending: new Set() }).rows.flat().map((cell) => cell.label ?? "") : [];
+    const at = now();
+    const layout = matrixLayout(a, at);
+    const axes = matrixAxes(a, at);
+    const defaults = layout.mode === "quadrants" ? layoutMatrix({ ...axes, items: [], mode: "quadrants", showDone: false, labels: ["", "", "", ""], today: "", doneValues: {}, titles: new Map(), pending: new Set() }).rows.flat().map((cell) => cell.label ?? "") : [];
     return {
       view: renderMatrix(layout, heading, session.moveOpen, session.kbShown),
-      toolbar: renderMatrixToolbar({ layout, choiceProps: view.choiceProps, labels: c.labels, defaults, showDone: c.showDone, popover: session.popover,
+      toolbar: renderMatrixToolbar({ layout, choiceProps: matrixProps(view, at), labels: c.labels, defaults, showDone: c.showDone, popover: session.popover,
         axes }),
     };
   }
