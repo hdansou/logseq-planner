@@ -6,6 +6,7 @@ import {
   defaultViewConfig, dependsOnOf, parseViewConfig, serializeViewConfig, TAG_KEY, toChoiceFilters, validateViewConfig, withDefaults, withKnownTags, withTags, type ViewConfig,
 } from "./view-config";
 import type { TagInfo } from "../types";
+import { WHEN_KEY } from "./when";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
 const tag = (title: string): TagInfo => {
@@ -506,5 +507,21 @@ describe("Matrix views (N64)", () => {
   it("a view without axes takes the defaults once its tags have two choice properties", () => {
     const c = { ...matrix(), x: null, y: null };
     expect(withDefaults(c, validateViewConfig(c, tags))).toMatchObject({ x: { prop: status.ident }, y: { prop: priority.ident } });
+  });
+});
+
+describe("Kanban columns by When (N67)", () => {
+  const board = () => ({ ...defaultViewConfig(tag("Project"), "kanban"), columnProp: WHEN_KEY }) as ViewConfig;
+
+  it("When is a valid column for a view whose tags have dates, and survives a tag change that keeps dates", () => {
+    expect(() => validateViewConfig(board(), tags)).not.toThrow();
+    const ticked = withTags(board(), [tag("Project"), tag("Meeting")]);
+    expect(ticked.kind === "kanban" && ticked.columnProp).toBe(WHEN_KEY);
+  });
+
+  it("refused for tags without a Date or DateTime property", () => {
+    const noDates = { ...tag("Project"), dateProps: [] };
+    const c = { ...defaultViewConfig(noDates, "kanban"), columnProp: WHEN_KEY } as ViewConfig;
+    expect(() => validateViewConfig(c, tags.map((t) => (t.ident === noDates.ident ? noDates : t)))).toThrow(/When columns need a Date or DateTime property/);
   });
 });

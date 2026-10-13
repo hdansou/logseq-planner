@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Kanban columns by **When** (N67): the view's dates in periods from Overdue to No date; dragging a card, or its ⋯ menu, gives it the period's last day, keeping a span's length and a DateTime's time.
+
 ### Fixed
 
 - Matrix: the Unplaced hint reads "Without a value for Effort or Impact" instead of "Without a Effort or a Impact value" (N64).

@@ -18,7 +18,8 @@ import {
   type ViewConfig, type ViewKind,
 } from "../core/view-config";
 import { clampDelta, clampLabelWidth, editedBar, LABEL_W, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
-import { dateChanges, writeDates, type DateChange, type EditMode, type SpanEdit } from "../core/date-edit";
+import { dateChanges, writeDates, type DateChange, type DateWrite, type EditMode, type SpanEdit } from "../core/date-edit";
+import { WHEN_KEY } from "../core/when";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, NO_VALUE, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { defaultFirst, matrixCard, matrixMove, type MatrixLayout } from "../core/matrix";
@@ -32,7 +33,7 @@ import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { calendarLayoutOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { calendarLayoutOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, whenMoveOf, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -181,7 +182,7 @@ interface State {
   /** Timeline: the title column's width in px (N36); null = the default. Per graph (UiPrefs), not saved with a view. */
   labelWidth: number | null;
   /** Timeline date edits being written, by node uuid: the bar shows at its new place (optimistic). Session state. */
-  datePending: Map<string, DateChange[]>;
+  datePending: Map<string, DateWrite[]>;
 }
 
 /** A pointer that moves less than this (px) from where it went down is a click (N06c). */
@@ -1373,7 +1374,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const layout = board();
       const { card, cell } = cardCell(layout, uuid);
       if (card.pending) return;
-      writes = moveDescriptor(card, cell, moveTarget(layout, column, lane));
+      const target = moveTarget(layout, column, lane);
+      if (target.column.prop.ident === WHEN_KEY) return moveWhen(uuid, card.title, card.fixed || !target.column.drop ? [] : whenMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, column),
+        moveDescriptor(card, cell, { column: cell.column, lane: target.lane }), focus);
+      writes = moveDescriptor(card, cell, target);
     }
     if (!writes.length) return void render(focus);
     s.pending.set(uuid, writes);
@@ -1391,12 +1395,49 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }, () => focus);
   }
 
+  /**
+   * N67: a move on a Kanban by When: the date writes (`writeDates`, each read back, rolled back on failure), then the
+   * swimlane's property when the lane changes too; when that fails, the dates are put back. Optimistic and reloaded
+   * after, as `move`.
+   */
+  function moveWhen(uuid: string, title: string, dates: DateWrite[], lanes: PropertyWrite[], focus?: string) {
+    if (!dates.length && !lanes.length) return void render(focus);
+    const words = { shows: "The board shows what the graph holds.", unmoved: "the card has not moved" };
+    const zone = deps.zone ?? systemZone;
+    if (dates.length) s.datePending.set(uuid, dates);
+    if (lanes.length) s.pending.set(uuid, lanes);
+    render(focus);
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        await writeDates(deps.dates, { uuid, title }, dates, zone, words);
+        try {
+          await writeMove(deps.kanban, lanes);
+        } catch (e) {
+          const back = [...dates].reverse().map((d) => ({ prop: d.prop, previous: d.next, next: d.previous }));
+          try {
+            await writeDates(deps.dates, { uuid, title }, back, zone, words);
+          } catch (r) {
+            throw new Error(`${(e as Error).message} Putting the date back failed too: ${(r as Error).message}`);
+          }
+          throw new Error(`${(e as Error).message} The date was put back too.`);
+        }
+      } catch (e) {
+        failure = e;
+      }
+      s.datePending.delete(uuid);
+      s.pending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    }, () => focus);
+  }
+
   /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
   root.addEventListener("dragstart", (e) => {
     const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
     if (!cardEl) return;
-    if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
+    if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-kb-fixed") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
     dragging = cardEl.dataset.kbCard ?? cardEl.dataset.mxCard!;
     dragLane = cardEl.closest<HTMLElement>("[data-kb-cell]")?.dataset.kbLane ?? null;
     cardEl.setAttribute(cardEl.dataset.kbCard ? "data-kb-dragging" : "data-mx-dragging", "");
@@ -1411,7 +1452,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging) return;
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return; // N67: When's Overdue and Later take no drop
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // Tag lanes: no drop across
     e.preventDefault(); // accept the drop
     const dt = (e as DragEvent).dataTransfer;
@@ -1428,7 +1469,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   });
   root.addEventListener("drop", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging) return;
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return;
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // refused, as in dragover
     e.preventDefault();
     const uuid = dragging;

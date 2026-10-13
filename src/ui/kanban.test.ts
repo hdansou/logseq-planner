@@ -113,11 +113,11 @@ describe("board", () => {
     expect(text(`[data-kb-card="${SITE}"] .pl-kb-meta`)).not.toContain("Alice");
   });
 
-  it("the column picker lists the choice properties; picking the lane property as column clears the lanes", async () => {
+  it("the column picker lists When (the tag has dates, N67) and the choice properties; picking the lane property as column clears the lanes", async () => {
     await click("[data-control=kb-lane]");
     await click(`[data-popover=kb-lane] [data-option="${prop("Owner").ident}"]`);
     await click("[data-control=kb-column]");
-    expect($$("[data-popover=kb-column] [data-option]").map((o) => o.textContent)).toEqual(["Status", "Owner"]);
+    expect($$("[data-popover=kb-column] [data-option]").map((o) => o.textContent)).toEqual(["When", "Status", "Owner"]);
     await click(`[data-popover=kb-column] [data-option="${prop("Owner").ident}"]`);
     expect(ws.config()).toMatchObject({ columnProp: prop("Owner").ident, laneProp: null });
     expect($$("[data-kb-column]").map((h) => h.querySelector(".pl-kb-head-title")!.textContent)).toEqual(["Alice", "Bob", "No Owner"]);

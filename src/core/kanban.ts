@@ -18,12 +18,14 @@
 //   resolve null on success and on failure, so every write is read back and a mismatch throws. A removal reads back as
 //   either no attribute (user property) or the empty placeholder entity (built-in Status, seen live in T11).
 import type { ChoiceProp, ClosedValue, FieldProp, KanbanWriteDeps, LocalDate, PlannerNode, Rollup, TagInfo } from "../types";
+import { withoutMidnight } from "./agenda";
 import { fieldTexts, priorityProp } from "./fields";
 import { displayTitle } from "./display-title";
 import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 import { isEmptyPlaceholder } from "./normalize";
 import { TAG_KEY } from "./schema";
+import { periodKey, WHEN_KEY, type Period } from "./when";
 import { writeInOrder, writeKey } from "./write";
 
 export { writeKey };
@@ -45,6 +47,8 @@ export interface KanbanSlot {
   count: number;
   /** The value counts as done under the view's done values (always false for "No <prop>"). */
   done: boolean;
+  /** A card can be moved here (N67: false for When's Overdue and Later, which have no day to write). */
+  drop: boolean;
 }
 
 export interface KanbanCard {
@@ -69,6 +73,8 @@ export interface KanbanCard {
   priority: { title: string; key: string } | null;
   /** Its move is being written: shown in the target, not draggable. */
   pending: boolean;
+  /** It cannot change column (N67: by When, a span derived from tasks or a node with no Start or End mapped). */
+  fixed: boolean;
   /** Accessible name. */
   label: string;
 }
@@ -92,6 +98,8 @@ export interface KanbanLayout {
   sort: KanbanSort;
   /** Lanes by tag (N14, `tagLaneProp`): a card cannot change lanes; drops across lanes are refused. */
   lanesReadOnly: boolean;
+  /** Done cards left out (N67: columns by When; 0 otherwise). */
+  doneHidden: number;
 }
 
 export interface KanbanInput {
@@ -116,6 +124,11 @@ export interface KanbanInput {
   hiddenFields?: readonly string[];
   /** The fields to show on a card, by the node's view tag ident (N42); absent = the shared choice values less `hiddenFields`. */
   cardFields?: ReadonlyMap<string, FieldProp[]>;
+  /**
+   * Columns by When (N67; `columnProp` = `whenColumnProp(periods)`): cards by the period of their span's end, done ones
+   * left out and counted; `fixed` = the cards that cannot change column.
+   */
+  when?: { periods: Period[]; fixed: (item: ViewItem) => boolean };
 }
 
 /**
@@ -141,14 +154,23 @@ export const tagLaneProp = (tags: TagInfo[]): ChoiceProp => ({
 
 function slots(prop: ChoiceProp, doneValues: Record<string, string[]>): KanbanSlot[] {
   const ref = { ident: prop.ident, title: prop.title };
-  if (prop.ident === TAG_KEY) return prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: false }));
+  if (prop.ident === TAG_KEY) return prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: false, drop: true }));
+  if (prop.ident === WHEN_KEY) {
+    return [
+      ...prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: false, drop: v.uuid !== "overdue" && v.uuid !== "later" })),
+      { key: NO_VALUE, prop: ref, value: null, title: "No date", count: 0, done: false, drop: true },
+    ];
+  }
   return [
-    ...prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: isDone(v, doneValues[prop.ident]) })),
-    { key: NO_VALUE, prop: ref, value: null, title: `No ${prop.title}`, count: 0, done: false },
+    ...prop.values.map((v) => ({ key: v.uuid, prop: ref, value: v, title: v.title, count: 0, done: isDone(v, doneValues[prop.ident]), drop: true })),
+    { key: NO_VALUE, prop: ref, value: null, title: `No ${prop.title}`, count: 0, done: false, drop: true },
   ];
 }
 
-const keyOf = (node: PlannerNode, prop: ChoiceProp) => (prop.ident === TAG_KEY ? node.tag : node.choices[prop.ident]?.uuid ?? NO_VALUE);
+const keyOf = (item: ViewItem, prop: ChoiceProp, periods: Period[] | undefined) =>
+  prop.ident === TAG_KEY ? item.node.tag
+    : prop.ident === WHEN_KEY ? periodKey(periods ?? [], item.span.end?.day ?? null)
+      : item.node.choices[prop.ident]?.uuid ?? NO_VALUE;
 
 export function layoutKanban(input: KanbanInput): KanbanLayout {
   const { columnProp, laneProp, today } = input;
@@ -173,7 +195,7 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     const due = span.end;
     const late = !done && !!due && due.day < today;
     const point = !!span.start && !!due && span.start.day === due.day && span.start.time === due.time;
-    const when = !due ? "no date" : `${point ? "" : "ends "}${formatDate(due)}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
+    const when = !due ? "no date" : `${point ? "" : "ends "}${withoutMidnight(formatDate(due))}${late ? `, ${dayCount(daysBetween(due.day, today))} late` : ""}`;
     const own = new Set([columnProp.ident, laneProp?.ident, priority?.ident, ...(input.hiddenFields ?? [])]);
     const chosen = input.cardFields?.get(node.tag);
     const fields = chosen
@@ -188,20 +210,26 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     const tag = input.tagTitles?.get(node.tag) ?? null;
     const label = [title, tag, when, progress.total ? `${progress.done} of ${progress.total} tasks done` : "", pri && `${pri.title} priority`, ...meta, done && "done"]
       .filter(Boolean).join(", ");
-    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, fields, tag, priority: pri, pending: input.pending.has(node.uuid), label };
+    return { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, meta, fields, tag, priority: pri, pending: input.pending.has(node.uuid),
+      fixed: !!input.when?.fixed(item), label };
   };
 
   const rows = (laneProp ? lanes : [null]).map((lane) => ({ lane, cells: columns.map((column): KanbanCell => ({ column, lane, cards: [] })) }));
+  let doneHidden = 0;
   for (const item of input.items) {
-    const ci = columns.findIndex((c) => c.key === keyOf(item.node, columnProp));
+    if (input.when && isNodeDone(item.node, input.doneValues)) {
+      doneHidden++;
+      continue;
+    }
+    const ci = columns.findIndex((c) => c.key === keyOf(item, columnProp, input.when?.periods));
     if (ci < 0) continue; // a hidden column
-    const li = laneProp ? lanes.findIndex((l) => l.key === keyOf(item.node, laneProp)) : 0;
+    const li = laneProp ? lanes.findIndex((l) => l.key === keyOf(item, laneProp, input.when?.periods)) : 0;
     rows[li].cells[ci].cards.push(toCard(item));
     columns[ci].count++;
     if (laneProp) lanes[li].count++;
   }
   for (const r of rows) for (const c of r.cells) c.cards.sort(order);
-  return { columns, allColumns, lanes, rows, sort: input.sort, lanesReadOnly: laneProp?.ident === TAG_KEY };
+  return { columns, allColumns, lanes, rows, sort: input.sort, lanesReadOnly: laneProp?.ident === TAG_KEY, doneHidden };
 }
 
 /** The cell at column `column` and lane `lane` (null without swimlanes); throws when there is none. */

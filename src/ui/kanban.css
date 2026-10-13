@@ -40,6 +40,9 @@
 .pl-kb-card { position: relative; background: var(--pl-surface); border-radius: 10px; box-shadow: 0 0 0 1px var(--pl-line); cursor: grab; }
 .pl-kb-card[data-kb-dragging] { opacity: .45; }
 .pl-kb-card[data-kb-pending] { cursor: progress; opacity: .7; }
+/* N67, columns by When: a card with no date property to write stays put; Overdue and Later take no drop (outlined, no fill) */
+.pl-kb-card[data-kb-fixed] { cursor: default; }
+.pl-kb-cell[data-kb-no-drop] { background: transparent; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
 .pl-kb-open { all: unset; box-sizing: border-box; display: grid; gap: 5px; width: 100%; padding: 8px 34px 8px 10px; border-radius: 10px;
   font-size: 13px; color: var(--pl-label); cursor: inherit; transition: background-color .12s; }
 .pl-kb-open:hover { background: var(--pl-fill); }

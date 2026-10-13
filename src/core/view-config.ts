@@ -2,6 +2,7 @@
 // Everything stored is graph-portable: tags and properties by ident, closed values by uuid (entity ids differ per device).
 import type { ChoiceFilters, ChoiceProp, NodeProp, TagInfo } from "../types";
 import { priorityProp } from "./kanban";
+import { WHEN_KEY } from "./when";
 import { defaultMatrixAxes, MATRIX_MODES, type MatrixAxisConfig } from "./matrix";
 import { mergeTags, TAG_KEY, type ViewTags } from "./schema";
 
@@ -168,7 +169,8 @@ export function withTags(config: ViewConfig, tags: TagInfo[]): ViewConfig {
     return kept ? common : { ...common, ...(defaultMatrixAxes(view.choiceProps) ?? { x: null, y: null }) };
   }
   if (common.kind !== "kanban") return common;
-  const columnProp = common.columnProp !== null && shared.has(common.columnProp) ? common.columnProp : defaultColumn(view.choiceProps);
+  const keep = common.columnProp === WHEN_KEY ? view.tags.some((t) => t.dateProps.length) : common.columnProp !== null && shared.has(common.columnProp);
+  const columnProp = keep ? common.columnProp : defaultColumn(view.choiceProps);
   const lane = common.laneProp;
   const laneProp = lane !== null && lane !== columnProp && (lane === TAG_KEY ? multi : shared.has(lane)) ? lane : null;
   const sort = common.sort === "priority" && !priorityProp(view) ? "due" : common.sort;
@@ -328,7 +330,9 @@ export function validateViewConfig(config: ViewConfig, tags: TagInfo[]): ViewTag
   values(config.filters, true);
   values(config.doneValues, false);
   if (config.kind === "kanban") {
-    if (config.columnProp !== null) choice(config.columnProp);
+    if (config.columnProp === WHEN_KEY) {
+      if (!view.tags.some((t) => t.dateProps.length)) throw new Error("Invalid view config: When columns need a Date or DateTime property");
+    } else if (config.columnProp !== null) choice(config.columnProp);
     if (config.laneProp === TAG_KEY) {
       if (!multi) throw new Error("Invalid view config: Tag swimlanes need two or more tags");
     } else if (config.laneProp !== null) choice(config.laneProp);

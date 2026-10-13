@@ -244,7 +244,9 @@ sorts at that date and shows how many days late.
 **Kanban.** A board of cards.
 
 - **Columns**: a choice property (Status by default). Each closed value is a column, plus
-  "No <property>".
+  "No <property>". Or **When**: the view's dates in periods, Overdue, Today, Tomorrow, This
+  week, Next week, This month, This quarter, Later, No date (weeks follow Logseq's week start;
+  a period with no days left is left out). Done cards are left out and counted.
 - **Show**: which columns show. Untick a value (or "No <property>") and its column and
   cards leave the board; the button reads **All** or, for example, **3 of 7**. At least one
   column stays shown. The choice is kept per column property, so switching **Columns** to
@@ -293,6 +295,12 @@ A move writes to the node:
 The card shows the new place at once and cannot be dragged while the write runs. Planner then
 reads the value back from the graph. If the graph does not hold it, the card returns to its
 column and an error shows in the error bar. Undo in Logseq reverted a move in the live test.
+
+With columns by **When**, a move gives the card a date: the last day of the period ("due by"), and a card already in
+that period keeps its date. A node with Start and End keeps its length (End on that day, Start moved by the same days);
+a node with one date moves it; a node without a date of its own gets an End (else a Start). A DateTime keeps its time
+(an undated one gets 00:00). **No date** removes the dates; a node with dated tasks then shows by their dates again.
+Overdue and Later take no drop. The write is read back and undone on failure, as an Edit dates change.
 
 In the Matrix, drag a card to another cell or to **Unplaced**, or use its **⋯** menu. A move writes, for each axis
 whose band changes, the first value of the new band (in the axis's order); a card that stays in its band keeps its

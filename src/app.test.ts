@@ -78,7 +78,7 @@ function fakeDeps() {
       onGraphChanged: (cb: () => void) => (graphChanged.push(cb), offs.graph),
     },
     kanban: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, readChoice: async () => null },
-    dates: { upsertBlockProperty: async () => null, createJournalPage: async () => null, readDate: async () => null },
+    dates: { upsertBlockProperty: async () => null, removeBlockProperty: async () => null, createJournalPage: async () => null, readDate: async () => null },
     hostDocument: vi.fn((): HostDocument | null => null), // cross-origin unless a test gives it a host
     prefs: { graph: vi.fn(async () => "logseq_db_test"), read: vi.fn((): unknown => undefined), write: vi.fn((graph: string, prefs: UiPrefs) => void [graph, prefs]) },
     graphState: { read: vi.fn(async (): Promise<string | null> => null), write: vi.fn(async (_text: string) => {}) },

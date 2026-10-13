@@ -334,6 +334,8 @@ export interface DateWriteDeps {
    * returned nothing.
    */
   createJournalPage(date: string): Promise<{ id: number } | null>;
+  /** `logseq.Editor.removeBlockProperty(uuid, key)` (N67: a move to No date): `key` = full ident without the leading colon. */
+  removeBlockProperty(uuid: string, key: string): Promise<unknown>;
   /**
    * The node's value of the Date or DateTime property `ident` (with its leading colon) now: epoch ms for a DateTime, the
    * journal page's db id and journal day (20261201) for a Date; null when the attribute is absent.

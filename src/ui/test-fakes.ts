@@ -299,6 +299,7 @@ export function fakeStorage(opts: { silent?: boolean; blocks?: ViewBlock[] } = {
 /** For views that never write: any Kanban write call fails the test. */
 export const noDateWrites: DateWriteDeps = {
   upsertBlockProperty: async () => { throw new Error("unexpected upsertBlockProperty"); },
+  removeBlockProperty: async () => { throw new Error("unexpected removeBlockProperty"); },
   createJournalPage: async () => { throw new Error("unexpected createJournalPage"); },
   readDate: async () => { throw new Error("unexpected readDate"); },
 };
@@ -370,6 +371,13 @@ export function fakeGraph(opts: { projectCopies?: number } = {}) {
       const id = 9000 + pages.size;
       pages.set(id, day);
       return { id };
+    },
+    removeBlockProperty: async (uuid, key) => {
+      calls.push(["removeBlockProperty", uuid, key]);
+      if (state.hold) await state.hold;
+      if (state.silent || !FULL_KEY.test(key)) return null;
+      edits.set(uuid, { ...edits.get(uuid), [`:${key}`]: null });
+      return null;
     },
     readDate: async (uuid, ident, type) => {
       calls.push(["readDate", uuid, ident, type]);

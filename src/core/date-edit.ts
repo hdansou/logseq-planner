@@ -4,7 +4,7 @@
 import type { DateProp, DateWriteDeps, LocalDate, PlannerNode } from "../types";
 import { addDays, formatDate, formatDay } from "./layout-common";
 import type { ZoneOffset } from "./normalize";
-import { writeInOrder, writeKey } from "./write";
+import { writeInOrder, writeKey, type WriteWords } from "./write";
 
 /** What a drag or a key does: move the whole span (or point), or change its start or its end only. */
 export type EditMode = "move" | "start" | "end";
@@ -30,6 +30,13 @@ export interface DateChange {
   prop: DateProp;
   previous: LocalDate;
   next: LocalDate;
+}
+
+/** A date write that may set a value where there was none, or remove one (N67: a move by When); `DateChange` is the edit of an existing value. */
+export interface DateWrite {
+  prop: DateProp;
+  previous: LocalDate | null;
+  next: LocalDate | null;
 }
 
 const MINUTES_PER_DAY = 1440;
@@ -90,21 +97,34 @@ export function editedSpan(edit: SpanEdit, span: { start: LocalDate; end: LocalD
   return { start, end };
 }
 
-/** A copy of `node` with `changes` applied: where its bar shows while they are written. */
-export const editedNode = (node: PlannerNode, changes: DateChange[]): PlannerNode =>
-  ({ ...node, dates: { ...node.dates, ...Object.fromEntries(changes.map((c) => [c.prop.ident, c.next])) } });
+/** A copy of `node` with `changes` applied (a null next value removes it, N67): where it shows while they are written. */
+export function editedNode(node: PlannerNode, changes: DateWrite[]): PlannerNode {
+  const dates = { ...node.dates };
+  for (const c of changes) {
+    if (c.next) dates[c.prop.ident] = c.next;
+    else delete dates[c.prop.ident];
+  }
+  return { ...node, dates };
+}
 
 const journalDayOf = (day: string) => Number(day.replace(/-/g, ""));
 
 /**
  * Writes `changes` to `node` in order (N06c). DateTime: `upsertBlockProperty(uuid, key, epoch ms)`; Date: the day's
- * journal page (`createJournalPage` at local noon), then its db id. Each value is read back (a Date also by its journal
- * day); a value the graph does not hold throws. When the second write fails, the first is put back to its previous
- * value and the error says whether that worked (`writeInOrder`, as a Kanban move).
+ * journal page (`createJournalPage` at local noon), then its db id; no next value (N67): `removeBlockProperty(uuid, key)`.
+ * Each value is read back (a Date also by its journal day, a removal as no value); a value the graph does not hold
+ * throws. When a later write fails, the earlier ones are put back to their previous values (a value set where there was
+ * none is removed again) and the error says whether that worked (`writeInOrder`, as a Kanban move), in `words`.
  */
-export async function writeDates(deps: DateWriteDeps, node: { uuid: string; title: string }, changes: DateChange[], zone: ZoneOffset): Promise<void> {
-  const one = async (c: DateChange) => {
+export async function writeDates(deps: DateWriteDeps, node: { uuid: string; title: string }, changes: DateWrite[], zone: ZoneOffset,
+  words: WriteWords = { shows: "The timeline shows what the graph holds.", unmoved: "the bar has not moved" }): Promise<void> {
+  const one = async (c: DateWrite) => {
     const { prop, next } = c;
+    if (next === null) {
+      await deps.removeBlockProperty(node.uuid, writeKey(prop.ident));
+      if ((await deps.readDate(node.uuid, prop.ident, prop.type)) !== null) throw new Error(`${prop.title} of "${node.title}" was not removed (read back still has a value).`);
+      return;
+    }
     const notSaved = () => new Error(`${prop.title} of "${node.title}" was not saved as ${formatDate(next)} (read back differs).`);
     if (prop.type === "datetime") {
       const ms = epochOf(next, zone);
@@ -118,7 +138,6 @@ export async function writeDates(deps: DateWriteDeps, node: { uuid: string; titl
     const read = await deps.readDate(node.uuid, prop.ident, "date");
     if (typeof read !== "object" || read === null || read.id !== page.id || read.journalDay !== journalDayOf(next.day)) throw notSaved();
   };
-  const undo = (c: DateChange): DateChange => ({ prop: c.prop, previous: c.next, next: c.previous });
-  await writeInOrder(changes, one, undo, (c) => formatDate(c.previous),
-    { shows: "The timeline shows what the graph holds.", unmoved: "the bar has not moved" });
+  const undo = (c: DateWrite): DateWrite => ({ prop: c.prop, previous: c.next, next: c.previous });
+  await writeInOrder(changes, one, undo, (c) => (c.previous ? formatDate(c.previous) : "no value"), words);
 }

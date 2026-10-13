@@ -11,7 +11,8 @@ import { dependsOnOf, toChoiceFilters, validateViewConfig, type ViewConfig } fro
 import { refUuids, titlesByUuid } from "../core/display-title";
 import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
 import { layoutTimeline, type EditProps, type TimelineLayout } from "../core/timeline-layout";
-import { editedNode, type DateChange } from "../core/date-edit";
+import { editedNode, type DateWrite } from "../core/date-edit";
+import { whenColumnProp, whenMove, whenPeriods, WHEN_KEY, type WhenProps } from "../core/when";
 import { layoutCalendar, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, type PropertyWrite } from "../core/kanban";
@@ -57,7 +58,7 @@ export interface ViewSession {
   /** Timeline: the Edit dates toggle is on (N06c; never in the in-page block). */
   editDates: boolean;
   /** Timeline date edits being written, by node uuid: the bar shows where the writes put it (N06c). */
-  datePending: ReadonlyMap<string, DateChange[]>;
+  datePending: ReadonlyMap<string, DateWrite[]>;
   /** Timeline: the title column's width in px (N36); null = the default. */
   labelWidth: number | null;
 }
@@ -221,14 +222,40 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   const statusValues = taskStatusValues(a.tags);
+  const byWhen = c.columnProp === WHEN_KEY;
+  const periods = byWhen ? whenPeriods(now.today, now.weekStart) : [];
+  const props = whenPropsOf(a);
   return layoutKanban({
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    columnProp: kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
-    choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
+    columnProp: byWhen ? whenColumnProp(periods) : kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
+    choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
+    when: byWhen ? { periods, fixed: (item) => { const p = props(item.node); return !p.start && !p.end; } } : undefined,
     hidden: c.hiddenColumns[c.columnProp] ?? [], hiddenFields: c.hiddenFields,
     cardFields: new Map(a.view.tags.map((t) => [t.ident, cardFieldsOf(c, t, a.view)])),
     tagTitles: a.view.tags.length > 1 ? new Map(a.view.tags.map((t) => [t.ident, `#${t.title}`])) : undefined,
   });
+}
+
+/** A node's mapped Start and End properties (the view's Dates for its tag, N14): what a move by When writes (N67). */
+export const whenPropsOf = (a: ViewAreaInput) => (n: PlannerNode): WhenProps => {
+  const c = a.config;
+  const tag = a.view.tags.find((t) => t.ident === n.tag);
+  const prop = (ident: string | null | undefined) => (ident ? tag?.dateProps.find((p) => p.ident === ident) ?? null : null);
+  return { start: prop(c.dates[n.tag]?.start), end: prop(c.dates[n.tag]?.end) };
+};
+
+/**
+ * The date writes that move the card `uuid` of a Kanban by When into the column `column` (a period key, or `NO_VALUE` =
+ * No date): `whenMove` on the node as it shows now. Throws as `whenMove` does.
+ */
+export function whenMoveOf(a: ViewAreaInput, now: Now, uuid: string, column: string): DateWrite[] {
+  const c = a.config;
+  const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  const item = viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)).find((i) => i.node.uuid === uuid);
+  if (!item) throw new Error(`No card ${uuid} on the board`);
+  const period = whenPeriods(now.today, now.weekStart).find((p) => p.key === column);
+  if (!period) throw new Error(`No When column ${column}`);
+  return whenMove(item.node, item.span, whenPropsOf(a)(item.node), period);
 }
 
 /** A Matrix view's axes with their properties (the view has axes). */
@@ -305,7 +332,8 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   const layout = kanbanLayout(a, now());
   return {
     view: renderKanban(layout, heading, session.moveOpen, session.kbShown),
-    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
+    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: layout.allColumns[0].prop, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
+      when: view.tags.some((t) => t.dateProps.length), doneHidden: layout.doneHidden,
       shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: session.popover,
       fieldGroups: view.tags.map((t) => ({ ident: t.ident, title: t.title, offered: offeredFields(c, t, view), shown: new Set(cardFieldsOf(c, t, view).map((f) => f.ident)) })) }),
   };
