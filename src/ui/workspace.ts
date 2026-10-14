@@ -1560,7 +1560,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     : cellEl.hasAttribute("data-cal-drop") ? "data-cal-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return; // N67: When's Overdue and Later take no drop
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop") || cellEl.hasAttribute("data-mx-closed")) return; // N67 / N70: When's Overdue and Later take no drop
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // Tag lanes: no drop across
     e.preventDefault(); // accept the drop
     const dt = (e as DragEvent).dataTransfer;
@@ -1579,7 +1579,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   });
   root.addEventListener("drop", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop")) return;
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop") || cellEl.hasAttribute("data-mx-closed")) return;
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // refused, as in dragover
     e.preventDefault();
     const uuid = dragging;

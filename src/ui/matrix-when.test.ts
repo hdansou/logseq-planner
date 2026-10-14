@@ -107,6 +107,26 @@ describe("Matrix: When as an axis", () => {
     expect(writeCalls().filter((c) => c[0] === "removeBlockProperty").map((c) => c[2])).toEqual(expect.arrayContaining([key("End"), key("Start")]));
   });
 
+  it("Every value: Overdue and Later refuse a drag, as the Kanban's When columns do", async () => {
+    // Seen with a real mouse on the stable app: the Overdue cell lit up as a drop target, took the drop, wrote nothing.
+    await click("[data-mx-mode=values]");
+    const ev = (type: string) => new Event(type, { bubbles: true, cancelable: true });
+    for (const x of ["overdue", "later"]) {
+      const to = $(`[data-mx-cell][data-mx-x="${x}"]`)!;
+      expect(to.hasAttribute("data-mx-closed")).toBe(true);
+      const from = $(`[data-mx-card="${SITE}"]`)!;
+      from.dispatchEvent(ev("dragstart"));
+      const over = ev("dragover");
+      to.dispatchEvent(over);
+      expect(over.defaultPrevented).toBe(false);
+      expect(to.hasAttribute("data-mx-over")).toBe(false);
+      to.dispatchEvent(ev("drop"));
+      from.dispatchEvent(ev("dragend"));
+      await ws.idle();
+    }
+    expect(writeCalls()).toEqual([]);
+  });
+
   it("to Unplaced removes the dates and the other value", async () => {
     await drag(SITE, "none", "none");
     expect(writeCalls().filter((c) => c[0] === "removeBlockProperty").map((c) => c[2])).toEqual(expect.arrayContaining([key("End"), key("Start")]));
