@@ -23,8 +23,8 @@ It runs in three places:
 
 ![A saved Planner view drawn inside a page as a read-only block, with its Open in Planner button.](docs/screenshots/in-page-block.png)
 
-Status: version 1.1.0. Planner was validated in the Logseq desktop app
-(Logseq-DB nightly builds of 2026-10-01 to 2026-10-12, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
+Status: version 1.2.0. Planner was validated in the Logseq desktop app
+(Logseq-DB nightly builds of 2026-10-01 to 2026-10-13, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
 pass on build b09316a) and partly in the Logseq web app. See [Limits and known issues](#limits-and-known-issues)
 for what was and was not checked.
 
@@ -35,7 +35,8 @@ for what was and was not checked.
   (its own or inherited from a parent tag). Planner never creates properties on your tags.
 - For Kanban: a tag with at least one choice property (a property with a closed list of
   values, such as Status).
-- For Matrix: a tag with at least two choice properties.
+- For Matrix: a tag with at least two choice properties, or one choice property and a Date or DateTime
+  property (When is then an axis).
 
 ## Install
 

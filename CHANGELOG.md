@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-14
+
 ### Added
 
 - Matrix: **When** as an axis (N70): the Kanban's When periods by due date, the first band to the end of this week; a move writes the band's last day. A new Matrix of a tag with dates starts with Priority down and When across, with Eisenhower's labels.
