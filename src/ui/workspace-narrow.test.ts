@@ -67,6 +67,7 @@ beforeEach(async () => {
   await ws.open();
   await click(`[data-tag-id="${tag("Project").id}"]`);
   await click("[data-view-kind=agenda]");
+  await click("[data-fold=added]"); // N77: Added starts folded
 });
 afterEach(() => ws.stop());
 
@@ -79,7 +80,7 @@ describe("Added and Find (N73)", () => {
     expect(radios.map((r) => [r.value, r.checked])).toEqual([["any", true], ["today", false], ["days", false]]);
     expect(panel.querySelector<HTMLInputElement>("[data-narrow-days]")!.value).toBe("7");
     expect(find.compareDocumentPosition(panel.querySelector("[data-filter-group]")!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect($("[data-region=narrowed]")).toBeNull();
+    expect($("[data-region=panel-status]")).toBeNull();
   });
 
   it("Last 7 days shows the nodes created lately, and an old node through its new task (only that task under it)", async () => {
@@ -93,7 +94,7 @@ describe("Added and Find (N73)", () => {
     expect(shown).toContain("Acme contract");
     expect(shown).not.toContain("Website relaunch");
     expect(shown).not.toContain("Mobile app");
-    expect(text("[data-region=narrowed]")).toMatch(/Added in the last 7 days.*2 of 4 nodes/);
+    expect(text("[data-region=panel-status]")).toBe("2 of 4 nodes Clear all"); // N77: in the panel, not a strip over the view
   });
 
   it("the number of days is editable and picks Last N days; Today and Any switch it", async () => {
@@ -137,20 +138,22 @@ describe("Added and Find (N73)", () => {
     expect(document.activeElement).toBe(field);
     expect(field.value).toBe("acme");
     expect(field.selectionStart).toBe(4);
-    expect(text("[data-region=narrowed]")).toContain("“acme”");
+    expect(text("[data-region=panel-status]")).toBe("1 of 4 nodes Clear all");
     await type("");
     expect("find" in ws.config()!).toBe(false);
-    expect($("[data-region=narrowed]")).toBeNull();
+    expect($("[data-region=panel-status]")).toBeNull();
   });
 
-  it("Clear in the strip turns both off; the Panel badge counts them while the panel is closed", async () => {
+  it("Clear all in the panel turns both off; the Panel badge counts them while the panel is closed", async () => {
     await change("input[name=pl-added][value=today]");
     await type("archive");
     await click("[data-action=toggle-panel]");
     expect(text("[data-action=toggle-panel] .pl-badge")).toBe("2");
-    await click("[data-region=narrowed] [data-action=clear-narrow]");
+    await click("[data-action=toggle-panel]");
+    await click("[data-region=panel-status] [data-action=clear-filters]");
     expect("added" in ws.config()! || "find" in ws.config()!).toBe(false);
-    expect($("[data-region=narrowed]")).toBeNull();
+    expect($("[data-region=panel-status]")).toBeNull();
+    await click("[data-action=toggle-panel]");
     expect($("[data-action=toggle-panel] .pl-badge")).toBeNull();
   });
 

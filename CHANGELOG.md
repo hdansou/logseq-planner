@@ -8,12 +8,13 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
-- **Added** and **Find** at the top of the panel narrow any view in a big graph (N73): Added keeps what was created today or in the last N days (7 to start), Find keeps what has every word you type in its title. An old node with a new task shows, with only that task under it. A strip under the top bar says what is narrowed and how many nodes are left, with Clear. Both are saved with a view; Added stays relative to the day you open it.
+- **Added** and **Find** at the top of the panel narrow any view in a big graph (N73): Added keeps what was created today or in the last N days (7 to start), Find keeps what has every word you type in its title. An old node with a new task shows, with only that task under it. Both are saved with a view; Added stays relative to the day you open it.
 
 - Matrix: a **Show** menu in Every value hides the values you don't need, rows or columns, saved with the view (N75).
 
 ### Changed
 
+- The panel with many tags (N77): a status line ("4 of 14 nodes", Clear all), Find and Added stay at its top while Tags and the filters scroll under them, the heading of the list you are in locked in place; every heading but Find folds behind a Logseq-style bullet and names what is on in it while folded; Tags folds to the view's tags and opens on a tag search over Your tags and Built-in tags. The strip over the view is gone, so the view gets that row back; with the panel hidden, the Panel button's tooltip counts the nodes shown. Folds are kept per graph on this device.
 - Matrix: Every value columns narrow to 130 px before the grid scrolls sideways, so about seven values fit (N76).
 - The piles list the newest first (N74): the Calendar's No date tray, the Agenda by node (a node is as new as its newest task), the Matrix's Unplaced list and the Kanban's Overdue and No date columns by When.
 

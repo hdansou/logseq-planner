@@ -128,8 +128,9 @@ desktop and the web app.
 
 ### Choose a tag
 
-Pick a tag in the panel on the right of the view or in the **Tag** menu. Your own tags are listed first. Built-in
-tags are under **Built-in tags**, collapsed until you select one. When the tag has child tags
+Pick a tag in the panel on the right of the view or in the **Tag** menu. In the panel, **Tags** shows the view's
+tags; unfold it for the full list, with a **Find a tag** field that narrows it and counts what is left. Your own tags
+are under **Your tags**; built-in ones under **Built-in tags**, folded until you select one. When the tag has child tags
 (tags that extend it), an **Include** checkbox adds their nodes. Planner opens on the first
 of your own root tags that has date properties.
 
@@ -156,7 +157,8 @@ The **View settings** button (sliders icon) in the top bar opens the settings ba
 | **Depends on** | Shown when the tag (with several tags: any of them) has a node property (a property whose values are other nodes). The property that says which nodes a node depends on: None or one of them. The default is the property titled like "depends on" (`depends_on`, "Depends on", "depends-on"), else None, and it follows the view's tags until you choose one. See [Dependencies](#dependencies). |
 | **Done when** | The closed values that count as done. Built-in Status uses its Done and Canceled flags. For your own choice properties, nothing is done until you tick values. |
 | **Panel** (funnel icon, top bar) | Hides the panel (tag tree and filters) so the view takes the full width, and shows it again. While the panel is hidden and filters are ticked, a badge on the button shows how many values are ticked, for example 2. Planner keeps the choice until Logseq restarts. When Planner is narrower than 640 px, the panel starts closed and opens as a drawer over the view; Escape or a click on the view closes it. |
-| Find and Added (panel) | **Find** keeps the nodes and tasks with every word you type in their title. **Added** keeps what was created **Today** or in the **Last N days** (7 to start, 1 to 365; the date a node or task was created, not when it last changed, since moving a card changes it). A node shows when it matches, or when one of its tasks does: then only those tasks are listed under it. While either is on, a strip under the top bar names them and counts the nodes left, with **Clear**. Both are saved with a view; a saved "Last 7 days" always means the 7 days before the day you open it. |
+| Panel layout | The top of the panel stays put while the rest scrolls: a status line while anything narrows the view ("4 of 14 nodes", with **Clear all**), **Find** and **Added**. Under it, **Tags** and one group per filter. Every heading but Find folds, marked like a Logseq block: a bullet, with a halo while folded. A folded heading names what is on in it, for example "Added · Last 7 days" or "Priority · High", and while you scroll the heading of the list you are in stays at the top. Added and Tags start folded. In the narrow drawer the whole panel scrolls as one. |
+| Find and Added (panel) | **Find** keeps the nodes and tasks with every word you type in their title. **Added** keeps what was created **Today** or in the **Last N days** (7 to start, 1 to 365; the date a node or task was created, not when it last changed, since moving a card changes it). A node shows when it matches, or when one of its tasks does: then only those tasks are listed under it. While either is on, the status line at the top of the panel counts the nodes left, with **Clear all**; with the panel hidden, the Panel button's tooltip says it. Both are saved with a view; a saved "Last 7 days" always means the 7 days before the day you open it. |
 | Filters (panel) | Tick values of the tag's choice properties to narrow the nodes. Nothing ticked means no filter. **No value** matches nodes without a value. With several tags, a **Tag** group comes first: tick tags to show only their nodes. |
 
 How a node gets its dates:
@@ -382,7 +384,7 @@ it (see below); a graph you never used opens with the default view, and the surf
 
 Planner remembers, per graph: the view on screen (tags, kind and settings, and the saved view it belongs to) and the
 Timeline's title width, which are stored in the graph (hidden page "Plugin state: Planner") and follow it to your other
-devices; and whether the side panel is open, Workspace or Sidebar, and Edit dates, which are kept in the plugin's settings on
+devices; and whether the side panel is open and which of its headings are folded, Workspace or Sidebar, and Edit dates, which are kept in the plugin's settings on
 this device. The period you are looking at and expanded rows are not
 remembered.
 Planner also checks the graph every 30 seconds while it is visible. While hidden, it only

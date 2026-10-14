@@ -15,9 +15,11 @@ export interface UiPrefs {
   labelWidth: number | null;
   /** The view on screen: its settings as `serializeViewConfig` writes them, and the saved view they belong to. */
   view: { id: string | null; config: string } | null;
+  /** N77: the panel's headings folded or opened away from their default, by fold key (`added`, `tags`, `filter:<ident>`…). */
+  folds: Record<string, boolean>;
 }
 
-export const DEFAULT_PREFS: UiPrefs = { panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null };
+export const DEFAULT_PREFS: UiPrefs = { panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null, folds: {} };
 
 /** The SDK calls behind the store; `src/sdk.ts` supplies the real ones, tests pass fakes. */
 export interface UiStateDeps {
@@ -62,7 +64,7 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "obj
 
 /** Stored prefs → `UiPrefs`: every well-formed part is kept, anything else gets its default. Never throws. */
 export function parsePrefs(raw: unknown): UiPrefs {
-  if (!isObject(raw)) return { ...DEFAULT_PREFS, panel: { ...DEFAULT_PREFS.panel } };
+  if (!isObject(raw)) return { ...DEFAULT_PREFS, panel: { ...DEFAULT_PREFS.panel }, folds: {} };
   const panel = isObject(raw.panel) ? raw.panel : {};
   const view = isObject(raw.view) && typeof raw.view.config === "string"
     ? { id: typeof raw.view.id === "string" ? raw.view.id : null, config: raw.view.config }
@@ -76,6 +78,7 @@ export function parsePrefs(raw: unknown): UiPrefs {
     editDates: raw.editDates === true,
     labelWidth: typeof raw.labelWidth === "number" && Number.isFinite(raw.labelWidth) ? clampLabelWidth(raw.labelWidth) : null,
     view,
+    folds: isObject(raw.folds) ? Object.fromEntries(Object.entries(raw.folds).filter(([, v]) => typeof v === "boolean")) as Record<string, boolean> : {},
   };
 }
 

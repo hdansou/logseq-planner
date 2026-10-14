@@ -154,6 +154,15 @@ export function narrowCount(a: ViewAreaInput, now: Now): { shown: number; all: n
   return { shown: itemsOf(a, now, shown).length, all: shown.nodes.length };
 }
 
+/**
+ * N77: how many of the view's nodes show after the filters, Added and Find, of all it loaded (the panel's status line
+ * and the Panel button's label).
+ */
+export function panelCount(a: ViewAreaInput, now: Now): { shown: number; all: number } {
+  const shown = visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  return { shown: isNarrowed(a.config) ? itemsOf(a, now, shown).length : shown.nodes.length, all: a.nodes.length };
+}
+
 /** The built-in Task Status values (their flags decide done); none in a graph without the Task tag, then every task is open. */
 const taskStatusValues = (tags: TagInfo[]): ClosedValue[] =>
   tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")?.values ?? [];

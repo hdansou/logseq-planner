@@ -35,7 +35,7 @@ import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, narrowCount, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, panelCount, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -143,8 +143,13 @@ interface State {
   viewDeleting: string | null;
   popover: Popover | null;
   error: string | null;
-  /** The built-in tags group of the tag tree is open (collapsed by default; opened when a built-in tag is selected). */
-  builtInOpen: boolean;
+  /**
+   * N77: the panel's headings folded or opened away from their default (`isOpen`), by fold key. Per graph on this device
+   * (UiPrefs); selecting a built-in tag opens Built-in tags.
+   */
+  folds: Record<string, boolean>;
+  /** N77: the tag search under Tags; session state, never saved. */
+  tagFind: string;
   /** Timeline / Calendar anchor day (shared, so switching kinds keeps the period); null = today. Session state: never saved with a view. */
   anchor: string | null;
   /** Node ids whose task rows are expanded (Timeline). Session state. */
@@ -325,7 +330,7 @@ const showsTime = (config: ViewConfig | null) => config?.kind === "timeline" && 
 const menu = (kind: Popover, s: State, label: string, buttonText: string, popover: () => string, control: string = kind) =>
   menuHtml(kind, s.popover === kind, label, buttonText, popover, control);
 
-function renderTopBar(s: State): string {
+function renderTopBar(s: State, count: { shown: number; all: number } | null): string {
   const kind = s.config?.kind;
   const seg = VIEW_KINDS.map((k) => `<button type="button" class="pl-tab" data-view-kind="${k}" aria-pressed="${k === kind}" aria-label="${KIND_LABEL[k]}" title="${KIND_LABEL[k]}"${s.config ? "" : " disabled"}>`
     + `${KIND_ICON[k]}<span class="pl-tab-label">${KIND_LABEL[k]}</span></button>`).join("");
@@ -366,7 +371,7 @@ function renderTopBar(s: State): string {
     + `<div class="pl-tools" role="group" aria-label="Controls">`
     + ibtn("toggle-focus", "Focus: hide the controls", "focus", ` aria-pressed="${s.focus}"`)
     + ibtn("toggle-settings", "View settings", "gear", ` aria-expanded="${s.settingsOpen}" aria-controls="pl-settings"`)
-    + renderPanelToggle(s)
+    + renderPanelToggle(s, count)
     + (s.canDock ? (s.surface === "sidebar"
       ? ibtn("toggle-surface", "Back to the workspace", "workspace", ` data-surface-to="workspace"`)
       : ibtn("toggle-surface", "Dock to the right", "dock", ` data-surface-to="sidebar"`)) : "")
@@ -472,88 +477,121 @@ function withNarrow(c: ViewConfig, patch: { added?: Added | undefined; find?: st
   return next;
 }
 
+/** N77: the panel's headings that start folded: Added, Tags, Built-in tags. */
+const FOLDED = new Set(["added", "tags", "built-in"]);
+/** N77: a panel heading is open: as the user left it, else its default. */
+const isOpen = (s: State, key: string) => s.folds[key] ?? !FOLDED.has(key);
+const hidden = (open: boolean) => (open ? "" : " hidden");
+
 /**
- * N73: Find and Added at the top of the panel, above the choice filters. "Last N days" takes its number from the field
- * next to it (`State.addedDays` while another choice is on).
+ * N77: a heading that folds the block `body` (an element id): Logseq's block bullet before its label (a halo while
+ * folded, workspace.css), and while folded what is on in it (`on`), so a folded panel still says what narrows.
  */
-function renderNarrow(s: State): string {
+function foldHead(s: State, key: string, label: string, body: string, on = "", extra = "", tag = "h3", title = ""): string {
+  const open = isOpen(s, key);
+  return `<${tag} class="pl-fold-head"${title ? ` title="${esc(title)}"` : ""}><button type="button" class="pl-fold-btn" data-fold="${esc(key)}" aria-expanded="${open}" aria-controls="${body}">`
+    + `<span class="pl-fold-text">${esc(label)}${!open && on ? `<span class="pl-fold-on"> · ${esc(on)}</span>` : ""}</span></button>${extra}</${tag}>`;
+}
+
+/**
+ * N77: the panel's pinned top (N73 Find and Added, moved here from the strip over the view): the status line while
+ * anything narrows (`count`), Find (never folds) and Added (folds). "Last N days" takes its number from the field next
+ * to it (`State.addedDays` while another choice is on).
+ */
+function renderPanelTop(s: State, count: { shown: number; all: number } | null): string {
   const c = s.config!;
   const added = c.added === undefined ? "any" : c.added === "today" ? "today" : "days";
   const days = typeof c.added === "number" ? c.added : s.addedDays;
   const radio = (value: string, label: string) =>
     `<input type="radio" name="pl-added" value="${value}" data-narrow-added="${value}"${flag("checked", added === value)}><span class="pl-filter-title">${label}</span>`;
-  return `<fieldset class="pl-filter" data-narrow-group="find"><legend class="pl-group-header"><label for="pl-find">Find</label></legend>`
-    + `<input type="search" id="pl-find" class="pl-input pl-find" data-narrow-find placeholder="Words in the title" autocomplete="off" value="${esc(c.find ?? "")}"></fieldset>`
-    + `<fieldset class="pl-filter" data-narrow-group="added"><legend class="pl-group-header" title="When the node or task was created">Added</legend>`
+  const status = count && tickedFilters(c)
+    ? `<div class="pl-panel-status" data-region="panel-status" role="status"><span><b>${count.shown} of ${count.all}</b> node${count.all === 1 ? "" : "s"}</span> `
+      + `<button type="button" class="pl-btn" data-action="clear-filters">Clear all</button></div>`
+    : "";
+  const on = c.added === undefined ? "" : c.added === "today" ? "Today" : `Last ${dayCount(c.added)}`;
+  return `<div class="pl-panel-top" data-region="panel-top">${status}`
+    + `<div class="pl-find-row" data-narrow-group="find"><label class="pl-fold-head pl-fold-label" for="pl-find">Find</label>`
+    + `<input type="search" id="pl-find" class="pl-input pl-find" data-narrow-find placeholder="Words in the title" autocomplete="off" value="${esc(c.find ?? "")}"></div>`
+    + `<section class="pl-fold" data-narrow-group="added">${foldHead(s, "added", "Added", "pl-fold-added", on, "", "h3", "When the node or task was created")}`
+    + `<div class="pl-fold-body pl-filter" id="pl-fold-added" role="group" aria-label="Added"${hidden(isOpen(s, "added"))}>`
     + `<label class="pl-row">${radio("any", "Any")}</label><label class="pl-row">${radio("today", "Today")}</label>`
     + `<div class="pl-row pl-days-row"><label class="pl-days-label">${radio("days", "Last")}</label>`
-    + `<input type="number" class="pl-input pl-days" data-narrow-days min="1" max="${ADDED_MAX}" step="1" value="${days}" aria-label="Number of days"><span>days</span></div></fieldset>`;
+    + `<input type="number" class="pl-input pl-days" data-narrow-days min="1" max="${ADDED_MAX}" step="1" value="${days}" aria-label="Number of days"><span>days</span></div></div></section></div>`;
 }
 
-/** N73: the strip under the top bar while Added or Find is on: what narrows, how many nodes it leaves, and Clear. */
-function renderNarrowed(s: State, view: ViewTags | undefined, now: () => Now): string {
-  const c = s.config;
-  if (!c || !view || !isNarrowed(c) || s.loading || s.loadFailed || s.weekStart === null) return "";
-  const count = narrowCount(areaOf(s, view), now())!;
-  const chips = [
-    c.added === undefined ? "" : `<span class="pl-chip">${c.added === "today" ? "Added today" : `Added in the last ${dayCount(c.added)}`}</span>`,
-    isNarrowed({ find: c.find }) ? `<span class="pl-chip">“${esc(c.find!.trim())}”</span>` : "",
-  ].join("");
-  return `<div class="pl-narrowed" data-region="narrowed" role="status"><span class="pl-narrowed-label">Narrowed:</span>${chips}`
-    + `<span class="pl-count">${count.shown} of ${count.all} node${count.all === 1 ? "" : "s"}</span>`
-    + `<button type="button" class="pl-btn" data-action="clear-narrow">Clear</button></div>`;
-}
-
-/** The Panel icon button (N13, N48): hides and shows the panel; while it is hidden, a badge counts the ticked filter values. */
-function renderPanelToggle(s: State): string {
+/** The Panel icon button (N13, N48): hides and shows the panel; while it is hidden, a badge counts the ticked filter values and the label says how many nodes show (N77). */
+function renderPanelToggle(s: State, count: { shown: number; all: number } | null): string {
   const ticked = panelShown(s) || !s.config ? 0 : tickedFilters(s.config);
-  const label = ticked ? `Panel · ${ticked} filter${ticked === 1 ? "" : "s"} active` : "Panel";
+  const label = ticked ? `Panel · ${ticked} filter${ticked === 1 ? "" : "s"} active${count ? ` · ${count.shown} of ${count.all} node${count.all === 1 ? "" : "s"} shown` : ""}` : "Panel";
   return ibtn("toggle-panel", label, "panel", ` aria-expanded="${panelShown(s)}" aria-controls="pl-panel"`, ticked ? `<span class="pl-badge" aria-hidden="true">${ticked}</span>` : "");
 }
 
 /**
- * The tag tree: each tag's button switches the view to that tag alone; the checkbox before it (`data-tag-check`, N14)
- * adds it to the view or removes it, except the last selected tag (disabled). Every selected tag is pressed.
+ * N77 Tags: folds to the view's tags as chips; open, a tag search (`State.tagFind`) over Your tags and Built-in tags,
+ * each folding, with the count of tags the search leaves. In the tree, each tag's button switches the view to that tag
+ * alone; the checkbox before it (`data-tag-check`, N14) adds it to the view or removes it, except the last selected tag
+ * (disabled). Every selected tag is pressed. A tag shows when it or a tag under it matches the search.
  */
-function renderTagTree(s: State, selected: readonly string[]): string {
+function renderTags(s: State, selected: readonly string[]): string {
   const byId = new Map(s.tags.map((t) => [t.id, t]));
+  const q = s.tagFind.trim().toLowerCase();
+  const matches = (t: TagInfo) => !q || t.title.toLowerCase().includes(q);
+  const kidsOf = (t: TagInfo) => t.childIds.map((id) => byId.get(id)).filter((k): k is TagInfo => !!k && k.parentIds[0] === t.id).sort(byTitle);
+  const keep = (t: TagInfo, depth = 0): boolean => matches(t) || (depth < 32 && kidsOf(t).some((k) => keep(k, depth + 1)));
   const seen = new Set<number>();
+  let count = 0;
   const item = (t: TagInfo): string => {
-    if (seen.has(t.id)) return "";
+    if (seen.has(t.id) || !keep(t)) return "";
     seen.add(t.id);
-    const kids = t.childIds.map((id) => byId.get(id)).filter((k): k is TagInfo => !!k && k.parentIds[0] === t.id).sort(byTitle);
+    if (matches(t)) count++;
+    const kids = kidsOf(t).map(item).join("");
     const on = selected.includes(t.ident);
     return `<li><span class="pl-tag-line"><input type="checkbox" class="pl-tag-check" data-tag-check="${t.id}" aria-label="Include #${esc(t.title)}"${flag("checked", on)}${flag("disabled", on && selected.length === 1)}>`
       + `<button type="button" class="pl-row" data-tag-id="${t.id}" aria-pressed="${on}"><span class="pl-hash">#</span>${esc(t.title)}</button></span>`
-      + (kids.length ? `<ul>${kids.map(item).join("")}</ul>` : "") + `</li>`;
+      + (kids ? `<ul>${kids}</ul>` : "") + `</li>`;
   };
   // A root has no parent in the list; a tag with several parents is listed under its first one.
   const roots = rootsOf(s.tags);
-  const list = (key: string, items: TagInfo[], hidden = false) =>
-    `<ul class="pl-tree" id="pl-tags-${key}" data-tag-group="${key}"${hidden ? " hidden" : ""}>${items.map(item).join("")}</ul>`;
-  const own = roots.filter((t) => !t.builtIn);
-  const builtIn = roots.filter((t) => t.builtIn);
-  // Built-in tags start collapsed so "Your tags" and the filters fit without scrolling (T07 D6).
-  return `<nav aria-label="Tags">`
-    + (own.length ? `<h2 class="pl-group-header">Your tags</h2>${list("own", own)}` : "")
-    + (builtIn.length ? `<h2 class="pl-group-header"><button type="button" class="pl-disclosure" data-action="toggle-built-in" aria-expanded="${s.builtInOpen}" aria-controls="pl-tags-built-in">Built-in tags</button></h2>${list("built-in", builtIn, !s.builtInOpen)}` : "")
-    + `</nav>`;
+  let found = 0;
+  const group = (key: string, label: string, items: TagInfo[]) => {
+    if (!items.length) return "";
+    count = 0;
+    const list = items.map(item).join("");
+    found += count;
+    return `<section class="pl-fold pl-fold-sub" data-tag-sub="${key}">${foldHead(s, key, label, `pl-tags-${key}`, "", `<span class="pl-count" data-tag-count="${key}">${count}</span>`, "h4")}`
+      + `<ul class="pl-tree" id="pl-tags-${key}" data-tag-group="${key}"${hidden(isOpen(s, key))}>${list}</ul></section>`;
+  };
+  const groups = group("own", "Your tags", roots.filter((t) => !t.builtIn)) + group("built-in", "Built-in tags", roots.filter((t) => t.builtIn));
+  const chips = selected.map((i) => s.tags.find((t) => t.ident === i)).filter((t): t is TagInfo => !!t).map((t) => `<span class="pl-chip">#${esc(t.title)}</span>`).join(" ");
+  return `<section class="pl-fold" data-tag-section aria-label="Tags">${foldHead(s, "tags", "Tags", "pl-fold-tags")}`
+    + (chips ? `<div class="pl-tag-chips" data-tag-chips>${chips}</div>` : "")
+    + `<div class="pl-fold-body" id="pl-fold-tags"${hidden(isOpen(s, "tags"))}>`
+    + `<input type="search" class="pl-input pl-tag-find" data-tag-find placeholder="Find a tag" aria-label="Find a tag" autocomplete="off" value="${esc(s.tagFind)}">`
+    + groups + (q && !found ? `<p class="pl-hint" data-tags-none>No tag matches</p>` : "") + `</div></section>`;
 }
 
+/** The filters (N13): a folding group per choice property (N77: folded, it names the ticked values), a Tag group first with two or more tags (N14). */
 function renderFilters(s: State, view: ViewTags): string {
   const c = s.config!;
-  const group = (key: string, legend: string, rows: string) =>
-    `<fieldset class="pl-filter" data-filter-group="${esc(key)}"><legend class="pl-group-header">${esc(legend)}</legend>${rows}</fieldset>`;
+  const group = (key: string, legend: string, rows: string, values: Array<{ value: string | null; title: string }>) => {
+    const ticked = c.filters[key] ?? [];
+    const on = values.filter((v) => ticked.includes(v.value)).map((v) => v.title).join(", "); // in the list's order
+    const body = `pl-fold-${key.replace(/[^\w-]/g, "_")}`;
+    return `<section class="pl-fold" data-filter-group="${esc(key)}">${foldHead(s, `filter:${key}`, legend, body, on)}`
+      + `<div class="pl-fold-body pl-filter" id="${esc(body)}" role="group" aria-label="${esc(legend)}"${hidden(isOpen(s, `filter:${key}`))}>${rows}</div></section>`;
+  };
   const row = (key: string, value: string | null, title: string, count: number) =>
     `<label class="pl-row"><input type="checkbox" data-filter-prop="${esc(key)}" data-filter-value="${esc(value ?? "")}"${(c.filters[key] ?? []).includes(value) ? " checked" : ""}>`
     + `<span class="pl-filter-title">${esc(title)}</span><span class="pl-count">${count}</span></label>`;
   // N14: with two or more tags, a Tag group first (values: the view's tags, stored under `TAG_KEY`).
+  const tagValues = view.tags.map((t) => ({ value: t.ident as string | null, title: `#${t.title}` }));
   const tagGroup = view.tags.length > 1
-    ? group(TAG_KEY, "Tag", view.tags.map((t) => row(TAG_KEY, t.ident, `#${t.title}`, s.nodes.filter((n) => n.tag === t.ident).length)).join(""))
+    ? group(TAG_KEY, "Tag", view.tags.map((t) => row(TAG_KEY, t.ident, `#${t.title}`, s.nodes.filter((n) => n.tag === t.ident).length)).join(""), tagValues)
     : "";
   return tagGroup + view.choiceProps.map((p) => {
     const count = (id: number | null) => s.nodes.filter((n) => (n.choices[p.ident]?.id ?? null) === id).length;
-    return group(p.ident, p.title, p.values.map((v) => row(p.ident, v.uuid, v.title, count(v.id))).join("") + row(p.ident, null, "No value", count(null)));
+    const values = [...p.values.map((v) => ({ value: v.uuid as string | null, title: v.title })), { value: null, title: "No value" }];
+    return group(p.ident, p.title, p.values.map((v) => row(p.ident, v.uuid, v.title, count(v.id))).join("") + row(p.ident, null, "No value", count(null)), values);
   }).join("");
 }
 
@@ -591,16 +629,18 @@ function renderWorkspace(s: State, now: () => Now): string {
   const error = s.error ? errorBar(s.error) : "";
   const kind = s.config?.kind ?? "";
   const main = renderView(s, view, now);
+  // N77: nodes shown of all, for the panel's status line and the Panel button (nothing while loading or failed).
+  const count = view && !s.loading && !s.loadFailed && s.weekStart !== null ? panelCount(areaOf(s, view), now()) : null;
   // N40: docked, the frame's left edge is a handle that sets its width (the app listens to it).
   const grip = s.canDock && s.surface === "sidebar"
     ? `<div class="pl-dock-resize" data-dock-resize role="separator" aria-orientation="vertical" aria-label="Resize Planner" tabindex="0" title="Drag to resize, double-click to reset"></div>`
     : "";
-  return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${grip}${renderTopBar(s)}${error}`
-    + renderFocusStrip(s) + renderNarrowed(s, view, now)
+  return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${grip}${renderTopBar(s, count)}${error}`
+    + renderFocusStrip(s)
     + `<div class="pl-settings" id="pl-settings" data-region="settings" role="group" aria-label="View settings"${s.settingsOpen && !s.focus ? "" : " hidden"}>${view ? renderSettings(s, view) : ""}</div>`
     + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}"${s.focus ? " hidden" : ""}>${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
-    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, s.config?.tags ?? [])}${view ? renderNarrow(s) + renderFilters(s, view) : ""}</aside></div></div>`;
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${view ? renderPanelTop(s, count) : ""}<div class="pl-panel-scroll" data-region="panel-scroll">${renderTags(s, s.config?.tags ?? [])}${view ? renderFilters(s, view) : ""}</div></aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -612,7 +652,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { addedDays: ADDED_DAYS, loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
+  const s: State = { addedDays: ADDED_DAYS, loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, folds: {}, tagFind: "",
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
     canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, settingsOpen: false, focus: false, labelWidth: null, datePending: new Map() };
@@ -783,7 +823,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   }
 
   async function loadData() {
-    if (tagOf(s.config!).tags.some((t) => t.builtIn)) s.builtInOpen = true; // every tag change passes here
+    if (tagOf(s.config!).tags.some((t) => t.builtIn)) s.folds["built-in"] = true; // every tag change passes here
     s.loading = true;
     render();
     try {
@@ -859,6 +899,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     editDates: s.editDates,
     labelWidth: s.labelWidth,
     view: s.config ? { id: s.viewId, config: serializeViewConfig(s.config) } : null,
+    folds: { ...s.folds },
   });
   /** After every render: writes the state when it differs from what was last written. */
   const savePrefs = () => {
@@ -873,6 +914,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const restorePrefs = async () => {
     const p = await deps.prefs!.load();
     s.panelOpen = { ...p.panel };
+    s.folds = { ...p.folds };
     s.editDates = p.editDates;
     s.labelWidth = p.labelWidth;
     storedSurface = p.surface;
@@ -1026,7 +1068,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   }
   const reset = () => run(() => {
     Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null,
-      popover: null, error: null, builtInOpen: false, anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
+      popover: null, error: null, folds: {}, tagFind: "", anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
       moveCard: null, agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), datePending: new Map() });
     lastOfKind.clear(); // another graph: its tags may share idents with this one's (N72)
     wantRefresh = false;
@@ -1105,9 +1147,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
       if (c.kind === "matrix" && (p === "mx-x" || p === "mx-y")) return void run(() => setConfig(withAxis(c, matrixProps(tagOf(c), now()), p === "mx-x" ? "x" : "y", value)), () => trigger(p));
     }
-    const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-view-delete-cancel], [data-view-delete-confirm], [data-surface], [data-action]");
+    const el = t.closest<HTMLElement>("[data-fold], [data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-view-delete-cancel], [data-view-delete-confirm], [data-surface], [data-action]");
     if (!el) return;
     const d = el.dataset;
+    if (d.fold) {
+      const key = d.fold;
+      return void run(() => void (s.folds[key] = !isOpen(s, key)), () => `[data-fold="${CSS.escape(key)}"]`);
+    }
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
     if (d.viewKind) return void run(() => switchTo(d.viewKind as ViewKind));
     if (d.viewOpen) return void run(() => openSaved(d.viewOpen!), () => trigger("views"));
@@ -1138,8 +1184,6 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         return void run(() => void (s.settingsOpen = !s.settingsOpen), () => "[data-action=toggle-settings]");
       case "toggle-focus":
         return void run(() => void (s.focus = !s.focus), () => (s.focus ? "[data-focus-show]" : "[data-action=toggle-focus]:not([data-focus-show])"));
-      case "toggle-built-in":
-        return void run(() => void (s.builtInOpen = !s.builtInOpen));
       case "retry":
         return void run(async () => {
           s.error = null;
@@ -1148,9 +1192,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "dismiss-error":
         return void run(() => void (s.error = null));
       case "clear-filters":
-        return void run(() => setConfig(withNarrow({ ...s.config!, filters: {} }, { added: undefined, find: undefined })));
-      case "clear-narrow":
-        return void run(() => setConfig(withNarrow(s.config!, { added: undefined, find: undefined })), () => "[data-narrow-find]");
+        // N77: Clear all leaves with the status line: the focus goes to Find (the empty state's button: a redraw keeps it)
+        return void run(() => setConfig(withNarrow({ ...s.config!, filters: {} }, { added: undefined, find: undefined })),
+          () => (t.closest("[data-region=panel-status]") ? "[data-narrow-find]" : undefined));
       case "save-view":
         return void save();
       case "update-view":
@@ -1759,6 +1803,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   // N73: Find narrows as the user types (the redraw keeps the field's focus and caret, `draw`).
   root.addEventListener("input", (e) => {
     const t = e.target as HTMLInputElement;
+    if (t.dataset.tagFind !== undefined) return void run(() => void (s.tagFind = t.value), () => "[data-tag-find]"); // N77
     if (t.dataset.narrowFind === undefined) return;
     const find = t.value;
     void run(() => setConfig(withNarrow(s.config!, { find })), () => "[data-narrow-find]");

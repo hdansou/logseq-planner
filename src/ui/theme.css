@@ -7,6 +7,8 @@
   --pl-label-done: color-mix(in srgb, var(--pl-label) 72%, var(--pl-surface));
   --pl-line: #d2d2d7; --pl-line-soft: #e8e8ed;
   --pl-fill: #78788014; --pl-fill-strong: #7878801f; --pl-hover: #dcdee1;
+  /* N77: the panel headings' bullet and its halo while folded, as Logseq's block bullet (Inkwell: label-3, fill-strong) */
+  --pl-bullet: #aeaeb2; --pl-bullet-halo: #78788033;
   /* tint-soft is derived from the tint, never taken from the host (T07 D2): 13% of Inkwell's tint on white ≈ #dfe8e8 */
   --pl-tint: #223b3b; --pl-on-tint: #ffffff; --pl-tint-soft: color-mix(in srgb, var(--pl-tint) 13%, transparent); --pl-ring: var(--pl-tint);
   /* N71: the cell under a drag (Kanban, Matrix, Agenda, Calendar): this fill plus a 2px inset ring in --pl-ring */
@@ -30,6 +32,7 @@ html.dark {
   --pl-label: #f5f5f7; --pl-label-2: #98989d; --pl-label-3: #636366;
   --pl-line: #38383a; --pl-line-soft: #2c2c2e;
   --pl-fill: #7878802e; --pl-fill-strong: #78788047; --pl-hover: #404244;
+  --pl-bullet: #8e8e93; --pl-bullet-halo: #78788059;
   /* 12% of Inkwell's dark tint on #1c1c1e ≈ #213232 */
   --pl-tint: #b3c6c6; --pl-on-tint: #000000; --pl-tint-soft: color-mix(in srgb, var(--pl-tint) 12%, transparent);
   /* N71: 12% vanished on the 18% grey fill of a cell ((46, 48, 49) over (44, 44, 47)); 28% ≈ (70, 76, 76) */

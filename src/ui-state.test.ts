@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createUiStore, DEFAULT_PREFS, graphStateText, parseGraphState, parsePrefs, type GraphStateDeps, type UiPrefs, type UiStateDeps } from "./ui-state";
 
-const PREFS: UiPrefs = { panel: { wide: false, narrow: true }, surface: "sidebar", editDates: true, labelWidth: 300, view: { id: "v1", config: '{"v":1}' } };
+const PREFS: UiPrefs = { panel: { wide: false, narrow: true }, surface: "sidebar", editDates: true, labelWidth: 300, view: { id: "v1", config: '{"v":1}' }, folds: { added: true } };
 
 /** A fake settings store: one prefs object per graph key. */
 function fakeDeps(graph: string | null, stored: Record<string, unknown> = {}) {
@@ -17,15 +17,19 @@ function fakeDeps(graph: string | null, stored: Record<string, unknown> = {}) {
 describe("parsePrefs", () => {
   it("gives the defaults for nothing or for garbage", () => {
     for (const raw of [undefined, null, 3, "x", [], {}]) expect(parsePrefs(raw)).toEqual(DEFAULT_PREFS);
-    expect(DEFAULT_PREFS).toEqual({ panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null });
+    expect(DEFAULT_PREFS).toEqual({ panel: { wide: true, narrow: false }, surface: null, editDates: false, labelWidth: null, view: null, folds: {} });
   });
   it("reads a stored object back", () => {
     expect(parsePrefs(JSON.parse(JSON.stringify(PREFS)))).toEqual(PREFS);
   });
   it("keeps each well-formed part and defaults the rest", () => {
     expect(parsePrefs({ panel: { wide: false }, surface: "floating", editDates: "yes", view: { id: 3, config: "c" } }))
-      .toEqual({ panel: { wide: false, narrow: false }, surface: null, editDates: false, labelWidth: null, view: { id: null, config: "c" } });
+      .toEqual({ panel: { wide: false, narrow: false }, surface: null, editDates: false, labelWidth: null, view: { id: null, config: "c" }, folds: {} });
     expect(parsePrefs({ view: { id: "v1" } }).view).toBeNull(); // no config: no view
+  });
+  it("keeps the panel's folds that are true or false (N77)", () => {
+    expect(parsePrefs({ folds: { added: true, tags: false, x: "yes", y: 1 } }).folds).toEqual({ added: true, tags: false });
+    expect(parsePrefs({ folds: [true] }).folds).toEqual({});
   });
 });
 
