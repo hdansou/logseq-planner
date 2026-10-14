@@ -1481,8 +1481,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  /** The element an event is on: a drag started in selected text has a Text node as its target (Chromium). */
+  const targetEl = (e: Event) => { const t = e.target as Node | null; return t?.nodeType === 3 ? t.parentElement : (t as Element | null); };
   root.addEventListener("dragstart", (e) => {
-    const item = (e.target as Element).closest?.<HTMLElement>("[data-cal-drag]");
+    const item = targetEl(e)?.closest?.<HTMLElement>("[data-cal-drag]");
     if (item) {
       // N69: a Calendar band, chip or tray item. A band stands for the day under the pointer (its other days move with it).
       const uuid = item.dataset.calDrag!;
@@ -1501,7 +1503,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       }
       return;
     }
-    const entry = (e.target as Element).closest?.<HTMLElement>("[data-ag-drag]");
+    const entry = targetEl(e)?.closest?.<HTMLElement>("[data-ag-drag]");
     if (entry) {
       // N68: an Agenda entry; the strip of periods shows while it is dragged.
       const uuid = entry.dataset.agDrag!;
@@ -1517,7 +1519,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       }
       return;
     }
-    const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
+    const cardEl = targetEl(e)?.closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
     if (!cardEl) return;
     if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-kb-fixed") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
     dragging = cardEl.dataset.kbCard ?? cardEl.dataset.mxCard!;
@@ -1530,7 +1532,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
   });
   /** The cell a drag is over: a Kanban cell, a Matrix cell or its Unplaced list (N64), an Agenda day or period (N68). */
-  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop], [data-cal-drop]") ?? null;
+  const dropCell = (e: Event) => targetEl(e)?.closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop], [data-cal-drop]") ?? null;
   const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : cellEl.hasAttribute("data-ag-drop") ? "data-ag-over"
     : cellEl.hasAttribute("data-cal-drop") ? "data-cal-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {

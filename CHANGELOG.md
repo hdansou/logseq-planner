@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Dragging a card or entry that sits inside selected text moves it, instead of doing nothing.
 - Matrix: the Unplaced hint reads "Without a value for Effort or Impact" instead of "Without a Effort or a Impact value" (N64).
 
 ## [1.1.0] - 2026-10-12

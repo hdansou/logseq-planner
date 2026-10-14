@@ -91,6 +91,22 @@ describe("Matrix: When as an axis", () => {
     expect(cellOf(ARCHIVE).dataset.mxY).toBe(y); // the Down property's value, when it had none in that band
   });
 
+  it("a drag that starts in selected text (Chromium: dragstart on a Text node) still moves the card", async () => {
+    // Seen with a real mouse on the stable app: a selection over the grid made every card drag a text drag.
+    const ev = (type: string) => new Event(type, { bubbles: true, cancelable: true });
+    const text = $(`[data-mx-card="${SITE}"] .pl-mx-title`)!.firstChild!;
+    expect(text.nodeType).toBe(Node.TEXT_NODE);
+    text.dispatchEvent(ev("dragstart"));
+    const to = $(`[data-mx-cell][data-mx-x="none"][data-mx-y="none"]`)!;
+    const over = ev("dragover");
+    to.dispatchEvent(over);
+    expect(over.defaultPrevented).toBe(true);
+    to.dispatchEvent(ev("drop"));
+    text.dispatchEvent(ev("dragend"));
+    await ws.idle();
+    expect(writeCalls().filter((c) => c[0] === "removeBlockProperty").map((c) => c[2])).toEqual(expect.arrayContaining([key("End"), key("Start")]));
+  });
+
   it("to Unplaced removes the dates and the other value", async () => {
     await drag(SITE, "none", "none");
     expect(writeCalls().filter((c) => c[0] === "removeBlockProperty").map((c) => c[2])).toEqual(expect.arrayContaining([key("End"), key("Start")]));
