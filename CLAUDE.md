@@ -110,6 +110,15 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
   the two (`createJournalPage`). Read a write or a create back with a query; test on the stable app before a release
   (`LOGSEQ_APP=/Applications/Logseq.app/Contents/MacOS/Logseq` with the test-logseq-desktop skill).
 - The built page has a CSP (vite.config.ts, build only): no inline scripts, no eval, no network from the plugin page.
+- A grid that is `width: max-content` sizes its `1fr` columns from the widest unwrapped item: one long title widens every
+  column (N78). Give its cells `contain: inline-size`, or cap the track (`minmax(240px, 320px)`, the Kanban). happy-dom has
+  no layout: measure in the app, and prove the measurement by switching the rule off with an injected `<style>` in the frame.
+- A control whose click removes it from the page (Clear all, N77) must hand focus somewhere, or it falls to the body; a
+  test only shows it if it focuses the button before the click, as a real click does. Sticky headings in a scroller need
+  `padding-top: 0` on it, or rows show above them.
+- Live seeding: set a node's properties through the host API (`upsert_block_property(uuid, 'logseq.property/priority',
+  'High')` takes a closed value's title; a Date-time takes epoch ms) rather than through Planner's menus, whose Playwright
+  clicks can time out on a popover.
 - happy-dom keeps memory for every tree replaced through `innerHTML`: `src/ui/workspace.test.ts` is near a worker's
   heap limit (N24). Tests of a new workspace feature go in their own file (as `workspace-prefs.test.ts`), and every
   test stops the workspaces it made. A run that ends with "Worker exited unexpectedly" is this, not a flaky test.

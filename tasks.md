@@ -21,6 +21,9 @@ it a marketplace install is cross-origin and loses the dock, host keys, the host
 frame), then N66 checks a marketplace install. Next feature: N65, the Matrix time range (owner decisions recorded on N64
 and N65). Upstream reports filed earlier: logseq/db-test#1399 and #1400; watch them for replies. Defaults taken without
 the owner for N67-N70 are listed on each (designer's choices, to review).
+Branch `feat/narrowing` (pushed 2026-10-14, not merged, no PR yet): N73 (Added and Find), N74 (piles newest first),
+N75 / N76 (Matrix Show, narrower columns), N77 (the panel with many tags), N78 (a long title widened Matrix columns);
+1,376 unit tests pass; each seen on the stable Logseq.app 2.0.2 (533ac43), see its entry for what was not.
 What the session of 2026-10-12 added: the Matrix view (N64, mocks on the phone first, then a prototype on a branch, then
 released), the Matrix screenshot in the README, and the marketplace `effect` finding.
 Checked where: the Matrix on the nightly (d24abc9) and the stable Logseq.app 2.0.2; earlier passes are in

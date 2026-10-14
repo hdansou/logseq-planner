@@ -290,7 +290,8 @@ sorts at that date and shows how many days late.
   already in that band keeps its date. In Every value, Overdue and Later take no move. Cards without a date are
   Unplaced. With Priority (or Importance) down, the quadrants take Eisenhower's labels.
 - **Quadrants** splits each axis into two bands; **Every value** gives a row and a column per value. Its columns
-  narrow to 130 px before the grid scrolls sideways, so about seven values fit a full window.
+  narrow to 130 px before the grid scrolls sideways, so about seven values fit a full window; a long title wraps in
+  its card rather than widening the columns.
 - **Show** (Every value): untick values to take their rows or columns out of the grid, with their cards ("2 in
   hidden values"). One value per axis always stays. Saved with the view, per property.
 - **Bands**: per axis, **Reverse** flips the order of its values, and **−** / **+** move the split. A new view puts
