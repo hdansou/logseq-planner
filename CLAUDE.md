@@ -58,7 +58,7 @@ TypeScript, plain DOM (no UI framework), Vite, Vitest (+ happy-dom per file for 
 | `scripts/probe.mjs` | `npm run probe`: live probe → `src/core/__fixtures__/*.json` (docs/probes.md) | run on graphs other than plugin-test / Demo |
 | `scripts/seed-large.edn.mjs` | `buildLargeSeed({n, today, seed, propPrefix})` → `{nodes, tasks, edn}`: pure deterministic load-test seed (#Load item, page "Planner load test"), tested in `src/seed-large.test.ts`; `probe.mjs --seed-large [N]` imports it in chunks | use Math.random, run on graphs other than plugin-test / Demo |
 | `scripts/tracker.mjs` + `tracker-lib.mjs` + `tracker-meta.json` | `npm run tracker`: tasks.md + git log + meta -> `planner-project` graph through the `logseq` CLI; the lib is pure (parse, desired state, EDN for creation, a plan of CLI calls from desired vs current), tested in `scripts/tracker-lib.test.mjs` (vitest includes `scripts/**/*.test.mjs`; it also checks the real tasks.md against the meta, ids read from tasks.md, N22) | edit tasks.md, touch graphs other than the one named by `--graph` |
-| `docs/` | design notes, probe results, `manual-test.md` (T13 live checklist) | — |
+| `docs/` | design notes, probe results, `manual-test.md` (T13 live checklist); N79: `guide.md` (the user guide: every view and control), `limits.md` (limits and where it was tested); the README keeps the pitch, requirements, install, a quick start and privacy; `CONTRIBUTING.md` holds development and the tracker graph | — |
 
 ## Workflow
 

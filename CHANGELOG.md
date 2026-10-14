@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows
 
 - The panel with many tags (N77): a status line ("4 of 14 nodes", Clear all), Find and Added stay at its top while Tags and the filters scroll under them, the heading of the list you are in locked in place; every heading but Find folds behind a Logseq-style bullet and names what is on in it while folded; Tags folds to the view's tags and opens on a tag search over Your tags and Built-in tags. The strip over the view is gone, so the view gets that row back; with the panel hidden, the Panel button's tooltip counts the nodes shown. Folds are kept per graph on this device.
 - Matrix: Every value columns narrow to 130 px before the grid scrolls sideways, so about seven values fit (N76).
+- The README is short: what Planner is, install, a quick start and privacy. The full guide is in docs/guide.md, limits and test notes in docs/limits.md, development in CONTRIBUTING.md (N79).
 
 ### Fixed
 
