@@ -15,7 +15,7 @@ It runs in three places:
 
 ![The Matrix over an Idea tag, Effort across and Impact down: the quadrants Quick wins, Big bets, Fill-ins and Money pits, and the Unplaced list under them.](docs/screenshots/matrix.png)
 
-Version 1.2.0, checked in the Logseq desktop app (the stable 2.0.2 and nightly builds) and partly in the web app.
+Version 1.3.0, checked in the Logseq desktop app (the stable 2.0.2 and nightly builds) and partly in the web app.
 [Limits and known issues](docs/limits.md) says what was and was not checked.
 
 ## Requirements

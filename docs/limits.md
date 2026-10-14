@@ -1,6 +1,6 @@
 # Limits and known issues
 
-Planner 1.2.0 was validated in the Logseq desktop app
+Planner 1.3.0 was validated in the Logseq desktop app
 (Logseq-DB nightly builds of 2026-10-01 to 2026-10-13, and the stable Logseq.app 2.0.2, revision 533ac43; an earlier
 pass on build b09316a) and partly in the Logseq web app.
 
