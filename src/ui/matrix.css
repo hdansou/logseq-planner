@@ -19,7 +19,7 @@
 /* Cells: fill, radius 12, the drop target tinted; a cell whose band has no values takes no card */
 .pl-mx-cell { display: grid; gap: 6px; align-content: start; min-width: 0; min-height: 120px; padding: 8px; background: var(--pl-fill); border-radius: 12px;
   transition: background-color .12s; }
-.pl-mx-cell[data-mx-over] { background: var(--pl-tint-soft); }
+.pl-mx-cell[data-mx-over] { background: var(--pl-drop); box-shadow: inset 0 0 0 2px var(--pl-ring); }
 .pl-mx-cell[data-mx-closed] { background: transparent; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
 .pl-mx-cell-head { display: flex; align-items: baseline; gap: 6px; min-height: 20px; }
 .pl-mx-label { min-width: 0; font-size: 13px; font-weight: 600; line-height: 18px; color: var(--pl-label); overflow-wrap: anywhere; }
@@ -29,7 +29,7 @@
 /* Unplaced: outlined, below the grid; its cards wrap in columns */
 .pl-mx-unplaced { display: grid; gap: 6px; margin-top: 12px; padding: 10px; border-radius: 12px; box-shadow: inset 0 0 0 1px var(--pl-line-soft);
   transition: background-color .12s; }
-.pl-mx-unplaced[data-mx-over] { background: var(--pl-tint-soft); }
+.pl-mx-unplaced[data-mx-over] { background: var(--pl-drop); box-shadow: inset 0 0 0 2px var(--pl-ring); }
 .pl-mx-unplaced .pl-hint { margin: 0; }
 .pl-mx-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; align-items: start; }
 

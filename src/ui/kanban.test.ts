@@ -392,7 +392,7 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(kanbanCss).toMatch(/\.pl-kb-head\s*\{[^}]*min-height:\s*28px/);
     expect(kanbanCss).toMatch(/\.pl-kb-cell\s*\{[^}]*background:\s*var\(--pl-fill\)[^}]*border-radius:\s*12px/);
     expect(kanbanCss).toMatch(/\.pl-kb-card\s*\{[^}]*background:\s*var\(--pl-surface\)[^}]*border-radius:\s*10px[^}]*box-shadow:\s*0 0 0 1px var\(--pl-line\)/);
-    expect(kanbanCss).toMatch(/\[data-kb-over\][^{]*\{[^}]*var\(--pl-tint-soft\)/);
+    expect(kanbanCss).toMatch(/\[data-kb-over\][^{]*\{[^}]*var\(--pl-drop\)/);
     expect(kanbanCss).toMatch(/\[data-kb-pending\][^{]*\{[^}]*cursor:\s*progress/);
   });
 });

@@ -33,7 +33,7 @@
 .pl-kb-cell { display: grid; gap: 6px; align-content: start; min-height: 56px; padding: 6px; background: var(--pl-fill); border-radius: 12px;
   transition: background-color .12s; }
 .pl-kb-cell[data-none] { background: transparent; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
-.pl-kb-cell[data-kb-over] { background: var(--pl-tint-soft); }
+.pl-kb-cell[data-kb-over] { background: var(--pl-drop); box-shadow: inset 0 0 0 2px var(--pl-ring); }
 .pl-kb-drop { padding: 10px 4px; text-align: center; font-size: 12px; line-height: 16px; color: var(--pl-label-2); }
 
 /* Cards: surface, radius 10, hairline ring, no shadow. The open button fills the card; the Move button sits top right. */
