@@ -245,10 +245,16 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
   return rootsOf(tags).find(hasDates) ?? ordered.find(hasDates) ?? ordered[0] ?? null;
 }
 
-/** Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
-export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): ViewConfig {
+/**
+ * Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the rest from `last`, the
+ * config the new kind had when it was last shown (N72: Kanban columns, Agenda grouping, Matrix axes…), when it was for
+ * the same tags; else the new kind's defaults.
+ */
+export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind, last?: ViewConfig): ViewConfig {
   const { tags, childTags, dates, doneValues, filters } = config;
-  return { ...defaultViewConfig(view.tags, kind), tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
+  const own = last?.kind === kind && last.tags.join("\n") === tags.join("\n") ? last : defaultViewConfig(view.tags, kind);
+  const { dependsOn: _, ...rest } = own;
+  return { ...rest, tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
 }
 
 type MatrixConfig = Extract<ViewConfig, { kind: "matrix" }>;
@@ -749,6 +755,22 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     await loadData();
   };
 
+  /**
+   * N72: shows `kind`, with what it had when last shown in this session (`lastOfKind`, kept for the same tags only);
+   * a remembered config that no longer validates (a property gone) falls back to the kind's defaults.
+   */
+  const lastOfKind = new Map<ViewKind, ViewConfig>();
+  const switchTo = (kind: ViewKind) => {
+    const c = s.config!;
+    lastOfKind.set(c.kind, c);
+    const view = tagOf(c);
+    try {
+      setConfig(switchKind(c, view, kind, lastOfKind.get(kind)));
+    } catch {
+      setConfig(switchKind(c, view, kind));
+    }
+  };
+
   /** Applies a config change that keeps the loaded nodes valid (dates, done values, filters, kind). */
   const setConfig = (next: ViewConfig) => {
     tagOf(next);
@@ -955,6 +977,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null,
       popover: null, error: null, builtInOpen: false, anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
       moveCard: null, agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), datePending: new Map() });
+    lastOfKind.clear(); // another graph: its tags may share idents with this one's (N72)
     wantRefresh = false;
     shownSig = null;
     dayScrolled = null;
@@ -1035,7 +1058,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (!el) return;
     const d = el.dataset;
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
-    if (d.viewKind) return void run(() => setConfig(switchKind(s.config!, tagOf(s.config!), d.viewKind as ViewKind)));
+    if (d.viewKind) return void run(() => switchTo(d.viewKind as ViewKind));
     if (d.viewOpen) return void run(() => openSaved(d.viewOpen!), () => trigger("views"));
     // Deleting asks first (N23): × turns the row into the question, Cancel has the focus.
     if (d.viewDelete) return void run(() => void (s.viewDeleting = d.viewDelete!), () => "[data-view-delete-cancel]");

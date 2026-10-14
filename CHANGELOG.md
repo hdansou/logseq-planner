@@ -15,6 +15,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Fixed
 
+- Switching to another view and back keeps that view's settings for the session (Kanban columns and swimlanes, Agenda grouping, Matrix axes…) instead of resetting them (N72).
 - In dark mode the cell, day or period under a drag is clearly marked: a stronger tint and a ring (N71).
 - Dragging a card or entry that sits inside selected text moves it, instead of doing nothing.
 - Matrix: the Unplaced hint reads "Without a value for Effort or Impact" instead of "Without a Effort or a Impact value" (N64).

@@ -327,14 +327,14 @@ describe("Kanban Show menu (N08)", () => {
     expect(hiddenOf(ws)).toEqual({ [status().ident]: ["gone-uuid", key("Backlog"), key("Done")] });
   });
 
-  it("a view-kind change resets it with the other Kanban settings (column, lane, sort), as before N08", async () => {
+  it("a view-kind change and back keeps it with the other Kanban settings (N72; reset before)", async () => {
     const { ws } = await kanban();
     await click(ws, "[data-control=kb-show]");
     await click(ws, `[data-popover=kb-show] input[data-kb-show-value="${key("Backlog")}"]`);
     await click(ws, "[data-kb-sort=title]");
     await click(ws, "[data-view-kind=timeline]");
     await click(ws, "[data-view-kind=kanban]");
-    expect(ws.config()).toMatchObject({ sort: "due", hiddenColumns: {} });
+    expect(ws.config()).toMatchObject({ sort: "title", hiddenColumns: { [status().ident]: [key("Backlog")] } });
   });
 });
 
