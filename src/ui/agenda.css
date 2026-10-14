@@ -12,6 +12,17 @@
 .pl-ag-head { display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 10px 12px 6px; font-size: 15px; font-weight: 600; color: var(--pl-label); }
 .pl-ag-bucket[data-ag-bucket="overdue"] .pl-ag-head { color: var(--pl-red-text); }
 .pl-ag-bucket[data-ag-bucket="today"] .pl-ag-head { color: var(--pl-today); }
+/* N68: dragging an entry. The strip of periods sticks to the top of the view while a drag runs (hidden otherwise). It
+   floats over the list from a zero-height sticky holder, so showing it moves nothing under the pointer (the grid's gap
+   is taken back); a day section or a period under the pointer is tinted, as a Kanban cell is. */
+.pl-ag-dropbar { position: sticky; top: 0; z-index: 3; height: 0; margin-bottom: -10px; }
+.pl-ag-dropbar-in { position: absolute; top: 0; left: 0; right: 0; display: none; flex-wrap: wrap; gap: 6px; padding: 8px; border-radius: 12px;
+  background: var(--pl-surface); box-shadow: 0 0 0 1px var(--pl-line), var(--pl-shadow-float); }
+.pl-ag[data-ag-dragging] .pl-ag-dropbar-in { display: flex; }
+.pl-ag-drop { flex: 1 1 auto; min-width: 84px; padding: 10px 12px; border-radius: 10px; background: var(--pl-fill); text-align: center;
+  font-size: 13px; font-weight: 600; color: var(--pl-label); transition: background-color .12s; }
+.pl-ag-drop[data-ag-over], .pl-ag-bucket[data-ag-over] { background: var(--pl-drop); box-shadow: inset 0 0 0 2px var(--pl-ring); }
+[data-ag-drag] > .pl-ag-entry { cursor: grab; }
 .pl-ag-count { padding: 0 7px; border-radius: 980px; background: var(--pl-fill-strong); color: var(--pl-label-2); font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* Folded buckets: the heading is the summary */

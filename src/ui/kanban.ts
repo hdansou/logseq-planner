@@ -7,6 +7,7 @@
 // and, in the open Move menu, `data-kb-to-col` / `data-kb-to-lane`. A cell renders `KANBAN_CELL_PAGE` cards at first and a
 // `data-kb-more="<cellKey>"` button for the next page; the counts in the heads are the real totals.
 import { TAG_KEY } from "../core/schema";
+import { WHEN_KEY } from "../core/when";
 import { NO_VALUE, type KanbanCard, type KanbanCell, type KanbanLayout, type KanbanSlot, type KanbanSort } from "../core/kanban";
 import type { ChoiceProp, FieldProp } from "../types";
 import { checkList, esc, flag, menu, options, segmented } from "./html";
@@ -28,7 +29,11 @@ export const cellKey = (cell: KanbanCell): string => `${cell.column.key}|${cell.
 
 export interface KanbanToolbarInput {
   choiceProps: ChoiceProp[];
-  columnProp: ChoiceProp;
+  columnProp: { ident: string; title: string };
+  /** The view's tags have dates: When (N67) is offered as columns. */
+  when: boolean;
+  /** Done cards left out (columns by When). */
+  doneHidden: number;
   laneProp: ChoiceProp | null;
   /** Every column of the column property, in order (`KanbanLayout.allColumns`). */
   columns: KanbanSlot[];
@@ -46,7 +51,8 @@ export interface KanbanToolbarInput {
 }
 
 export function renderKanbanToolbar(t: KanbanToolbarInput): string {
-  const columns = () => options("Column property", t.choiceProps.map((p) => ({ value: p.ident, text: p.title })), t.columnProp.ident);
+  const columns = () => options("Column property", [...(t.when ? [{ value: WHEN_KEY, text: "When" }] : []), ...t.choiceProps.map((p) => ({ value: p.ident, text: p.title }))], t.columnProp.ident);
+  const byWhen = t.columnProp.ident === WHEN_KEY;
   const lanes = () => options("Swimlane property", [{ value: "", text: "None" }, ...(t.tagLanes ? [{ value: TAG_KEY, text: "Tag" }] : []),
     ...t.choiceProps.filter((p) => p.ident !== t.columnProp.ident).map((p) => ({ value: p.ident, text: p.title }))], t.laneProp?.ident ?? "");
   const sorts: [KanbanSort, string][] = [["due", "Due"], ...(t.hasPriority ? [["priority", "Priority"] as [KanbanSort, string]] : []), ["title", "Title"]];
@@ -65,12 +71,13 @@ export function renderKanbanToolbar(t: KanbanToolbarInput): string {
   const shownCount = groups.reduce((n, g) => n + g.offered.filter((p) => g.shown.has(p.ident)).length, 0);
   const fieldsText = shownCount === offeredCount ? "All" : `${shownCount} of ${offeredCount}`;
   const byTag = t.laneProp?.ident === TAG_KEY;
-  const changes = esc(t.columnProp.title) + (t.laneProp && !byTag ? ` or ${esc(t.laneProp.title)}` : "") + (byTag ? ". Tag lanes are read-only: a card keeps its tag" : "");
+  const changes = (byWhen ? "its date" : esc(t.columnProp.title)) + (t.laneProp && !byTag ? ` or ${esc(t.laneProp.title)}` : "") + (byTag ? ". Tag lanes are read-only: a card keeps its tag" : "");
   return menu("kb-column", t.popover === "kb-column", "Columns", esc(t.columnProp.title), columns)
     + menu("kb-show", t.popover === "kb-show", "Show", showText, show)
     + menu("kb-lane", t.popover === "kb-lane", "Swimlanes", esc(t.laneProp?.title ?? "None"), lanes)
     + (groups.length ? menu("kb-fields", t.popover === "kb-fields", "Card fields", fieldsText, fields) : "")
     + `<span class="pl-field-label">Sort</span>` + segmented("Sort cards by", "kb-sort", sorts, t.sort)
+    + (t.doneHidden ? `<span class="pl-hint" data-kb-done-hidden>${t.doneHidden} done hidden</span>` : "")
     + `<span class="pl-spacer"></span><span class="pl-hint">Drag a card, or use its ⋯ menu, to change ${changes}</span>`;
 }
 
@@ -98,7 +105,7 @@ function renderMoveMenu(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout
       .join("")}</div>`;
   };
   return `<div class="pl-popover pl-kb-move-menu" data-popover="kb-move">`
-    + list(layout.allColumns, cell.column.key, "kb-to-col")
+    + (card.fixed ? "" : list(layout.allColumns.filter((s) => s.drop || s.key === cell.column.key), cell.column.key, "kb-to-col"))
     + (cell.lane && !layout.lanesReadOnly ? list(layout.lanes, cell.lane.key, "kb-to-lane") : "")
     + `</div>`;
 }
@@ -113,8 +120,8 @@ function renderCard(card: KanbanCard, cell: KanbanCell, layout: KanbanLayout, mo
     `<span class="pl-kb-when">${esc(card.when)}</span>`,
   ].filter(Boolean).join("");
   const open = moveOpen === card.uuid;
-  return `<div role="listitem" class="pl-kb-card" data-kb-card="${esc(card.uuid)}" data-cat="${card.cat}" draggable="${!card.pending}"`
-    + `${flag("data-kb-pending", card.pending)}${card.pending ? ' aria-busy="true"' : ""}${flag("data-done", card.done)}${flag("data-late", card.late)}>`
+  return `<div role="listitem" class="pl-kb-card" data-kb-card="${esc(card.uuid)}" data-cat="${card.cat}" draggable="${!card.pending && !card.fixed}"`
+    + `${flag("data-kb-pending", card.pending)}${flag("data-kb-fixed", card.fixed)}${card.pending ? ' aria-busy="true"' : ""}${flag("data-done", card.done)}${flag("data-late", card.late)}>`
     + `<button type="button" class="pl-kb-open" data-kb-open="${esc(card.uuid)}" aria-label="${esc(card.label)}" title="${esc(card.label)}">`
     + `<span class="pl-kb-title-row"><span class="pl-kb-dot" aria-hidden="true"></span><span class="pl-kb-title">${esc(card.title)}</span></span>`
     + (pct === null ? "" : `<span class="pl-kb-meter" aria-hidden="true"><i style="width: ${pct}%"></i></span>`)
@@ -141,8 +148,8 @@ function renderCell(cell: KanbanCell, layout: KanbanLayout, moveOpen: string | n
     ? `<button type="button" class="pl-btn pl-kb-more" data-kb-more="${esc(key)}" data-rest="${rest}">Show ${page} more${rest > page ? ` of ${rest.toLocaleString("en-US")}` : ""}</button>`
     : "";
   return `<div class="pl-kb-cell" role="list" aria-label="${esc(name)}" data-kb-cell data-kb-col="${esc(cell.column.key)}"`
-    + `${cell.lane ? ` data-kb-lane="${esc(cell.lane.key)}"` : ""}${flag("data-none", cell.column.key === NO_VALUE || cell.lane?.key === NO_VALUE)}>`
-    + (cell.cards.length ? cards.map((c) => renderCard(c, cell, layout, moveOpen)).join("") + more : `<span class="pl-kb-drop" aria-hidden="true">Drop here</span>`)
+    + `${cell.lane ? ` data-kb-lane="${esc(cell.lane.key)}"` : ""}${flag("data-none", cell.column.key === NO_VALUE || cell.lane?.key === NO_VALUE)}${flag("data-kb-no-drop", !cell.column.drop)}>`
+    + (cell.cards.length ? cards.map((c) => renderCard(c, cell, layout, moveOpen)).join("") + more : cell.column.drop ? `<span class="pl-kb-drop" aria-hidden="true">Drop here</span>` : "")
     + `</div>`;
 }
 

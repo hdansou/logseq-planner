@@ -18,7 +18,8 @@ import {
   type ViewConfig, type ViewKind,
 } from "../core/view-config";
 import { clampDelta, clampLabelWidth, editedBar, LABEL_W, perDayOf, shiftAnchor, shownRows, type TimelineLayout, type TimelineRange, type TimelineRow } from "../core/timeline-layout";
-import { dateChanges, writeDates, type DateChange, type EditMode, type SpanEdit } from "../core/date-edit";
+import { dateChanges, writeDates, type DateChange, type DateWrite, type EditMode, type SpanEdit } from "../core/date-edit";
+import { WHEN_FIRST, WHEN_KEY, whenFirst } from "../core/when";
 import { shiftCalendarAnchor } from "../core/calendar-layout";
 import { cardCell, moveDescriptor, moveTarget, NO_VALUE, writeMove, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { defaultFirst, matrixCard, matrixMove, type MatrixLayout } from "../core/matrix";
@@ -26,13 +27,13 @@ import { sanitizeViewName, type ListedView, type SavedView, type ViewStore } fro
 import type { UiPrefs, UiStore } from "../ui-state";
 import type { ChoiceProp, DateWriteDeps, KanbanWriteDeps, LocalDate, PlannerNode, PlannerTask, Surface, TagInfo } from "../types";
 import { checkList, errorText, esc, flag, menu as menuHtml, options } from "./html";
-import { calendarAction, gridScrollTop } from "./calendar";
+import { CALENDAR_TRAY_PAGE, calendarAction, gridScrollTop } from "./calendar";
 import { installGridEdit } from "./grid-edit";
 import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { calendarLayoutOf, empty, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -181,7 +182,7 @@ interface State {
   /** Timeline: the title column's width in px (N36); null = the default. Per graph (UiPrefs), not saved with a view. */
   labelWidth: number | null;
   /** Timeline date edits being written, by node uuid: the bar shows at its new place (optimistic). Session state. */
-  datePending: Map<string, DateChange[]>;
+  datePending: Map<string, DateWrite[]>;
 }
 
 /** A pointer that moves less than this (px) from where it went down is a click (N06c). */
@@ -244,40 +245,50 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
   return rootsOf(tags).find(hasDates) ?? ordered.find(hasDates) ?? ordered[0] ?? null;
 }
 
-/** Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the new kind's defaults for the rest. */
-export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind): ViewConfig {
+/**
+ * Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the rest from `last`, the
+ * config the new kind had when it was last shown (N72: Kanban columns, Agenda grouping, Matrix axes…), when it was for
+ * the same tags; else the new kind's defaults.
+ */
+export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind, last?: ViewConfig): ViewConfig {
   const { tags, childTags, dates, doneValues, filters } = config;
-  return { ...defaultViewConfig(view.tags, kind), tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
+  const own = last?.kind === kind && last.tags.join("\n") === tags.join("\n") ? last : defaultViewConfig(view.tags, kind);
+  const { dependsOn: _, ...rest } = own;
+  return { ...rest, tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
 }
 
 type MatrixConfig = Extract<ViewConfig, { kind: "matrix" }>;
-/** An axis's values in its order (N64). */
-const axisValues = (view: ViewTags, a: NonNullable<MatrixConfig["x"]>) => {
-  const values = view.choiceProps.find((p) => p.ident === a.prop)!.values;
+/** An axis's values in its order (N64); `props` = what an axis can use (`matrixProps`, N70: When first). */
+const axisValues = (props: ChoiceProp[], a: NonNullable<MatrixConfig["x"]>) => {
+  const values = props.find((p) => p.ident === a.prop)!.values;
   return a.reverse ? [...values].reverse() : values;
 };
+/** The first band of axis `a` holding the first `count` of `values` (N70: When keeps the periods with no days today, `whenFirst`). */
+const firstOf = (a: NonNullable<MatrixConfig["x"]>, values: { uuid: string }[], count: number) =>
+  a.prop === WHEN_KEY ? whenFirst(values.map((v) => v.uuid), count, a.reverse) : values.slice(0, count).map((v) => v.uuid);
 /** `c` with `ident` on axis `which` (N64): its default direction and split; picking the other axis's property swaps the two. */
-function withAxis(c: MatrixConfig, view: ViewTags, which: "x" | "y", ident: string): MatrixConfig {
+function withAxis(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", ident: string): MatrixConfig {
   const other = which === "x" ? "y" : "x";
   if (c[other]?.prop === ident) return { ...c, [which]: c[other], [other]: c[which] };
-  const prop = view.choiceProps.find((p) => p.ident === ident)!;
+  if (ident === WHEN_KEY) return { ...c, [which]: { prop: ident, reverse: false, first: [...WHEN_FIRST] } };
+  const prop = props.find((p) => p.ident === ident)!;
   const reverse = prop.title.trim().toLowerCase() === "priority" || prop.ident === ":logseq.property/priority";
   return { ...c, [which]: { prop: ident, reverse, first: defaultFirst(prop, reverse) } };
 }
 /** `c` with one value more or fewer in axis `which`'s first band (N64): the first band becomes that many values from the start of the axis's order. */
-function withSplit(c: MatrixConfig, view: ViewTags, which: "x" | "y", delta: number): MatrixConfig {
+function withSplit(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", delta: number): MatrixConfig {
   const a = c[which]!;
-  const values = axisValues(view, a);
+  const values = axisValues(props, a);
   const count = values.filter((v) => a.first.includes(v.uuid)).length;
   const next = Math.min(values.length - 1, Math.max(1, count + delta));
-  return { ...c, [which]: { ...a, first: values.slice(0, next).map((v) => v.uuid) } };
+  return { ...c, [which]: { ...a, first: firstOf(a, values, next) } };
 }
 /** `c` with axis `which` reversed or not (N64): the first band keeps its size, taken from the new start. */
-function withReverse(c: MatrixConfig, view: ViewTags, which: "x" | "y", reverse: boolean): MatrixConfig {
+function withReverse(c: MatrixConfig, props: ChoiceProp[], which: "x" | "y", reverse: boolean): MatrixConfig {
   const a = c[which]!;
-  const count = axisValues(view, a).filter((v) => a.first.includes(v.uuid)).length;
+  const count = axisValues(props, a).filter((v) => a.first.includes(v.uuid)).length;
   const next = { ...a, reverse };
-  return { ...c, [which]: { ...next, first: axisValues(view, next).slice(0, Math.max(1, count)).map((v) => v.uuid) } };
+  return { ...c, [which]: { ...next, first: firstOf(next, axisValues(props, next), Math.max(1, count)) } };
 }
 
 /** The choice property the done-values control is labelled with: Status, else the first one. */
@@ -575,6 +586,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   let dragging: string | null = null;
   /** The lane the dragged card started in: lanes by tag (N14) take no drop from another lane. */
   let dragLane: string | null = null;
+  /** N69: the day a Calendar item was picked up by (`dateMoveOf`'s `grab`). */
+  let dragGrab: string | null = null;
   /** The Timeline bar or point being dragged to edit its dates (N06c). */
   let tlDrag: TlDrag | null = null;
   /** The click that follows a Timeline drag (or one Escape aborted) is not an open (N06c). */
@@ -740,6 +753,22 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     s.config = config;
     s.viewId = v.id;
     await loadData();
+  };
+
+  /**
+   * N72: shows `kind`, with what it had when last shown in this session (`lastOfKind`, kept for the same tags only);
+   * a remembered config that no longer validates (a property gone) falls back to the kind's defaults.
+   */
+  const lastOfKind = new Map<ViewKind, ViewConfig>();
+  const switchTo = (kind: ViewKind) => {
+    const c = s.config!;
+    lastOfKind.set(c.kind, c);
+    const view = tagOf(c);
+    try {
+      setConfig(switchKind(c, view, kind, lastOfKind.get(kind)));
+    } catch {
+      setConfig(switchKind(c, view, kind));
+    }
   };
 
   /** Applies a config change that keeps the loaded nodes valid (dates, done values, filters, kind). */
@@ -948,6 +977,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     Object.assign(s, { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null,
       popover: null, error: null, builtInOpen: false, anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(),
       moveCard: null, agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), datePending: new Map() });
+    lastOfKind.clear(); // another graph: its tags may share idents with this one's (N72)
     wantRefresh = false;
     shownSig = null;
     dayScrolled = null;
@@ -1022,13 +1052,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       const c = s.config!;
       if (c.kind === "kanban" && p === "kb-column") return void run(() => setConfig({ ...c, columnProp: value, laneProp: c.laneProp === value ? null : c.laneProp }), () => trigger(p));
       if (c.kind === "kanban" && p === "kb-lane") return void run(() => setConfig({ ...c, laneProp: value || null }), () => trigger(p));
-      if (c.kind === "matrix" && (p === "mx-x" || p === "mx-y")) return void run(() => setConfig(withAxis(c, tagOf(c), p === "mx-x" ? "x" : "y", value)), () => trigger(p));
+      if (c.kind === "matrix" && (p === "mx-x" || p === "mx-y")) return void run(() => setConfig(withAxis(c, matrixProps(tagOf(c), now()), p === "mx-x" ? "x" : "y", value)), () => trigger(p));
     }
     const el = t.closest<HTMLElement>("[data-tag-id], [data-view-kind], [data-view-open], [data-view-delete], [data-view-delete-cancel], [data-view-delete-confirm], [data-surface], [data-action]");
     if (!el) return;
     const d = el.dataset;
     if (d.tagId) return void run(() => selectTag(s.tags.find((x) => x.id === Number(d.tagId))!));
-    if (d.viewKind) return void run(() => setConfig(switchKind(s.config!, tagOf(s.config!), d.viewKind as ViewKind)));
+    if (d.viewKind) return void run(() => switchTo(d.viewKind as ViewKind));
     if (d.viewOpen) return void run(() => openSaved(d.viewOpen!), () => trigger("views"));
     // Deleting asks first (N23): × turns the row into the question, Cancel has the focus.
     if (d.viewDelete) return void run(() => void (s.viewDeleting = d.viewDelete!), () => "[data-view-delete-cancel]");
@@ -1272,6 +1302,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
           setConfig({ ...c, layout: "week" });
           s.anchor = a.day;
         }, () => "[data-cal-layout=week]");
+      case "trayMore":
+        return void run(() => void s.kbShown.set(CALENDAR_TRAY_KEY, (s.kbShown.get(CALENDAR_TRAY_KEY) ?? CALENDAR_TRAY_PAGE) + CALENDAR_TRAY_PAGE),
+          () => "[data-cal-tray-more]");
     }
   }
 
@@ -1328,7 +1361,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "showDone":
         return void run(() => setConfig({ ...c, showDone: !c.showDone }));
       case "split":
-        return void run(() => setConfig(withSplit(c, tagOf(c), a.axis, a.delta)), () => `[data-mx-split="${a.axis}:${a.delta}"]`);
+        return void run(() => setConfig(withSplit(c, matrixProps(tagOf(c), now()), a.axis, a.delta)), () => `[data-mx-split="${a.axis}:${a.delta}"]`);
       case "more":
         return void run(() => void s.kbShown.set(a.cell, (s.kbShown.get(a.cell) ?? MATRIX_CELL_PAGE) + MATRIX_CELL_PAGE));
       case "moveMenu": {
@@ -1367,13 +1400,23 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (s.config!.kind === "matrix") {
       // N64: `column` / `lane` are the bands across and down.
       const layout = grid();
-      if (matrixCard(layout, uuid).pending) return;
+      const card = matrixCard(layout, uuid);
+      if (card.pending) return;
       writes = matrixMove(layout, uuid, column, lane ?? NO_VALUE);
+      // N70: a When axis's write is a period: its dates are written as a Kanban move by When, the other axis with them.
+      const when = writes.find((w) => w.prop.ident === WHEN_KEY);
+      if (when) {
+        return moveWhen(uuid, card.title, dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, when.kind === "set" ? when.value.uuid : NO_VALUE).writes,
+          writes.filter((w) => w !== when), focus);
+      }
     } else {
       const layout = board();
       const { card, cell } = cardCell(layout, uuid);
       if (card.pending) return;
-      writes = moveDescriptor(card, cell, moveTarget(layout, column, lane));
+      const target = moveTarget(layout, column, lane);
+      if (target.column.prop.ident === WHEN_KEY) return moveWhen(uuid, card.title, card.fixed || !target.column.drop ? [] : dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, column).writes,
+        moveDescriptor(card, cell, { column: cell.column, lane: target.lane }), focus);
+      writes = moveDescriptor(card, cell, target);
     }
     if (!writes.length) return void render(focus);
     s.pending.set(uuid, writes);
@@ -1391,12 +1434,117 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }, () => focus);
   }
 
+  /**
+   * N67: a move on a Kanban by When: the date writes (`writeDates`, each read back, rolled back on failure), then the
+   * swimlane's property when the lane changes too; when that fails, the dates are put back. Optimistic and reloaded
+   * after, as `move`.
+   */
+  function moveWhen(uuid: string, title: string, dates: DateWrite[], lanes: PropertyWrite[], focus?: string) {
+    if (!dates.length && !lanes.length) return void render(focus);
+    const words = { shows: "The board shows what the graph holds.", unmoved: "the card has not moved" };
+    const zone = deps.zone ?? systemZone;
+    if (dates.length) s.datePending.set(uuid, dates);
+    if (lanes.length) s.pending.set(uuid, lanes);
+    render(focus);
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        await writeDates(deps.dates, { uuid, title }, dates, zone, words);
+        try {
+          await writeMove(deps.kanban, lanes);
+        } catch (e) {
+          const back = [...dates].reverse().map((d) => ({ prop: d.prop, previous: d.next, next: d.previous }));
+          try {
+            await writeDates(deps.dates, { uuid, title }, back, zone, words);
+          } catch (r) {
+            throw new Error(`${(e as Error).message} Putting the date back failed too: ${(r as Error).message}`);
+          }
+          throw new Error(`${(e as Error).message} The date was put back too.`);
+        }
+      } catch (e) {
+        failure = e;
+      }
+      s.datePending.delete(uuid);
+      s.pending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    }, () => focus);
+  }
+
+  /**
+   * N68: an Agenda entry (N69: a Calendar item, `grab` its day picked up) dropped on a day or a period (`target`: a day, a When period key, or "none"): its date writes
+   * (`dateMoveOf`, then `writeDates`, read back), shown at once for a node, then the view is reloaded.
+   */
+  function moveDate(uuid: string, target: string, grab: string | null = null) {
+    let planned: ReturnType<typeof dateMoveOf>;
+    try {
+      planned = dateMoveOf(areaOf(s, tagOf(s.config!)), now(), uuid, target, grab);
+    } catch (e) {
+      return run(() => { throw e; }); // shown in the error bar
+    }
+    const { title, writes } = planned;
+    if (!writes.length) return void render();
+    s.datePending.set(uuid, writes);
+    render();
+    return run(async () => {
+      let failure: unknown = null;
+      try {
+        const words = s.config?.kind === "calendar"
+          ? { shows: "The calendar shows what the graph holds.", unmoved: "the item has not moved" }
+          : { shows: "The agenda shows what the graph holds.", unmoved: "the entry has not moved" };
+        await writeDates(deps.dates, { uuid, title }, writes, deps.zone ?? systemZone, words);
+      } catch (e) {
+        failure = e;
+      }
+      s.datePending.delete(uuid);
+      await fetchData();
+      if (failure) throw failure;
+    });
+  }
+
   /** Drag and drop between Kanban cells (HTML5). The dragged card is remembered in `dragging`; the DOM is not re-rendered until the drop. */
   const clearMarks = (attr: string) => root.querySelectorAll(`[${attr}]`).forEach((el) => el.removeAttribute(attr));
+  /** The element an event is on: a drag started in selected text has a Text node as its target (Chromium). */
+  const targetEl = (e: Event) => { const t = e.target as Node | null; return t?.nodeType === 3 ? t.parentElement : (t as Element | null); };
   root.addEventListener("dragstart", (e) => {
-    const cardEl = (e.target as Element).closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
+    const item = targetEl(e)?.closest?.<HTMLElement>("[data-cal-drag]");
+    if (item) {
+      // N69: a Calendar band, chip or tray item. A band stands for the day under the pointer (its other days move with it).
+      const uuid = item.dataset.calDrag!;
+      dragging = uuid;
+      dragLane = null;
+      const x = (e as MouseEvent).clientX;
+      const under = [...(item.parentElement?.querySelectorAll<HTMLElement>(":scope > [data-cal-drop]") ?? [])]
+        .find((d) => { const r = d.getBoundingClientRect(); return r.width > 0 && x >= r.left && x < r.right; });
+      dragGrab = item.dataset.calGrab ?? under?.dataset.calDrop ?? null;
+      const cal = item.closest("[data-calendar]") ?? root.querySelector("[data-calendar]");
+      setTimeout(() => dragging === uuid && cal?.setAttribute("data-cal-dragging", ""), 0); // not in dragstart (N68)
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt) {
+        dt.setData("text/plain", uuid);
+        dt.effectAllowed = "move";
+      }
+      return;
+    }
+    const entry = targetEl(e)?.closest?.<HTMLElement>("[data-ag-drag]");
+    if (entry) {
+      // N68: an Agenda entry; the strip of periods shows while it is dragged.
+      const uuid = entry.dataset.agDrag!;
+      dragging = uuid;
+      dragLane = null;
+      // After dragstart, not in it: Chromium ends a drag at once when its dragstart changes the page (seen with a real mouse).
+      const agenda = entry.closest("[data-agenda]");
+      setTimeout(() => dragging === uuid && agenda?.setAttribute("data-ag-dragging", ""), 0);
+      const dt = (e as DragEvent).dataTransfer;
+      if (dt) {
+        dt.setData("text/plain", dragging);
+        dt.effectAllowed = "move";
+      }
+      return;
+    }
+    const cardEl = targetEl(e)?.closest?.<HTMLElement>("[data-kb-card], [data-mx-card]");
     if (!cardEl) return;
-    if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
+    if (cardEl.hasAttribute("data-kb-pending") || cardEl.hasAttribute("data-kb-fixed") || cardEl.hasAttribute("data-mx-pending")) return void e.preventDefault();
     dragging = cardEl.dataset.kbCard ?? cardEl.dataset.mxCard!;
     dragLane = cardEl.closest<HTMLElement>("[data-kb-cell]")?.dataset.kbLane ?? null;
     cardEl.setAttribute(cardEl.dataset.kbCard ? "data-kb-dragging" : "data-mx-dragging", "");
@@ -1406,12 +1554,13 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       dt.effectAllowed = "move";
     }
   });
-  /** The cell a drag is over: a Kanban cell, or a Matrix cell or its Unplaced list (N64). */
-  const dropCell = (e: Event) => (e.target as Element).closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell]") ?? null;
-  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : "data-kb-over");
+  /** The cell a drag is over: a Kanban cell, a Matrix cell or its Unplaced list (N64), an Agenda day or period (N68). */
+  const dropCell = (e: Event) => targetEl(e)?.closest?.<HTMLElement>("[data-kb-cell], [data-mx-cell], [data-ag-drop], [data-cal-drop]") ?? null;
+  const overAttr = (cellEl: HTMLElement) => (cellEl.hasAttribute("data-mx-cell") ? "data-mx-over" : cellEl.hasAttribute("data-ag-drop") ? "data-ag-over"
+    : cellEl.hasAttribute("data-cal-drop") ? "data-cal-over" : "data-kb-over");
   root.addEventListener("dragover", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging) return;
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop") || cellEl.hasAttribute("data-mx-closed")) return; // N67 / N70: When's Overdue and Later take no drop
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // Tag lanes: no drop across
     e.preventDefault(); // accept the drop
     const dt = (e as DragEvent).dataTransfer;
@@ -1419,6 +1568,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (!cellEl.hasAttribute(overAttr(cellEl))) {
       clearMarks("data-kb-over");
       clearMarks("data-mx-over");
+      clearMarks("data-ag-over");
+      clearMarks("data-cal-over");
       cellEl.setAttribute(overAttr(cellEl), "");
     }
   });
@@ -1428,12 +1579,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   });
   root.addEventListener("drop", (e) => {
     const cellEl = dropCell(e);
-    if (!cellEl || !dragging) return;
+    if (!cellEl || !dragging || cellEl.hasAttribute("data-kb-no-drop") || cellEl.hasAttribute("data-mx-closed")) return;
     if (cellEl.closest("[data-kb-lanes-readonly]") && (cellEl.dataset.kbLane ?? null) !== dragLane) return; // refused, as in dragover
     e.preventDefault();
     const uuid = dragging;
     dragging = null;
     if (cellEl.hasAttribute("data-mx-cell")) return void move(uuid, cellEl.dataset.mxX!, cellEl.dataset.mxY!);
+    if (cellEl.hasAttribute("data-ag-drop")) return void moveDate(uuid, cellEl.dataset.agDrop!);
+    if (cellEl.hasAttribute("data-cal-drop")) return void moveDate(uuid, cellEl.dataset.calDrop!, dragGrab);
     void move(uuid, cellEl.dataset.kbCol!, cellEl.dataset.kbLane ?? null);
   });
   /**
@@ -1447,6 +1600,10 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     clearMarks("data-kb-over");
     clearMarks("data-mx-dragging");
     clearMarks("data-mx-over");
+    clearMarks("data-ag-over");
+    clearMarks("data-ag-dragging");
+    clearMarks("data-cal-over");
+    clearMarks("data-cal-dragging");
     if (drawOwed) {
       drawOwed = false;
       render();
@@ -1576,7 +1733,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       return void run(() => {
         const c = s.config!;
         if (c.kind !== "matrix") throw new Error(`Matrix Bands control in a ${c.kind} view`);
-        setConfig(withReverse(c, tagOf(c), d.mxReverse as "x" | "y", t.checked));
+        setConfig(withReverse(c, matrixProps(tagOf(c), now()), d.mxReverse as "x" | "y", t.checked));
       }, () => `[data-mx-reverse="${d.mxReverse}"]`);
     }
     if (d.mxLabel !== undefined) {

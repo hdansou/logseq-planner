@@ -132,6 +132,13 @@ function fakeDates(opts: { failOn?: (key: string, value: number, n: number) => b
       pages.set(id, day);
       return { id };
     }),
+    removeBlockProperty: vi.fn(async (uuid: string, key: string) => {
+      calls.push(["removeBlockProperty", uuid, key]);
+      n++;
+      if (opts.failOn?.(key, 0, n)) return null;
+      values.delete(`:${key}`);
+      return null;
+    }),
     readDate: vi.fn(async (_uuid: string, ident: string) => values.get(ident) ?? null),
   };
   return { deps, values, calls };
@@ -197,5 +204,33 @@ describe("writeDates (N06c)", () => {
     const g = fakeDates();
     await writeDates(g.deps, NODE, [] as DateChange[], UTC);
     expect(g.calls).toEqual([]);
+  });
+});
+
+describe("writeDates with values set where there were none, or removed (N67)", () => {
+  const board = { shows: "The board shows what the graph holds.", unmoved: "the card has not moved" };
+
+  it("a removal: removeBlockProperty with the full key, read back as no value", async () => {
+    const g = fakeDates();
+    g.values.set(END.ident, Date.UTC(2026, 9, 9, 17));
+    await writeDates(g.deps, NODE, [{ prop: END, previous: d("2026-10-09", "17:00"), next: null }], UTC, board);
+    expect(g.calls).toEqual([["removeBlockProperty", NODE.uuid, "user.property/end-x"]]);
+    expect(g.values.has(END.ident)).toBe(false);
+  });
+
+  it("a removal the graph does not hold throws, in the board's words", async () => {
+    const g = fakeDates({ failOn: () => true });
+    g.values.set(END.ident, Date.UTC(2026, 9, 9, 17));
+    await expect(writeDates(g.deps, NODE, [{ prop: END, previous: d("2026-10-09", "17:00"), next: null }], UTC, board))
+      .rejects.toThrow('End of "Website relaunch" was not removed (read back still has a value). The board shows what the graph holds.');
+  });
+
+  it("a value set where there was none is removed again when a later write fails", async () => {
+    const g = fakeDates({ failOn: (key) => key === "user.property/start-x" });
+    await expect(writeDates(g.deps, NODE, [
+      { prop: END, previous: null, next: d("2026-10-18", "00:00") },
+      { prop: START, previous: null, next: d("2026-10-14", "00:00") },
+    ], UTC, board)).rejects.toThrow(/Start of "Website relaunch" was not saved as 14 Oct 00:00 \(read back differs\)\. End was put back to no value, so the card has not moved\./);
+    expect(g.values.has(END.ident)).toBe(false);
   });
 });

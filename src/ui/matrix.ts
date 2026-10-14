@@ -8,6 +8,7 @@
 // Toolbar: Across (`mx-x`), Down (`mx-y`), the mode (`data-mx-mode`), Bands (`mx-bands`: `data-mx-reverse`, `data-mx-split`),
 // Labels (`mx-labels`: `data-mx-label` inputs), Show done (`data-mx-show-done`).
 import { NO_VALUE } from "../core/kanban";
+import { WHEN_KEY } from "../core/when";
 import type { MatrixBand, MatrixCard, MatrixCell, MatrixLayout, MatrixMode } from "../core/matrix";
 import type { ChoiceProp } from "../types";
 import { esc, flag, menu, options, segmented, toggleButton } from "./html";
@@ -107,7 +108,8 @@ function renderMoveMenu(card: MatrixCard, layout: MatrixLayout, cell: { x: strin
 }
 
 function renderCard(card: MatrixCard, layout: MatrixLayout, cell: { x: string; y: string }, moveOpen: string | null): string {
-  const meta = [card.x?.title ?? `No ${layout.x.prop.title}`, card.y?.title ?? `No ${layout.y.prop.title}`, card.when];
+  const none = (p: { ident: string; title: string }) => (p.ident === WHEN_KEY ? "No date" : `No ${p.title}`);
+  const meta = [card.x?.title ?? none(layout.x.prop), card.y?.title ?? none(layout.y.prop), card.when];
   const open = moveOpen === card.uuid;
   return `<div role="listitem" class="pl-mx-card" data-mx-card="${esc(card.uuid)}" data-cat="${card.cat}" draggable="${!card.pending}"`
     + `${flag("data-mx-pending", card.pending)}${card.pending ? ' aria-busy="true"' : ""}${flag("data-done", card.done)}${flag("data-late", card.late)}>`
@@ -139,6 +141,14 @@ function renderCell(cell: MatrixCell, layout: MatrixLayout, moveOpen: string | n
 
 const bandHead = (b: MatrixBand, which: "x" | "y") => `<div class="pl-mx-${which}head" data-mx-${which}head="${esc(b.key)}">${esc(b.title || "(no values)")}</div>`;
 
+/** What the Unplaced cards lack: "Without a value for Effort or Impact"; N70: "Without a date or a value for Priority". */
+function withoutText(layout: MatrixLayout): string {
+  const [x, y] = [layout.x.prop, layout.y.prop];
+  if (x.ident === WHEN_KEY) return `Without a date or a value for ${y.title}`;
+  if (y.ident === WHEN_KEY) return `Without a value for ${x.title} or a date`;
+  return `Without a value for ${x.title} or ${y.title}`;
+}
+
 /**
  * The grid and the Unplaced list. `heading` names the nodes; `moveOpen` = uuid of the card whose Move menu is open;
  * `limits` = cards to render per cell by `matrixCellKey` (absent = `MATRIX_CELL_PAGE`).
@@ -153,7 +163,7 @@ export function renderMatrix(layout: MatrixLayout, heading: string, moveOpen: st
   const at = { x: NO_VALUE, y: NO_VALUE };
   const list = `<section class="pl-mx-unplaced" role="list" aria-label="Unplaced" data-mx-unplaced data-mx-cell data-mx-x="${NO_VALUE}" data-mx-y="${NO_VALUE}">`
     + `<div class="pl-mx-cell-head"><span class="pl-mx-label">Unplaced</span><span class="pl-mx-count">${layout.unplaced.length}</span></div>`
-    + `<p class="pl-hint">Without a value for ${esc(layout.x.prop.title)} or ${esc(layout.y.prop.title)}, by due date.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
+    + `<p class="pl-hint">${esc(withoutText(layout))}, by due date.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
     + `<div class="pl-mx-list">${cards(layout.unplaced, UNPLACED_KEY, layout, at, moveOpen, limits)}</div></section>`;
   return grid + list;
 }

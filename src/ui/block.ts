@@ -75,7 +75,7 @@ export function readOnly(html: string, doc: Document): string {
     e.textContent = text;
     return e;
   };
-  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-mx-drag-hint], [data-action]").forEach((e) => e.remove());
+  all("[data-tl-links], .pl-kb-move-anchor, .pl-mx-move-anchor, [data-mx-drag-hint], [data-cal-drag-hint], [data-cal-tray][data-empty], [data-ag-dropbar], [data-action]").forEach((e) => e.remove());
   all("[draggable]").forEach((e) => e.removeAttribute("draggable"));
   all(".pl-kb-drop").forEach((e) => (e.textContent = "")); // "Drop here": nothing can be dropped in a block
   all("details[open]").forEach((e) => e.removeAttribute("open"));
@@ -83,7 +83,7 @@ export function readOnly(html: string, doc: Document): string {
   all("[data-tl-toggle]").forEach((e) => e.replaceWith(el("span", { class: "pl-tl-toggle", "aria-hidden": "true" }, "")));
   all("[data-tl-jump], [data-cal-more]").forEach((e) =>
     e.replaceWith(el("span", { class: e.className, style: e.getAttribute("style") ?? "", "data-planner-text": "" }, e.textContent ?? "")));
-  all("[data-ag-more], [data-kb-more], [data-mx-more]").forEach((e) =>
+  all("[data-ag-more], [data-kb-more], [data-mx-more], [data-cal-tray-more]").forEach((e) =>
     e.replaceWith(el("p", { class: "pl-block-more", "data-planner-text": "" }, `${Number(e.dataset.rest).toLocaleString("en-US")} more`)));
   for (const attr of OPEN_ATTRS) {
     all(`[${attr}]`).forEach((e) => {

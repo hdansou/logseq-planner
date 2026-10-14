@@ -26,7 +26,13 @@
   border-radius: 980px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .pl-cal-day[data-today] .pl-cal-num { color: var(--pl-today); font-weight: 700; }
 
-/* Bands and chips: buttons above the day cells */
+/* Bands and chips: buttons in a holder (.pl-cal-item, the drag source, N69) placed above the day cells */
+.pl-cal-item { position: relative; z-index: 1; display: flex; min-width: 0; }
+.pl-cal-item > .pl-cal-band, .pl-cal-item > .pl-cal-chip { flex: 1 1 auto; }
+.pl-cal-item[draggable] > * { cursor: grab; }
+/* While an item drags (set a tick after dragstart), items let the pointer through to the day under them */
+[data-cal-dragging] [data-cal-drag], [data-cal-dragging] .pl-cal-more { pointer-events: none; }
+[data-cal-drop][data-cal-over] { background: var(--pl-drop); box-shadow: inset 0 0 0 2px var(--pl-ring); }
 .pl-cal-band, .pl-cal-chip { all: unset; box-sizing: border-box; position: relative; z-index: 1; display: flex; align-items: center; gap: 5px;
   min-width: 0; min-height: 18px; overflow: hidden; white-space: nowrap; font-size: 11.5px; line-height: 16px; cursor: pointer; }
 .pl-cal-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -63,8 +69,14 @@
 
 .pl-cal-band:focus-visible, .pl-cal-chip:focus-visible, .pl-cal-more:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 
-/* Undated list */
-.pl-cal-undated { margin: 10px 0 0; padding: 0 8px; font-size: 12.5px; color: var(--pl-label-2); }
+/* The No date tray (N69): undated items to drag onto a day; a dated item dropped here loses its dates */
+.pl-cal-tray { margin: 12px 0 0; padding: 8px; border-radius: 10px; box-shadow: inset 0 0 0 1px var(--pl-line-soft); }
+.pl-cal-tray-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0 0 6px; font-size: 12.5px; font-weight: 600; color: var(--pl-label); }
+.pl-cal-tray-count { font-weight: 500; color: var(--pl-label-2); font-variant-numeric: tabular-nums; }
+.pl-cal-tray-head .pl-hint { font-weight: 400; }
+.pl-cal-tray-list { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pl-cal-tray-list .pl-cal-chip { margin: 0; padding: 3px 8px; background: var(--pl-fill); }
+.pl-cal-tray-more { margin-top: 6px; }
 
 /* ---------------------------------------------------------------------------------------------------------------------
    Time grids: Day, 3 days, Week (N46). A sticky head (day labels, then the all-day row) over a body of one hour axis

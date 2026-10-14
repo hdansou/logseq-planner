@@ -347,6 +347,7 @@ const JOURNAL_PAGE_WAIT_MS = 100;
  */
 export const dateWriteDeps = (): DateWriteDeps => ({
   upsertBlockProperty: (uuid, key, value) => logseq.Editor.upsertBlockProperty(uuid, key, value),
+  removeBlockProperty: (uuid, key) => logseq.Editor.removeBlockProperty(uuid, key),
   // N19: the day's journal page is looked up by its journal day, never taken from `createJournalPage`'s return value. On
   // the stable desktop app (b09316a) that call returned null for local noon, for a page that exists and for one it had
   // just created, while the nightly (8ffbb22) returned the page. The call is only made to create a missing page.

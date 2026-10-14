@@ -6,6 +6,7 @@ import {
   defaultViewConfig, dependsOnOf, parseViewConfig, serializeViewConfig, TAG_KEY, toChoiceFilters, validateViewConfig, withDefaults, withKnownTags, withTags, type ViewConfig,
 } from "./view-config";
 import type { TagInfo } from "../types";
+import { WHEN_FIRST, WHEN_KEY } from "./when";
 
 const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
 const tag = (title: string): TagInfo => {
@@ -460,11 +461,22 @@ describe("Matrix views (N64)", () => {
   const priority = choice(t, "Priority");
   const matrix = () => defaultViewConfig(t, "matrix") as Extract<ViewConfig, { kind: "matrix" }>;
 
-  it("start with Priority down (high end first), the other property across, quadrants, done hidden and no labels of their own", () => {
+  it("start with Priority down (high end first), When across (N70: the tag has dates), quadrants, done hidden and no labels of their own", () => {
     expect(matrix()).toMatchObject({
       kind: "matrix", mode: "quadrants", showDone: false, labels: ["", "", "", ""],
-      x: { prop: status.ident, reverse: false }, y: { prop: priority.ident, reverse: true },
+      x: { prop: WHEN_KEY, reverse: false, first: WHEN_FIRST }, y: { prop: priority.ident, reverse: true },
     });
+  });
+
+  it("a tag without dates: Priority down, the other property across", () => {
+    expect(defaultViewConfig({ ...t, dateProps: [] }, "matrix")).toMatchObject({ x: { prop: status.ident, reverse: false }, y: { prop: priority.ident, reverse: true } });
+  });
+
+  it("N70: a When axis is valid only while the tags have a Date or DateTime property", () => {
+    const noDates = { ...t, dateProps: [] };
+    expect(() => validateViewConfig(matrix(), tags)).not.toThrow();
+    const unmapped = { ...matrix(), dates: { [t.ident]: { start: null, end: null } } } as ViewConfig;
+    expect(() => validateViewConfig(unmapped, tags.map((x) => (x.ident === t.ident ? noDates : x)))).toThrow(/a When axis needs a Date or DateTime property/);
   });
 
   it("have no axes when the tags share fewer than two choice properties", () => {
@@ -499,12 +511,29 @@ describe("Matrix views (N64)", () => {
     expect(withTags(c, [t])).toMatchObject({ x: c.x, y: c.y });
     const p = tag("Project");
     const moved = withTags(c, [p]) as typeof c;
-    expect([moved.x?.prop, moved.y?.prop].every((ident) => p.choiceProps.some((q) => q.ident === ident))).toBe(true);
+    expect([moved.x?.prop, moved.y?.prop].every((ident) => ident === WHEN_KEY || p.choiceProps.some((q) => q.ident === ident))).toBe(true);
+    expect(moved.x?.prop).toBe(WHEN_KEY); // #Project has dates too
     expect(withTags(c, [tag("Page")])).toMatchObject({ x: null, y: null });
   });
 
   it("a view without axes takes the defaults once its tags have two choice properties", () => {
     const c = { ...matrix(), x: null, y: null };
-    expect(withDefaults(c, validateViewConfig(c, tags))).toMatchObject({ x: { prop: status.ident }, y: { prop: priority.ident } });
+    expect(withDefaults(c, validateViewConfig(c, tags))).toMatchObject({ x: { prop: WHEN_KEY }, y: { prop: priority.ident } });
+  });
+});
+
+describe("Kanban columns by When (N67)", () => {
+  const board = () => ({ ...defaultViewConfig(tag("Project"), "kanban"), columnProp: WHEN_KEY }) as ViewConfig;
+
+  it("When is a valid column for a view whose tags have dates, and survives a tag change that keeps dates", () => {
+    expect(() => validateViewConfig(board(), tags)).not.toThrow();
+    const ticked = withTags(board(), [tag("Project"), tag("Meeting")]);
+    expect(ticked.kind === "kanban" && ticked.columnProp).toBe(WHEN_KEY);
+  });
+
+  it("refused for tags without a Date or DateTime property", () => {
+    const noDates = { ...tag("Project"), dateProps: [] };
+    const c = { ...defaultViewConfig(noDates, "kanban"), columnProp: WHEN_KEY } as ViewConfig;
+    expect(() => validateViewConfig(c, tags.map((t) => (t.ident === noDates.ident ? noDates : t)))).toThrow(/When columns need a Date or DateTime property/);
   });
 });

@@ -9,16 +9,21 @@ import type { ZoneOffset } from "../core/normalize";
 import { tagsTitle, TAG_KEY, type Dq, type ViewTags } from "../core/schema";
 import { dependsOnOf, toChoiceFilters, validateViewConfig, type ViewConfig } from "../core/view-config";
 import { refUuids, titlesByUuid } from "../core/display-title";
-import { nestItems, viewItems, type ViewItem } from "../core/layout-common";
+import { addDays, daysBetween, nestItems, viewItems, type ViewItem } from "../core/layout-common";
 import { layoutTimeline, type EditProps, type TimelineLayout } from "../core/timeline-layout";
-import { editedNode, type DateChange } from "../core/date-edit";
+import { editedNode, type DateWrite } from "../core/date-edit";
+import { dayPeriod, whenColumnProp, whenMove, whenPeriods, WHEN_KEY, type WhenProps } from "../core/when";
+
+const TASK_TAG = ":logseq.class/Task";
+const SCHEDULED = ":logseq.property/scheduled";
+const DEADLINE = ":logseq.property/deadline";
 import { layoutCalendar, type CalendarLayout } from "../core/calendar-layout";
 import { layoutAgenda, type AgendaLayout } from "../core/agenda";
 import { layoutKanban, movedNode, priorityProp, tagLaneProp, type KanbanLayout, type PropertyWrite } from "../core/kanban";
 import { layoutMatrix, type MatrixLayout } from "../core/matrix";
-import type { ChoiceProp, ClosedValue, PlannerNode, PlannerTask, TagInfo } from "../types";
+import type { ChoiceProp, ClosedValue, NodeSpan, PlannerNode, PlannerTask, TagInfo } from "../types";
 import { esc } from "./html";
-import { renderCalendar, renderCalendarToolbar } from "./calendar";
+import { CALENDAR_TRAY_PAGE, renderCalendar, renderCalendarToolbar } from "./calendar";
 import { AGENDA_GROUP_PAGE, renderAgenda, renderAgendaToolbar } from "./agenda";
 import { renderKanban, renderKanbanToolbar } from "./kanban";
 import { renderMatrix, renderMatrixToolbar } from "./matrix";
@@ -46,7 +51,7 @@ export interface ViewSession {
   agendaGroups: number;
   /** Agenda by date: how many Overdue entries render. */
   agendaOverdue: number;
-  /** Kanban and Matrix (N64): cards rendered per cell by `cellKey` / `matrixCellKey` (absent = the first page). */
+  /** Kanban and Matrix (N64): cards rendered per cell by `cellKey` / `matrixCellKey`; the Calendar's No date tray by `CALENDAR_TRAY_KEY` (N69) (absent = the first page). */
   kbShown: ReadonlyMap<string, number>;
   /** Kanban and Matrix moves being written, by node uuid: the card shows where the writes put it. */
   pending: ReadonlyMap<string, PropertyWrite[]>;
@@ -57,7 +62,7 @@ export interface ViewSession {
   /** Timeline: the Edit dates toggle is on (N06c; never in the in-page block). */
   editDates: boolean;
   /** Timeline date edits being written, by node uuid: the bar shows where the writes put it (N06c). */
-  datePending: ReadonlyMap<string, DateChange[]>;
+  datePending: ReadonlyMap<string, DateWrite[]>;
   /** Timeline: the title column's width in px (N36); null = the default. */
   labelWidth: number | null;
 }
@@ -221,21 +226,81 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   const statusValues = taskStatusValues(a.tags);
+  const byWhen = c.columnProp === WHEN_KEY;
+  const periods = byWhen ? whenPeriods(now.today, now.weekStart) : [];
+  const props = whenPropsOf(a);
   return layoutKanban({
     items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
-    columnProp: kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
-    choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
+    columnProp: byWhen ? whenColumnProp(periods) : kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
+    choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
+    when: byWhen ? { periods, fixed: (item) => { const p = props(item.node); return !p.start && !p.end; } } : undefined,
     hidden: c.hiddenColumns[c.columnProp] ?? [], hiddenFields: c.hiddenFields,
     cardFields: new Map(a.view.tags.map((t) => [t.ident, cardFieldsOf(c, t, a.view)])),
     tagTitles: a.view.tags.length > 1 ? new Map(a.view.tags.map((t) => [t.ident, `#${t.title}`])) : undefined,
   });
 }
 
+/** The Calendar's No date tray in `ViewSession.kbShown` (N69): how many of its items render. */
+export const CALENDAR_TRAY_KEY = "@cal-tray";
+
+/** A node's mapped Start and End properties (the view's Dates for its tag, N14): what a move by When writes (N67). */
+export const whenPropsOf = (a: ViewAreaInput) => (n: PlannerNode): WhenProps => {
+  const c = a.config;
+  const tag = a.view.tags.find((t) => t.ident === n.tag);
+  const prop = (ident: string | null | undefined) => (ident ? tag?.dateProps.find((p) => p.ident === ident) ?? null : null);
+  return { start: prop(c.dates[n.tag]?.start), end: prop(c.dates[n.tag]?.end) };
+};
+
+/**
+ * The date writes that move `uuid` to `target` (a When period key, `NO_VALUE` = No date, or a day `YYYY-MM-DD`, N68):
+ * `whenMove` on the node as it shows now, or on a #Task block listed with the nodes (its Scheduled and Deadline as Start
+ * and End). Kanban by When (N67) and Agenda drags (N68). N69 Calendar: `grab` = the day the item was picked up by (a
+ * band's day under the pointer, a chip's day): the dates move by the days from `grab` to the target day, so that day
+ * lands on the target. Throws as `whenMove` does, and for an unknown uuid or target.
+ */
+export function dateMoveOf(a: ViewAreaInput, now: Now, uuid: string, target: string, grab: string | null = null): { title: string; writes: DateWrite[] } {
+  const c = a.config;
+  const isDay = /^\d{4}-\d{2}-\d{2}$/.test(target);
+  const periodOf = (span: NodeSpan) => {
+    if (!isDay) return whenPeriods(now.today, now.weekStart).find((p) => p.key === target) ?? null;
+    return dayPeriod(grab && span.end ? addDays(span.end.day, daysBetween(grab, target)) : target);
+  };
+  const plan = (node: PlannerNode, span: NodeSpan, props: WhenProps) => {
+    const period = periodOf(span);
+    if (!period) throw new Error(`No period ${target}`);
+    return whenMove(node, span, props, period);
+  };
+  const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  const item = viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)).find((i) => i.node.uuid === uuid);
+  if (item) return { title: item.node.title, writes: plan(item.node, item.span, whenPropsOf(a)(item.node)) };
+  const task = shown.tasks.find((t) => t.uuid === uuid);
+  if (!task) throw new Error(`No node or task ${uuid} in the view`);
+  const props = a.tags.find((t) => t.ident === TASK_TAG)?.dateProps ?? [];
+  const start = props.find((p) => p.ident === SCHEDULED) ?? null;
+  const end = props.find((p) => p.ident === DEADLINE) ?? null;
+  const dates = Object.fromEntries([[SCHEDULED, task.scheduled], [DEADLINE, task.deadline]].filter(([, v]) => v)) as PlannerNode["dates"];
+  const s = task.scheduled ?? task.deadline;
+  const e = task.deadline ?? task.scheduled;
+  const span: NodeSpan = { kind: task.scheduled && task.deadline ? "mapped" : s ? "point" : "undated", start: s, end: e };
+  const node: PlannerNode = { id: task.id, uuid, title: task.title, tagIds: [], tag: TASK_TAG, links: [], dependsOn: [], dates, choices: {} };
+  return { title: task.title, writes: plan(node, span, { start, end }) };
+}
+
+/**
+ * The properties a Matrix axis can use (N70): When first (its periods on `now`) when the view's tags have a Date or
+ * DateTime property, then the shared choice properties.
+ */
+export function matrixProps(view: ViewTags, now: Now): ChoiceProp[] {
+  const when = view.tags.some((t) => t.dateProps.length) ? [whenColumnProp(whenPeriods(now.today, now.weekStart))] : [];
+  return [...when, ...view.choiceProps];
+}
+
 /** A Matrix view's axes with their properties (the view has axes). */
-export function matrixAxes(a: ViewAreaInput) {
+export function matrixAxes(a: ViewAreaInput, now: Now) {
   const c = a.config;
   if (c.kind !== "matrix" || !c.x || !c.y) throw new Error(`matrixAxes called for a ${c.kind} view without axes`);
-  const prop = (ident: string) => a.view.choiceProps.find((p) => p.ident === ident)!;
+  const props = matrixProps(a.view, now);
+  const prop = (ident: string) => props.find((p) => p.ident === ident)!;
   return { x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first }, y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first } };
 }
 
@@ -245,8 +310,9 @@ export function matrixLayout(a: ViewAreaInput, now: Now): MatrixLayout {
   if (c.kind !== "matrix") throw new Error(`matrixLayout called for a ${c.kind} view`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   return layoutMatrix({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a),
-    mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles, pending: new Set(a.session.pending.keys()),
+    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a, now), periods: whenPeriods(now.today, now.weekStart),
+    mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles,
+    pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
   });
 }
 
@@ -264,6 +330,10 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
     return only(multi
       ? empty("no-choice", `${name} share no choice property`, "Kanban columns come from a choice property every selected tag has, like Status. Add one to the tags in Logseq, or choose other tags.")
       : empty("no-choice", `${name} has no choice properties`, "Kanban columns come from a choice property, like Status. Add one to the tag in Logseq, or choose another tag."));
+  }
+  if (c.kind === "matrix" && (c.x === null || c.y === null) && view.tags.some((t) => t.dateProps.length)) {
+    return only(empty("no-axes", `${name} ${multi ? "share" : "has"} no choice properties`,
+      `A Matrix needs a choice property${multi ? " every selected tag has" : ""}, like Priority, to go with When. Add one to the ${multi ? "tags" : "tag"} in Logseq, or choose ${multi ? "other tags" : "another tag"}.`));
   }
   if (c.kind === "matrix" && (c.x === null || c.y === null)) {
     return only(empty("no-axes", `${name} ${multi ? "share" : "has"} fewer than two choice properties`,
@@ -286,26 +356,38 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   }
   if (c.kind === "calendar") {
     const layout = calendarLayout(a, now(), shown);
-    return { view: renderCalendar(layout, heading), toolbar: renderCalendarToolbar(layout) };
+    // N69: items drag onto a day or the No date tray; a node of a tag with no Start or End cannot.
+    const props = whenPropsOf(a);
+    const drag = { fixed: new Set(shown.nodes.filter((n) => { const p = props(n); return !p.start && !p.end; }).map((n) => n.uuid)), tray: session.kbShown.get(CALENDAR_TRAY_KEY) ?? CALENDAR_TRAY_PAGE };
+    return { view: renderCalendar(layout, heading, drag), toolbar: renderCalendarToolbar(layout) };
   }
   if (c.kind === "agenda") {
-    const layout = agendaLayout(a, now(), shown);
-    return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
+    const at = now();
+    const layout = agendaLayout(a, at, shown);
+    // N68: entries drag onto a day heading or a period; a node of a tag with no Start or End cannot.
+    const props = whenPropsOf(a);
+    const drag = {
+      targets: whenPeriods(at.today, at.weekStart).filter((p) => p.drop !== null || p.key === "none").map((p) => ({ key: p.key, title: p.title })),
+      fixed: new Set(shown.nodes.filter((n) => { const p = props(n); return !p.start && !p.end; }).map((n) => n.uuid)),
+    };
+    return { view: renderAgenda(layout, heading, c.showDone, { open: session.agendaOpen, groups: session.agendaGroups, overdue: session.agendaOverdue }, drag), toolbar: renderAgendaToolbar(c.groupBy, c.showDone) };
   }
   if (c.kind === "matrix") {
-    const layout = matrixLayout(a, now());
-    const axes = matrixAxes(a);
-    const defaults = layout.mode === "quadrants" ? layoutMatrix({ ...matrixAxes(a), items: [], mode: "quadrants", showDone: false, labels: ["", "", "", ""], today: "", doneValues: {}, titles: new Map(), pending: new Set() }).rows.flat().map((cell) => cell.label ?? "") : [];
+    const at = now();
+    const layout = matrixLayout(a, at);
+    const axes = matrixAxes(a, at);
+    const defaults = layout.mode === "quadrants" ? layoutMatrix({ ...axes, items: [], mode: "quadrants", showDone: false, labels: ["", "", "", ""], today: "", doneValues: {}, titles: new Map(), pending: new Set() }).rows.flat().map((cell) => cell.label ?? "") : [];
     return {
       view: renderMatrix(layout, heading, session.moveOpen, session.kbShown),
-      toolbar: renderMatrixToolbar({ layout, choiceProps: view.choiceProps, labels: c.labels, defaults, showDone: c.showDone, popover: session.popover,
+      toolbar: renderMatrixToolbar({ layout, choiceProps: matrixProps(view, at), labels: c.labels, defaults, showDone: c.showDone, popover: session.popover,
         axes }),
     };
   }
   const layout = kanbanLayout(a, now());
   return {
     view: renderKanban(layout, heading, session.moveOpen, session.kbShown),
-    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: kanbanProp(view, c.columnProp)!, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
+    toolbar: renderKanbanToolbar({ choiceProps: view.choiceProps, columnProp: layout.allColumns[0].prop, laneProp: kanbanProp(view, c.laneProp), columns: layout.allColumns,
+      when: view.tags.some((t) => t.dateProps.length), doneHidden: layout.doneHidden,
       shown: layout.columns, sort: c.sort, hasPriority: priorityProp(view) !== null, tagLanes: multi, popover: session.popover,
       fieldGroups: view.tags.map((t) => ({ ident: t.ident, title: t.title, offered: offeredFields(c, t, view), shown: new Set(cardFieldsOf(c, t, view).map((f) => f.ident)) })) }),
   };

@@ -6,8 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Matrix: **When** as an axis (N70): the Kanban's When periods by due date, the first band to the end of this week; a move writes the band's last day. A new Matrix of a tag with dates starts with Priority down and When across, with Eisenhower's labels.
+- Calendar: drag a band or chip onto another day (the day you picked it up by lands there), and a **No date** tray under the calendar: drag an undated item onto a day, or a dated one onto the tray to remove its dates (N69).
+- Agenda: drag an entry onto a day heading, or onto Today, Tomorrow, This week, Next week, This month, This quarter or No date in a strip that shows while dragging, to give it that date (N68).
+- Kanban columns by **When** (N67): the view's dates in periods from Overdue to No date; dragging a card, or its ⋯ menu, gives it the period's last day, keeping a span's length and a DateTime's time.
+
 ### Fixed
 
+- Switching to another view and back keeps that view's settings for the session (Kanban columns and swimlanes, Agenda grouping, Matrix axes…) instead of resetting them (N72).
+- In dark mode the cell, day or period under a drag is clearly marked: a stronger tint and a ring (N71).
+- Dragging a card or entry that sits inside selected text moves it, instead of doing nothing.
 - Matrix: the Unplaced hint reads "Without a value for Effort or Impact" instead of "Without a Effort or a Impact value" (N64).
 
 ## [1.1.0] - 2026-10-12

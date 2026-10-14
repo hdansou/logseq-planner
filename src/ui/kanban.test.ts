@@ -113,11 +113,11 @@ describe("board", () => {
     expect(text(`[data-kb-card="${SITE}"] .pl-kb-meta`)).not.toContain("Alice");
   });
 
-  it("the column picker lists the choice properties; picking the lane property as column clears the lanes", async () => {
+  it("the column picker lists When (the tag has dates, N67) and the choice properties; picking the lane property as column clears the lanes", async () => {
     await click("[data-control=kb-lane]");
     await click(`[data-popover=kb-lane] [data-option="${prop("Owner").ident}"]`);
     await click("[data-control=kb-column]");
-    expect($$("[data-popover=kb-column] [data-option]").map((o) => o.textContent)).toEqual(["Status", "Owner"]);
+    expect($$("[data-popover=kb-column] [data-option]").map((o) => o.textContent)).toEqual(["When", "Status", "Owner"]);
     await click(`[data-popover=kb-column] [data-option="${prop("Owner").ident}"]`);
     expect(ws.config()).toMatchObject({ columnProp: prop("Owner").ident, laneProp: null });
     expect($$("[data-kb-column]").map((h) => h.querySelector(".pl-kb-head-title")!.textContent)).toEqual(["Alice", "Bob", "No Owner"]);
@@ -392,7 +392,7 @@ describe("stylesheet (happy-dom does not apply CSS)", () => {
     expect(kanbanCss).toMatch(/\.pl-kb-head\s*\{[^}]*min-height:\s*28px/);
     expect(kanbanCss).toMatch(/\.pl-kb-cell\s*\{[^}]*background:\s*var\(--pl-fill\)[^}]*border-radius:\s*12px/);
     expect(kanbanCss).toMatch(/\.pl-kb-card\s*\{[^}]*background:\s*var\(--pl-surface\)[^}]*border-radius:\s*10px[^}]*box-shadow:\s*0 0 0 1px var\(--pl-line\)/);
-    expect(kanbanCss).toMatch(/\[data-kb-over\][^{]*\{[^}]*var\(--pl-tint-soft\)/);
+    expect(kanbanCss).toMatch(/\[data-kb-over\][^{]*\{[^}]*var\(--pl-drop\)/);
     expect(kanbanCss).toMatch(/\[data-kb-pending\][^{]*\{[^}]*cursor:\s*progress/);
   });
 });
