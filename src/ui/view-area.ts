@@ -318,7 +318,11 @@ export function matrixAxes(a: ViewAreaInput, now: Now) {
   if (c.kind !== "matrix" || !c.x || !c.y) throw new Error(`matrixAxes called for a ${c.kind} view without axes`);
   const props = matrixProps(a.view, now);
   const prop = (ident: string) => props.find((p) => p.ident === ident)!;
-  return { x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first }, y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first } };
+  const hidden = (ident: string) => c.hidden?.[ident] ?? [];
+  return {
+    x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first, hidden: hidden(c.x.prop) },
+    y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first, hidden: hidden(c.y.prop) },
+  };
 }
 
 /** The Matrix layout of the visible nodes (N64; the view has axes). */

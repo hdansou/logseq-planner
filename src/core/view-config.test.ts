@@ -571,3 +571,15 @@ describe("Added and Find (N73)", () => {
     expect(next.find).toBe("x");
   });
 });
+
+describe("Matrix Show (N75)", () => {
+  const p = tag("Project");
+  it("hidden values are saved per property and read back; a wrong shape is refused", () => {
+    const status = choice(p, "Status");
+    const c = { ...defaultViewConfig(p, "matrix"), mode: "values", hidden: { [status.ident]: [status.values[0].uuid] } } as ViewConfig;
+    expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+    expect(() => validateViewConfig(c, tags)).not.toThrow();
+    expect(() => validateViewConfig({ ...c, hidden: { [status.ident]: "x" } } as never, tags)).toThrow(/hidden/);
+    expect("hidden" in defaultViewConfig(p, "matrix")).toBe(false);
+  });
+});

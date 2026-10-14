@@ -287,8 +287,10 @@ sorts at that date and shows how many days late.
   card the band's last day that takes one (the end of this week, or of the quarter), as a Kanban move by When; a card
   already in that band keeps its date. In Every value, Overdue and Later take no move. Cards without a date are
   Unplaced. With Priority (or Importance) down, the quadrants take Eisenhower's labels.
-- **Quadrants** splits each axis into two bands; **Every value** gives a row and a column per value (a wide grid
-  scrolls sideways).
+- **Quadrants** splits each axis into two bands; **Every value** gives a row and a column per value. Its columns
+  narrow to 130 px before the grid scrolls sideways, so about seven values fit a full window.
+- **Show** (Every value): untick values to take their rows or columns out of the grid, with their cards ("2 in
+  hidden values"). One value per axis always stays. Saved with the view, per property.
 - **Bands**: per axis, **Reverse** flips the order of its values, and **−** / **+** move the split. A new view puts
   the smaller half first when a property has an odd number of values. Priority starts reversed, Urgent first. A
   value added to the property later joins the second band.

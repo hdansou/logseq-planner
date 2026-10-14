@@ -121,7 +121,7 @@ export interface Workspace {
 }
 
 type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" | "kb-column" | "kb-show" | "kb-fields" | "kb-lane" | "kb-move"
-  | "mx-x" | "mx-y" | "mx-bands" | "mx-labels" | "mx-move";
+  | "mx-x" | "mx-y" | "mx-bands" | "mx-labels" | "mx-show" | "mx-move";
 
 interface State {
   /** N73: the number of days Added's "Last N days" shows and picks while Added is Any or Today (session). */
@@ -896,7 +896,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
 
   const trigger = (p: Popover) =>
     p === "kb-move" ? `[data-kb-move="${s.moveCard}"]` : p === "mx-move" ? `[data-mx-move="${s.moveCard}"]` : `[data-control="${p === "views" ? "saved-views" : p === "done" ? "done-values" : p}"]`;
-  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" || p === "mx-bands" || p === "mx-labels" ? "input" : "[aria-selected=true]"}`;
+  const firstInPopover = (p: Popover) => `[data-popover="${p}"] ${p === "views" ? "[data-field=view-name]" : p === "done" || p === "kb-show" || p === "kb-fields" || p === "mx-bands" || p === "mx-labels" || p === "mx-show" ? "input" : "[aria-selected=true]"}`;
 
   async function openBody() {
     s.loading = true;
@@ -1065,7 +1065,7 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     if (mx) return void matrix(mx, (e as MouseEvent).shiftKey);
     const ctl = t.closest<HTMLElement>("[data-control]");
     if (ctl && ctl.tagName === "BUTTON") {
-      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane", "mx-x": "mx-x", "mx-y": "mx-y", "mx-bands": "mx-bands", "mx-labels": "mx-labels" } as const)[ctl.dataset.control as string];
+      const p = ({ tag: "tag", start: "start", end: "end", dates: "dates", depends: "depends", "done-values": "done", "saved-views": "views", "kb-column": "kb-column", "kb-show": "kb-show", "kb-fields": "kb-fields", "kb-lane": "kb-lane", "mx-x": "mx-x", "mx-y": "mx-y", "mx-bands": "mx-bands", "mx-labels": "mx-labels", "mx-show": "mx-show" } as const)[ctl.dataset.control as string];
       if (p) {
         s.popover = s.popover === p ? null : p;
         s.viewDeleting = null;
@@ -1833,6 +1833,18 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         // A text, number, checkbox, url or node property comes with its own attribute: the nodes are read again for it.
         if (extraFieldProps(s.config!, tagOf(s.config!)).map((f) => f.ident).join() !== before) await fetchData();
       }, () => `[data-kb-field-tag="${d.kbFieldTag}"][data-kb-field-value="${d.kbFieldValue}"]`);
+    }
+    if (d.mxShowValue !== undefined) {
+      return void run(() => {
+        const c = s.config!;
+        if (c.kind !== "matrix") throw new Error(`Matrix Show control in a ${c.kind} view`);
+        const prop = d.mxShowProp!;
+        const next = toggle(c.hidden?.[prop] ?? [], d.mxShowValue!);
+        const hidden = { ...c.hidden, [prop]: next };
+        if (!next.length) delete hidden[prop];
+        const { hidden: _, ...rest } = c;
+        setConfig(Object.keys(hidden).length ? { ...rest, hidden } : rest);
+      }, () => `[data-mx-show-prop="${d.mxShowProp}"][data-mx-show-value="${d.mxShowValue}"]`);
     }
     if (d.kbShowValue !== undefined) {
       return void run(() => {

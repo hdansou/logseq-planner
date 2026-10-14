@@ -45,6 +45,8 @@ export interface MatrixAxisInput {
   prop: ChoiceProp;
   reverse: boolean;
   first: readonly string[];
+  /** N75 Show: the values (uuids, When period keys) Every value leaves out; ignored in quadrants and when it names them all. */
+  hidden?: readonly string[];
 }
 
 /**
@@ -125,7 +127,11 @@ export function axisBands(axis: MatrixAxisInput, mode: MatrixMode): MatrixBand[]
     title: when && vs.length > 1 ? `${vs[0].title} – ${vs[vs.length - 1].title}` : vs.map((v) => v.title).join(", "),
     drop: when ? [...vs].reverse().find((v) => !NO_DROP.has(v.uuid)) ?? null : vs[0] ?? null,
   });
-  if (mode === "values") return values.map((v) => band(v.uuid, [v]));
+  if (mode === "values") {
+    const hidden = new Set(axis.hidden ?? []);
+    const shown = values.filter((v) => !hidden.has(v.uuid));
+    return (shown.length ? shown : values).map((v) => band(v.uuid, [v]));
+  }
   const first = new Set(axis.first);
   return [band("first", values.filter((v) => first.has(v.uuid))), band("second", values.filter((v) => !first.has(v.uuid)))];
 }
@@ -165,6 +171,8 @@ export interface MatrixLayout {
   unplaced: MatrixCard[];
   /** Done cards left out (Show done off). */
   doneHidden: number;
+  /** N75: cards left out because their value on an axis is hidden (Every value, Show). */
+  valuesHidden: number;
 }
 
 export interface MatrixInput {
@@ -202,6 +210,7 @@ export function layoutMatrix(input: MatrixInput): MatrixLayout {
   })));
   const unplaced: MatrixCard[] = [];
   let doneHidden = 0;
+  let valuesHidden = 0;
   const bandOf = (bands: MatrixBand[], v: ClosedValue | null) => (v ? bands.findIndex((b) => b.values.some((x) => x.uuid === v.uuid)) : -1);
 
   for (const { node, span, progress } of input.items) {
@@ -227,7 +236,9 @@ export function layoutMatrix(input: MatrixInput): MatrixLayout {
     const card: MatrixCard = { uuid: node.uuid, title, cat: categoryOf(node.uuid), done, late, due, when, progress, x, y, pending: input.pending.has(node.uuid), label };
     const a = bandOf(xBands, x);
     const b = bandOf(yBands, y);
-    if (a < 0 || b < 0) unplaced.push(card);
+    // N75: a value the axis has but does not show (Show in Every value) takes the card out; a missing value is Unplaced.
+    if ((x && a < 0) || (y && b < 0)) valuesHidden++;
+    else if (a < 0 || b < 0) unplaced.push(card);
     else rows[b][a].cards.push(card);
   }
   const byDue = (p: MatrixCard, q: MatrixCard) => (p.due ? (q.due ? compareDates(p.due, q.due) : -1) : q.due ? 1 : 0);
@@ -236,7 +247,7 @@ export function layoutMatrix(input: MatrixInput): MatrixLayout {
   const created = new Map(input.items.map((i) => [i.node.uuid, i.node.created]));
   unplaced.sort((p, q) => byNewest(created.get(p.uuid), created.get(q.uuid)) || order(p, q));
   const axis = (a: MatrixAxisInput, bands: MatrixBand[]): MatrixAxis => ({ prop: { ident: a.prop.ident, title: a.prop.title }, bands });
-  return { mode, x: axis(input.x, xBands), y: axis(input.y, yBands), rows, unplaced, doneHidden };
+  return { mode, x: axis(input.x, xBands), y: axis(input.y, yBands), rows, unplaced, doneHidden, valuesHidden };
 }
 
 /** The card with `uuid`, in a cell or unplaced; throws when it is not in the layout. */

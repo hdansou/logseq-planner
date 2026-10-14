@@ -79,9 +79,11 @@ export type ViewConfig = CommonConfig &
     /**
      * N64: two choice properties as axes (`x` across, `y` down; both null when the view's tags share fewer than two),
      * `mode` quadrants (each axis in two bands) or every value; done cards shown or not; `labels` = the four quadrant
-     * names, top left to bottom right, "" = the default (core/matrix.ts).
+     * names, top left to bottom right, "" = the default (core/matrix.ts). N75 `hidden`: per property ident, the values
+     * (uuids, When period keys) Every value does not show (Show); absent = all shown; kept per property, like the
+     * Kanban's `hiddenColumns`, so swapping the axes keeps it.
      */
-    | { kind: "matrix"; x: MatrixAxisConfig | null; y: MatrixAxisConfig | null; mode: (typeof MATRIX_MODES)[number]; showDone: boolean; labels: string[] }
+    | { kind: "matrix"; x: MatrixAxisConfig | null; y: MatrixAxisConfig | null; mode: (typeof MATRIX_MODES)[number]; showDone: boolean; labels: string[]; hidden?: Record<string, string[]> }
   );
 
 const VERSION = 1;
@@ -300,6 +302,7 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
         if (!Array.isArray(a.first) || !a.first.every((u) => typeof u === "string")) throw invalid(`${which}.first must be a list of value uuids`);
       }
       if ((config.x === null) !== (config.y === null)) throw invalid("x and y must both be set or both be null");
+      if ("hidden" in config) selection("hidden", config.hidden, false, "value keys");
       return;
     }
   }
