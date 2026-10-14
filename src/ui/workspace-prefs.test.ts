@@ -38,7 +38,7 @@ async function click(ws: Workspace, sel: string) {
 }
 /** Clicks the tag in the tree, opening the collapsed built-in group first when the tag is in it. */
 async function pickTag(ws: Workspace, title: string) {
-  if (tag(title).builtIn && $("[data-action=toggle-built-in]")!.getAttribute("aria-expanded") === "false") await click(ws, "[data-action=toggle-built-in]");
+  if (tag(title).builtIn && $("[data-fold=built-in]")!.getAttribute("aria-expanded") === "false") await click(ws, "[data-fold=built-in]");
   await click(ws, `[data-tag-id="${tag(title).id}"]`);
 }
 

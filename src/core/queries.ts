@@ -15,8 +15,11 @@ export const CLASS_EXTENDS_RULES = ` [[(class-extends ?p ?c) [?c :logseq.propert
 export const notRecycled = (v: string): string =>
   `(not [${v} :logseq.property/deleted-at _]) (not-join [${v}] [${v} :block/page ?pg] [?pg :logseq.property/deleted-at _])`;
 
-/** What `buildNodes` reads besides the properties: `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` (plain refs → `{id}`). */
-const NODE_ATTRS = ":db/id :block/uuid :block/title :block/tags";
+/**
+ * What `buildNodes` reads besides the properties: `:db/id`, `:block/uuid`, `:block/title`, `:block/tags` (plain refs →
+ * `{id}`), `:block/created-at` (epoch ms, N73: Added).
+ */
+const NODE_ATTRS = ":db/id :block/uuid :block/title :block/tags :block/created-at";
 
 /**
  * The Date/DateTime and choice property idents of every tag (own and inherited), each once, sorted: what normalisation
@@ -69,14 +72,14 @@ export const nodesQuery = (tags: TagInfo[], dependsOn: string | null = null, lin
                  ${notRecycled("?b")}]`;
 
 /**
- * #Task blocks that reference a node of the view's tags (same tag join as `nodesQuery`), pulling what `buildTasks` reads: Status
+ * #Task blocks that reference a node of the view's tags (same tag join as `nodesQuery`), pulling what `buildTasks` reads: created-at (N73), Status
  * with its ident (the empty placeholder is recognised by it), Deadline, Scheduled and the refs' ids. T13a: bound by the
  * tag instead of every #Task of the graph, and no nested tag or ref titles (2,033 rows 314 ms → ~100 ms live). Neither
  * the task nor the node it links may be in Recycle (T14); `buildTasks` also drops refs to nodes that are not loaded.
  * The view's dependency property (N12), when it has one, is pulled last and plain: a task's values for it decide which
  * refs do not link (`buildTasks`).
  */
-export const tasksQuery = (dependsOn: string | null) => `[:find (pull ?b [:db/id :block/uuid :block/title
+export const tasksQuery = (dependsOn: string | null) => `[:find (pull ?b [:db/id :block/uuid :block/title :block/created-at
                         {:logseq.property/status [:db/ident :block/title]}
                         :logseq.property/deadline :logseq.property/scheduled
                         {:block/refs [:db/id]}${dependsAttr(dependsOn)}])

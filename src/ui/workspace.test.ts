@@ -50,7 +50,7 @@ async function click(ws: Workspace, sel: string) {
 }
 /** Clicks the tag in the tree, opening the collapsed built-in group first when the tag is in it. */
 async function pickTag(ws: Workspace, title: string) {
-  if (tag(title).builtIn && $("[data-action=toggle-built-in]")!.getAttribute("aria-expanded") === "false") await click(ws, "[data-action=toggle-built-in]");
+  if (tag(title).builtIn && $("[data-fold=built-in]")!.getAttribute("aria-expanded") === "false") await click(ws, "[data-fold=built-in]");
   await click(ws, `[data-tag-id="${tag(title).id}"]`);
 }
 
@@ -158,7 +158,7 @@ describe("settings bar", () => {
     expect(text("[data-control=done-values]")).toContain("Done, Canceled");
     expect(ws.config()).toMatchObject({ tags: [tag("Project").ident], dates: { [tag("Project").ident]: { start: dateIdent(tag("Project"), "Start"), end: dateIdent(tag("Project"), "End") } } });
     // filters for every choice property, each with "No value"
-    const legends = $$("[data-filter-group] legend").map((l) => l.textContent?.trim());
+    const legends = $$("[data-filter-group] .pl-fold-head").map((l) => l.textContent?.trim());
     expect(legends).toEqual(expect.arrayContaining(["Status", "Owner"]));
     for (const p of tag("Project").choiceProps) expect($(`input[data-filter-prop="${p.ident}"][data-filter-value=""]`)).not.toBeNull();
   });
@@ -375,17 +375,17 @@ describe("tasks of the visible nodes (T07 D4)", () => {
 });
 
 describe("tag tree", () => {
-  it("collapses the built-in group by default and toggles it (T07 D6)", async () => {
+  it("collapses the built-in group by default and toggles it (T07 D6; N77: a panel fold)", async () => {
     const { ws } = await setup();
-    const toggle = $("[data-action=toggle-built-in]")!;
+    const toggle = $("[data-fold=built-in]")!;
     expect(toggle.tagName).toBe("BUTTON");
     expect(toggle.getAttribute("aria-expanded")).toBe("false");
     expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
     expect(toggle.getAttribute("aria-controls")).toBe($("[data-tag-group=built-in]")!.id);
-    await click(ws, "[data-action=toggle-built-in]");
-    expect($("[data-action=toggle-built-in]")!.getAttribute("aria-expanded")).toBe("true");
+    await click(ws, "[data-fold=built-in]");
+    expect($("[data-fold=built-in]")!.getAttribute("aria-expanded")).toBe("true");
     expect($("[data-tag-group=built-in]")!.hidden).toBe(false);
-    await click(ws, "[data-action=toggle-built-in]");
+    await click(ws, "[data-fold=built-in]");
     expect($("[data-tag-group=built-in]")!.hidden).toBe(true);
   });
 
@@ -397,15 +397,11 @@ describe("tag tree", () => {
     expect(workspaceCss).not.toMatch(/pl-mac-desktop/); // N15: the frame starts under the host header
   });
 
-  it("spaces a group heading that follows a tag list (stylesheet; happy-dom does not lay out)", () => {
-    expect(workspaceCss).toMatch(/\.pl-tree \+ \.pl-group-header\s*\{[^}]*margin-top:\s*16px/);
-  });
-
   it("expands the built-in group when the selected tag is built-in", async () => {
     const { ws } = await setup();
     await click(ws, "[data-control=tag]");
     await click(ws, `[data-popover=tag] [data-option="${tag("Task").ident}"]`);
-    expect($("[data-action=toggle-built-in]")!.getAttribute("aria-expanded")).toBe("true");
+    expect($("[data-fold=built-in]")!.getAttribute("aria-expanded")).toBe("true");
     expect($("[data-tag-group=built-in]")!.hidden).toBe(false);
   });
 
@@ -438,7 +434,7 @@ describe("panel (N13)", () => {
     expect(panel.getAttribute("data-region")).toBe("panel");
     expect(panel.id).toBe("pl-panel");
     expect(panel.getAttribute("aria-label")).toBe("Tags and filters");
-    expect(panel.querySelector("nav[aria-label=Tags]")).not.toBeNull();
+    expect(panel.querySelector("section[aria-label=Tags]")).not.toBeNull();
     expect(panel.querySelector("[data-filter-prop]")).not.toBeNull();
     expect($(".pl-sidebar, [data-region=sidebar]")).toBeNull();
   });
@@ -496,7 +492,7 @@ describe("panel (N13)", () => {
     expect($("[data-action=toggle-panel] .pl-badge")).toBeNull();
     await click(ws, "[data-action=toggle-panel]");
     expect(text("[data-action=toggle-panel] .pl-badge")).toBe("2");
-    expect($("[data-action=toggle-panel]")!.getAttribute("aria-label")).toBe("Panel · 2 filters active");
+    expect($("[data-action=toggle-panel]")!.getAttribute("aria-label")).toMatch(/^Panel · 2 filters active · \d+ of \d+ nodes shown$/); // N77
   });
 
   it("hidden panel (stylesheet): the body has one column", () => {
@@ -558,7 +554,7 @@ describe("panel drawer at narrow widths (N13)", () => {
     viewport(500);
     const { ws } = await setup();
     await click(ws, "[data-action=toggle-panel]");
-    await click(ws, "[data-action=toggle-built-in]");
+    await click(ws, "[data-fold=built-in]");
     expect(panelHidden()).toBe(false);
     await click(ws, "[data-view-kind=calendar]");
     expect(panelHidden()).toBe(false);
@@ -1458,7 +1454,7 @@ describe("views over several tags (N14)", () => {
     await tick(ws, "Task");
     const status = choice(tag("Project"), "Status");
     expect($$("[data-filter-group]").map((g) => g.dataset.filterGroup)).toEqual(["@tag", status.ident]);
-    expect(text("[data-filter-group=\"@tag\"] legend")).toBe("Tag");
+    expect(text("[data-filter-group=\"@tag\"] .pl-fold-head")).toBe("Tag");
     const tagRow = (t: string) => $(`[data-filter-prop="@tag"][data-filter-value="${tag(t).ident}"]`)!.closest("label")!;
     expect(tagRow("Project").textContent).toBe("#Project4");
     expect(tagRow("Task").textContent).toBe("#Task6");

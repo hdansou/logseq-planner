@@ -6,12 +6,13 @@
 // cards `data-mx-card` (uuid; `draggable`, `data-mx-pending`), `data-mx-open`, `data-mx-move` and, in the open Move menu,
 // `data-mx-to-x` / `data-mx-to-y` (band keys; an empty value keeps that axis); `data-mx-more` pages a cell.
 // Toolbar: Across (`mx-x`), Down (`mx-y`), the mode (`data-mx-mode`), Bands (`mx-bands`: `data-mx-reverse`, `data-mx-split`),
-// Labels (`mx-labels`: `data-mx-label` inputs), Show done (`data-mx-show-done`).
+// Labels (`mx-labels`: `data-mx-label` inputs), Show done (`data-mx-show-done`); N75 in Every value, Show (`mx-show`: a
+// checkbox per value, `data-mx-show-prop` + `data-mx-show-value`).
 import { NO_VALUE } from "../core/kanban";
 import { WHEN_KEY } from "../core/when";
 import type { MatrixBand, MatrixCard, MatrixCell, MatrixLayout, MatrixMode } from "../core/matrix";
 import type { ChoiceProp } from "../types";
-import { esc, flag, menu, options, segmented, toggleButton } from "./html";
+import { checkList, esc, flag, menu, options, segmented, toggleButton } from "./html";
 
 export type MatrixAction =
   | { type: "open"; uuid: string }
@@ -36,6 +37,8 @@ export interface MatrixToolbarAxis {
   prop: ChoiceProp;
   reverse: boolean;
   first: readonly string[];
+  /** N75: the values Every value does not show. */
+  hidden?: readonly string[];
 }
 
 export interface MatrixToolbarInput {
@@ -68,10 +71,31 @@ function bandsPopover(t: MatrixToolbarInput): string {
   return axis("x", "Across") + axis("y", "Down") + `<p class="pl-hint">Saved with the view. A value added to the property later joins the second band.</p>`;
 }
 
+/** N75: Show, in Every value: each axis's values with a checkbox; the last shown value of an axis cannot be unticked. */
+function showPopover(t: MatrixToolbarInput): string {
+  const axis = (which: "x" | "y", name: string) => {
+    const a = t.axes[which];
+    const values = a.reverse ? [...a.prop.values].reverse() : a.prop.values;
+    const shown = new Set(t.layout[which].bands.map((b) => b.key));
+    return checkList(`${name}: ${a.prop.title}`, values.map((v) => ({
+      attrs: `data-mx-show-prop="${esc(a.prop.ident)}" data-mx-show-value="${esc(v.uuid)}"`, text: v.title, checked: shown.has(v.uuid),
+      disabled: shown.size === 1 && shown.has(v.uuid),
+    })));
+  };
+  return axis("x", "Across") + axis("y", "Down") + `<p class="pl-hint">Saved with the view.</p>`;
+}
+
 function labelsPopover(t: MatrixToolbarInput): string {
   const names = ["Top left", "Top right", "Bottom left", "Bottom right"];
   return names.map((n, i) => `<label class="pl-mx-label-field"><span>${n}</span><input class="pl-input" data-mx-label="${i}" value="${esc(t.labels[i] ?? "")}" placeholder="${esc(t.defaults[i])}" autocomplete="off"></label>`).join("")
     + `<p class="pl-hint">Leave a name empty for the default. Saved with the view.</p>`;
+}
+
+/** The Show button's text (N75): "All", or how many values show of all, both axes together ("9 of 11"). */
+function showText(t: MatrixToolbarInput): string {
+  const total = t.axes.x.prop.values.length + t.axes.y.prop.values.length;
+  const shown = t.layout.x.bands.length + t.layout.y.bands.length;
+  return shown === total ? "All" : `${shown} of ${total}`;
 }
 
 export function renderMatrixToolbar(t: MatrixToolbarInput): string {
@@ -84,7 +108,9 @@ export function renderMatrixToolbar(t: MatrixToolbarInput): string {
     + segmented("Matrix layout", "mx-mode", [["quadrants", "Quadrants"], ["values", "Every value"]], layout.mode)
     + (quadrants ? menu("mx-bands", t.popover === "mx-bands", "Bands", `${layout.x.bands[0].values.length} · ${layout.y.bands[0].values.length}`, () => bandsPopover(t)) : "")
     + (quadrants ? menu("mx-labels", t.popover === "mx-labels", "Labels", t.labels.some(Boolean) ? "Custom" : "Default", () => labelsPopover(t)) : "")
+    + (quadrants ? "" : menu("mx-show", t.popover === "mx-show", "Show", showText(t), () => showPopover(t)))
     + toggleButton("Show done", "mx-show-done", t.showDone)
+    + (layout.valuesHidden ? `<span class="pl-hint" data-mx-values-hidden>${layout.valuesHidden} in hidden values</span>` : "")
     + (layout.doneHidden && !t.showDone ? `<span class="pl-hint" data-mx-done-hidden>${layout.doneHidden} done hidden</span>` : "")
     + `<span class="pl-spacer"></span><span class="pl-hint">Drag a card, or use its ⋯ menu, to change ${esc(layout.x.prop.title)} or ${esc(layout.y.prop.title)}</span>`;
 }
@@ -163,7 +189,7 @@ export function renderMatrix(layout: MatrixLayout, heading: string, moveOpen: st
   const at = { x: NO_VALUE, y: NO_VALUE };
   const list = `<section class="pl-mx-unplaced" role="list" aria-label="Unplaced" data-mx-unplaced data-mx-cell data-mx-x="${NO_VALUE}" data-mx-y="${NO_VALUE}">`
     + `<div class="pl-mx-cell-head"><span class="pl-mx-label">Unplaced</span><span class="pl-mx-count">${layout.unplaced.length}</span></div>`
-    + `<p class="pl-hint">${esc(withoutText(layout))}, by due date.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
+    + `<p class="pl-hint">${esc(withoutText(layout))}, newest first.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
     + `<div class="pl-mx-list">${cards(layout.unplaced, UNPLACED_KEY, layout, at, moveOpen, limits)}</div></section>`;
   return grid + list;
 }

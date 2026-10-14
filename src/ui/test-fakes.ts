@@ -75,12 +75,12 @@ function narrowNode(row: Row, pull: NodePull): Row {
 }
 
 /**
- * A fixture task row (T01 pull) cut down to the `tasksQuery` pull: Status `{ident, title}`, Deadline, Scheduled, refs as
+ * A fixture task row (T01 pull) cut down to the `tasksQuery` pull: created-at (N73; the T01 rows have none, a test edit adds it), Status `{ident, title}`, Deadline, Scheduled, refs as
  * `{id}`, and the dependency property when the query pulls one (`dependsOn`) and the row has it.
  */
 function narrowTask(t: Row, dependsOn: string | null): Row {
   const out: Row = { id: t.id, uuid: t.uuid, title: t.title };
-  for (const k of [":logseq.property/status", ":logseq.property/deadline", ":logseq.property/scheduled", ...(dependsOn ? [dependsOn] : [])]) if (k in t) out[k] = t[k];
+  for (const k of ["created-at", ":logseq.property/status", ":logseq.property/deadline", ":logseq.property/scheduled", ...(dependsOn ? [dependsOn] : [])]) if (k in t) out[k] = t[k];
   if (t.refs) out.refs = (t.refs as Row[]).map((r) => ({ id: r.id }));
   return out;
 }

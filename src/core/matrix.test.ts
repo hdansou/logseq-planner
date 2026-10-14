@@ -106,7 +106,7 @@ describe("layout", () => {
     expect(titles(l, 0, 1)).toEqual([]); // "Shipped" (Urgent / Done) is done: hidden
     expect(titles(l, 1, 0)).toEqual(["Write notes"]); // Medium / Backlog
     expect(titles(l, 1, 1)).toEqual(["Tidy tags"]); // Low / In Review
-    expect(l.unplaced.map((c) => c.title)).toEqual(["No priority", "Nothing set"]); // by due date, undated last
+    expect(l.unplaced.map((c) => c.title)).toEqual(["No priority", "Nothing set"]); // by due date, undated last (the fixture nodes were all created on the same day, N74)
     expect(l.doneHidden).toBe(1);
   });
 
@@ -249,5 +249,28 @@ describe("When as an axis (N70)", () => {
   it("every value: Overdue and Later take no move", () => {
     const l = whenLayout({ mode: "values" });
     expect(() => matrixMove(l, card(l, "Plan roadmap").uuid, "overdue", value(priority, "High").uuid)).toThrow(/cannot move to Overdue/);
+  });
+});
+
+describe("Show in Every value (N75)", () => {
+  const values = (over: Partial<MatrixInput> = {}) => layout({ mode: "values", ...over });
+  const hide = (titles: string[]) => titles.map((t) => value(status, t).uuid);
+
+  it("a hidden value's band leaves the axis; quadrants ignore the list; hiding every value hides none", () => {
+    const x = (hidden: string[], mode: "values" | "quadrants" = "values") => axisBands({ prop: status, reverse: false, first: [], hidden }, mode);
+    expect(x(hide(["Done", "Canceled"])).map((b) => b.title)).toEqual(status.values.map((v) => v.title).filter((t) => t !== "Done" && t !== "Canceled"));
+    expect(x(status.values.map((v) => v.uuid)).length).toBe(status.values.length);
+    expect(x(hide(["Done"]), "quadrants").flatMap((b) => b.values).length).toBe(status.values.length);
+  });
+
+  it("cards with a hidden value leave the grid and are counted; cards missing a value stay Unplaced", () => {
+    const l = values({ x: { prop: status, reverse: false, first: [], hidden: hide(["Doing", "In Review"]) } });
+    const placed = l.rows.flat().flatMap((c) => c.cards.map((k) => k.title));
+    expect(placed).not.toContain("Plan roadmap"); // Doing
+    expect(placed).not.toContain("Tidy tags"); // In Review
+    expect(l.valuesHidden).toBe(2);
+    expect(l.unplaced.map((c) => c.title)).toEqual(expect.arrayContaining(["No priority", "Nothing set"]));
+    expect(l.unplaced.map((c) => c.title)).not.toContain("Plan roadmap");
+    expect(values().valuesHidden).toBe(0);
   });
 });

@@ -97,13 +97,35 @@ html, body, #app { height: 100%; }
   .pl-body { position: relative; grid-template-columns: 1fr; }
   .pl-panel { position: absolute; top: 0; right: 0; bottom: 0; width: min(260px, 85%); z-index: 5; box-shadow: var(--pl-shadow-float); }
 }
-.pl-panel { overflow: auto; padding: 12px 10px; display: grid; gap: 16px; align-content: start; }
-.pl-panel .pl-group-header { margin: 0 0 4px; padding: 0 10px; }
-.pl-tree + .pl-group-header { margin-top: 16px; }
-.pl-disclosure { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; border-radius: 6px; }
-.pl-disclosure:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
-.pl-disclosure::before { content: "▸"; font-size: 10px; }
-.pl-disclosure[aria-expanded="true"]::before { content: "▾"; }
+.pl-panel { overflow: hidden; padding: 0; display: flex; flex-direction: column; --pl-fold-h: 28px; }
+/* N77: the top (status line, Find, Added) stays put; Tags and the filters scroll under it, the current heading locked. */
+.pl-panel-top { flex: none; display: grid; gap: 6px; padding: 10px 10px 8px; border-bottom: 1px solid var(--pl-line-soft); }
+/* no top padding: rows would show above a locked heading */
+.pl-panel-scroll { flex: 1 1 auto; min-height: 0; overflow: auto; display: grid; gap: 8px; align-content: start; padding: 0 10px 12px; }
+.pl-panel-scroll .pl-fold-head { position: sticky; top: 0; z-index: 2; background: var(--pl-panel); }
+.pl-fold-sub > .pl-fold-head { top: var(--pl-fold-h); z-index: 1; padding-left: 12px; }
+.pl-fold { display: grid; gap: 2px; }
+.pl-fold-head { display: flex; align-items: center; gap: 8px; height: var(--pl-fold-h); margin: 0; padding: 0 10px;
+  font-size: 11.5px; font-weight: 600; color: var(--pl-label-2); }
+.pl-fold-head .pl-count { margin-left: auto; font-weight: 400; }
+.pl-fold-btn { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; min-width: 0; border-radius: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-fold-btn:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: 2px; }
+/* Logseq's block bullet: a 6px dot; folded, a halo around it as a collapsed block's; darker on hover */
+.pl-fold-label::before, .pl-fold-btn::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--pl-bullet);
+  box-shadow: 0 0 0 4px transparent; margin: 0 2px 0 4px; transition: box-shadow .12s, background-color .12s; }
+.pl-fold-btn[aria-expanded="false"]::before { box-shadow: 0 0 0 4px var(--pl-bullet-halo); }
+.pl-fold-btn:hover::before { background: var(--pl-label); }
+.pl-fold-text { overflow: hidden; text-overflow: ellipsis; }
+.pl-fold-on { color: var(--pl-tint); font-weight: 600; }
+.pl-fold-label { cursor: text; }
+.pl-tag-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 4px; }
+.pl-tag-chips .pl-chip { background: var(--pl-fill); font-weight: 400; font-size: 12px; }
+.pl-tag-find { margin: 2px 10px 4px; min-width: 0; width: calc(100% - 20px); box-sizing: border-box; font-size: 13px; }
+.pl-fold-body .pl-hint { padding: 0 10px; }
+.pl-panel-status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 5px 6px 5px 10px; border-radius: 8px; font-size: 13px;
+  background: var(--pl-tint-soft); font-variant-numeric: tabular-nums; }
+.pl-panel-status .pl-btn { margin-left: auto; padding: 2px 10px; font-size: 12px; }
 .pl-tree, .pl-tree ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .pl-tree ul { padding-left: 14px; }
 .pl-panel button.pl-row { all: unset; box-sizing: border-box; display: flex; gap: 4px; width: 100%; border-radius: 8px; padding: 5px 10px;
@@ -114,10 +136,21 @@ html, body, #app { height: 100%; }
 .pl-panel button.pl-row:focus-visible { outline: 2px solid var(--pl-ring); outline-offset: -2px; }
 .pl-hash { color: var(--pl-label-2); }
 .pl-filter { border: 0; margin: 0; padding: 0; display: grid; gap: 1px; }
-.pl-filter legend { padding: 0 10px 4px; }
 .pl-filter label.pl-row { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 10px; }
 .pl-filter-title { flex: 1; }
 .pl-count { color: var(--pl-label-2); font-size: 12px; font-variant-numeric: tabular-nums; }
+/* N73 Find and Added, in the panel's top (N77) */
+.pl-find-row { display: grid; gap: 2px; }
+.pl-find { margin: 0 10px; min-width: 0; font-size: 13px; }
+.pl-days-row { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 10px; }
+.pl-days-label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.pl-days { width: 4.5em; padding: 2px 6px; font-size: 13px; }
+.pl-chip { border-radius: 999px; padding: 1px 8px; background: var(--pl-surface); font-weight: 600; overflow-wrap: anywhere; }
+/* N77: the drawer (narrow frame) scrolls as one: a pinned top would leave little room for the lists. */
+@media (max-width: 639px) {
+  .pl-panel { overflow: auto; }
+  .pl-panel-scroll { overflow: visible; flex: none; }
+}
 
 .pl-main { display: grid; grid-template-rows: auto 1fr; min-width: 0; min-height: 0; }
 .pl-view-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 0 16px; border-bottom: 1px solid var(--pl-line-soft); }

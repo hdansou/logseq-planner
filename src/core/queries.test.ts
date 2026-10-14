@@ -58,7 +58,7 @@ describe("loadNodes", () => {
     expect(calls[0].query).not.toContain("[*]");
     const dateIdents = new Set(tags.flatMap((t) => t.dateProps).filter((p) => p.type === "date").map((p) => p.ident));
     const attrs = idents.map((i) => (dateIdents.has(i) ? `{${i} [:db/id :block/journal-day]}` : i));
-    expect(calls[0].query).toContain(`(pull ?b [:db/id :block/uuid :block/title :block/tags ${attrs.join(" ")}])`);
+    expect(calls[0].query).toContain(`(pull ?b [:db/id :block/uuid :block/title :block/tags :block/created-at ${attrs.join(" ")}])`);
     // Project's own Start/End/Status/Owner, Meeting's Date/Type and Task's Deadline/Scheduled/Status/Priority, each once
     const project = tag("Project");
     for (const p of [...project.dateProps, ...project.choiceProps, ...tag("Meeting").dateProps, ...tag("Task").dateProps]) expect(idents).toContain(p.ident);
@@ -226,6 +226,7 @@ describe("loadNodesAndTasks", () => {
     expect(tasksQuery(null)).toContain("[?n :block/tags ?t] (or [(= ?t ?tag)] (class-extends ?tag ?t))");
     expect(tasksQuery(null)).toContain("[?b :block/refs ?n] [?b :block/tags :logseq.class/Task]");
     expect(tasksQuery(null)).toContain("{:block/refs [:db/id]}");
+    expect(tasksQuery(null)).toContain(":db/id :block/uuid :block/title :block/created-at"); // N73: Added
     expect(tasksQuery(null)).not.toContain("{:block/tags");
   });
 
@@ -469,7 +470,7 @@ describe("views over several tags (N14)", () => {
   });
 
   it("pulls the node refs (as ids) only for two or more tags; one tag's pull is unchanged", () => {
-    expect(nodesQuery(tags, null, true)).toContain("[:db/id :block/uuid :block/title :block/tags {:block/refs [:db/id]} ");
+    expect(nodesQuery(tags, null, true)).toContain("[:db/id :block/uuid :block/title :block/tags :block/created-at {:block/refs [:db/id]} ");
     expect(nodesQuery(tags, null, true).replace(" {:block/refs [:db/id]}", "")).toBe(nodesQuery(tags));
     expect(nodesQuery(tags)).not.toContain(":block/refs");
   });

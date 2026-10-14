@@ -214,6 +214,8 @@ export interface PlannerNode {
    * Pulled only for a view over two or more tags; [] otherwise.
    */
   links: number[];
+  /** The local day the node was created (`:block/created-at`, N73: Added); absent when the row has none. */
+  created?: string;
 }
 
 /** The Status of a #Task block, as the query returns it. */
@@ -243,6 +245,8 @@ export interface PlannerTask {
   deadline: LocalDate | null;
   /** The task's built-in Scheduled (DateTime) as a local date; null when unset. */
   scheduled: LocalDate | null;
+  /** The local day the task block was created (`:block/created-at`, N73: Added); absent when the row has none. */
+  created?: string;
 }
 
 /** How a node sits on the time axis. */

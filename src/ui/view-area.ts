@@ -5,6 +5,7 @@
 import { buildData, loadTitles, readRaw, type RawData } from "../core/queries";
 import { cardFieldsOf, extraFieldProps, offeredFields } from "../core/fields";
 import { filterNodes } from "../core/nodes";
+import { isNarrowed, narrowItems, narrowMatch } from "../core/narrow";
 import type { ZoneOffset } from "../core/normalize";
 import { tagsTitle, TAG_KEY, type Dq, type ViewTags } from "../core/schema";
 import { dependsOnOf, toChoiceFilters, validateViewConfig, type ViewConfig } from "../core/view-config";
@@ -136,6 +137,32 @@ export function visibleData(config: ViewConfig, view: ViewTags, nodes: PlannerNo
 
 type Shown = { nodes: PlannerNode[]; tasks: PlannerTask[] };
 
+/**
+ * N73: the view's items narrowed by Added and Find (`narrowItems`: a node that matches, or one of its tasks does), every
+ * item when neither is on. Spans and progress come from every task.
+ */
+function itemsOf(a: ViewAreaInput, now: Now, shown: Shown): ViewItem[] {
+  const items = viewItems(shown.nodes, shown.tasks, datesOf(a.config), taskStatusValues(a.tags));
+  const match = narrowMatch(a.config, now.today, a.titles);
+  return match ? narrowItems(items, match) : items;
+}
+
+/** N73: how many of the view's nodes (after the filters) Added and Find leave; null when neither is on. */
+export function narrowCount(a: ViewAreaInput, now: Now): { shown: number; all: number } | null {
+  if (!isNarrowed(a.config)) return null;
+  const shown = visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  return { shown: itemsOf(a, now, shown).length, all: shown.nodes.length };
+}
+
+/**
+ * N77: how many of the view's nodes show after the filters, Added and Find, of all it loaded (the panel's status line
+ * and the Panel button's label).
+ */
+export function panelCount(a: ViewAreaInput, now: Now): { shown: number; all: number } {
+  const shown = visibleData(a.config, a.view, shownNodes(a.nodes, a.session), a.tasks);
+  return { shown: isNarrowed(a.config) ? itemsOf(a, now, shown).length : shown.nodes.length, all: a.nodes.length };
+}
+
 /** The built-in Task Status values (their flags decide done); none in a graph without the Task tag, then every task is open. */
 const taskStatusValues = (tags: TagInfo[]): ClosedValue[] =>
   tags.flatMap((t) => t.choiceProps).find((p) => p.ident === ":logseq.property/status")?.values ?? [];
@@ -168,7 +195,7 @@ function timelineLayout(a: ViewAreaInput, now: Now, shown: Shown): TimelineLayou
   if (c.kind !== "timeline") throw new Error(`timelineLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(a.tags);
   const multi = a.view.tags.length > 1;
-  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
+  const items = itemsOf(a, now, shown);
   const edit = a.session.editDates ? { edit: editProps(a) } : {};
   const pending = a.session.datePending.size ? { pending: new Set(a.session.datePending.keys()) } : {};
   const base = { zoom: c.zoom, anchor: a.session.anchor ?? now.today, today: now.today, now: now.time, weekStart: now.weekStart, statusValues, titles: a.titles, ...edit, ...pending };
@@ -187,7 +214,7 @@ function calendarLayout(a: ViewAreaInput, now: Now, shown: Shown): CalendarLayou
   const edit = a.session.editDates ? { edit: editProps(a) } : {};
   const pending = a.session.datePending.size ? { pending: new Set(a.session.datePending.keys()) } : {};
   return layoutCalendar({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
+    items: itemsOf(a, now, shown),
     layout: c.layout, anchor: a.session.anchor ?? now.today, today: now.today, time: now.time, weekStart: now.weekStart, statusValues,
     titles: a.titles, ...edit, ...pending,
   });
@@ -202,7 +229,7 @@ function agendaLayout(a: ViewAreaInput, now: Now, shown: Shown): AgendaLayout {
   const c = a.config;
   if (c.kind !== "agenda") throw new Error(`agendaLayout called for a ${c.kind} view`);
   const statusValues = taskStatusValues(a.tags);
-  const items = viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues);
+  const items = itemsOf(a, now, shown);
   // By node, a parent's group lists its children (N14 step 2); by date every node is its own entry.
   const nest = c.groupBy === "node" ? nested(a, items) : null;
   return layoutAgenda({
@@ -225,12 +252,11 @@ export function kanbanLayout(a: ViewAreaInput, now: Now): KanbanLayout {
   const c = a.config;
   if (c.kind !== "kanban" || c.columnProp === null) throw new Error(`kanbanLayout called for a ${c.kind} view without a column property`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
-  const statusValues = taskStatusValues(a.tags);
   const byWhen = c.columnProp === WHEN_KEY;
   const periods = byWhen ? whenPeriods(now.today, now.weekStart) : [];
   const props = whenPropsOf(a);
   return layoutKanban({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), statusValues),
+    items: itemsOf(a, now, shown),
     columnProp: byWhen ? whenColumnProp(periods) : kanbanProp(a.view, c.columnProp)!, laneProp: kanbanProp(a.view, c.laneProp), sort: c.sort, today: now.today,
     choiceProps: a.view.choiceProps, doneValues: c.doneValues, titles: a.titles, pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
     when: byWhen ? { periods, fixed: (item) => { const p = props(item.node); return !p.start && !p.end; } } : undefined,
@@ -301,7 +327,11 @@ export function matrixAxes(a: ViewAreaInput, now: Now) {
   if (c.kind !== "matrix" || !c.x || !c.y) throw new Error(`matrixAxes called for a ${c.kind} view without axes`);
   const props = matrixProps(a.view, now);
   const prop = (ident: string) => props.find((p) => p.ident === ident)!;
-  return { x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first }, y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first } };
+  const hidden = (ident: string) => c.hidden?.[ident] ?? [];
+  return {
+    x: { prop: prop(c.x.prop), reverse: c.x.reverse, first: c.x.first, hidden: hidden(c.x.prop) },
+    y: { prop: prop(c.y.prop), reverse: c.y.reverse, first: c.y.first, hidden: hidden(c.y.prop) },
+  };
 }
 
 /** The Matrix layout of the visible nodes (N64; the view has axes). */
@@ -310,7 +340,7 @@ export function matrixLayout(a: ViewAreaInput, now: Now): MatrixLayout {
   if (c.kind !== "matrix") throw new Error(`matrixLayout called for a ${c.kind} view`);
   const shown = visibleData(c, a.view, shownNodes(a.nodes, a.session), a.tasks);
   return layoutMatrix({
-    items: viewItems(shown.nodes, shown.tasks, datesOf(c), taskStatusValues(a.tags)), ...matrixAxes(a, now), periods: whenPeriods(now.today, now.weekStart),
+    items: itemsOf(a, now, shown), ...matrixAxes(a, now), periods: whenPeriods(now.today, now.weekStart),
     mode: c.mode, showDone: c.showDone, labels: c.labels, today: now.today, doneValues: c.doneValues, titles: a.titles,
     pending: new Set([...a.session.pending.keys(), ...a.session.datePending.keys()]),
   });
@@ -346,8 +376,8 @@ export function renderViewArea(a: ViewAreaInput, now: () => Now): { view: string
   }
   if (!a.nodes.length) return only(empty("no-nodes", `No ${name} nodes yet`, `Tag a page or block with ${multi ? "one of these tags" : name} and it shows up here.`));
   const shown = visibleData(c, view, shownNodes(a.nodes, session), a.tasks);
-  if (!shown.nodes.length) {
-    return only(empty("no-matches", `No ${name} nodes match the filters`, "Change the filters in the panel.",
+  if (!shown.nodes.length || narrowCount(a, now())?.shown === 0) {
+    return only(empty("no-matches", `No ${name} nodes match the filters`, `Change the filters${isNarrowed(c) ? ", Added or Find" : ""} in the panel.`,
       `<button type="button" class="pl-btn" data-action="clear-filters">Clear filters</button>`));
   }
   if (c.kind === "timeline") {

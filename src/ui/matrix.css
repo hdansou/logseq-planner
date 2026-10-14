@@ -2,11 +2,17 @@
    Quadrants carry no colour of their own: a quadrant's meaning is its label, never a hue (red, green or blue would read
    as a status).
    One grid: a corner, a head per band across, then per band down a head and one cell per band across. Cells are at least
-   220px wide; a grid with many bands scrolls sideways inside .pl-view, never the page. The Unplaced list sits below the
+   220px wide (130px in Every value, N76; a long title wraps, never widens them, N78); a grid with many bands scrolls sideways inside .pl-view, never the page. The Unplaced list sits below the
    grid. In a frame under 640px (the docked sidebar) the cells stack in one column and name themselves. */
 .pl-mx { display: grid; grid-template-columns: max-content repeat(var(--pl-mx-cols), minmax(220px, 1fr)); gap: 8px 10px; align-items: stretch;
   min-width: 100%; width: max-content; max-width: none; }
 .pl-mx[data-mx-layout="quadrants"] { width: 100%; }
+/* N76: Every value columns shrink to 130px before the grid scrolls, so about seven values fit a full window. */
+.pl-mx[data-mx-layout="values"] { grid-template-columns: max-content repeat(var(--pl-mx-cols), minmax(130px, 1fr)); }
+/* N78: the grid is max-content wide, so 1fr columns took the widest unwrapped title (a 200-character title widened every
+   column). Cells and column heads add no width of their own: columns are 130px or what the view leaves, titles wrap. */
+.pl-mx[data-mx-layout="values"] .pl-mx-cell,
+.pl-mx[data-mx-layout="values"] .pl-mx-xhead { contain: inline-size; }
 
 .pl-mx-corner { display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; padding: 4px 6px; font-size: 11.5px; line-height: 16px;
   color: var(--pl-label-2); }
@@ -67,7 +73,7 @@
 
 /* A narrow frame (the docked sidebar): one column of cells, each naming itself; the heads go */
 @container (max-width: 639px) {
-  .pl-mx, .pl-mx[data-mx-layout="quadrants"] { grid-template-columns: 1fr; width: 100%; }
+  .pl-mx, .pl-mx[data-mx-layout="quadrants"], .pl-mx[data-mx-layout="values"] { grid-template-columns: 1fr; width: 100%; }
   .pl-mx-corner, .pl-mx-xhead, .pl-mx-yhead { display: none; }
   .pl-mx-cell { min-height: 0; }
 }

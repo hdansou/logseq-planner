@@ -30,6 +30,8 @@ export const PL_MAP: ReadonlyArray<readonly [string, readonly string[]]> = [
   ["--pl-fill", ["--lx-gray-03-alpha", "--lx-gray-03"]],
   ["--pl-fill-strong", ["--lx-gray-04-alpha", "--lx-gray-04"]],
   ["--pl-hover", ["--lx-gray-05"]],
+  ["--pl-bullet", ["--ls-block-bullet-color"]],
+  ["--pl-bullet-halo", ["--ls-block-bullet-border-color"]],
   ["--pl-tint", ["--primary", "--ls-active-primary-color"]],
   ["--pl-on-tint", ["--primary-foreground"]],
   ["--pl-ring", ["--ring", "--ls-focus-ring-color"]],
