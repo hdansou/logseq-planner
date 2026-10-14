@@ -186,9 +186,16 @@ export function buildNodes(
       extras: extrasOf(node, fields),
       dependsOn: deps,
       links: [...new Set((node.refs ?? []).map((r) => r.id))].filter((id) => id !== node.id && viewTag.has(id) && !deps.includes(id)),
+      ...createdOf(node, zone),
     };
   });
 }
+
+/** `{created}`: the local day of a row's `created-at` (epoch ms, N73), or nothing when the row has none. */
+const createdOf = (row: Record<string, unknown>, zone: ZoneOffset) => {
+  const ms = row["created-at"];
+  return typeof ms === "number" ? { created: localDateTime(ms, zone).day } : {};
+};
 
 const dateTimeOrNull = (v: number | undefined, zone: ZoneOffset) => (typeof v === "number" ? localDateTime(v, zone) : null);
 
@@ -215,6 +222,7 @@ export function buildTasks(raw: unknown[], nodes: PlannerNode[], zone: ZoneOffse
       isNode: nodeIds.has(t.id),
       deadline: dateTimeOrNull(t[":logseq.property/deadline"], zone),
       scheduled: dateTimeOrNull(t[":logseq.property/scheduled"], zone),
+      ...createdOf(t, zone),
     });
   }
   return tasks;

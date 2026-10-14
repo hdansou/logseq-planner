@@ -4,7 +4,7 @@ import { buildTagInfos } from "./schema";
 import tagsFixture from "./__fixtures__/tags.json";
 import propsFixture from "./__fixtures__/class-properties.json";
 import tasksFixture from "./__fixtures__/tasks.json";
-import { CLASS_EXTENDS_RULES, nodesQuery } from "./queries";
+import { CLASS_EXTENDS_RULES, nodesQuery, tasksQuery } from "./queries";
 import { fixtureDq } from "../ui/test-fakes";
 
 describe("journalDayToIso", () => {
@@ -101,5 +101,29 @@ describe("dependency values (N12)", () => {
     const rows = [task(10, [1, 2], { [D]: [{ id: 1 }] }), task(11, [1])];
     expect(buildTasks(rows, nodes, () => 0).map((t) => t.nodeIds)).toEqual([[1, 2], [1]]);
     expect(buildTasks([task(11, [1])], nodes, () => 0, D).map((t) => t.nodeIds)).toEqual([[1]]);
+  });
+});
+
+describe("created day (N73)", () => {
+  const tags = buildTagInfos(tagsFixture.query.detail as unknown[], propsFixture.query.detail as unknown[]);
+  const project = tags.find((t) => t.title === "Project")!;
+  const SITE = "6a000000-0000-4000-8000-000000000001";
+  const BRIEF = "6a000000-0000-4000-8000-000000000021";
+
+  it("a node's :block/created-at (epoch ms) is its local created day; the zone decides the day", async () => {
+    // Website relaunch was created 2026-10-03T18:17Z (fixture): 13:17 in UTC-5, 00:17 the next day in UTC+6.
+    const rows = (await fixtureDq()(nodesQuery(tags), [project.id], CLASS_EXTENDS_RULES)) as unknown[];
+    const site = (zone: number) => buildNodes(rows, tags, [project], true, () => zone).find((n) => n.uuid === SITE)!;
+    expect(site(-300).created).toBe("2026-10-03");
+    expect(site(360).created).toBe("2026-10-04");
+  });
+
+  it("a task's created day comes from its own :block/created-at; a row without one has none", async () => {
+    const at = Date.UTC(2026, 9, 12, 15);
+    const dq = fixtureDq({ edits: new Map([[BRIEF, { "created-at": { raw: at } }]]) });
+    const nodes = buildNodes((await dq(nodesQuery(tags), [project.id], CLASS_EXTENDS_RULES)) as unknown[], tags, [project], true, () => -300);
+    const tasks = buildTasks((await dq(tasksQuery(null), [project.id], CLASS_EXTENDS_RULES)) as unknown[], nodes, () => -300);
+    expect(tasks.find((t) => t.uuid === BRIEF)!.created).toBe("2026-10-12");
+    expect(tasks.filter((t) => t.uuid !== BRIEF).every((t) => t.created === undefined)).toBe(true);
   });
 });

@@ -10,6 +10,8 @@
 import { cardFieldsOf, extraFieldProps, offeredFields } from "../core/fields";
 import { readRaw } from "../core/queries";
 import { isDone } from "../core/nodes";
+import { ADDED_DAYS, ADDED_MAX, isNarrowed, type Added } from "../core/narrow";
+import { dayCount } from "../core/layout-common";
 import { systemZone, type ZoneOffset } from "../core/normalize";
 import type { Dq } from "../core/schema";
 import { loadTagInfos, tagsTitle, TAG_KEY, type ViewTags } from "../core/schema";
@@ -33,7 +35,7 @@ import { AGENDA_GROUP_PAGE, agendaAction } from "./agenda";
 import { KANBAN_CELL_PAGE, kanbanAction } from "./kanban";
 import { MATRIX_CELL_PAGE, matrixAction } from "./matrix";
 import { drawLinks, timelineAction, TRACK_PX } from "./timeline";
-import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
+import { CALENDAR_TRAY_KEY, calendarLayoutOf, dateMoveOf, empty, matrixProps, kanbanLayout, matrixLayout, narrowCount, readViewData, renderViewArea, timelineLayoutOf, viewData, type Now, type ViewAreaInput } from "./view-area";
 
 /** What a measurement ended with: the view was drawn, the data was unchanged, the redraw waited for the user, or it failed. */
 export type TimingOutcome = "redrawn" | "same" | "deferred" | "error";
@@ -122,6 +124,8 @@ type Popover = "tag" | "start" | "end" | "dates" | "depends" | "done" | "views" 
   | "mx-x" | "mx-y" | "mx-bands" | "mx-labels" | "mx-move";
 
 interface State {
+  /** N73: the number of days Added's "Last N days" shows and picks while Added is Any or Today (session). */
+  addedDays: number;
   loading: boolean;
   /** Reading the week start or the tags on open failed: the error bar says why; the main area offers Retry (T14). */
   loadFailed: boolean;
@@ -246,15 +250,16 @@ export function initialTag(tags: TagInfo[]): TagInfo | null {
 }
 
 /**
- * Keeps the shared fields (tags, dates, filters, done values, dependency property) and takes the rest from `last`, the
+ * Keeps the shared fields (tags, dates, filters, done values, dependency property, Added and Find) and takes the rest from `last`, the
  * config the new kind had when it was last shown (N72: Kanban columns, Agenda grouping, Matrix axes…), when it was for
  * the same tags; else the new kind's defaults.
  */
 export function switchKind(config: ViewConfig, view: ViewTags, kind: ViewKind, last?: ViewConfig): ViewConfig {
   const { tags, childTags, dates, doneValues, filters } = config;
   const own = last?.kind === kind && last.tags.join("\n") === tags.join("\n") ? last : defaultViewConfig(view.tags, kind);
-  const { dependsOn: _, ...rest } = own;
-  return { ...rest, tags, childTags, dates, doneValues, filters, ..."dependsOn" in config ? { dependsOn: config.dependsOn } : {} };
+  const { dependsOn: _, added: _a, find: _f, ...rest } = own;
+  const shared = (key: "dependsOn" | "added" | "find") => (key in config ? { [key]: config[key] } : {});
+  return { ...rest, tags, childTags, dates, doneValues, filters, ...shared("dependsOn"), ...shared("added"), ...shared("find") } as ViewConfig;
 }
 
 type MatrixConfig = Extract<ViewConfig, { kind: "matrix" }>;
@@ -455,8 +460,49 @@ function renderSettings(s: State, view: ViewTags): string {
   return html;
 }
 
-/** How many filter values are ticked in the view. */
-const tickedFilters = (c: ViewConfig) => Object.values(c.filters).reduce((n, values) => n + values.length, 0);
+/** How many filter values are ticked in the view, Added and Find (N73) counting one each. */
+const tickedFilters = (c: ViewConfig) => Object.values(c.filters).reduce((n, values) => n + values.length, 0)
+  + (c.added !== undefined ? 1 : 0) + (isNarrowed({ find: c.find }) ? 1 : 0);
+
+/** `c` with Added and Find set as given (N73); undefined or a blank Find leaves the key out (off). */
+function withNarrow(c: ViewConfig, patch: { added?: Added | undefined; find?: string | undefined }): ViewConfig {
+  const next = { ...c, ...patch };
+  if (next.added === undefined) delete next.added;
+  if (next.find === undefined || !next.find.trim()) delete next.find;
+  return next;
+}
+
+/**
+ * N73: Find and Added at the top of the panel, above the choice filters. "Last N days" takes its number from the field
+ * next to it (`State.addedDays` while another choice is on).
+ */
+function renderNarrow(s: State): string {
+  const c = s.config!;
+  const added = c.added === undefined ? "any" : c.added === "today" ? "today" : "days";
+  const days = typeof c.added === "number" ? c.added : s.addedDays;
+  const radio = (value: string, label: string) =>
+    `<input type="radio" name="pl-added" value="${value}" data-narrow-added="${value}"${flag("checked", added === value)}><span class="pl-filter-title">${label}</span>`;
+  return `<fieldset class="pl-filter" data-narrow-group="find"><legend class="pl-group-header"><label for="pl-find">Find</label></legend>`
+    + `<input type="search" id="pl-find" class="pl-input pl-find" data-narrow-find placeholder="Words in the title" autocomplete="off" value="${esc(c.find ?? "")}"></fieldset>`
+    + `<fieldset class="pl-filter" data-narrow-group="added"><legend class="pl-group-header" title="When the node or task was created">Added</legend>`
+    + `<label class="pl-row">${radio("any", "Any")}</label><label class="pl-row">${radio("today", "Today")}</label>`
+    + `<div class="pl-row pl-days-row"><label class="pl-days-label">${radio("days", "Last")}</label>`
+    + `<input type="number" class="pl-input pl-days" data-narrow-days min="1" max="${ADDED_MAX}" step="1" value="${days}" aria-label="Number of days"><span>days</span></div></fieldset>`;
+}
+
+/** N73: the strip under the top bar while Added or Find is on: what narrows, how many nodes it leaves, and Clear. */
+function renderNarrowed(s: State, view: ViewTags | undefined, now: () => Now): string {
+  const c = s.config;
+  if (!c || !view || !isNarrowed(c) || s.loading || s.loadFailed || s.weekStart === null) return "";
+  const count = narrowCount(areaOf(s, view), now())!;
+  const chips = [
+    c.added === undefined ? "" : `<span class="pl-chip">${c.added === "today" ? "Added today" : `Added in the last ${dayCount(c.added)}`}</span>`,
+    isNarrowed({ find: c.find }) ? `<span class="pl-chip">“${esc(c.find!.trim())}”</span>` : "",
+  ].join("");
+  return `<div class="pl-narrowed" data-region="narrowed" role="status"><span class="pl-narrowed-label">Narrowed:</span>${chips}`
+    + `<span class="pl-count">${count.shown} of ${count.all} node${count.all === 1 ? "" : "s"}</span>`
+    + `<button type="button" class="pl-btn" data-action="clear-narrow">Clear</button></div>`;
+}
 
 /** The Panel icon button (N13, N48): hides and shows the panel; while it is hidden, a badge counts the ticked filter values. */
 function renderPanelToggle(s: State): string {
@@ -550,11 +596,11 @@ function renderWorkspace(s: State, now: () => Now): string {
     ? `<div class="pl-dock-resize" data-dock-resize role="separator" aria-orientation="vertical" aria-label="Resize Planner" tabindex="0" title="Drag to resize, double-click to reset"></div>`
     : "";
   return `<div class="pl-ws"${s.canDock ? ` data-surface-mode="${s.surface}"` : ""}>${grip}${renderTopBar(s)}${error}`
-    + renderFocusStrip(s)
+    + renderFocusStrip(s) + renderNarrowed(s, view, now)
     + `<div class="pl-settings" id="pl-settings" data-region="settings" role="group" aria-label="View settings"${s.settingsOpen && !s.focus ? "" : " hidden"}>${view ? renderSettings(s, view) : ""}</div>`
     + `<div class="pl-body${panelShown(s) ? "" : " is-panel-closed"}" data-panel-mode="${s.narrow ? "drawer" : "docked"}"><main class="pl-main" data-region="main"><div class="pl-view-toolbar" data-region="view-toolbar" data-toolbar-kind="${kind}"${s.focus ? " hidden" : ""}>${main.toolbar}</div>`
     + `<div class="pl-view" data-region="view">${main.view}</div></main>`
-    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, s.config?.tags ?? [])}${view ? renderFilters(s, view) : ""}</aside></div></div>`;
+    + `<aside class="pl-panel" id="pl-panel" data-region="panel" aria-label="Tags and filters"${panelShown(s) ? "" : " hidden"}>${renderTagTree(s, s.config?.tags ?? [])}${view ? renderNarrow(s) + renderFilters(s, view) : ""}</aside></div></div>`;
 }
 
 // ---------------------------------------------------------------- controller
@@ -566,7 +612,7 @@ function selectorOf(el: Element): string {
 }
 
 export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspace {
-  const s: State = { loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
+  const s: State = { addedDays: ADDED_DAYS, loading: false, loadFailed: false, tags: [], config: null, nodes: [], tasks: [], titles: new Map(), views: [], viewId: null, viewDeleting: null, popover: null, error: null, builtInOpen: false,
     anchor: null, expanded: new Set(), collapsed: new Set(), weekStart: null, pending: new Map(), moveCard: null,
     agendaOpen: new Set(), agendaGroups: AGENDA_GROUP_PAGE, agendaOverdue: AGENDA_GROUP_PAGE, kbShown: new Map(), panelOpen: { wide: true, narrow: false }, narrow: false,
     canDock: deps.setSurface !== undefined, surface: "workspace", editDates: false, settingsOpen: false, focus: false, labelWidth: null, datePending: new Map() };
@@ -631,6 +677,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
   const draw = (focus?: string, keep = false) => {
     const doc = root.ownerDocument;
     const active = doc.activeElement && root.contains(doc.activeElement) ? selectorOf(doc.activeElement) : null;
+    // A text field keeps its caret over the redraw (N73: Find redraws on every key).
+    const field = doc.activeElement instanceof HTMLInputElement && /^(text|search)$/.test(doc.activeElement.type) && root.contains(doc.activeElement)
+      ? { sel: selectorOf(doc.activeElement), start: doc.activeElement.selectionStart, end: doc.activeElement.selectionEnd } : null;
     const scrolls = keep ? SCROLL_REGIONS.map((sel) => root.querySelector<HTMLElement>(sel)).map((el) => el && { top: el.scrollTop, left: el.scrollLeft }) : [];
     const folds = keep ? [...root.querySelectorAll<HTMLDetailsElement>("details")].map((d) => [selectorOf(d), d.open] as const) : [];
     const viewLeft = root.querySelector<HTMLElement>("[data-region=view]")?.scrollLeft ?? 0;
@@ -651,6 +700,8 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     drawTimelineLinks();
     const target = focus ?? active;
     if (target) root.querySelector<HTMLElement>(target)?.focus();
+    const typed = field ? root.querySelector<HTMLInputElement>(field.sel) : null;
+    if (typed && doc.activeElement === typed && field!.start !== null) typed.setSelectionRange(field!.start, field!.end);
     refreshWhenFree(); // a redraw that was waiting for a popover, a write or a drag
   };
 
@@ -1097,7 +1148,9 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
       case "dismiss-error":
         return void run(() => void (s.error = null));
       case "clear-filters":
-        return void run(() => setConfig({ ...s.config!, filters: {} }));
+        return void run(() => setConfig(withNarrow({ ...s.config!, filters: {} }, { added: undefined, find: undefined })));
+      case "clear-narrow":
+        return void run(() => setConfig(withNarrow(s.config!, { added: undefined, find: undefined })), () => "[data-narrow-find]");
       case "save-view":
         return void save();
       case "update-view":
@@ -1703,6 +1756,14 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
     }
   });
 
+  // N73: Find narrows as the user types (the redraw keeps the field's focus and caret, `draw`).
+  root.addEventListener("input", (e) => {
+    const t = e.target as HTMLInputElement;
+    if (t.dataset.narrowFind === undefined) return;
+    const find = t.value;
+    void run(() => setConfig(withNarrow(s.config!, { find })), () => "[data-narrow-find]");
+  });
+
   root.addEventListener("change", (e) => {
     const t = e.target as HTMLInputElement;
     const d = t.dataset;
@@ -1712,6 +1773,20 @@ export function createWorkspace(root: HTMLElement, deps: WorkspaceDeps): Workspa
         s.config = { ...s.config!, childTags: t.checked };
         await loadData();
       });
+    }
+    if (d.narrowAdded) {
+      const added = d.narrowAdded === "any" ? undefined : d.narrowAdded === "today" ? "today" : s.addedDays;
+      return void run(() => setConfig(withNarrow(s.config!, { added })));
+    }
+    if (d.narrowDays !== undefined) {
+      const n = Math.round(Number(t.value));
+      // A task later: on Tab, Chromium moves the focus after the change handlers and their microtasks, and a redraw
+      // before that replaced the control the focus was going to (seen on the stable app). The redraw then keeps it there.
+      return void setTimeout(() => void run(() => {
+        if (!Number.isFinite(n) || t.value.trim() === "") return; // the redraw puts the number back
+        s.addedDays = Math.min(ADDED_MAX, Math.max(1, n));
+        setConfig(withNarrow(s.config!, { added: s.addedDays }));
+      }), 0);
     }
     if (d.filterProp) {
       const value = d.filterValue || null;

@@ -537,3 +537,37 @@ describe("Kanban columns by When (N67)", () => {
     expect(() => validateViewConfig(c, tags.map((t) => (t.ident === noDates.ident ? noDates : t)))).toThrow(/When columns need a Date or DateTime property/);
   });
 });
+
+describe("Added and Find (N73)", () => {
+  const p = tag("Project");
+
+  it("a new view narrows nothing: neither key is there", () => {
+    const c = defaultViewConfig(p, "agenda");
+    expect("added" in c).toBe(false);
+    expect("find" in c).toBe(false);
+  });
+
+  it("is saved with a view and read back, on every kind", () => {
+    for (const kind of ["timeline", "calendar", "agenda", "kanban", "matrix"] as const) {
+      const c = { ...defaultViewConfig(p, kind), added: 7, find: "launch" } as ViewConfig;
+      expect(parseViewConfig(serializeViewConfig(c))).toEqual(c);
+      expect(() => validateViewConfig(c, tags)).not.toThrow();
+    }
+    const today = { ...defaultViewConfig(p), added: "today" } as ViewConfig;
+    expect(parseViewConfig(serializeViewConfig(today))).toEqual(today);
+  });
+
+  it("Added is Today or a whole number of days from 1 to 365; Find is text", () => {
+    for (const added of [0, 366, 2.5, "7", "week", null]) {
+      expect(() => validateViewConfig({ ...defaultViewConfig(p), added } as never, tags)).toThrow(/added must be "today" or a whole number of days from 1 to 365/);
+    }
+    expect(() => validateViewConfig({ ...defaultViewConfig(p), find: 3 } as never, tags)).toThrow(/find must be text/);
+  });
+
+  it("ticking another tag keeps them", () => {
+    const c = { ...defaultViewConfig(p), added: "today", find: "x" } as ViewConfig;
+    const next = withTags(c, [p, tag("Meeting")]);
+    expect(next.added).toBe("today");
+    expect(next.find).toBe("x");
+  });
+});

@@ -5,6 +5,7 @@ import { priorityProp } from "./kanban";
 import { WHEN_KEY } from "./when";
 import { defaultMatrixAxes, MATRIX_MODES, type MatrixAxisConfig } from "./matrix";
 import { mergeTags, TAG_KEY, type ViewTags } from "./schema";
+import { parseAdded, type Added } from "./narrow";
 
 export { TAG_KEY };
 
@@ -49,6 +50,13 @@ interface CommonConfig {
    * (`dependsOnOf`), until the user picks a value in the menu. An ident the tag no longer has behaves as null.
    */
   dependsOn?: string | null;
+  /**
+   * N73 Added: only what was created today, or within the last N days (1–365); absent = Any. Relative: a saved view
+   * narrows to the days before the day it is opened.
+   */
+  added?: Added;
+  /** N73 Find: only what has every word in its title; absent or blank = off. */
+  find?: string;
 }
 
 export type ViewConfig = CommonConfig &
@@ -260,6 +268,8 @@ export function checkViewConfigShape(config: unknown): asserts config is ViewCon
   selection("doneValues", config.doneValues, false);
   selection("filters", config.filters, true);
   if ("dependsOn" in config) stringOrNull("dependsOn", config.dependsOn);
+  if ("added" in config && parseAdded(config.added) === undefined) throw invalid(`added must be "today" or a whole number of days from 1 to 365, got ${JSON.stringify(config.added)}`);
+  if ("find" in config && typeof config.find !== "string") throw invalid("find must be text");
   switch (config.kind) {
     case "timeline":
       oneOf("timeline zoom", ZOOMS, config.zoom);

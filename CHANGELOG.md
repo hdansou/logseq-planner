@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **Added** and **Find** at the top of the panel narrow any view in a big graph (N73): Added keeps what was created today or in the last N days (7 to start), Find keeps what has every word you type in its title. An old node with a new task shows, with only that task under it. A strip under the top bar says what is narrowed and how many nodes are left, with Clear. Both are saved with a view; Added stays relative to the day you open it.
+
 ## [1.2.0] - 2026-10-14
 
 ### Added
