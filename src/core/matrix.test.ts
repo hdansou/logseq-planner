@@ -106,7 +106,7 @@ describe("layout", () => {
     expect(titles(l, 0, 1)).toEqual([]); // "Shipped" (Urgent / Done) is done: hidden
     expect(titles(l, 1, 0)).toEqual(["Write notes"]); // Medium / Backlog
     expect(titles(l, 1, 1)).toEqual(["Tidy tags"]); // Low / In Review
-    expect(l.unplaced.map((c) => c.title)).toEqual(["No priority", "Nothing set"]); // by due date, undated last
+    expect(l.unplaced.map((c) => c.title)).toEqual(["No priority", "Nothing set"]); // by due date, undated last (the fixture nodes were all created on the same day, N74)
     expect(l.doneHidden).toBe(1);
   });
 

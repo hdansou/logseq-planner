@@ -12,7 +12,7 @@
 // - A move writes, per axis whose band changes, the target band's first value (its `drop`); a card that stays in its
 //   band keeps its own value. To Unplaced (`NO_VALUE` on both axes) removes the values the card has.
 // - A card's date drops a 00:00 time, as the Agenda's does (N62).
-// - Cards sort by due date (the resolved span end), undated last, then title.
+// - Cards sort by due date (the resolved span end), undated last, then title; Unplaced lists the newest first (N74).
 // - N70 When as an axis (`WHEN_KEY`, the periods as values, `whenColumnProp`): a card's value is the period of its due
 //   date (none = unplaced); a band's move writes its last period that takes one ("due by", as the Kanban's When
 //   columns), Overdue and Later take none; the workspace turns that write into dates (`whenMove`). A band of several
@@ -22,7 +22,7 @@ import { withoutMidnight } from "./agenda";
 import { displayTitle } from "./display-title";
 import { priorityProp } from "./fields";
 import { NO_VALUE, type PropertyWrite } from "./kanban";
-import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
+import { byNewest, categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isNodeDone } from "./nodes";
 import { periodKey, WHEN_FIRST, WHEN_KEY, type Period } from "./when";
 
@@ -233,7 +233,8 @@ export function layoutMatrix(input: MatrixInput): MatrixLayout {
   const byDue = (p: MatrixCard, q: MatrixCard) => (p.due ? (q.due ? compareDates(p.due, q.due) : -1) : q.due ? 1 : 0);
   const order = (p: MatrixCard, q: MatrixCard) => byDue(p, q) || p.title.localeCompare(q.title);
   for (const row of rows) for (const cell of row) cell.cards.sort(order);
-  unplaced.sort(order);
+  const created = new Map(input.items.map((i) => [i.node.uuid, i.node.created]));
+  unplaced.sort((p, q) => byNewest(created.get(p.uuid), created.get(q.uuid)) || order(p, q));
   const axis = (a: MatrixAxisInput, bands: MatrixBand[]): MatrixAxis => ({ prop: { ident: a.prop.ident, title: a.prop.title }, bands });
   return { mode, x: axis(input.x, xBands), y: axis(input.y, yBands), rows, unplaced, doneHidden };
 }

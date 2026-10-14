@@ -180,6 +180,12 @@ export function taskState(task: PlannerTask, statusValues: ClosedValue[]): { sta
 }
 
 /** A task's due date: its Deadline, or its Scheduled date when it has no Deadline (null when it has neither). */
+/**
+ * N74: newer created days first (`YYYY-MM-DD` compare as text); something without a created day after them. Equal = 0,
+ * so a stable sort keeps the order it had.
+ */
+export const byNewest = (a: string | undefined, b: string | undefined): number => (b ?? "").localeCompare(a ?? "");
+
 export const dueDate = (task: PlannerTask): LocalDate | null => task.deadline ?? task.scheduled;
 
 /** The one lateness rule for tasks in every view: an open task whose due date (`dueDate`) is on a day before today. */

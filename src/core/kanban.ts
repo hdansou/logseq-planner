@@ -21,7 +21,7 @@ import type { ChoiceProp, ClosedValue, FieldProp, KanbanWriteDeps, LocalDate, Pl
 import { withoutMidnight } from "./agenda";
 import { fieldTexts, priorityProp } from "./fields";
 import { displayTitle } from "./display-title";
-import { categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
+import { byNewest, categoryOf, compareDates, dayCount, daysBetween, formatDate, type ViewItem } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 import { isEmptyPlaceholder } from "./normalize";
 import { TAG_KEY } from "./schema";
@@ -228,7 +228,10 @@ export function layoutKanban(input: KanbanInput): KanbanLayout {
     columns[ci].count++;
     if (laneProp) lanes[li].count++;
   }
-  for (const r of rows) for (const c of r.cells) c.cards.sort(order);
+  // N74: by When, the piles (Overdue, No date) list the newest first, whatever the Sort; the Sort breaks ties.
+  const created = new Map(input.items.map((i) => [i.node.uuid, i.node.created]));
+  const newest = (a: KanbanCard, b: KanbanCard) => byNewest(created.get(a.uuid), created.get(b.uuid)) || order(a, b);
+  for (const r of rows) for (const c of r.cells) c.cards.sort(input.when && (c.column.key === "overdue" || c.column.key === NO_VALUE) ? newest : order);
   return { columns, allColumns, lanes, rows, sort: input.sort, lanesReadOnly: laneProp?.ident === TAG_KEY, doneHidden };
 }
 

@@ -10,7 +10,7 @@ import type { EditMode, SpanEdit } from "./date-edit";
 import type { EditProps } from "./timeline-layout";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, daysBetween, firstOfMonth, formatDay, formatMonth, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState,
+  addDays, byNewest, categoryOf, daysBetween, firstOfMonth, formatDay, formatMonth, formatRange, isLate, nodeLabel, startOfWeek, taskLabel, taskState,
   weekday, weekdayName, type ViewItem,
 } from "./layout-common";
 
@@ -410,12 +410,16 @@ function layoutGrid(input: CalendarInput, range: CalendarRange): CalendarLayout 
   for (const dy of days) packBlocks(blocks.filter((b) => b.day === dy.day));
   const now = input.time && inRange(input.today) ? { day: input.today, minute: minuteOf(input.time) } : null;
   const focusMinute = now ? Math.max(0, now.minute - 90) : blocks.length ? Math.max(0, Math.min(...blocks.map((b) => b.startMin)) - 60) : DEFAULT_FOCUS_MIN;
-  undated.sort((a, b) => a.title.localeCompare(b.title));
+  undated.sort(newestUndated);
   return {
     view: input.layout, range, weeks: [], weekdays: [], undated,
     grid: { days, allDay: { bands, chips: placed, rows: Math.max(bandRows, ...placed.map((c) => c.row + 1)) }, blocks, now, focusMinute, editing: input.edit !== undefined },
   };
 }
+
+/** The No date tray: the newest first (N74), then by title. */
+const newestUndated = (a: { node: PlannerNode; title: string }, b: { node: PlannerNode; title: string }) =>
+  byNewest(a.node.created, b.node.created) || a.title.localeCompare(b.title);
 
 export function layoutCalendar(input: CalendarInput): CalendarLayout {
   const range = calendarRange(input.layout, input.anchor, input.weekStart);
@@ -457,7 +461,7 @@ export function layoutCalendar(input: CalendarInput): CalendarLayout {
   const month = input.layout === "month" ? input.anchor.slice(0, 7) : null;
   const weeks: CalendarWeek[] = [];
   for (let w = range.start; w <= range.end; w = addDays(w, 7)) weeks.push(layoutWeek(w, laned, chips, input, month));
-  undated.sort((a, b) => a.title.localeCompare(b.title));
+  undated.sort(newestUndated);
   return {
     view: input.layout, range, weeks, undated, grid: null,
     weekdays: weeks[0].days.map((d) => weekdayName(d.day)),

@@ -20,7 +20,7 @@
 import type { ChoiceProp, ClosedValue, LocalDate, PlannerNode, PlannerTask, Rollup } from "../types";
 import { displayTitle } from "./display-title";
 import {
-  addDays, categoryOf, compareDates, dayCount, daysBetween, dueDate, formatDate, formatDay, formatSpan, isLate, taskLabel, taskState, weekdayName, type ViewItem,
+  addDays, byNewest, categoryOf, compareDates, dayCount, daysBetween, dueDate, formatDate, formatDay, formatSpan, isLate, taskLabel, taskState, weekdayName, type ViewItem,
 } from "./layout-common";
 import { isDone, isNodeDone } from "./nodes";
 
@@ -250,6 +250,9 @@ export function layoutAgenda(input: AgendaInput): AgendaLayout {
     }));
   const lead = (g: AgendaGroup) => [...(shown(g.node) ? [g.node] : []), ...g.tasks].filter((e) => e.at).sort(byAt)[0];
   const overdue = (g: AgendaGroup) => (shown(g.node) && g.node.late) || g.tasks.some((t) => t.late);
-  groups.sort((a, b) => Number(overdue(b)) - Number(overdue(a)) || byAt(lead(a) ?? a.node, lead(b) ?? b.node) || 0);
+  // N74: the newest group first: a group is as new as its node or its newest task; then overdue ones, then by date.
+  const created = new Map(input.items.flatMap((i) => [[i.node.uuid, i.node.created], ...i.tasks.map((t) => [t.uuid, t.created] as const)]));
+  const newestOf = (g: AgendaGroup) => [g.node, ...g.tasks].map((e) => created.get(e.uuid) ?? "").reduce((m, d) => (d > m ? d : m), "") || undefined;
+  groups.sort((a, b) => byNewest(newestOf(a), newestOf(b)) || Number(overdue(b)) - Number(overdue(a)) || byAt(lead(a) ?? a.node, lead(b) ?? b.node) || 0);
   return { groupBy: "node", buckets: [], groups, empty: groups.length === 0 };
 }

@@ -163,7 +163,7 @@ export function renderMatrix(layout: MatrixLayout, heading: string, moveOpen: st
   const at = { x: NO_VALUE, y: NO_VALUE };
   const list = `<section class="pl-mx-unplaced" role="list" aria-label="Unplaced" data-mx-unplaced data-mx-cell data-mx-x="${NO_VALUE}" data-mx-y="${NO_VALUE}">`
     + `<div class="pl-mx-cell-head"><span class="pl-mx-label">Unplaced</span><span class="pl-mx-count">${layout.unplaced.length}</span></div>`
-    + `<p class="pl-hint">${esc(withoutText(layout))}, by due date.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
+    + `<p class="pl-hint">${esc(withoutText(layout))}, newest first.<span data-mx-drag-hint> Drag a card into the grid, or use its ⋯ menu.</span></p>`
     + `<div class="pl-mx-list">${cards(layout.unplaced, UNPLACED_KEY, layout, at, moveOpen, limits)}</div></section>`;
   return grid + list;
 }

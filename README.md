@@ -229,7 +229,7 @@ previous and next buttons and **Today** move the period.
   change its start or end, or use Alt+Arrow keys (Alt+Shift+Up and Down change the end). Each edit is written and read back.
 - **Drag to a day**: in Month, drag a band or chip onto another day; the day you picked it up by lands there and its other
   dates move with it (a span keeps its length, a DateTime its time). In the grids, drag an all-day band or chip onto another
-  day's heading or all-day cell. The **No date** tray under the calendar lists the items without a date: drag one onto a day to
+  day's heading or all-day cell. The **No date** tray under the calendar lists the items without a date, the newest first: drag one onto a day to
   give it that day (its End, else its Start; a DateTime at 00:00), or drop a dated item on the tray to remove its dates. Each
   write is read back and undone on failure.
 
@@ -242,7 +242,8 @@ sorts at that date and shows how many days late.
   **Earlier**. The last three are folded and render when opened. Empty buckets are omitted.
   Overdue renders its first 100 entries; **Show 100 more of N** adds the next 100 (its
   heading keeps the real total).
-- By node: one panel per node with its progress and tasks, overdue first. A task linked to
+- By node: one panel per node with its progress and tasks, the newest first (a node is as new as its newest task),
+  then overdue first. A task linked to
   several nodes is listed under each of them (by date it is listed once). The first 100
   groups render; **Show 100 more of N** adds the next 100. With several tags, a child node
   (as in the Timeline's Nested) is listed in its parent's panel, not in a panel of its own.
@@ -259,7 +260,8 @@ sorts at that date and shows how many days late.
 - **Columns**: a choice property (Status by default). Each closed value is a column, plus
   "No <property>". Or **When**: the view's dates in periods, Overdue, Today, Tomorrow, This
   week, Next week, This month, This quarter, Later, No date (weeks follow Logseq's week start;
-  a period with no days left is left out). Done cards are left out and counted.
+  a period with no days left is left out). Done cards are left out and counted. Overdue and No date list the newest
+  first, whatever the Sort.
 - **Show**: which columns show. Untick a value (or "No <property>") and its column and
   cards leave the board; the button reads **All** or, for example, **3 of 7**. At least one
   column stays shown. The choice is kept per column property, so switching **Columns** to
@@ -293,7 +295,7 @@ sorts at that date and shows how many days late.
 - **Labels**: rename the four quadrants. An empty name shows the default: "Do first", "Schedule", "Delegate",
   "Eliminate" for Urgency and Importance; "Quick wins", "Big bets", "Fill-ins", "Money pits" for Effort and
   Impact; otherwise the values of the two bands. Quadrants have no colour of their own.
-- **Unplaced**, under the grid: the cards that lack a value on either axis, by due date.
+- **Unplaced**, under the grid: the cards that lack a value on either axis, the newest first.
 - **Show done** includes done and canceled cards; otherwise the toolbar says how many are hidden.
 - Each cell shows its first 50 cards, then **Show 50 more of N**. Under 640 px the cells stack in one column.
 
