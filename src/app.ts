@@ -212,7 +212,9 @@ export function registerApp(deps: AppDeps, root: HTMLElement, timing?: Timing): 
     e.preventDefault();
     if (!workspace.escape()) close();
   });
-  const offHostKeys = installHostKeys(doc, host, { isVisible: () => visible, focusFrame: () => doc.defaultView?.focus() });
+  // N80: docked, the page beside Planner is live, so focus that falls to the host body stays there (leaving a block with
+  // Shift+Up to select blocks does that); only the workspace, which covers the page, takes it back.
+  const offHostKeys = installHostKeys(doc, host, { isVisible: () => visible && surface === "workspace", focusFrame: () => doc.defaultView?.focus() });
 
   // N55: the host's icon font for tabler-icons characters in titles and values (desktop app only: the host document is reachable).
   const hostWin = host?.defaultView as (Window & typeof globalThis) | null | undefined;

@@ -19,8 +19,9 @@ working while Planner is open on the desktop app. Planner passes on the keys it 
 not Escape, Tab, Enter, Space, the arrow keys, Home, End or Page Up / Down on their own, and not
 the keys you type in a text field (Cmd+K and other non-editing Cmd / Ctrl shortcuts still pass). The web
 app cannot do this: Planner's frame is a different origin there, so Logseq's shortcuts do not work while
-Planner has focus. When a Logseq dialog opened this way closes (Cmd+K, then Escape), focus returns to Planner,
-so its own keys work again.
+Planner has focus. When a Logseq dialog opened this way closes (Cmd+K, then Escape), focus returns to Planner
+in the workspace, so its own keys work again. Docked, the focus stays in the page, so Shift+Up and Shift+Down keep
+selecting blocks there; click Planner to use its keys.
 
 ## Workspace or sidebar
 
