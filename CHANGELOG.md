@@ -6,6 +6,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-10-18
+
 ### Fixed
 
 - With Planner docked on the right, Shift+Up (or Shift+Down) in a page selected one block and stopped: Planner took the keyboard focus when the page let go of it. Docked, the focus now stays in the page (N80).
