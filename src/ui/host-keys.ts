@@ -44,7 +44,7 @@ export type HostDocument = Pick<Document, "body" | "activeElement" | "hasFocus" 
 
 /** What the focus hand-back needs from the app. */
 export interface FocusBack {
-  /** Planner is shown. */
+  /** Planner is shown and covers the page (the workspace; docked, the page keeps its focus, N80). */
   isVisible(): boolean;
   /** Focuses the plugin frame (`window.focus()`). */
   focusFrame(): void;

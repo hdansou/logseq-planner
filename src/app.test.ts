@@ -614,6 +614,29 @@ describe("sidebar surface beside the host's sidebar (N40)", () => {
   const ptr = (type: string, clientX: number) =>
     root.querySelector("[data-dock-resize]")!.dispatchEvent(new PointerEvent(type, { clientX, pointerId: 1, button: 0, bubbles: true }));
 
+  it("docked, focus leaving a block for the host body stays in the page: Shift+Up keeps selecting blocks (N80)", async () => {
+    // owner: docked, Shift+Up in the page selected one block and stopped. Leaving the editor drops the host's focus to its
+    // body; the hand-back (N16) then focused Planner's frame, which keeps bare arrow keys, so the next Shift+Up never reached the page.
+    const d = docked();
+    d.host.hasFocus = () => true;
+    const focus = vi.spyOn(window, "focus");
+    await opened(d);
+    switchTo("sidebar");
+    focus.mockClear();
+    const focusOut = async () => {
+      d.host.body.dispatchEvent(new Event("focusout", { bubbles: true }));
+      await new Promise((r) => setTimeout(r, 5));
+    };
+    await focusOut();
+    expect(focus).not.toHaveBeenCalled();
+    switchTo("workspace"); // Planner covers the page again: a closed host dialog hands focus back as before
+    focus.mockClear();
+    await focusOut();
+    expect(focus).toHaveBeenCalledTimes(1);
+    d.unload.forEach((cb) => cb());
+    focus.mockRestore();
+  });
+
   it("a node opened while docked leaves Planner docked; back in the workspace it hides Planner again (N43)", async () => {
     const d = docked();
     await opened(d);
